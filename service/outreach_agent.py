@@ -55,6 +55,7 @@ def db_file() -> Path:
 class FactUsed(BaseModel):
     fact: str
     url: str
+    date: str | None = None           # the source's posted/updated date, when known
 
 
 class Draft(BaseModel):
@@ -103,7 +104,8 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
     load_dotenv(REPO_ROOT / ".env")
     today = today or as_of_date(score_why)
 
-    ranked = rank_org_facts(donor, research_facts, org_facts)
+    channels = " ".join(sorted({g.get("channel") or "" for g in gifts}))   # a Give Miami Day giver fits Give Miami Day facts
+    ranked = rank_org_facts(donor | {"notes": f"{donor.get('notes') or ''} {channels}"}, research_facts, org_facts)
     facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
              for i, f in enumerate(ranked[:MAX_ORG_FACTS], 1)}
     facts |= {f"R{i}": {"fact": f["fact"], "url": f.get("source_url") or f.get("url", "")}
@@ -134,7 +136,7 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
         subject=out.subject,
         body=out.body,
         call_script=out.call_script,
-        facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"]) for i in dict.fromkeys(out.fact_ids)],
+        facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"], date=facts[i].get("date")) for i in dict.fromkeys(out.fact_ids)],
         status="draft" if big else "ready",
     )
 
@@ -153,8 +155,14 @@ TOPICS = {
     "legal":      ("legal", "law firm", "pro bono", "attorney"),
     "resilience": ("resilience", "disaster", "climate", "hurricane", "preparedness"),
     "civic":      ("vote", "candidate", "election", "civic"),
+    "give miami day": ("give miami day",),
     "business":   ("small business", "small-business", "lending", "bank", "workforce", "jobs", "living wage", "wells fargo"),
 }
+
+
+# words every donor record or fact shares; matching on them is noise
+GENERIC_WORDS = {"miami", "foundation", "family", "their", "which", "donor", "donors", "sample", "advised",
+                 "giver", "givers", "giving", "gifts", "lapsing", "organization", "individual"}
 
 
 def donor_text(donor: dict, research_facts: list[dict]) -> str:
@@ -174,7 +182,7 @@ def rank_org_facts(donor: dict, research_facts: list[dict], org_facts: list[dict
     if not org_facts:
         return []
     text = donor_text(donor, research_facts)
-    words = {w for w in re.findall(r"[a-z][a-z'-]{4,}", text)} - {"miami", "foundation", "family", "their", "which"}
+    words = {w for w in re.findall(r"[a-z][a-z'-]{4,}", text)} - GENERIC_WORDS
     want = topics_in(text)
 
     shift = int(donor.get("id") or 0) % len(org_facts)
@@ -184,7 +192,8 @@ def rank_org_facts(donor: dict, research_facts: list[dict], org_facts: list[dict
         ft = f["fact"].lower()
         same_priority = 3 if priority and f.get("priority") == priority else 0
         return same_priority + 2 * len(want & topics_in(ft)) + sum(w in ft for w in words)
-    return sorted(rotated, key=fit, reverse=True)       # stable: ties keep the rotated order
+    # best fit first, then the newest; equal fit and date keep the rotated order (sort is stable)
+    return sorted(rotated, key=lambda f: (fit(f), f.get("date") or ""), reverse=True)
 
 
 def as_of_date(why) -> date:
@@ -521,7 +530,7 @@ O1 was chosen to fit this organization: lead with O1, and list it first in fact_
         subject=out.subject,
         body=out.body,
         call_script=out.call_script,
-        facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"]) for i in dict.fromkeys(out.fact_ids)],
+        facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"], date=facts[i].get("date")) for i in dict.fromkeys(out.fact_ids)],
         status="draft",
     )
 

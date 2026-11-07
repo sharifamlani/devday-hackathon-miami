@@ -112,6 +112,17 @@ def cached_icp() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+def prospect_status(prospect_id: int) -> str | None:
+    """'new' | 'drafted' | 'dismissed', or None when there is no such prospect."""
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        row = conn.execute("SELECT status FROM prospects WHERE id = ?", (prospect_id,)).fetchone()
+    finally:
+        conn.close()
+    return row["status"] if row else None
+
+
 def draft_id_of(where_saved: str) -> int | None:
     # save_draft reports "donors.db:outreach_drafts#<id>" when it wrote to the db, a JSON path otherwise
     return int(where_saved.rsplit("#", 1)[1]) if "#" in where_saved else None
@@ -197,10 +208,18 @@ def persist_icp(result: dict) -> dict | None:
 
 @app.post("/prospects/{prospect_id}/outreach")
 async def prospect_outreach(prospect_id: int) -> dict:
+    """409 for a dismissed prospect, 404 for an unknown one; otherwise a first-touch draft (status 'draft')."""
     try:
         from service.outreach_agent import draft_for_prospect
     except ImportError:
         raise not_landed("service.outreach_agent.draft_for_prospect")
+
+    # Checked before the model call: a dismissed prospect never gets a draft
+    status = prospect_status(prospect_id)
+    if status is None:
+        raise HTTPException(404, f"prospect {prospect_id} not found")
+    if status == "dismissed":
+        raise HTTPException(409, f"prospect {prospect_id} is dismissed")
 
     try:
         draft, where_saved = await run_agent(
@@ -296,11 +315,19 @@ def source_progress(req: "ContextRun", result: dict | None) -> dict:
     return out
 
 
+def with_user_urls(result: dict | None, urls: dict) -> dict | None:
+    """What the user typed is always what's saved; a cached run supplies facts, never the org's URLs."""
+    if not result or not isinstance(result.get("profile"), dict):
+        return result
+    return {**result, "profile": {**result["profile"], **urls}}
+
+
 @app.post("/context/run")
 async def context_run(req: ContextRun) -> dict:
     """Onboarding screen 2, synchronous: reads the website (≤ CONTEXT_DEADLINE_S), saves, returns per-source status.
 
-    On timeout or failure it returns the cached context with cached: true (still 200, so the screen moves on).
+    served_from: "live" (refresh read the site), "cache" (refresh false, by request), or "fallback"
+    (the read timed out or failed: cached: true, still 200, so the screen moves on).
     """
     try:
         from service.org_context import build_context
@@ -312,7 +339,9 @@ async def context_run(req: ContextRun) -> dict:
     try:
         result = await asyncio.wait_for(run_in_threadpool(build_context, urls, req.refresh),
                                         config.CONTEXT_DEADLINE_S)
+        result = with_user_urls(result, urls)
         state, cached, detail = "done", False, None
+        served_from = "live" if req.refresh else "cache"
         saved = await run_in_threadpool(persist_context, result)
     except Exception as e:  # timeout, model error, site error: fall back, never leave the screen hanging
         if isinstance(e, asyncio.TimeoutError):
@@ -320,9 +349,10 @@ async def context_run(req: ContextRun) -> dict:
         else:
             detail = f"{type(e).__name__}: {e}"
         log.warning("context run failed, serving cached context: %s", detail)
-        result, state, cached, saved = cached_context(req.website), "failed", True, None
+        result = with_user_urls(cached_context(req.website), urls)
+        state, cached, served_from, saved = "failed", True, "fallback", None
 
-    return {"state": state, "cached": cached, "detail": detail,
+    return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": source_progress(req, result),
             "profile": (result or {}).get("profile"), "facts": (result or {}).get("facts", []),
