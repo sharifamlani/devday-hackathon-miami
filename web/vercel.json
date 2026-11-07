@@ -2,5 +2,8 @@
   "framework": null,
   "installCommand": "npm ci",
   "buildCommand": "npm run build:demo",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/ask.ts": { "maxDuration": 20 }
+  }
 }
