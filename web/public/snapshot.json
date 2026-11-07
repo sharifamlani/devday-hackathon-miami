@@ -1,0 +1,1540 @@
+{
+ "meta": {
+  "as_of": "2026-11-08",
+  "generated_at": "2026-11-07T21:10:56+00:00",
+  "label": "Cached sample",
+  "donor_count": 8,
+  "source": "service/export_snapshot.py from data/donors.db"
+ },
+ "donors": [
+  {
+   "id": 1,
+   "full_name": "Maria Delgado",
+   "first_name": "Maria",
+   "last_name": "Delgado",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "maria.delgado@example.com",
+   "emails_all": [
+    "maria.delgado@example.com"
+   ],
+   "phone": "+13055550101",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Donor Advised",
+   "notes": "SAMPLE: lapsing Give Miami Day giver",
+   "source_row": "seed",
+   "score": 89,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "missed_seasonal_window",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 55.0,
+     "value": 16.8,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 11000.0,
+    "largest_gift": 3000.0,
+    "last_gift": {
+     "date": "2025-11-20",
+     "amount": 3000.0,
+     "channel": "Give Miami Day"
+    },
+    "days_since_last_gift": 353,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.97,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 11,
+     "month_name": "November",
+     "channel": "Give Miami Day",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 7,
+   "full_name": "Luis Herrera",
+   "first_name": "Luis",
+   "last_name": "Herrera",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "luis.herrera@example.com",
+   "emails_all": [
+    "luis.herrera@example.com"
+   ],
+   "phone": "+13055550155",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Donor Advised",
+   "notes": "SAMPLE: December giver, window next month",
+   "source_row": "seed",
+   "score": 80,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "seasonal_window_next_month",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 46.8,
+     "value": 15.2,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 4400.0,
+    "largest_gift": 1200.0,
+    "last_gift": {
+     "date": "2025-12-15",
+     "amount": 1200.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 328,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.9,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 12,
+     "month_name": "December",
+     "channel": "online",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 5,
+   "full_name": "Robert Nguyen",
+   "first_name": "Robert",
+   "last_name": "Nguyen",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "rob.nguyen@example.com",
+   "emails_all": [
+    "rob.nguyen@example.com"
+   ],
+   "phone": "+13055550177",
+   "city": "Doral",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE: quarterly donor, overdue",
+   "source_row": "seed",
+   "score": 71,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "overdue_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 36.5,
+     "value": 14.5,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 6,
+    "lifetime_total": 3000.0,
+    "largest_gift": 500.0,
+    "last_gift": {
+     "date": "2026-04-09",
+     "amount": 500.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 213,
+    "usual_cadence_days": 91,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 2.34,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 3,
+   "full_name": "James Carter",
+   "first_name": "James",
+   "last_name": "Carter",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "jcarter@example.com",
+   "emails_all": [
+    "jcarter@example.com"
+   ],
+   "phone": "+13055550144",
+   "city": "Coral Gables",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE: on-track monthly donor",
+   "source_row": "seed",
+   "score": 45,
+   "tier": "mid",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 12.5,
+     "value": 12.7,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 22,
+    "lifetime_total": 1100.0,
+    "largest_gift": 50.0,
+    "last_gift": {
+     "date": "2026-10-15",
+     "amount": 50.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 24,
+    "usual_cadence_days": 31,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.77,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 4,
+   "full_name": "Biscayne Harbor Family Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Biscayne Harbor Family Foundation",
+   "donor_type": "organization",
+   "email": "grants@biscayneharbor.example.org",
+   "emails_all": [
+    "grants@biscayneharbor.example.org"
+   ],
+   "phone": "+13055550199",
+   "city": "Miami Beach",
+   "state": "FL",
+   "fund_type": "Endowment",
+   "notes": "SAMPLE: Shack-level star fundholder, on track",
+   "source_row": "seed",
+   "score": 45,
+   "tier": "big",
+   "is_star": true,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "shack_society_level",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 2.7,
+     "value": 25.0,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 1650000.0,
+    "largest_gift": 500000.0,
+    "last_gift": {
+     "date": "2026-09-08",
+     "amount": 450000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 61,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.17,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 9,
+     "month_name": "September",
+     "channel": "check",
+     "years": [
+      2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 2,
+   "full_name": "María Delgado-Ruiz",
+   "first_name": "María",
+   "last_name": "Delgado-Ruiz",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "mdelgado@work.example.com",
+   "emails_all": [
+    "mdelgado@work.example.com",
+    "Maria.Delgado@example.com"
+   ],
+   "phone": "(305) 555-0101",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: planted duplicate of Maria Delgado (name variant, shared email)",
+   "source_row": "seed",
+   "score": 29,
+   "tier": "small",
+   "is_star": false,
+   "status": "lapsed",
+   "why": {
+    "status": "lapsed",
+    "reasons": [
+     "overdue_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 16.5,
+     "value": 10.0,
+     "frequency": 2.4,
+     "engagement": 0.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 250.0,
+    "largest_gift": 250.0,
+    "last_gift": {
+     "date": "2021-06-02",
+     "amount": 250.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 1985,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 5.44,
+    "gave_this_year": false,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 6,
+   "full_name": "Angela Brooks",
+   "first_name": "Angela",
+   "last_name": "Brooks",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "angela.brooks@example.com",
+   "emails_all": [
+    "angela.brooks@example.com"
+   ],
+   "phone": "+13055550122",
+   "city": "Homestead",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: one gift long ago",
+   "source_row": "seed",
+   "score": 27,
+   "tier": "small",
+   "is_star": false,
+   "status": "lapsed",
+   "why": {
+    "status": "lapsed",
+    "reasons": [
+     "overdue_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 16.5,
+     "value": 8.3,
+     "frequency": 2.4,
+     "engagement": 0.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 100.0,
+    "largest_gift": 100.0,
+    "last_gift": {
+     "date": "2019-05-03",
+     "amount": 100.0,
+     "channel": "event"
+    },
+    "days_since_last_gift": 2746,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 7.52,
+    "gave_this_year": false,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 8,
+   "full_name": "Priya Shah",
+   "first_name": "Priya",
+   "last_name": "Shah",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "priya.shah@example.com",
+   "emails_all": [
+    "priya.shah@example.com"
+   ],
+   "phone": "+13055550166",
+   "city": "Aventura",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: first gift this year",
+   "source_row": "seed",
+   "score": 24,
+   "tier": "small",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 3.5,
+     "value": 9.6,
+     "frequency": 2.4,
+     "engagement": 8.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 200.0,
+    "largest_gift": 200.0,
+    "last_gift": {
+     "date": "2026-08-20",
+     "amount": 200.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 80,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 0.22,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  }
+ ],
+ "donor_details": {
+  "1": {
+   "id": 1,
+   "full_name": "Maria Delgado",
+   "first_name": "Maria",
+   "last_name": "Delgado",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "maria.delgado@example.com",
+   "emails_all": [
+    "maria.delgado@example.com"
+   ],
+   "phone": "+13055550101",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Donor Advised",
+   "notes": "SAMPLE: lapsing Give Miami Day giver",
+   "source_row": "seed",
+   "score": 89,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "missed_seasonal_window",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 55.0,
+     "value": 16.8,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 11000.0,
+    "largest_gift": 3000.0,
+    "last_gift": {
+     "date": "2025-11-20",
+     "amount": 3000.0,
+     "channel": "Give Miami Day"
+    },
+    "days_since_last_gift": 353,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.97,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 11,
+     "month_name": "November",
+     "channel": "Give Miami Day",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 4,
+     "donor_id": 1,
+     "amount": 3000.0,
+     "gift_date": "2025-11-20",
+     "channel": "Give Miami Day",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 3,
+     "donor_id": 1,
+     "amount": 3000.0,
+     "gift_date": "2024-11-21",
+     "channel": "Give Miami Day",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 2,
+     "donor_id": 1,
+     "amount": 2500.0,
+     "gift_date": "2023-11-16",
+     "channel": "Give Miami Day",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 1,
+     "donor_id": 1,
+     "amount": 2500.0,
+     "gift_date": "2022-11-17",
+     "channel": "Give Miami Day",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "7": {
+   "id": 7,
+   "full_name": "Luis Herrera",
+   "first_name": "Luis",
+   "last_name": "Herrera",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "luis.herrera@example.com",
+   "emails_all": [
+    "luis.herrera@example.com"
+   ],
+   "phone": "+13055550155",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Donor Advised",
+   "notes": "SAMPLE: December giver, window next month",
+   "source_row": "seed",
+   "score": 80,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "seasonal_window_next_month",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 46.8,
+     "value": 15.2,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 4400.0,
+    "largest_gift": 1200.0,
+    "last_gift": {
+     "date": "2025-12-15",
+     "amount": 1200.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 328,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.9,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 12,
+     "month_name": "December",
+     "channel": "online",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 42,
+     "donor_id": 7,
+     "amount": 1200.0,
+     "gift_date": "2025-12-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 41,
+     "donor_id": 7,
+     "amount": 1200.0,
+     "gift_date": "2024-12-16",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 40,
+     "donor_id": 7,
+     "amount": 1000.0,
+     "gift_date": "2023-12-12",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 39,
+     "donor_id": 7,
+     "amount": 1000.0,
+     "gift_date": "2022-12-14",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "5": {
+   "id": 5,
+   "full_name": "Robert Nguyen",
+   "first_name": "Robert",
+   "last_name": "Nguyen",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "rob.nguyen@example.com",
+   "emails_all": [
+    "rob.nguyen@example.com"
+   ],
+   "phone": "+13055550177",
+   "city": "Doral",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE: quarterly donor, overdue",
+   "source_row": "seed",
+   "score": 71,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "overdue_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 36.5,
+     "value": 14.5,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 6,
+    "lifetime_total": 3000.0,
+    "largest_gift": 500.0,
+    "last_gift": {
+     "date": "2026-04-09",
+     "amount": 500.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 213,
+    "usual_cadence_days": 91,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 2.34,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 37,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2026-04-09",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 36,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2026-01-12",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 35,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2025-10-10",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 34,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2025-07-10",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 33,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2025-04-10",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 32,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2025-01-10",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "3": {
+   "id": 3,
+   "full_name": "James Carter",
+   "first_name": "James",
+   "last_name": "Carter",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "jcarter@example.com",
+   "emails_all": [
+    "jcarter@example.com"
+   ],
+   "phone": "+13055550144",
+   "city": "Coral Gables",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE: on-track monthly donor",
+   "source_row": "seed",
+   "score": 45,
+   "tier": "mid",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 12.5,
+     "value": 12.7,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 22,
+    "lifetime_total": 1100.0,
+    "largest_gift": 50.0,
+    "last_gift": {
+     "date": "2026-10-15",
+     "amount": 50.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 24,
+    "usual_cadence_days": 31,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.77,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 15,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-10-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 14,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-09-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 13,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-08-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 12,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-07-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 11,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-06-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 10,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-05-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 9,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-04-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 8,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-03-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 7,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-02-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 6,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-01-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 27,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-12-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 26,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-11-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 25,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-10-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 24,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-09-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 23,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-08-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 22,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-07-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 21,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-06-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 20,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-05-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 19,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-04-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 18,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-03-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 17,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-02-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 16,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-01-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "4": {
+   "id": 4,
+   "full_name": "Biscayne Harbor Family Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Biscayne Harbor Family Foundation",
+   "donor_type": "organization",
+   "email": "grants@biscayneharbor.example.org",
+   "emails_all": [
+    "grants@biscayneharbor.example.org"
+   ],
+   "phone": "+13055550199",
+   "city": "Miami Beach",
+   "state": "FL",
+   "fund_type": "Endowment",
+   "notes": "SAMPLE: Shack-level star fundholder, on track",
+   "source_row": "seed",
+   "score": 45,
+   "tier": "big",
+   "is_star": true,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "shack_society_level",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 2.7,
+     "value": 25.0,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 1650000.0,
+    "largest_gift": 500000.0,
+    "last_gift": {
+     "date": "2026-09-08",
+     "amount": 450000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 61,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.17,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 9,
+     "month_name": "September",
+     "channel": "check",
+     "years": [
+      2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 31,
+     "donor_id": 4,
+     "amount": 450000.0,
+     "gift_date": "2026-09-08",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 30,
+     "donor_id": 4,
+     "amount": 500000.0,
+     "gift_date": "2025-09-09",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 29,
+     "donor_id": 4,
+     "amount": 400000.0,
+     "gift_date": "2024-09-10",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 28,
+     "donor_id": 4,
+     "amount": 300000.0,
+     "gift_date": "2023-09-12",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "2": {
+   "id": 2,
+   "full_name": "María Delgado-Ruiz",
+   "first_name": "María",
+   "last_name": "Delgado-Ruiz",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "mdelgado@work.example.com",
+   "emails_all": [
+    "mdelgado@work.example.com",
+    "Maria.Delgado@example.com"
+   ],
+   "phone": "(305) 555-0101",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: planted duplicate of Maria Delgado (name variant, shared email)",
+   "source_row": "seed",
+   "score": 29,
+   "tier": "small",
+   "is_star": false,
+   "status": "lapsed",
+   "why": {
+    "status": "lapsed",
+    "reasons": [
+     "overdue_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 16.5,
+     "value": 10.0,
+     "frequency": 2.4,
+     "engagement": 0.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 250.0,
+    "largest_gift": 250.0,
+    "last_gift": {
+     "date": "2021-06-02",
+     "amount": 250.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 1985,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 5.44,
+    "gave_this_year": false,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 5,
+     "donor_id": 2,
+     "amount": 250.0,
+     "gift_date": "2021-06-02",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "6": {
+   "id": 6,
+   "full_name": "Angela Brooks",
+   "first_name": "Angela",
+   "last_name": "Brooks",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "angela.brooks@example.com",
+   "emails_all": [
+    "angela.brooks@example.com"
+   ],
+   "phone": "+13055550122",
+   "city": "Homestead",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: one gift long ago",
+   "source_row": "seed",
+   "score": 27,
+   "tier": "small",
+   "is_star": false,
+   "status": "lapsed",
+   "why": {
+    "status": "lapsed",
+    "reasons": [
+     "overdue_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 16.5,
+     "value": 8.3,
+     "frequency": 2.4,
+     "engagement": 0.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 100.0,
+    "largest_gift": 100.0,
+    "last_gift": {
+     "date": "2019-05-03",
+     "amount": 100.0,
+     "channel": "event"
+    },
+    "days_since_last_gift": 2746,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 7.52,
+    "gave_this_year": false,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 38,
+     "donor_id": 6,
+     "amount": 100.0,
+     "gift_date": "2019-05-03",
+     "channel": "event",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "8": {
+   "id": 8,
+   "full_name": "Priya Shah",
+   "first_name": "Priya",
+   "last_name": "Shah",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "priya.shah@example.com",
+   "emails_all": [
+    "priya.shah@example.com"
+   ],
+   "phone": "+13055550166",
+   "city": "Aventura",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: first gift this year",
+   "source_row": "seed",
+   "score": 24,
+   "tier": "small",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 3.5,
+     "value": 9.6,
+     "frequency": 2.4,
+     "engagement": 8.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 200.0,
+    "largest_gift": 200.0,
+    "last_gift": {
+     "date": "2026-08-20",
+     "amount": 200.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 80,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 0.22,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 43,
+     "donor_id": 8,
+     "amount": 200.0,
+     "gift_date": "2026-08-20",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  }
+ },
+ "duplicates": [
+  {
+   "id": 1,
+   "donor_a_id": 1,
+   "donor_b_id": 2,
+   "reasons": [
+    "same email: maria.delgado@example.com",
+    "similar name + same phone: +13055550101",
+    "similar name + same city: Miami"
+   ],
+   "confidence": 0.95,
+   "status": "pending",
+   "created_at": "2026-11-07 21:10:56",
+   "resolved_at": null,
+   "donor_a": {
+    "id": 1,
+    "full_name": "Maria Delgado",
+    "first_name": "Maria",
+    "last_name": "Delgado",
+    "org_name": null,
+    "donor_type": "individual",
+    "email": "maria.delgado@example.com",
+    "emails_all": [
+     "maria.delgado@example.com"
+    ],
+    "phone": "+13055550101",
+    "city": "Miami",
+    "state": "FL",
+    "fund_type": "Donor Advised",
+    "notes": "SAMPLE: lapsing Give Miami Day giver",
+    "source_row": "seed",
+    "score": 89,
+    "tier": "mid",
+    "is_star": false,
+    "status": "lapsing",
+    "why": {
+     "status": "lapsing",
+     "reasons": [
+      "missed_seasonal_window",
+      "loyal_repeat_giver"
+     ],
+     "points": {
+      "urgency": 55.0,
+      "value": 16.8,
+      "frequency": 9.6,
+      "engagement": 8.0
+     },
+     "gift_count": 4,
+     "lifetime_total": 11000.0,
+     "largest_gift": 3000.0,
+     "last_gift": {
+      "date": "2025-11-20",
+      "amount": 3000.0,
+      "channel": "Give Miami Day"
+     },
+     "days_since_last_gift": 353,
+     "usual_cadence_days": 364,
+     "cadence_basis": "median_interval",
+     "overdue_ratio": 0.97,
+     "gave_this_year": false,
+     "pattern": {
+      "month": 11,
+      "month_name": "November",
+      "channel": "Give Miami Day",
+      "years": [
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "gave_this_year": false
+     },
+     "days_left_in_year": 53,
+     "give_miami_day": {
+      "date": "2026-11-19",
+      "days_away": 11
+     },
+     "as_of": "2026-11-08"
+    },
+    "score_as_of": "2026-11-08"
+   },
+   "donor_a_gift_count": 4,
+   "donor_b": {
+    "id": 2,
+    "full_name": "María Delgado-Ruiz",
+    "first_name": "María",
+    "last_name": "Delgado-Ruiz",
+    "org_name": null,
+    "donor_type": "individual",
+    "email": "mdelgado@work.example.com",
+    "emails_all": [
+     "mdelgado@work.example.com",
+     "Maria.Delgado@example.com"
+    ],
+    "phone": "(305) 555-0101",
+    "city": "Miami",
+    "state": "FL",
+    "fund_type": null,
+    "notes": "SAMPLE: planted duplicate of Maria Delgado (name variant, shared email)",
+    "source_row": "seed",
+    "score": 29,
+    "tier": "small",
+    "is_star": false,
+    "status": "lapsed",
+    "why": {
+     "status": "lapsed",
+     "reasons": [
+      "overdue_vs_cadence",
+      "single_gift"
+     ],
+     "points": {
+      "urgency": 16.5,
+      "value": 10.0,
+      "frequency": 2.4,
+      "engagement": 0.0
+     },
+     "gift_count": 1,
+     "lifetime_total": 250.0,
+     "largest_gift": 250.0,
+     "last_gift": {
+      "date": "2021-06-02",
+      "amount": 250.0,
+      "channel": "online"
+     },
+     "days_since_last_gift": 1985,
+     "usual_cadence_days": 365,
+     "cadence_basis": "assumed_yearly",
+     "overdue_ratio": 5.44,
+     "gave_this_year": false,
+     "pattern": null,
+     "days_left_in_year": 53,
+     "give_miami_day": {
+      "date": "2026-11-19",
+      "days_away": 11
+     },
+     "as_of": "2026-11-08"
+    },
+    "score_as_of": "2026-11-08"
+   },
+   "donor_b_gift_count": 1
+  }
+ ]
+}
