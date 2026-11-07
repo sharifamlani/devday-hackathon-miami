@@ -200,6 +200,7 @@ fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_ur
 | Upload before ingest is running (404/503) | `"Upload isn't available yet: the ingest service is not running."` | The message |
 | Research before the context service is running (503) | `"Website research isn't available yet: …"` | The message |
 | Research ran but the live read failed or timed out | `served_from: "fallback"` | "Showing saved context", with `detail` as a tooltip |
+| Draft email on a dismissed prospect (409) | `"This prospect was dismissed, so no email is drafted."` | Better: hide or disable "Draft email" when `prospect.status === "dismissed"` |
 | Snapshot mode + research | Simulated, instantly done, `served_from: "cache"` | "Cached sample"; the website shows "no saved context" if the snapshot has none |
 
 Live timings: list < 2 s, research < 1 s (cached), outreach about 11 s, website context up to 30 s. Always show a busy state on agent buttons.

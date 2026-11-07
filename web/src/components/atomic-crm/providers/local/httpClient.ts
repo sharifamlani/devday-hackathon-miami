@@ -147,7 +147,20 @@ export const localApiMethods: DonorDeskMethods = {
       .sort((a, b) => b.fit_score - a.fit_score),
   getProspect: async (id) =>
     parseProspectDetail(await request<ApiProspect>(`/prospects/${id}`)),
-  draftProspectOutreach: (id) => postAgent(`/prospects/${id}/outreach`),
+  draftProspectOutreach: async (id) => {
+    try {
+      await postAgent(`/prospects/${id}/outreach`);
+    } catch (error) {
+      // PR #27: 409 for a dismissed prospect (no draft saved), 404 if unknown.
+      if (error instanceof ApiError && error.status === 409) {
+        throw new Error("This prospect was dismissed, so no email is drafted.");
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new Error("This prospect no longer exists.");
+      }
+      throw error;
+    }
+  },
   dismissProspect: async (id) => {
     await request(`/prospects/${id}/dismiss`, { method: "POST" });
   },

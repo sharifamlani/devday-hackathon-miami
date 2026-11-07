@@ -38,3 +38,21 @@ describe("localApiMethods outreach timeout", () => {
     );
   });
 });
+
+describe("localApiMethods.draftProspectOutreach errors (PR #27)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("explains a dismissed prospect (409)", async () => {
+    vi.stubGlobal("fetch", respond(409, { detail: "prospect 3 is dismissed" }));
+    await expect(localApiMethods.draftProspectOutreach(3)).rejects.toThrow(
+      "This prospect was dismissed, so no email is drafted.",
+    );
+  });
+
+  it("explains an unknown prospect (404)", async () => {
+    vi.stubGlobal("fetch", respond(404, { detail: "prospect 99 not found" }));
+    await expect(localApiMethods.draftProspectOutreach(99)).rejects.toThrow(
+      "This prospect no longer exists.",
+    );
+  });
+});
