@@ -92,3 +92,24 @@ def test_prospect_ranking_prefers_its_priority():
     assert rank_org_facts(prospect_as_donor(p), [], org_facts, p["priority"])[0]["url"] == "u2"
     p = p | {"priority": "Prosperity"}
     assert rank_org_facts(prospect_as_donor(p), [], org_facts, p["priority"])[0]["url"] == "u3"
+
+
+# ---- context agent (no network) -------------------------------------------------------------------
+
+def test_context_helpers_clean_urls_and_text():
+    from org_context import match_priority, norm_url, PRIORITIES, site_host, strip_links
+    assert norm_url("https://miamifoundation.org/es/news/x?utm_source=openai#a") == "https://miamifoundation.org/news/x/"
+    assert site_host("https://www.MiamiFoundation.org/who-we-are/") == "miamifoundation.org"
+    assert strip_links("All of us, together. ([miamifoundation.org](https://miamifoundation.org/?utm_source=openai))") == "All of us, together."
+    assert match_priority("Generating Prosperity", list(PRIORITIES)) == "Prosperity"
+
+
+def test_build_context_without_refresh_returns_the_cached_run():
+    from org_context import FOUNDATION_URLS, build_context
+    seen = []
+    res = build_context(FOUNDATION_URLS, refresh=False, progress=lambda s, st: seen.append((s, st)))
+    assert len(res["facts"]) >= 10 and {"website", "news"} <= {f["source"] for f in res["facts"]}
+    assert all(f["url"] and f["posted_at"] for f in res["facts"])
+    assert res["sources"]["website"] == "cached" and res["sources"]["linkedin"] == "skipped"
+    assert res["source_notes"]["linkedin"] == "saved, not connected"
+    assert ("website", "cached") in seen

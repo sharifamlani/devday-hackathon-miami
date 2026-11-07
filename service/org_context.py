@@ -230,8 +230,16 @@ def refresh_pages() -> list[dict]:
 
 
 def load_org_facts() -> list[dict]:
-    """The cached facts, newest first. This is what outreach_agent reads; it never hits the network."""
-    return sorted((scrub(f) for f in cached_facts()), key=lambda f: f["date"], reverse=True)
+    """Every org fact outreach may cite, newest first, from the cache only (never the network):
+    org_facts.json plus the context agent's facts (the org_context table when db.py has it,
+    else service/context_cache.json). Duplicates by url + fact are dropped."""
+    facts, seen = [], set()
+    for f in [scrub(f) for f in cached_facts()] + context_as_org_facts():
+        key = (f["url"], re.sub(r"\W+", " ", f["fact"].lower())[:60])
+        if key not in seen:
+            seen.add(key)
+            facts.append(f)
+    return sorted(facts, key=lambda f: f.get("date") or "", reverse=True)
 
 
 def priority_counts(facts: list[dict]) -> dict:
@@ -249,12 +257,268 @@ def scrub(fact: dict) -> dict:
     return fact | {k: PRESS_FORWARD_TOTAL.sub("", fact[k]) for k in ("fact", "quote") if k in fact}
 
 
+# ----------------------------------------------------------------------------------------------
+# Context agent: build_context(urls) researches an org's website and news, live, via hosted search
+# ----------------------------------------------------------------------------------------------
+#
+# A direct fetch of miamifoundation.org now hits a CAPTCHA, so the agent reaches the site through
+# the Agents SDK's hosted WebSearchTool (OpenAI-side search). Hosted search returns its sources,
+# not page text, so live facts are "search-cited": a fact is kept only if its URL is on the org's
+# own site AND among the URLs that run's searches actually returned, and it has a date. Its quote
+# can't be checked against the page itself. Social URLs are stored on the profile, never fetched.
+
+CONTEXT_CACHE = SERVICE_DIR / "context_cache.json"
+SOCIALS = {"x": ("x_url", "x"), "linkedin": ("linkedin_url", "linkedin"), "instagram": ("instagram_url", "instagram")}
+CONTEXT_TIMEOUT_S = 40
+
+# Read from miamifoundation.org's own footer links on 2026-11-07; the site links no X account
+FOUNDATION_URLS = {"name": "The Miami Foundation", "website": "https://miamifoundation.org/", "x_url": None,
+                   "linkedin_url": "https://www.linkedin.com/company/the-miami-foundation/",
+                   "instagram_url": "https://www.instagram.com/miamifoundation/"}
+
+
+class ContextFact(BaseModel):
+    fact: str = Field(description="One plain sentence about what the organization did or runs, numbers copied exactly")
+    quote: str = Field(description="A short verbatim span from the search result that supports the fact")
+    url: str = Field(description="The exact page URL on the organization's site where this appears, as returned by search")
+    posted_at: str = Field(description="YYYY-MM-DD the page or post was published or last updated; empty if not shown")
+    priority: str = Field(description="The organization's own priority or focus area this fact serves, as the site names it")
+
+
+class ContextFacts(BaseModel):
+    facts: list[ContextFact]
+
+
+class ProfileOut(BaseModel):
+    name: str
+    priorities: list[str] = Field(description="The organization's own priority or focus areas, short, as its site names them (3-6)")
+    voice: list[str] = Field(description="3 to 5 short phrases copied verbatim from the site that show its voice")
+    voice_urls: list[str] = Field(description="The pages those phrases came from")
+
+
+def site_host(url: str | None) -> str:
+    host = re.sub(r"^https?://", "", (url or "").strip().lower()).split("/")[0]
+    return host.removeprefix("www.")
+
+
+def norm_url(url: str) -> str:
+    """Drop query, fragment and the site's /es/ and /ht/ language prefixes; keep a trailing slash."""
+    u = url.split("#")[0].split("?")[0]
+    u = re.sub(r"^(https?://[^/]+)/(?:es|ht)/", r"\1/", u)
+    return u if u.endswith("/") or "." in u.rsplit("/", 1)[-1] else u + "/"
+
+
+def search_sources(result) -> set[str]:
+    """Every URL the run's hosted searches returned or opened."""
+    urls = set()
+    for item in result.new_items:
+        raw = getattr(item, "raw_item", None)
+        if type(raw).__name__ != "ResponseFunctionWebSearch":
+            continue
+        action = raw.action
+        for s in getattr(action, "sources", None) or []:
+            if getattr(s, "url", None):
+                urls.add(norm_url(s.url))
+        if getattr(action, "url", None):
+            urls.add(norm_url(action.url))
+    return urls
+
+
+def search_model():
+    from agents import OpenAIResponsesModel
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(timeout=CONTEXT_TIMEOUT_S, max_retries=1)
+    return OpenAIResponsesModel(model=os.getenv("OPENAI_MODEL_DEFAULT"), openai_client=client)
+
+
+def search_agent(name: str, instructions: str, output_type):
+    from agents import Agent, ModelSettings, WebSearchTool
+    from openai.types.shared import Reasoning
+    return Agent(name=name, instructions=instructions, model=search_model(), tools=[WebSearchTool()],
+                 output_type=output_type,
+                 model_settings=ModelSettings(reasoning=Reasoning(effort="low"),
+                                              response_include=["web_search_call.action.sources"]))
+
+
+def context_prompts(host: str, today: str, priorities: list[str]) -> dict:
+    tag = (f"priority must be exactly one of: {' | '.join(priorities)}." if priorities
+           else "priority is the organization's own focus area, as its site names it.")
+    rules = (f"Search only {host} (use site:{host}). Use only pages your searches return; the url must be that "
+             "page's exact URL. Copy numbers exactly; never add a number, name or date that isn't in the result. "
+             "posted_at is the date shown for that page or post (YYYY-MM-DD); leave it empty if none is shown. "
+             f"Plain text only: no links or markdown in fact or quote. {tag}")
+    return {
+        "website": (f"Find 8-10 concrete programs, investments or results from {host}'s own dated pages: "
+                    f"year-in-review posts, impact reports, program launches and announcements, newest first. {rules}"),
+        "news": (f"Find 8-10 accomplishments from {host}'s news posts and newsletters published in the 90 days "
+                 f"before {today}, newest first. {rules}"),
+    }
+
+
+async def run_context_searches(host: str, today: str, priorities: list[str], progress) -> tuple[dict, dict]:
+    import asyncio
+    from agents import Runner
+
+    prompts = context_prompts(host, today, priorities)
+    profile_agent = search_agent("ContextProfile", f"Search only {host} (site:{host}). Report the organization's "
+                                 "name, its own priority areas as the site names them, and 3-5 short phrases copied "
+                                 "verbatim from the site that show its voice, with the pages they came from.", ProfileOut)
+
+    async def one(source: str, agent, prompt: str):
+        progress(source, "running")
+        try:
+            r = await Runner.run(agent, prompt)
+            return source, r, None
+        except Exception as e:                       # one source failing must not sink the others
+            return source, None, f"error: {type(e).__name__}"
+
+    jobs = [one("profile", profile_agent, f"Profile of {host}")]
+    jobs += [one(s, search_agent(f"Context-{s}", "You research an organization's own website.", ContextFacts), p)
+             for s, p in prompts.items()]
+    results = {s: (r, err) for s, r, err in await asyncio.gather(*jobs)}
+    return results, prompts
+
+
+def strip_links(s: str) -> str:
+    """Hosted search tends to append '([site](url))' citations inside text; facts stay plain."""
+    s = re.sub(r"\s*\(\[[^\]]*\]\([^)]*\)\)", "", s or "")
+    return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"", s).strip()
+
+
+def match_priority(label: str, priorities: list[str]) -> str | None:
+    """Map a fact's free-text priority onto the org's priority list (the Foundation's five short tags
+    when it's miamifoundation.org)."""
+    short = normalize_priority(label)
+    if short in priorities:
+        return short
+    words = set(re.findall(r"[a-z]{4,}", (label or "").lower()))
+    best = max(priorities, key=lambda p: len(words & set(re.findall(r"[a-z]{4,}", p.lower()))), default=None)
+    return best if best and words & set(re.findall(r"[a-z]{4,}", best.lower())) else None
+
+
+def build_context(urls: dict, refresh: bool = False, progress=None) -> dict:
+    """The context agent. urls: {name, website, x_url, linkedin_url, instagram_url} (bare x/linkedin/
+    instagram keys also accepted; None = not provided). Pure: no db writes (db.save_context stores it).
+    refresh=False returns the last good run from service/context_cache.json when there is one.
+    progress(source, status) is called as each source starts and finishes."""
+    import asyncio
+    import time
+    from datetime import date as _date
+
+    progress = progress or (lambda source, status: None)
+    website = urls.get("website")
+    host = site_host(website)
+    socials = {k: urls.get(a) or urls.get(b) for k, (a, b) in SOCIALS.items()}
+    cache = json.loads(CONTEXT_CACHE.read_text(encoding="utf-8")) if CONTEXT_CACHE.exists() else {}
+
+    if not refresh and host in cache:
+        out = cache[host]
+        out["sources"] = {s: ("cached" if st == "ok" else st) for s, st in out["sources"].items()}
+        for s, st in out["sources"].items():
+            progress(s, st)
+        return out
+    if not host:
+        raise ValueError("build_context needs a website URL")
+
+    load_dotenv(REPO_ROOT / ".env")
+    started = time.monotonic()
+    today = os.environ.get("SCORE_AS_OF") or _date.today().isoformat()
+    for k, u in socials.items():
+        progress(k, "saved, not connected" if u else "not provided")
+
+    known = list(PRIORITIES) if host == "miamifoundation.org" else []   # the Foundation's five tags
+    results, _ = asyncio.run(run_context_searches(host, today, known, progress))
+
+    profile_r, _ = results.get("profile", (None, None))
+    prof = profile_r.final_output if profile_r else None
+    priorities = known or (prof.priorities if prof else [])
+    captured_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    facts, sources, notes, dropped = [], {}, {}, {}
+    for source in ("website", "news"):
+        r, err = results[source]
+        if err:
+            sources[source], notes[source] = "error", err
+            progress(source, err)
+            continue
+        cited = search_sources(r)
+        kept, why_dropped = [], []
+        for f in r.final_output.facts:
+            url = norm_url(f.url)
+            if site_host(url) != host:
+                why_dropped.append(f"off-site url {url}")
+            elif url not in cited:
+                why_dropped.append(f"url not returned by search {url}")
+            elif not re.fullmatch(r"\d{4}-\d{2}-\d{2}", f.posted_at or ""):
+                why_dropped.append(f"undated {url}")
+            elif "press forward" in f.fact.lower() and re.search(r"760,000|\$760K|nearly \$1", f.fact, re.I):
+                why_dropped.append("Press Forward total (sources disagree)")
+            else:
+                kept.append({"source": source, "url": url, "posted_at": f.posted_at, "fact": strip_links(f.fact),
+                             "quote": strip_links(f.quote), "priority": match_priority(f.priority, priorities),
+                             "captured_at": captured_at, "verification": "search-cited"})
+        facts += kept
+        dropped[source] = why_dropped
+        sources[source], notes[source] = "ok", f"done {len(kept)} facts"
+        progress(source, notes[source])
+
+    for k, u in socials.items():
+        sources[k] = "skipped"
+        notes[k] = "saved, not connected" if u else "not provided"
+
+    facts.sort(key=lambda f: f["posted_at"], reverse=True)
+    voice_urls = [norm_url(u) for u in (prof.voice_urls if prof else []) if site_host(u) == host]
+    out = {
+        "profile": {"name": urls.get("name") or (prof.name if prof else host), "website": website,
+                    "x_url": socials["x"], "linkedin_url": socials["linkedin"], "instagram_url": socials["instagram"],
+                    "priorities": [p for p in priorities if any(f["priority"] == p for f in facts)] or priorities,
+                    "voice": {"phrases": [strip_links(v) for v in (prof.voice if prof else [])][:5], "urls": voice_urls}},
+        "facts": facts,
+        "sources": sources,
+        "source_notes": notes,
+        "dropped": dropped,
+        "run_seconds": round(time.monotonic() - started, 1),
+        "captured_at": captured_at,
+    }
+    if facts:                                         # cache only a good run
+        cache[host] = out
+        CONTEXT_CACHE.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8")
+    return out
+
+
+def context_as_org_facts() -> list[dict]:
+    """Context facts in the shape outreach ranks: the org_context table if db.py has created it,
+    else the cached runs in context_cache.json."""
+    rows = []
+    db = Path(os.environ.get("DONORS_DB", REPO_ROOT / "data" / "donors.db"))
+    if db.exists():
+        import sqlite3
+        with sqlite3.connect(db) as con:
+            con.row_factory = sqlite3.Row
+            if con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_context'").fetchone():
+                rows = [dict(r) for r in con.execute("SELECT * FROM org_context")]
+    if not rows and CONTEXT_CACHE.exists():
+        rows = [f for run in json.loads(CONTEXT_CACHE.read_text(encoding="utf-8")).values() for f in run["facts"]]
+    return [{"date": r.get("posted_at"), "kind": r.get("source"), "fact": r["fact"], "quote": r.get("quote"),
+             "priority": normalize_priority(r.get("priority")) or r.get("priority"), "url": r["url"]}
+            for r in rows if r.get("fact") and r.get("url")]
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--show", action="store_true", help="print the cached facts instead of refreshing")
     ap.add_argument("--pages", action="store_true", help="refresh page facts from org_pages.json (not the news feed)")
     ap.add_argument("--posts", type=int, default=20)
+    ap.add_argument("--context", action="store_true", help="run the context agent live on the Foundation's URLs")
     args = ap.parse_args()
+
+    if args.context:
+        res = build_context(FOUNDATION_URLS, refresh=True, progress=lambda s, st: print(f"  [{s}] {st}", file=sys.stderr))
+        for f in res["facts"]:
+            print(f"{f['posted_at']}  [{f['source']}|{f['priority']}]  {f['fact']}\n            {f['url']}")
+        print(f"\n{len(res['facts'])} facts in {res['run_seconds']} s · sources {res['source_notes']}")
+        print(f"dropped: { {k: len(v) for k, v in res['dropped'].items()} }  voice: {res['profile']['voice']['phrases']}")
+        sys.exit(0)
 
     facts = load_org_facts() if args.show else refresh_pages() if args.pages else refresh_news(args.posts)
     for f in facts:
