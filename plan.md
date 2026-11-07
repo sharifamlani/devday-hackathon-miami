@@ -191,6 +191,15 @@ devday_hackathon/
 
 - [ ] Product name
 - [ ] Stack confirm at K5: Python back end + Next.js (the plan above) vs. all-TypeScript (`@openai/agents`) for one deploy
-- [ ] Open-source CRM, or just our own table? (Recommendation: our own table for the demo; a CRM adds setup risk)
+- [ ] **CRM base: recommend [marmelab/atomic-crm](https://github.com/marmelab/atomic-crm)** (MIT, verified
+      from GitHub metadata; 1.4k stars; pushed Nov 7, 2026). React + Vite + shadcn, on **Supabase**, which we
+      already have. Supabase's auto-generated REST API lets the agent service read and write with no extra
+      back-end code. It already has contacts, companies, notes, tags, tasks and CSV import. **Gaps to add:**
+      a `gifts` table (contact_id, amount, gift_date) for scoring, a tier tag, and a table for research
+      facts and outreach drafts. Its contact-merge SQL function was added and then dropped in Dec 2025, so
+      plan on our own `dedupe.py`. Estimate ~45 min to a hosted Supabase + Vercel deploy. Fallback:
+      krayin/laravel-crm (MIT, 24k stars) but PHP and not Vercel-hostable. **No MIT/Apache nonprofit-specific
+      CRM exists:** CiviCRM, Twenty, EspoCRM, SuiteCRM and Frappe CRM are all AGPL or mixed, so excluded.
+      If adopted, `web/` in §5 becomes the atomic-crm fork and the stack question below is settled.
 - [ ] Which real local businesses/foundations go in the sample list
 - [ ] Team size (4 or 5) and who owns UI, data and pitch
