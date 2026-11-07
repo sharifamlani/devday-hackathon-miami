@@ -95,11 +95,28 @@ export interface ApiOutreachDraft {
     | null;
 }
 
+/** One item of GET /donors/{id} "merges": a merge into this donor. */
+export interface ApiMergeLogEntry {
+  id: number;
+  kept_id: number;
+  merged_id: number;
+  merged_name: string;
+  merged_email?: string | null;
+  merged_emails?: string[] | null;
+  gifts_moved?: number | null;
+  merged_at: string;
+  approved_by?: string | null;
+  undone_at?: string | null;
+  can_undo?: boolean | null;
+}
+
 /** GET /donors/{id} */
 export interface ApiDonorDetail extends ApiDonorRow {
   gifts: ApiGift[];
   research_facts: ApiResearchFact[];
   outreach_drafts: ApiOutreachDraft[];
+  // Absent on older servers and snapshots.
+  merges?: ApiMergeLogEntry[] | null;
 }
 
 /** One item of GET /duplicates */
@@ -120,6 +137,15 @@ export interface ApiDuplicate {
 export interface ApiMergeResult {
   kept_donor_id: number;
   removed_donor_id: number;
+  merge_id?: number | null; // absent on servers that predate the merge log
+}
+
+/** POST /merges/{merge_id}/undo */
+export interface ApiUndoMergeResult {
+  kept_id: number;
+  restored_id: number;
+  donor?: ApiDonorRow | null;
+  restored?: unknown;
 }
 
 /** web/public/snapshot.json */
@@ -140,6 +166,7 @@ export interface ApiSnapshot {
   prospect_details?: Record<string, ApiProspect>; // == GET /prospects/{id}
   context?: ApiContext | null; // == GET /context (§15)
   org_profile?: ApiOrgProfile | null; // == GET /org-profile, if exported separately
+  targets?: ApiTargets | null; // == GET /targets (issue #37); older snapshots omit it
 }
 
 /*
@@ -270,3 +297,38 @@ export interface ApiContextRunSource {
   facts?: number;
   detail?: string | null; // block reason, or the saved URL for socials
 }
+
+/* ---------- Donation targets (issue #37, service/targets.py) ---------- */
+
+/** One period of GET /targets?period=month|quarter. Goals are SAMPLE values. */
+export interface ApiTarget {
+  period: "month" | "quarter";
+  label: string; // "November 2026", "Q4 2026"
+  start: string; // YYYY-MM-DD
+  end: string;
+  as_of: string;
+  goal: number | null;
+  goal_is_sample?: boolean;
+  raised: number;
+  percent: number | null;
+  days_left: number;
+  donors_count: number;
+  gifts_count: number;
+  by_channel: { channel: string; amount: number }[];
+  new_vs_returning: {
+    new: number;
+    returning: number;
+    new_amount?: number;
+    returning_amount?: number;
+  };
+  give_miami_day: {
+    date: string;
+    days_until: number;
+    in_period?: boolean;
+  } | null;
+  top_donor_ids: number[];
+  donor_ids?: number[]; // every donor who gave in the period, biggest first
+}
+
+/** GET /targets with no period: both. */
+export type ApiTargets = Partial<Record<"month" | "quarter", ApiTarget>>;

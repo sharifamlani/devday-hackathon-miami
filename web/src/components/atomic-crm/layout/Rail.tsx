@@ -1,4 +1,4 @@
-import { HeartHandshake, PhoneCall, Sparkles, Users } from "lucide-react";
+import { HeartHandshake, PhoneCall, Send, Sparkles, Users } from "lucide-react";
 import type { ComponentType } from "react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
@@ -11,6 +11,9 @@ export const Rail = () => {
   const translate = useTranslate();
   const onHome = !!matchPath("/", location.pathname);
   const onDonors = !!matchPath("/contacts/*", location.pathname);
+  const onCampaigns =
+    !!matchPath("/campaigns/*", location.pathname) ||
+    !!matchPath("/outbox", location.pathname);
 
   return (
     <nav
@@ -42,6 +45,12 @@ export const Rail = () => {
           label="Ask"
           icon={Sparkles}
           active={!!matchPath("/ask", location.pathname)}
+        />
+        <RailButton
+          to="/campaigns"
+          label={translate("crm.campaigns.title", { _: "Campaigns" })}
+          icon={Send}
+          active={onCampaigns}
         />
       </ul>
     </nav>

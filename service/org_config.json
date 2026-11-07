@@ -4,5 +4,15 @@
   "website": "https://miamifoundation.org",
   "x_url": null,
   "linkedin_url": "https://www.linkedin.com/company/the-miami-foundation/",
-  "instagram_url": "https://www.instagram.com/miamifoundation/"
+  "instagram_url": "https://www.instagram.com/miamifoundation/",
+  "targets": {
+    "_comment": "SAMPLE goals for the demo, invented for Donor Desk: not The Miami Foundation's real targets. Edit freely. 'default' applies to every period; a key like '2026-11' (month) or '2026-Q4' (quarter) overrides one period. Read by service/targets.py; the context stage ignores this key.",
+    "is_sample": true,
+    "month": {
+      "default": 10000
+    },
+    "quarter": {
+      "default": 150000
+    }
+  }
 }

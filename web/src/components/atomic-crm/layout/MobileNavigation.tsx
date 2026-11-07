@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { PhoneCall, Sparkles, Users } from "lucide-react";
+import { PhoneCall, Send, Sparkles, Users } from "lucide-react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
 
@@ -8,6 +8,9 @@ export const MobileNavigation = () => {
   const translate = useTranslate();
   const onHome = !!matchPath("/", location.pathname);
   const onDonors = !!matchPath("/contacts/*", location.pathname);
+  const onCampaigns =
+    !!matchPath("/campaigns/*", location.pathname) ||
+    !!matchPath("/outbox", location.pathname);
 
   // iOS standalone PWAs under-report the bottom inset; keep a floor.
   const isPwa = window.matchMedia("(display-mode: standalone)").matches;
@@ -42,6 +45,12 @@ export const MobileNavigation = () => {
           Icon={Sparkles}
           label="Ask"
           isActive={!!matchPath("/ask", location.pathname)}
+        />
+        <NavigationButton
+          href="/campaigns"
+          Icon={Send}
+          label={translate("crm.campaigns.title", { _: "Campaigns" })}
+          isActive={onCampaigns}
         />
       </div>
     </nav>
