@@ -15,7 +15,7 @@ npm run ci
 npm run dev -- --host 0.0.0.0 --port 4173 --strictPort
 ```
 
-`npm run ci` runs TypeScript, domain and interaction tests, and the production build. It makes no OpenAI or telephony requests. The team’s existing Atomic CRM checks are separate; this slice does not modify that app’s entry point, package manifest, migrations, or data providers.
+`npm run ci` runs TypeScript, domain and interaction tests, and the production build. It makes no OpenAI or telephony requests. Checks use a package-specific `*.checks.ts(x)` pattern so the parent CRM’s browser Vitest project does not discover them. The team’s existing Atomic CRM checks are separate; this slice does not modify that app’s entry point, package manifest, migrations, or data providers.
 
 ## Demo path
 
