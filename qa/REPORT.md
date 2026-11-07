@@ -195,3 +195,5 @@ The combined tree caught 1 failure (87/1); isolation showed it was #23's own tes
 
 Logic overlap (no file overlap): #23 and #27 both make user URLs win. They agree; nothing double-applies.
 Minor (90): top-level `state` stays "done" when every source failed.
+| #28 feat/ui-onboarding | de6c306 | web/ only; 31/31; build:demo ok; 409/404 messages match #27's live responses; demo 0.86 s, 0 console errors | APPROVE |
+| #29 docs/three-classes-plan | 7d4c097 | docs only; Sat Nov 7 correct | APPROVE |
