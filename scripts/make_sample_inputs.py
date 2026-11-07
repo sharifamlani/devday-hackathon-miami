@@ -505,6 +505,15 @@ def notes_text():
 - Halcyon Reef Dental Group wired a $25,000 corporate gift on Sept 22, for the youth health field-of-interest fund. Thank-you letter still owed.
 - Priya Raman dropped off a $500 check on Nov 2 - early, ahead of Give Miami Day. Thank her in person.
 
+## Pantry and community notes
+
+- Dolores Quinones (Spanish speaker, picks up pantry boxes every other Friday) put $25 in the donation jar at the
+  Oct 18 open house. Not sure whether she goes in as a donor or stays a client. Marisol to ask what she prefers.
+- Marcus Bell, one of our pantry regulars (he filled out an intake form in September), told Jules he wants to give
+  $10 a month once his new job starts in December. Nothing received yet.
+- Tomas met Gabriela Rincon at the chamber mixer. She says she wants to "get involved and probably give" and mentioned
+  her mother gets senior meals from us. No form, no gift yet.
+
 ## Action items
 
 1. Jules - call Maria, then Veloria Bay trustees.
@@ -533,6 +542,268 @@ def write_notes():
     D["nguyen"]["phones"].add(D["nguyen"]["phone"])  # stated in the notes
     for e in ("priscilla.okafor@example.com", "priscilla.okafor.law@example.org"):
         D["okafor"]["emails"].add(e)
+
+
+# --------------------------------------------------------------------------- community + neighbors (tabs 2 and 3)
+F_COMMUNITY = "community_intake_forms_2026.docx"
+F_SIGNIN = "event_signin_sheet_nov1.xlsx"
+SIGNIN_SHEET = "Nov 1 Open House"
+rng2 = random.Random(SEED + 1)  # separate stream: never disturbs the donor content
+
+# id, name, contact pref, email, phone, household, age (range or birth year, "" if not given), gender, zip,
+# neighborhood, language, programs, dog (True/False/None), pet note, notes
+COMMUNITY = [
+    ("C01", "Rosa Elena Martinez", "Phone call", "", "305-555-0150", "5", "born 1984", "Female", "33135", "Little Havana", "Spanish",
+     ["Food pantry", "After-school"], True, "Dog: Chispa", "Needs Spanish-language forms."),
+    ("C02", "Jean-Robert Toussaint", "Phone call", "", "305-555-0151", "1", "70-79", "Male", "33147", "Liberty City", "Haitian Creole",
+     ["Senior meals"], None, "", "Mobility limited; meals delivered."),
+    ("C03", "Keisha Williams", "Email", "keisha.williams@example.com", "", "4", "30-39", "Female", "33142", "Allapattah", "English",
+     ["After-school"], True, "Dog: Duke", ""),
+    ("C04", "Dmitri Volkov", "Phone call", "", "305-555-0153", "2", "born 1948", "Male", "33180", "Aventura", "Russian",
+     ["Senior meals"], False, "", "Wife also eats at the senior lunch."),
+    ("C05", "Altagracia Pena", "Text message", "", "305-555-0154", "6", "prefer not to say", "Female", "33012", "Hialeah", "Spanish",
+     ["Food pantry"], False, "Has a cat, no dog", ""),
+    ("C06", "Marcus Bell", "Email", "marcus.bell@example.org", "", "1", "18-24", "prefer not to say", "33127", "Wynwood", "English",
+     ["Food pantry"], True, "Dog: Pixel", "Between jobs."),
+    ("C07", "Nguyen Thi Lan", "Phone call", "", "305-555-0156", "2", "born 1951", "Female", "33176", "Kendall", "Vietnamese / English",
+     ["Senior meals"], False, "", ""),
+    ("C08", "Yolanda Cruz-Beltran", "Email", "yolanda.cruzbeltran@example.com", "305-555-0157", "4", "40-49", "Female", "33125",
+     "Little Havana", "Spanish", ["After-school", "Food pantry"], True, "Dog: Coco (small, needs shots)", ""),
+    ("C09", "Andre Lafleur", "Message via church", "", "", "3", "25-34", "Male", "33150", "Little Haiti", "Haitian Creole / French",
+     ["Food pantry"], None, "", "No phone or email; reach through his church office."),
+    ("C10", "Mildred Hayes", "Phone call", "", "305-555-0159", "1", "born 1944", "Female", "33133", "Coconut Grove", "English",
+     ["Senior meals"], True, "Dog: Biscuit", "Lives alone; Biscuit is her main company."),
+    ("C11", "Santiago Ortega", "Email", "santiago.ortega@example.org", "", "5", "35-44", "Male", "33174", "Sweetwater", "Spanish",
+     ["After-school"], False, "", ""),
+    ("C12", "Fatima Al-Sayed", "Phone call", "", "305-555-0161", "7", "30-39", "Female", "33186", "Kendall West", "Arabic / English",
+     ["Food pantry"], None, "", "Large household."),
+    ("C13", "Luis Fernando Paz", "Email", "luis.paz@example.com", "", "2", "55-64", "Male", "33142", "Allapattah", "Spanish",
+     ["Food pantry"], True, "Dog: Rocco", ""),
+    ("C14", "Tamika Brooks", "Email", "tamika.brooks@example.com", "305-555-0164", "3", "30-39", "Female", "33169", "Miami Gardens", "English",
+     ["After-school"], False, "", ""),
+]
+COMM = {c[0]: dict(id=c[0], name=c[1], pref=c[2], email=c[3] or None, phone=c[4] or None, household=c[5], age=c[6],
+                   gender=c[7], zip=c[8], hood=c[9], lang=c[10], programs=c[11], dog=c[12], pet_note=c[13], notes=c[14],
+                   rows=[], tab="community", ambiguous=False, candidate_tabs=None, reason=None) for c in COMMUNITY}
+
+# Neighbors: id, name, email, phone, zip, interests, brought a dog (True/None), dog name
+NEIGH = [
+    ("N01", "Camila Restrepo", "camila.restrepo@example.com", None, "33145", ["volunteering", "newsletter"], True, "Luna"),
+    ("N02", "Jamal Pierce", None, "305-555-0171", "33127", ["giving"], None, ""),
+    ("N03", "Ingrid Solheim", "ingrid.solheim@example.org", None, "33133", ["newsletter", "pet_adoption"], None, ""),
+    ("N04", "Tyrone Gaines", None, None, "33142", ["volunteering"], True, "Bruno"),
+    ("N05", "Beatriz Almeida", "beatriz.almeida@example.com", None, "33156", ["pet_adoption"], None, ""),
+    ("N06", "Owen Castellan", "owen.castellan@example.org", None, "33129", ["volunteering", "giving"], True, "Pepper"),
+    ("N07", "Nadia Haddad", None, "305-555-0177", "33131", ["newsletter"], None, ""),
+    ("N08", "Felix Okonkwo", "felix.okonkwo@example.com", None, "33137", ["giving", "newsletter"], True, "Rex"),
+    ("N09", "Svetlana Petrova", "svetlana.petrova@example.org", None, "33160", ["volunteering"], None, ""),
+    ("N10", "Darnell Washington", None, "305-555-0180", "33150", ["pet_adoption"], None, ""),
+    ("N11", "Lourdes Quesada", "lourdes.quesada@example.com", None, "33135", ["volunteering", "pet_adoption"], True, "Canela"),
+    ("N12", "Mateo Bianchi", "mateo.bianchi@example.org", None, "33138", ["newsletter"], None, ""),
+    ("N13", "Jocelyn Fairweather", "jocelyn.fairweather@example.com", None, "33146", ["giving"], True, "Waffles"),
+    ("N14", "Anil Deshmukh", "anil.deshmukh@example.org", None, "33143", ["volunteering", "newsletter"], None, ""),
+    ("N15", "Renata Silva-Cho", None, "305-555-0185", "33173", ["newsletter"], True, "Tofu"),
+    ("N16", "Elliot Brandvold", "elliot.brandvold@example.com", None, "33155", ["giving", "volunteering"], None, ""),
+    ("N17", "Yasmin Farouk", "yasmin.farouk@example.org", None, "33134", ["pet_adoption"], True, "Olive"),
+    ("N18", "Gus Lindemann", None, None, "33181", ["volunteering"], None, ""),
+    ("N19", "Pilar Echeverria", "pilar.echeverria@example.com", None, "33165", ["newsletter", "giving"], True, "Rocky"),
+]
+NB = {n[0]: dict(id=n[0], name=n[1], email=n[2], phone=n[3], zip=n[4], interests=n[5], dog=n[6], dog_name=n[7],
+                 rows=[], tab="neighbor", ambiguous=False, candidate_tabs=None, reason=None) for n in NEIGH}
+
+# Ambiguous people planted in the retreat notes (flag for review)
+NB["N20"] = dict(id="N20", name="Gabriela Rincon", email=None, phone=None, zip=None, interests=["giving"], dog=None, dog_name="",
+                 rows=[], tab="neighbor", ambiguous=True, candidate_tabs=["neighbor", "giver"],
+                 reason="Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.")
+COMM["C15"] = dict(id="C15", name="Dolores Quinones", pref=None, email=None, phone=None, household=None, age=None, gender=None,
+                   zip=None, hood=None, lang="Spanish", programs=["Food pantry"], dog=None, pet_note="", notes="Notes only; no intake form.",
+                   rows=[], tab="community", ambiguous=True, candidate_tabs=["community", "giver"],
+                   reason="Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.")
+COMM["C06"].update(ambiguous=True, candidate_tabs=["community", "giver"],
+                   reason="Pantry client (intake form) who told staff he wants to give $10 a month once his new job starts. A stated intention, no gift yet; stays community, flag for review.")
+
+# Existing people who show up again on the sign-in sheet (cross-file duplicates)
+SIGN_DONORS = [
+    # donor key, name as written, contact, zip, interests, brought a dog, dog name
+    ("delgado", "Maria D.", "MARIA.DELGADO@EXAMPLE.COM", "33134", ["giving", "newsletter"], None, ""),
+    ("raman", "priya raman", "priya.raman@example.com", "33146", ["giving", "pet_adoption"], True, "Mango"),
+    ("ferrante", "Lucia F", "lucia.ferrante@example.com", "33130", ["volunteering"], None, ""),
+]
+SIGN_COMM = [
+    ("C01", "Rosa E. Martinez", "(305) 555-0150", "33135", ["volunteering"], None, ""),
+    ("C03", "Keisha W.", "keisha.williams@example.com", "33142", ["newsletter", "pet_adoption"], True, "Duke"),
+    ("C10", "Millie Hayes", "305.555.0159", "33133", ["pet_adoption"], True, "Biscuit"),
+]
+# neighbors who signed twice (second name spelling, second contact spelling)
+SIGN_TWICE = {"N01": ("camila r.", "Camila.Restrepo@example.com"), "N08": ("F. Okonkwo", "felix.okonkwo@example.com")}
+
+INTEREST_RAW = {
+    "volunteering": ["volunteering", "Volunteer!", "volunteer", "vol."],
+    "giving": ["giving", "donate?", "maybe donate", "giving"],
+    "pet_adoption": ["pet adoption", "adopt a pup", "pet adoption", "dogs!"],
+    "newsletter": ["newsletter", "email list", "newsletter", "updates"],
+}
+DOG_RAW_YES = ["Y", "yes", "Yes!", "✓", "Y"]
+SIGN_ROWS = []
+
+
+def fmt_style(ph):
+    a, b, c = ph.split("-")
+    return rng2.choice([ph, f"({a}) {b}-{c}", f"{a}.{b}.{c}"])
+
+
+def _signin_contact(p):
+    if p["email"]:
+        return p["email"]
+    if p["phone"]:
+        return fmt_style(p["phone"])
+    return ""
+
+
+def write_community():
+    doc = Document()
+    doc.add_heading("Community Program Intake Forms - 2026", 1)
+    doc.add_paragraph("Self-reported by participants. Fields left blank were not answered.")
+    for i, c in enumerate((COMM[c[0]] for c in COMMUNITY), 1):
+        doc.add_heading(f"Intake Form {i}", 2)
+        t = doc.add_table(rows=0, cols=2)
+        t.style = "Table Grid"
+        dog_txt = {True: "Yes", False: "No", None: ""}[c["dog"]]
+        if c["pet_note"]:
+            dog_txt = (dog_txt + " - " + c["pet_note"]).strip(" -")
+        fields = [("Name", c["name"]), ("Preferred way to reach you", c["pref"]), ("Email", c["email"] or ""),
+                  ("Phone", c["phone"] or ""), ("People in household", c["household"]),
+                  ("Age range or birth year", c["age"]), ("Gender (optional)", c["gender"]),
+                  ("ZIP code", c["zip"]), ("Neighborhood", c["hood"]), ("Language at home", c["lang"]),
+                  ("Programs", ", ".join(c["programs"])), ("Do you have a dog / pet?", dog_txt),
+                  ("Notes", c["notes"])]
+        for k, v in fields:
+            r = t.add_row().cells
+            r[0].text, r[1].text = k, v or ""
+        c["rows"].append(dict(file=F_COMMUNITY, location=f"section 'Intake Form {i}'", name_as_written=c["name"], kind="intake_form"))
+    doc.save(OUT / F_COMMUNITY)
+
+
+def write_signin():
+    entries = []  # (kind, id, name, contact, zip, interests, dog_flag, dog_name)
+    for n in NB.values():
+        if n["id"] == "N20":
+            continue
+        entries.append(("neighbor", n["id"], n["name"], _signin_contact(n), n["zip"], n["interests"], n["dog"], n["dog_name"]))
+    for nid, (nm, ct) in SIGN_TWICE.items():
+        n = NB[nid]
+        entries.append(("neighbor", nid, nm, ct, n["zip"], n["interests"][:1], n["dog"], n["dog_name"]))
+    for dk, nm, ct, z, ints, dg, dn in SIGN_DONORS:
+        entries.append(("giver", D[dk]["id"], nm, ct, z, ints, dg, dn))
+    for cid, nm, ct, z, ints, dg, dn in SIGN_COMM:
+        entries.append(("community", cid, nm, ct, z, ints, dg, dn))
+    rng2.shuffle(entries)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = SIGNIN_SHEET
+    ws.append(["COMMUNITY OPEN HOUSE - Sat Nov 1 - sign in please!!"])
+    ws.append([])
+    ws.append(["#", "Name", "Email or phone", "ZIP", "Interested in", "Brought a dog?", "Dog's name / notes", "Time in"])
+    for i, (kind, pid, nm, ct, z, ints, dg, dn) in enumerate(entries):
+        mins = 10 * 60 + i * 7
+        hh, mm = divmod(mins, 60)
+        tm = f"{hh}:{mm:02d} AM" if hh < 12 else f"{hh - 12 or 12}:{mm:02d} PM"
+        raw_int = ", ".join(rng2.choice(INTEREST_RAW[x]) for x in ints)
+        dog = rng2.choice(DOG_RAW_YES) if dg else rng2.choice(["", "", "no", "N"])
+        note = dn if (dg and dn) else ("first time here" if kind == "neighbor" and i % 5 == 0 else "")
+        ws.append([i + 1, nm, ct, z if i % 6 else int(z), raw_int, dog, note, tm])
+        rec = dict(file=F_SIGNIN, location=f"sheet '{SIGNIN_SHEET}' row {ws.max_row}", name_as_written=nm, kind="signin_row")
+        SIGN_ROWS.append(dict(person_kind=kind, pid=pid, **rec))
+        if kind == "neighbor":
+            NB[pid]["rows"].append(rec)
+        elif kind == "community":
+            COMM[pid]["rows"].append(rec)
+        else:
+            src(next(k for k, v in D.items() if v["id"] == pid), F_SIGNIN, rec["location"], nm, "signin_row")
+    ws.append([])
+    ws.append(["Thanks for coming! - front desk"])
+    wb.save(OUT / F_SIGNIN)
+    D["raman"]["dog"] = True  # Priya brought a dog (Mango) to the sign-in
+
+
+def attach_notes_people():
+    """Record where the planted ambiguous people appear in the retreat notes."""
+    lines = (OUT / F_MD).read_text(encoding="utf-8").splitlines()
+    for pid, tag in (("C15", "Dolores Quinones"), ("C06", "Marcus Bell"), ("N20", "Gabriela Rincon")):
+        ln = next(i for i, l in enumerate(lines, 1) if tag in l)
+        rec = dict(file=F_MD, location=f"line {ln}", name_as_written=tag, kind="mention")
+        (COMM if pid.startswith("C") else NB)[pid]["rows"].append(rec)
+
+
+def contact_of(p):
+    return bool(p.get("email") or p.get("phone"))
+
+
+def people_index():
+    out = []
+    for d in D.values():
+        e = dict(person_id=d["id"], full_name=d["name"], tab="giver", ambiguous=False)
+        if d.get("dog") is not None:
+            e["has_dog"] = d["dog"]
+        e["has_contact"] = True
+        out.append(e)
+    for p in list(COMM.values()) + list(NB.values()):
+        e = dict(person_id=p["id"], full_name=p["name"], tab=p["tab"], ambiguous=p["ambiguous"])
+        if p["ambiguous"]:
+            e["candidate_tabs"] = p["candidate_tabs"]
+            e["reason"] = p["reason"]
+        if p["dog"] is not None:
+            e["has_dog"] = bool(p["dog"])
+        e["has_contact"] = contact_of(p)
+        out.append(e)
+    return out
+
+
+def community_key():
+    comm = [dict(person_id=c["id"], full_name=c["name"], tab="community", ambiguous=c["ambiguous"],
+                 candidate_tabs=c["candidate_tabs"], reason=c["reason"],
+                 contact_preference=c["pref"], email=c["email"], phone=c["phone"], household_size=c["household"],
+                 age_as_reported=c["age"], gender_as_reported=c["gender"], zip=c["zip"], neighborhood=c["hood"],
+                 language=c["lang"], programs=c["programs"], has_dog=c["dog"], pet_note=c["pet_note"] or None,
+                 source_rows=c["rows"]) for c in COMM.values()]
+    nb = [dict(person_id=n["id"], full_name=n["name"], tab="neighbor", ambiguous=n["ambiguous"],
+               candidate_tabs=n["candidate_tabs"], reason=n["reason"], email=n["email"], phone=n["phone"], zip=n["zip"],
+               interests=n["interests"], has_dog=True if n["dog"] else None, dog_name=n["dog_name"] or None,
+               source_rows=n["rows"]) for n in NB.values()]
+    return comm, nb
+
+
+def cross_file_dupes():
+    out = []
+    for dk, nm, *_ in SIGN_DONORS:
+        d = D[dk]
+        out.append(dict(person_id=d["id"], tab="giver", canonical=d["name"], appears_as=nm,
+                        files=["(existing donor files)", F_SIGNIN]))
+    for cid, nm, *_ in SIGN_COMM:
+        out.append(dict(person_id=cid, tab="community", canonical=COMM[cid]["name"], appears_as=nm,
+                        files=[F_COMMUNITY, F_SIGNIN]))
+    for nid, (nm, _) in SIGN_TWICE.items():
+        out.append(dict(person_id=nid, tab="neighbor", canonical=NB[nid]["name"], appears_as=nm,
+                        files=[F_SIGNIN], note="signed in twice on the same sheet"))
+    return out
+
+
+def puppy_outreach():
+    people = people_index()
+    dog = [p for p in people if p.get("has_dog") is True]
+    target = [p for p in dog if p["has_contact"]]
+    no_contact = [p for p in dog if not p["has_contact"]]
+    pet_interest = [n["id"] for n in NB.values() if "pet_adoption" in n["interests"]] + \
+                   [r[0] for r in SIGN_COMM if "pet_adoption" in r[4]] + \
+                   [D[r[0]]["id"] for r in SIGN_DONORS if "pet_adoption" in r[4]]
+    return dict(
+        rule="Target everyone whose has_dog is stated True in any file AND who has an email or phone. A blank or No in 'Brought a dog?' is NOT evidence of no dog. People with a dog but no contact info cannot be reached and are listed separately.",
+        target_ids=[p["person_id"] for p in target], target_count=len(target),
+        target_by_tab={t: sum(1 for p in target if p["tab"] == t) for t in ("giver", "neighbor", "community")},
+        has_dog_but_no_contact=[p["person_id"] for p in no_contact],
+        interested_in_pet_adoption_not_necessarily_dog_owners=sorted(set(pet_interest)),
+        stated_no_dog=[p["person_id"] for p in people if p.get("has_dog") is False],
+    )
 
 
 # --------------------------------------------------------------------------- answer key
@@ -587,10 +858,19 @@ def build_key():
     for dg in dup_groups:
         dg["source_rows"] = [s for s in SRC[next(k for k, v in D.items() if v["id"] == dg["donor_id"])]]
     dbl = EXTRA_ROWS[0]
+    comm, nb = community_key()
+    people = people_index()
+    tab_counts = {t: sum(1 for p in people if p["tab"] == t) for t in ("giver", "neighbor", "community")}
+    for dn in donors_out:
+        dn["tab"] = "giver"
+        dn["ambiguous"] = False
+        dk = next(k for k, v in D.items() if v["id"] == dn["donor_id"])
+        if D[dk].get("dog") is not None:
+            dn["has_dog"] = D[dk]["dog"]
     return dict(
         _note="FULLY FICTIONAL test data. Answer key for data/sample_inputs/. Generated by scripts/make_sample_inputs.py",
         as_of=AS_OF.isoformat(), seed=SEED,
-        files=[F_XLSX, F_MD, F_CHECK, F_INTAKE, F_STOCK],
+        files=[F_XLSX, F_MD, F_CHECK, F_INTAKE, F_STOCK, F_COMMUNITY, F_SIGNIN],
         totals=dict(canonical_donors=len(D), individuals=sum(d["type"] == "individual" for d in D.values()),
                     organizations=sum(d["type"] == "organization" for d in D.values()),
                     unique_gifts=len(GIFTS), total_amount=total,
@@ -622,6 +902,14 @@ def build_key():
             dict(rank=3, donor_id=D["salinas"]["id"], donor="Teodoro Salinas",
                  reason="Quarterly donor, last gift 2026-04-15; two expected gifts (Jul, Oct) missed, about 207 days since last gift vs a 91-day cadence."),
         ],
+        tab_counts=tab_counts, ambiguous_count=sum(1 for p in people if p["ambiguous"]),
+        ambiguous_people=[p for p in people if p["ambiguous"]],
+        people=people, community_members=comm, neighbors=nb, cross_file_duplicates=cross_file_dupes(),
+        puppy_outreach=puppy_outreach(),
+        tab_notes=dict(
+            tab_rule="giver = has given (or is an org donor); community = receives the nonprofit's services; neighbor = met at an event, neither yet. Each canonical person counted once, under the tab in `tab`. Ambiguous people are counted under their default tab and flagged.",
+            mentioned_gifts_not_counted=[dict(person_id="C15", amount=25, note="$25 in the donation jar, Oct 18 open house; not entered as a donor gift")],
+            sign_in_rows=len(SIGN_ROWS), sign_in_unique_new_neighbors=sum(1 for n in nb if n["person_id"] != "N20")),
         not_lapsing_examples=["Robert Nguyen (monthly, on track)", "Priya Raman (gave Nov 2026)", "Gloria Pierre-Louis (December window next month)"],
     )
 
@@ -634,7 +922,7 @@ FIXED_TS = datetime(2026, 11, 1, 9, 0, 0)
 
 def pin_timestamps():
     """docx/xlsx embed 'created' times; pin them so reruns are byte-stable."""
-    for f in (F_CHECK, F_INTAKE, F_STOCK):
+    for f in (F_CHECK, F_INTAKE, F_STOCK, F_COMMUNITY):
         d = Document(OUT / f)
         d.core_properties.created = d.core_properties.modified = FIXED_TS
         d.core_properties.author = "Sample Data Generator (fictional)"
@@ -643,6 +931,10 @@ def pin_timestamps():
     wb.properties.created = wb.properties.modified = FIXED_TS
     wb.properties.creator = "Sample Data Generator (fictional)"
     wb.save(OUT / F_XLSX)
+    wb = load_workbook(OUT / F_SIGNIN)
+    wb.properties.created = wb.properties.modified = FIXED_TS
+    wb.properties.creator = "Sample Data Generator (fictional)"
+    wb.save(OUT / F_SIGNIN)
 
 
 def _num(v):
@@ -650,6 +942,40 @@ def _num(v):
         return float(v)
     m = re.fullmatch(r"\$?\s*([\d,]+(?:\.\d+)?)", str(v).strip())
     return float(m.group(1).replace(",", "")) if m else None
+
+
+def verify_tabs(key, check, md, wb_sign):
+    """Recount the 3-tab content from the files themselves and compare with the key."""
+    ppl = key["people"]
+    recount = {t: sum(1 for p in ppl if p["tab"] == t) for t in ("giver", "neighbor", "community")}
+    check("tab_counts match a recount of `people`", recount == key["tab_counts"], f"({recount})")
+    check("giver tab == canonical donors", recount["giver"] == key["totals"]["canonical_donors"])
+    check("unique person_ids", len({p["person_id"] for p in ppl}) == len(ppl))
+    d = Document(OUT / F_COMMUNITY)
+    forms = len(d.tables)
+    cm = [c for c in key["community_members"] if any(r["kind"] == "intake_form" for r in c["source_rows"])]
+    check("12-15 community intake forms, one per key member", 12 <= forms <= 15 and forms == len(cm), f"({forms} forms)")
+    ws = wb_sign[SIGNIN_SHEET]
+    rows = [r for r in ws.iter_rows(min_row=4, values_only=True) if isinstance(r[0], int)]
+    check("sign-in sheet has 25-30 rows", 25 <= len(rows) <= 30, f"({len(rows)} rows)")
+    in_key = sum(
+        1 for grp in (key["community_members"], key["neighbors"]) for m in grp for r in m["source_rows"] if r["file"] == F_SIGNIN)
+    in_key += sum(1 for dn in key["canonical_donors"] for r in dn["source_rows"] if r["file"] == F_SIGNIN)
+    check("every sign-in row is in the key", in_key == len(rows), f"({in_key} vs {len(rows)})")
+    names = {str(r[1]) for r in rows}
+    sheet_names = {r["name_as_written"] for grp in (key["community_members"], key["neighbors"]) for m in grp
+                   for r in m["source_rows"] if r["file"] == F_SIGNIN}
+    check("sign-in names in key == names on sheet", sheet_names <= names)
+    amb = [p for p in ppl if p["ambiguous"]]
+    check("3 ambiguous people, each named in the retreat notes", len(amb) == 3 and all(p["full_name"] in md for p in amb))
+    puppy = key["puppy_outreach"]
+    dogs = [p for p in ppl if p.get("has_dog") is True and p["has_contact"]]
+    check("puppy target_count == recount", puppy["target_count"] == len(dogs) == len(puppy["target_ids"]), f"({len(dogs)})")
+    check("every neighbor with a 'Y' dog on the sheet is has_dog", all(
+        n.get("has_dog") for n in key["neighbors"] if any(r["file"] == F_SIGNIN for r in n["source_rows"]) and n["person_id"] in
+        {"N01", "N04", "N06", "N08", "N11", "N13", "N15", "N17", "N19"}))
+    ph = [p for p in re.findall(r"305-555-\d{4}", json.dumps(key))]
+    check("key phones are all 305-555-01xx", all(p[8:10] == "01" for p in ph), f"({len(ph)})")
 
 
 def verify():
@@ -699,17 +1025,19 @@ def verify():
     check("exactly one double-recorded gift", sum(1 for g in key["gifts"] if "also_recorded_at" in g) == 1)
     check("every gift has a donor + location", all(g["donor_id"] and g["source"]["location"] for g in key["gifts"]))
     # text sweep for emails / phones
-    text = md + "\n".join(c.text for f in (F_CHECK, F_INTAKE, F_STOCK) for tb in Document(OUT / f).tables
+    text = md + "\n".join(c.text for f in (F_CHECK, F_INTAKE, F_STOCK, F_COMMUNITY) for tb in Document(OUT / f).tables
                           for row in tb.rows for c in row.cells)
-    text += "\n".join(c.text for f in (F_CHECK, F_INTAKE, F_STOCK) for c in Document(OUT / f).paragraphs)
-    for ws in wb.worksheets:
-        for r in ws.iter_rows(values_only=True):
+    text += "\n".join(c.text for f in (F_CHECK, F_INTAKE, F_STOCK, F_COMMUNITY) for c in Document(OUT / f).paragraphs)
+    wb_sign = load_workbook(OUT / F_SIGNIN)
+    for w in list(wb.worksheets) + list(wb_sign.worksheets):
+        for r in w.iter_rows(values_only=True):
             text += "\n" + " ".join(str(v) for v in r if v is not None)
     emails = set(re.findall(r"[\w.+-]+@[\w.-]+\w", text))
     bad = [e for e in emails if not re.search(r"@example\.(com|org)$", e, re.I)]
     check("all emails end in @example.com/.org", not bad, f"({len(emails)} distinct, bad={bad})")
     allp = re.findall(r"[0-9]{3}[-. )]+[0-9]{3}[-. ][0-9]{4}", text)
     check("all phones are 305-555-01xx", len(allp) > 0 and all(re.search(r"305[^0-9]+555[^0-9]+01[0-9][0-9]", p) for p in allp), f"({len(allp)} found)")
+    verify_tabs(key, check, md, wb_sign)
     top = key["expected_top3_lapsing_as_of_2026_11_08"]
     check("top-3 lapsing present", [x["rank"] for x in top] == [1, 2, 3], "-> " + ", ".join(x["donor"] for x in top))
     vel = sum(g["amount"] for g in key["gifts"] if g["donor"] == "Veloria Bay Foundation")
@@ -725,12 +1053,17 @@ def main():
     write_stock()
     write_intake()
     write_notes()
+    write_community()
+    write_signin()
+    attach_notes_people()
     key = build_key()
     (OUT / "answer_key.json").write_text(json.dumps(key, indent=2, ensure_ascii=False), encoding="utf-8")
     t = key["totals"]
     print(f"wrote {len(key['files']) + 1} files to {OUT}")
     print(f"donors={t['canonical_donors']} (individuals={t['individuals']}, orgs={t['organizations']}) "
           f"gifts={t['unique_gifts']} total=${t['total_amount']:,} dup_groups={t['duplicate_groups']}")
+    print(f"tabs={key['tab_counts']} ambiguous={key['ambiguous_count']} "
+          f"puppy_targets={key['puppy_outreach']['target_count']}")
     pin_timestamps()
     return verify()
 
