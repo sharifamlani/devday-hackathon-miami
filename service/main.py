@@ -247,16 +247,28 @@ SOURCE_STATUS = {"ok": "done", "cached": "done", "blocked": "blocked", "skipped"
                  "not_provided": "not provided"}
 
 
+def host_of(url: str | None) -> str:
+    """'https://www.miamifoundation.org/' -> 'miamifoundation.org'; '' for no URL."""
+    host = urlparse(url if "//" in (url or "") else f"//{url or ''}").hostname or ""
+    return host.removeprefix("www.")
+
+
 def cached_context(website: str | None) -> dict | None:
-    """The saved context ({profile, facts} from the db), else the committed service/context_cache.json."""
+    """Saved context for THIS website only: the db's profile if its host matches, else the cache file's entry.
+
+    Never another organization's context: no website, or no match, means None.
+    """
     from service import routes_data
 
+    host = host_of(website)
+    if not host:
+        return None
     if hasattr(routes_data, "get_org_profile_or_none"):
         conn = db.connect()
         try:
             db.create_schema(conn)
             profile = routes_data.get_org_profile_or_none(conn)
-            if profile is not None:
+            if profile is not None and host_of(profile.get("website")) == host:
                 return {"profile": profile, "facts": routes_data.list_context(conn)}
         except sqlite3.OperationalError:
             pass
@@ -267,10 +279,7 @@ def cached_context(website: str | None) -> dict | None:
     path = config.REPO_ROOT / "service" / "context_cache.json"
     if not path.exists():
         return None
-    cache = json.loads(path.read_text(encoding="utf-8"))
-    host = urlparse(website if "//" in (website or "") else f"//{website or ''}").hostname or ""
-    host = host.removeprefix("www.")
-    return cache.get(host) or (next(iter(cache.values())) if len(cache) == 1 else None)
+    return json.loads(path.read_text(encoding="utf-8")).get(host)
 
 
 def persist_context(result: dict) -> dict | None:
@@ -288,10 +297,12 @@ def persist_context(result: dict) -> dict | None:
         conn.close()
 
 
-def source_progress(req: "ContextRun", result: dict | None) -> dict:
+def source_progress(req: "ContextRun", result: dict | None, fallback: bool = False, stored: bool = True) -> dict:
     """{website|news|x|linkedin|instagram: {status, facts, detail}} for the screen's per-source rows.
 
     Website only (Sharif's scope cut): social URLs are stored in org_profile, never fetched.
+    fallback: rows came from saved context after the live read failed, so "done" reads "cached (fallback)".
+    stored: False when nothing was saved, so social URLs are "not connected" rather than "saved, ...".
     """
     result = result or {}
     raw = result.get("sources") or {}
@@ -306,12 +317,18 @@ def source_progress(req: "ContextRun", result: dict | None) -> dict:
             continue
         status = str(raw.get(source, "ok" if counts.get(source) else "skipped"))
         shown = SOURCE_STATUS.get(status, "failed" if status.startswith("error") else status)
-        out[source] = {"status": shown, "facts": counts.get(source, 0),
-                       "detail": status if shown in ("failed", "blocked") or status == "cached" else None}
+        detail = status if shown in ("failed", "blocked") or status == "cached" else None
+        if shown == "done" and not counts.get(source):  # "ok" with nothing found is not a success
+            shown, detail = "failed", "error: no facts found"
+        elif fallback and shown == "done":
+            shown, detail = "cached (fallback)", "live read failed; showing saved context"
+        elif fallback and source == "website" and not result:
+            shown, detail = "failed", "live read failed; no saved context for this site"
+        out[source] = {"status": shown, "facts": counts.get(source, 0), "detail": detail}
     for field, source in SOCIAL.items():
         given = getattr(req, field)
-        out[source] = {"status": "saved, not connected" if given else "not provided", "facts": 0,
-                       "detail": given}
+        connected = "saved, not connected" if stored else "not connected"
+        out[source] = {"status": connected if given else "not provided", "facts": 0, "detail": given}
     return out
 
 
@@ -339,7 +356,8 @@ async def context_run(req: ContextRun) -> dict:
     """Onboarding screen 2, synchronous: reads the website (≤ CONTEXT_DEADLINE_S), saves, returns per-source status.
 
     served_from: "live" (refresh read the site), "cache" (refresh false, by request), or "fallback"
-    (the read timed out or failed: cached: true, still 200, so the screen moves on).
+    (the read timed out or failed: cached: true, still 200, so the screen moves on). No website: state
+    "failed", detail "no website provided", served_from null, empty context, nothing saved.
     """
     try:
         from service.org_context import build_context
@@ -347,6 +365,12 @@ async def context_run(req: ContextRun) -> dict:
         raise not_landed("service.org_context.build_context")
 
     started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if not host_of(req.website):  # nothing to read, and never someone else's cached context
+        return {"state": "failed", "cached": False, "served_from": None, "detail": "no website provided",
+                "started_at": started_at, "finished_at": started_at,
+                "sources": source_progress(req, None, stored=False),
+                "profile": None, "facts": [], "saved": None}
+
     urls = req.model_dump(exclude={"refresh"})
     try:
         result = await asyncio.wait_for(run_in_threadpool(build_context, urls, req.refresh),
@@ -364,7 +388,7 @@ async def context_run(req: ContextRun) -> dict:
         result = with_user_urls(cached_context(req.website), urls)
         state, cached, served_from, saved = "failed", True, "fallback", None
 
-    sources = source_progress(req, result)
+    sources = source_progress(req, result, fallback=served_from == "fallback")
     if served_from != "fallback":
         state = run_state(sources)
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,

@@ -86,3 +86,61 @@ def test_context_run_state_reflects_sources(db_file, monkeypatch, website, news,
     assert body["state"] == state
     assert body["served_from"] == "cache" and body["cached"] is False
     assert body["sources"]["linkedin"]["status"] == "saved, not connected"
+
+
+def test_context_run_without_website_serves_nothing(db_file, monkeypatch):
+    def no_read(urls, refresh=False):
+        raise AssertionError("build_context ran without a website")
+
+    monkeypatch.setattr(org_context, "build_context", no_read)
+
+    r = TestClient(app).post("/context/run", json={"x_url": "https://x.com/someorg"})
+
+    body = r.json()
+    assert r.status_code == 200
+    assert body["state"] == "failed" and body["detail"] == "no website provided"
+    assert body["profile"] is None and body["facts"] == [] and body["saved"] is None
+    assert body["sources"]["news"]["status"] == "not provided"
+    assert body["sources"]["x"]["status"] == "not connected"
+
+
+def run_then_fail(monkeypatch, saved_site: str, failing_site: str) -> dict:
+    """Save context for saved_site, then make the live read fail for failing_site."""
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: context_result("ok", "ok"))
+    assert c.post("/context/run", json={"website": saved_site}).json()["state"] == "done"
+
+    def boom(urls, refresh=False):
+        raise RuntimeError("site unreachable")
+
+    monkeypatch.setattr(org_context, "build_context", boom)
+    return c.post("/context/run", json={"website": failing_site, "refresh": True}).json()
+
+
+def test_fallback_rows_say_cached_not_done(db_file, monkeypatch):
+    body = run_then_fail(monkeypatch, "https://example.org", "https://www.example.org/")
+
+    assert body["served_from"] == "fallback" and body["state"] == "failed"
+    assert body["sources"]["website"]["status"] == "cached (fallback)"
+    assert body["sources"]["news"]["status"] == "cached (fallback)"
+    assert len(body["facts"]) == 2
+
+
+def test_fallback_never_serves_another_orgs_context(db_file, monkeypatch):
+    body = run_then_fail(monkeypatch, "https://example.org", "https://another-org.org")
+
+    assert body["served_from"] == "fallback" and body["state"] == "failed"
+    assert body["profile"] is None and body["facts"] == []
+    assert body["sources"]["website"]["status"] == "failed"
+
+
+@pytest.mark.parametrize("facts_from, state", [((), "failed"), (("website",), "partial")])
+def test_source_ok_with_no_facts_counts_as_failed(db_file, monkeypatch, facts_from, state):
+    result = context_result("ok", "ok")  # build_context says both sources are fine...
+    result["facts"] = [f for f in result["facts"] if f["source"] in facts_from]  # ...but some found nothing
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: result)
+
+    body = TestClient(app).post("/context/run", json={"website": "https://example.org"}).json()
+
+    assert body["state"] == state
+    assert body["sources"]["news"] == {"status": "failed", "facts": 0, "detail": "error: no facts found"}
