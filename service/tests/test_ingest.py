@@ -11,7 +11,7 @@ CSV = (
     "donor_id,full_name,email,amount,gift_date,channel,fund\n"
     "D1,Ana Ruiz,ANA@example.org,250,2025-03-04,online,Designated\n"
     "D1,Ana Ruiz,ana@example.org,300,2026-03-02,online,Designated\n"
-    "D2,Ben Cole,ben@example.org,100,03/05/2025,check,\n"          # not ISO: review, never inserted
+    "D2,Ben Cole,ben@example.org,100,spring 2025,check,\n"          # not ISO: review, never inserted
     "D3,Cara Diaz,cara@example.org,,,,\n"                         # no gift: a person, no fake gift
 )
 
