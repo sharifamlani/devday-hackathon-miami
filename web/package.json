@@ -27,6 +27,7 @@
     "update-changelog": "gh api 'repos/{owner}/{repo}/releases' --paginate -q '.[] | \"## \\(.tag_name) - \\(.published_at[:10])\\n\\n\\(.body)\\n\"' > CHANGELOG.md"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.15.32",
     "@base-ui/react": "^1.8.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@hello-pangea/dnd": "^18.0.1",
