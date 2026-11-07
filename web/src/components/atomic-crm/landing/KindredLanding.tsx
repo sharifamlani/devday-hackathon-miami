@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { Upload } from "lucide-react";
+import { useDropzone } from "react-dropzone";
 
 import {
   Dialog,
@@ -30,6 +31,22 @@ export const KindredLanding = () => {
   const [error, setError] = useState("");
   const [result, setResult] = useState<IngestResult | null>(null);
   const canUpload = DATA_MODE === "local";
+  const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
+    accept: { "text/csv": [".csv"] },
+    multiple: false,
+    noClick: true,
+    noKeyboard: true,
+    disabled: pending,
+    onDrop: (accepted, rejected) => {
+      setResult(null);
+      setError("");
+      if (canUpload) {
+        setFile(accepted[0] ?? null);
+        if (rejected.length) setError("Please choose one CSV file at a time.");
+      }
+      setUploadOpen(true);
+    },
+  });
 
   const importDonors = async () => {
     if (!canUpload || !file || pending) return;
@@ -59,15 +76,38 @@ export const KindredLanding = () => {
         <p className="kindred-subtitle">
           Your mission deserves more of your time.
         </p>
-        <button
-          className="kindred-upload"
-          type="button"
-          onClick={() => setUploadOpen(true)}
+        <div
+          {...getRootProps({
+            className: `kindred-dropzone${isDragActive ? " is-dragging" : ""}`,
+            role: "group",
+            "aria-label": "Donor CSV drop area",
+          })}
         >
-          <Upload aria-hidden="true" size={23} strokeWidth={1.7} />
-          Upload donor data
-        </button>
-        <p className="kindred-file-hint">Start with a CSV file</p>
+          <input
+            {...getInputProps({
+              "aria-label": "Choose donor CSV",
+              disabled: !canUpload || pending,
+            })}
+          />
+          <button
+            className="kindred-upload"
+            type="button"
+            onClick={() => {
+              setResult(null);
+              setError("");
+              if (canUpload) open();
+              else setUploadOpen(true);
+            }}
+          >
+            <Upload aria-hidden="true" size={23} strokeWidth={1.7} />
+            Upload donor data
+          </button>
+          <p className="kindred-file-hint" aria-live="polite">
+            {isDragActive
+              ? "Drop your CSV here"
+              : "or drag and drop your CSV here"}
+          </p>
+        </div>
         <a className="kindred-sample" href="#/">
           Try sample data
         </a>
@@ -109,13 +149,14 @@ export const KindredLanding = () => {
                 id="kindred-csv"
                 type="file"
                 accept=".csv,text/csv"
-                required
+                required={!file}
                 disabled={pending}
                 onChange={(event) => {
                   setFile(event.target.files?.[0] ?? null);
                   setError("");
                 }}
               />
+              {file && <p role="status">Selected: {file.name}</p>}
               {error && <p role="alert">{error}</p>}
               <button
                 className="kindred-upload"

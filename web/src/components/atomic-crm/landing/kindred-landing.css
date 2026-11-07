@@ -60,6 +60,34 @@
   color: #545b51;
 }
 
+.kindred-dropzone {
+  inline-size: min(100%, 420px);
+  margin-block-start: 36px;
+  padding: 22px 24px 20px;
+  border: 1px solid #cbd0bf;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 60%);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.kindred-dropzone.is-dragging,
+.kindred-dropzone:focus-within {
+  border-color: #697b55;
+  background: #fafbf6;
+}
+
+.kindred-dropzone .kindred-upload {
+  margin-block-start: 0;
+  max-inline-size: 100%;
+}
+
+.kindred-dropzone .kindred-file-hint {
+  margin-block-start: 16px;
+  font-size: 14px;
+}
+
 .kindred-upload {
   display: inline-flex;
   justify-content: center;
@@ -200,6 +228,15 @@
     padding-inline: 26px;
   }
 
+  .kindred-dropzone {
+    margin-block-start: 30px;
+    padding: 20px 16px 18px;
+  }
+
+  .kindred-dropzone .kindred-file-hint {
+    font-size: 13px;
+  }
+
   .kindred-file-hint {
     margin-block-start: 22px;
     font-size: 13px;
@@ -239,6 +276,10 @@
   .kindred-upload {
     margin-block-start: 28px;
   }
+  .kindred-dropzone {
+    margin-block-start: 28px;
+    padding-block: 18px;
+  }
   .kindred-file-hint {
     margin-block-start: 20px;
   }
@@ -251,7 +292,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kindred-upload {
+  .kindred-upload,
+  .kindred-dropzone {
     transition: none;
   }
 }

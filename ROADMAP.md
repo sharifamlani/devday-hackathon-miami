@@ -137,7 +137,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5.6 | Hide the atomic-crm Donors tab and other unused screens (if 5.1 = atomic-crm) | 80 | ⏸ | — | `plan.md` §12 |
 | 5.7 | Make the AI visible: label where the Agents SDK ran (research, draft) | 80 | ⏸ | — | rubric: use of OpenAI |
 | 5.8 | Merge PR #11 (UI data layer + screens) | lead (QA-gated) | ✅ | Nov 7 · PR #11 | D14 |
-| 5.9 | Kindred landing: centered one-screen layout, approved copy, white/yellow/olive palette, sample entry and shared upload client | Faye | ✅ built; review pending | Nov 7 · `codex/kindred-landing-design` | `docs/design/landing/design-qa.md` |
+| 5.9 | Kindred landing: centered one-screen layout, approved copy, white/yellow/olive palette, framed CSV drop area, sample entry and shared upload client | Faye | ✅ built; review pending | Nov 7 · `codex/kindred-landing-design` | `docs/design/landing/design-qa.md` |
 
 ### Phase 5B — Intelligent ICP, prospects, organization outreach
 **Goal:** "organizations that look like your best donors, and why" with sourced first-touch drafts. **Entry gate:** Phase 3. **Exit gate:** 6+ sourced prospects + drafts in the snapshot and the live API. **Status:** ⏳

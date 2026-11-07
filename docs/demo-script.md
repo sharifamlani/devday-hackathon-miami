@@ -10,7 +10,7 @@ the moment, not to more features.
 
 Open the bare app URL to show “Less time on tasks. More time for people.” with “Your mission deserves more of your time.” underneath. “Try sample data” opens the existing donor workspace at `#/`. Existing workspace deep links continue to open directly.
 
-“Upload donor data” opens a dialog. In the hosted snapshot build it explains that uploads need the local donor service and offers the sample workspace. With `VITE_DATA_MODE=local`, the CSV form uses the existing `uploadFiles` client and offers the workspace after a successful import. Live ingest remains dependent on the team's ingest service; this design change adds no backend ingestion behavior.
+The upload controls sit inside a thin outlined CSV drop area. In local mode, “Upload donor data” opens the file chooser; selecting or dropping a CSV opens the confirmation dialog with its filename. In the hosted snapshot build it explains that uploads need the local donor service and offers the sample workspace. With `VITE_DATA_MODE=local`, the CSV form uses the existing `uploadFiles` client and offers the workspace after a successful import. Live ingest remains dependent on the team's ingest service; this design change adds no backend ingestion behavior.
 
 ## Budget (60 s version)
 
