@@ -80,7 +80,9 @@ def test_example_questions_against_the_answer_key(answer_key_db):
     assert not {"D02", "D08", "D07"} & set(quiet)
 
     thanks = keys(QUARTER_THANKS)
-    assert set(thanks) == {"D08", "D02"}          # Priya Raman's Nov 2 check, Robert Nguyen's monthly gifts
+    # Priya Raman's Nov 2 check, Robert Nguyen's monthly gifts, Rafael Quintero's Oct 3 / Nov 3 monthly gifts
+    # (added to the answer key in edbd237).
+    assert set(thanks) == {"D08", "D02", "D19"}
     assert keys(MONTHLY_LATE) == []                # the one monthly donor (D02) is on track
     big = keys(BIG_NOT_CALLED)
     assert "D27" in big                            # Veloria Bay Foundation, the star
