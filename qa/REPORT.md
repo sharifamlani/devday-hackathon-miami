@@ -81,3 +81,31 @@ Smoke 5 PASS: `python -m service.outreach_agent 11 12` with DONORS_DB=scratch wr
 | Q6 | data (8b) | **fixed** 222dbfa |
 | Q7 | lead (Ideas) | open: local branch `qa/integration` (the lead's one-off QA worktree) tracks origin/main |
 | Q8 | outreach (86) | low: DEMO_CASES still hard-code Amazon and Knight as ★; real runs use donor_scores, but delete the demo cases or relabel them so reports don't disagree with the seed |
+
+## Service probe: Sat 2026-11-07, live http://localhost:8000 (dd-service: feat/pipeline + enrich + outreach + feat/service bad1884)
+
+`python qa/service_check.py http://localhost:8000`: 24/24 PASS (duplicate merge not run, to keep the demo data).
+Real-browser link check (`qa/link_check.py`): 11/11 sources load (9 pages, 2 PDFs). The miamifoundation.org 202s were a script-only challenge.
+
+- GET /donors: 200 in 0.00 s, 12 donors, Maria Delgado #1.
+- Enrich: individual → 0 facts, no model call; ★ DeLuca → 3 sourced facts.
+- Outreach: ★ → draft, org → draft, individual → ready; each saved with an id and facts_used. About 11 s per draft.
+- Approve: refused with no body, empty or whitespace approved_by (422); a named person → approved; unknown draft → 404.
+- No route sends anything. Unknown ids → 404; a bad id → 422. CORS allows :5174 and refuses other origins.
+
+| Criterion (§9) | Status now |
+|---|---|
+| Ranking | PASS |
+| Enrichment sourced, 100% working links | **PASS** (browser) |
+| Drafts cite org news ≥ 3/3 | PASS |
+| ★ never auto-sent | PASS (no send route; approval needs a named person; DB triggers) |
+| Duplicates 6/6 | PENDING (Carlos's sample + answer key) |
+| Upload → ranked list ≤ 10 s on prod | NOT YET: list API is 0.00 s, but /ingest isn't mounted (`ingest: false`) and there's no UI/prod URL yet |
+| 0 console errors / 4xx-5xx | NOT YET (needs the UI) |
+
+| # | Owner | Status |
+|---|---|---|
+| Q7 | lead | **fixed** (upstream unset) |
+| Q8 | outreach (86) | fixed 6f36336, re-verify next merged round |
+| Q9 | outreach (86) | **closed**: links load in a browser; the "WordPress feed" string was a label, not a fact |
+| Q10 | UI (80) + service (90) | FYI: a draft takes ~11 s. The drawer must show progress, or drafts must be pre-generated for the demo donors before going on stage |
