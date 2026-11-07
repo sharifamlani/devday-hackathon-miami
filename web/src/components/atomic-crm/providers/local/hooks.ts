@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDonorDesk } from "./index";
-import type { ContextRunInput } from "./types";
+import type { ContextRunInput, ImportInput, TargetPeriod } from "./types";
 
 const ROOT = "donor-desk";
 
@@ -15,6 +15,7 @@ export const donorDeskKeys = {
   prospect: (id: number) => [ROOT, "prospect", id] as const,
   context: [ROOT, "context"] as const,
   orgProfile: [ROOT, "org-profile"] as const,
+  targets: (period?: TargetPeriod) => [ROOT, "targets", period ?? "all"] as const,
 };
 
 export const useDonors = () => {
@@ -54,6 +55,16 @@ export const useMergeDuplicate = () => {
   return useMutation({
     mutationFn: ({ pairId, keepId }: { pairId: number; keepId: number }) =>
       dataProvider.mergeDuplicate(pairId, keepId),
+    onSuccess: invalidateAll,
+  });
+};
+
+/** Undo a merge; refetches everything so both donors, their gifts and the duplicate pair reappear. */
+export const useUndoMerge = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: (mergeId: number) => dataProvider.undoMerge(mergeId),
     onSuccess: invalidateAll,
   });
 };
@@ -172,6 +183,16 @@ export const useUploadFiles = () => {
   });
 };
 
+/** Import dialog: donors, donor details and duplicates all change, so refetch everything. */
+export const useImportDonors = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: (input: ImportInput) => dataProvider.importDonors(input),
+    onSuccess: invalidateAll,
+  });
+};
+
 /**
  * Screen 2: one synchronous call (up to 30 s). Use isPending as the
  * "researching your website" state; data is the full result.
@@ -201,6 +222,17 @@ export const useOrgProfile = () => {
   return useQuery({
     queryKey: donorDeskKeys.orgProfile,
     queryFn: () => dataProvider.getOrgProfile(),
+  });
+};
+
+/* ---------- Donation targets (issue #37) ---------- */
+
+/** Raised vs. SAMPLE goal. Omit period for both (one request; toggle locally). */
+export const useTargets = (period?: TargetPeriod) => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: donorDeskKeys.targets(period),
+    queryFn: () => dataProvider.getTargets(period),
   });
 };
 

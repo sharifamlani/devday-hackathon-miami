@@ -1,12 +1,14 @@
 .kindred-landing {
   --landing-ink: #242728;
   --landing-muted: #64695f;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   min-block-size: 100svh;
   display: grid;
   place-items: center;
   padding: 32px 24px;
-  background: #fff url("/landing/ambient.png") center bottom / 100% 100%
-    no-repeat;
+  background: #fff;
   color: var(--landing-ink);
   font-family:
     "Avenir Next",
@@ -16,6 +18,60 @@
     sans-serif;
   text-align: center;
   -webkit-font-smoothing: antialiased;
+}
+
+.kindred-landing::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -5% -7%;
+  background: #fff url("/landing/ambient.png") center bottom / 100% 100%
+    no-repeat;
+  pointer-events: none;
+  filter: saturate(1.2) contrast(1.02);
+  transform-origin: center bottom;
+  animation: kindred-color-drift 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes kindred-color-drift {
+  0%,
+  100% {
+    transform: translate3d(-3%, 2%, 0) scale(1.02);
+  }
+  33% {
+    transform: translate3d(4%, -4%, 0) scale(1.09);
+  }
+  66% {
+    transform: translate3d(-4%, -1%, 0) scale(1.04);
+  }
+}
+
+.kindred-landing.colors-paused::before {
+  animation-play-state: paused;
+}
+
+.kindred-motion-toggle {
+  position: absolute;
+  inset-inline-end: 24px;
+  inset-block-end: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-block-size: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 70%);
+  color: var(--landing-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.kindred-motion-toggle:hover {
+  background: #fff;
+  color: var(--landing-ink);
 }
 
 .kindred-landing-content {
@@ -61,12 +117,12 @@
 }
 
 .kindred-dropzone {
-  inline-size: min(100%, 420px);
+  inline-size: min(100%, 432px);
   margin-block-start: 36px;
-  padding: 22px 24px 20px;
-  border: 1px solid #cbd0bf;
+  padding: 42px 24px 32px;
+  border: 1px solid rgb(105 123 85 / 25%);
   border-radius: 18px;
-  background: rgb(255 255 255 / 60%);
+  background: transparent;
   transition:
     border-color 150ms ease,
     background-color 150ms ease;
@@ -81,10 +137,20 @@
 .kindred-dropzone .kindred-upload {
   margin-block-start: 0;
   max-inline-size: 100%;
+  min-block-size: 44px;
+  padding-inline: 32px;
+  gap: 10px;
+  font-size: 16px;
+  box-shadow: none;
+}
+
+.kindred-dropzone .kindred-upload svg {
+  inline-size: 18px;
+  block-size: 18px;
 }
 
 .kindred-dropzone .kindred-file-hint {
-  margin-block-start: 16px;
+  margin-block-start: 20px;
   font-size: 14px;
 }
 
@@ -92,16 +158,16 @@
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 13px;
-  min-block-size: 60px;
+  gap: 11px;
+  min-block-size: 52px;
   margin-block-start: 44px;
   border: 0;
   border-radius: 999px;
-  padding: 0 44px;
+  padding: 0 36px;
   background: #242728;
   color: #fff;
   font: inherit;
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 550;
   line-height: 1.3;
   letter-spacing: -0.3px;
@@ -123,6 +189,7 @@
 }
 
 .kindred-upload:focus-visible,
+.kindred-motion-toggle:focus-visible,
 .kindred-sample:focus-visible,
 .kindred-workspace-link:focus-visible,
 .kindred-import input:focus-visible {
@@ -230,7 +297,7 @@
 
   .kindred-dropzone {
     margin-block-start: 30px;
-    padding: 20px 16px 18px;
+    padding: 30px 16px 26px;
   }
 
   .kindred-dropzone .kindred-file-hint {
@@ -292,6 +359,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .kindred-landing::before {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+
+  .kindred-motion-toggle {
+    display: none;
+  }
+
   .kindred-upload,
   .kindred-dropzone {
     transition: none;
