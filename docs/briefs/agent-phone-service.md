@@ -15,7 +15,10 @@ on the OpenAI Agents SDK runs on Sharif's laptop with local SQLite (no Supabase)
 
 **Owns:** `service/main.py` (FastAPI app shell that mounts routers), `service/config.py` (loads `.env`),
 `service/requirements.txt`, `service/__init__.py`. Do not modify anything else.
-- devday-hackathon-8b writes `service/routes_data.py` (an `APIRouter` you mount).
+- Data lane is done (PR #8): `from service.routes_data import router as data_router; app.include_router(data_router)`.
+  PR #8 already adds `service/__init__.py` (empty). Don't recreate it; rebase on main if needed.
+  `service/requirements.txt` (yours) must include: `openai-agents`, `python-dotenv`, `fastapi`, `uvicorn`,
+  `httpx`, `pytest`.
 - Carlos writes `service/ingest/router.py` (you mount it; **never edit `service/ingest/`**).
 - Enrich is done (PR #5): `from service.enrich_agent import enrich_donor, save_facts, Fact`.
   `enrich_donor` blocks (`Runner.run_sync`), so call it via `run_in_threadpool`. Wire it to `POST /enrich/{donor_id}`.
