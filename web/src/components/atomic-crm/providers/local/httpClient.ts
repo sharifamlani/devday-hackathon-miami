@@ -4,7 +4,7 @@ import type {
   ApiDuplicate,
   ApiMergeResult,
 } from "./apiTypes";
-import { API_URL } from "./config";
+import { API_URL, APPROVER_NAME } from "./config";
 import { parseDonorDetail, parseDonorRow, parseDuplicate } from "./parse";
 import type { DonorDeskMethods } from "./types";
 
@@ -54,11 +54,10 @@ export const localApiMethods: DonorDeskMethods = {
   draftOutreach: async (id) => {
     await request(`/outreach/${id}`, { method: "POST" });
   },
-  // Not in the API contract yet: requested from the lead.
-  approveDraft: async (id, draftId, body) => {
-    await request(`/outreach/${id}/approve`, {
+  approveDraft: async (_id, draftId, body) => {
+    await request(`/drafts/${draftId}/approve`, {
       method: "POST",
-      body: { draft_id: draftId, body },
+      body: { body, approved_by: APPROVER_NAME },
     });
   },
   getSourceLabel: async () => null,

@@ -235,6 +235,7 @@ export const parseDonorRow = (row: ApiDonorRow): DonorSummary => {
     fund_type: row.fund_type,
     tier: row.tier ?? "small",
     is_star: !!row.is_star,
+    is_sample: !!row.is_sample,
     score: row.score ?? 0,
     status: STATUSES.includes(row.status as DonorStatus)
       ? (row.status as DonorStatus)

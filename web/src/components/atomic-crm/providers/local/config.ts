@@ -15,6 +15,10 @@ export const API_URL: string = (
   import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 ).replace(/\/$/, "");
 
+// Name recorded as approved_by when someone approves a draft in the demo.
+export const APPROVER_NAME: string =
+  import.meta.env.VITE_APPROVER_NAME ?? "Philanthropy team (demo)";
+
 // Resolved against the page, so it works under any deployment sub-path.
 export const SNAPSHOT_URL: string =
   import.meta.env.VITE_SNAPSHOT_URL ?? "./snapshot.json";

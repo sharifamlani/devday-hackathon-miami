@@ -1,5 +1,5 @@
 import type { ApiSnapshot } from "./apiTypes";
-import { SNAPSHOT_URL } from "./config";
+import { APPROVER_NAME, SNAPSHOT_URL } from "./config";
 import { parseDonorDetail, parseDonorRow, parseDuplicate } from "./parse";
 import type { DonorDeskMethods } from "./types";
 
@@ -86,7 +86,7 @@ export const snapshotMethods: DonorDeskMethods = {
     Object.assign(draft, {
       body,
       status: "approved",
-      approved_by: "Demo user",
+      approved_by: APPROVER_NAME,
       approved_at: new Date().toISOString(),
     });
   },

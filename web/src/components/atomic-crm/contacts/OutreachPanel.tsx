@@ -4,6 +4,7 @@ import { Check, Mail, PenLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { DATA_MODE } from "../providers/local/config";
 import { useApproveDraft, useDraftOutreach } from "../providers/local/hooks";
 import type { DonorDetail } from "../providers/local/types";
 import { formatDay } from "./donorFormat";
@@ -49,6 +50,12 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
       </PanelHeading>
 
       <SendPolicy isStar={donor.is_star} />
+      {draft && donor.is_sample && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <SampleHistoryBadge />
+          This draft cites an invented sample gift history.
+        </p>
+      )}
 
       {draft ? (
         <div className="space-y-3">
@@ -95,6 +102,11 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
               <Check className="h-4 w-4" />
               Approved{draft.approved_by ? ` by ${draft.approved_by}` : ""}
               {draft.approved_at ? ` · ${formatDay(draft.approved_at)}` : ""}
+              {DATA_MODE === "snapshot" && (
+                <span className="ml-2 font-normal text-muted-foreground">
+                  Demo only: not saved (cached sample)
+                </span>
+              )}
             </p>
           ) : (
             <div className="flex justify-end gap-2">
@@ -132,6 +144,15 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
     </section>
   );
 };
+
+export const SampleHistoryBadge = () => (
+  <span
+    className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+    title="This donor's gifts are invented sample data, not the Foundation's records."
+  >
+    Sample history
+  </span>
+);
 
 const SendPolicy = ({ isStar }: { isStar: boolean }) =>
   isStar ? (

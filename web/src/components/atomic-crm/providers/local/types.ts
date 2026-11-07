@@ -27,6 +27,7 @@ export interface DonorSummary {
   fund_type: string | null;
   tier: Tier;
   is_star: boolean;
+  is_sample: boolean;
   score: number;
   status: DonorStatus;
   why_short: string;
@@ -114,6 +115,7 @@ export interface DonorDeskMethods {
   dismissDuplicate(pairId: number): Promise<void>;
   enrichDonor(id: number): Promise<void>;
   draftOutreach(id: number): Promise<void>;
+  /** id: the donor (snapshot lookup); draftId: the outreach_drafts row. */
   approveDraft(id: number, draftId: number, body: string): Promise<void>;
   /** "Cached sample" in snapshot mode; null when live. */
   getSourceLabel(): Promise<string | null>;

@@ -16,7 +16,7 @@ import {
   statusLabel,
   tierLabel,
 } from "./donorFormat";
-import { OutreachPanel } from "./OutreachPanel";
+import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
 
@@ -50,6 +50,7 @@ export const DonorDrawer = ({
                   </SheetTitle>
                   <SheetDescription className="flex flex-wrap items-center gap-1.5">
                     <Badge variant="outline">{tierLabel[donor.tier]} donor</Badge>
+                    {donor.is_sample && <SampleHistoryBadge />}
                     <span
                       className={cn(
                         "rounded px-1.5 py-0.5 text-xs font-medium",

@@ -53,6 +53,7 @@ export interface ApiDonorRow {
   score: number | null;
   tier: "big" | "mid" | "small" | null;
   is_star: boolean;
+  is_sample?: boolean | number | null; // gift history is invented sample data
   status: string | null;
   why: ApiWhy | null;
   score_as_of: string | null;
