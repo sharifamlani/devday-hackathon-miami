@@ -8,12 +8,15 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Upload,
   Users,
   X,
 } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
 import { DonorDrawer } from "../contacts/DonorDrawer";
 import { DuplicateBanner } from "../contacts/DuplicateMerge";
 import {
@@ -27,6 +30,7 @@ import {
 import { DATA_MODE } from "../providers/local/config";
 import { useDonors, useSourceLabel } from "../providers/local/hooks";
 import type { DonorSummary } from "../providers/local/types";
+import { TargetsCard } from "./TargetsCard";
 import "./donor-inbox.css";
 
 type InboxFilter = "all" | "attention" | "due" | "on_track" | "stars";
@@ -54,6 +58,7 @@ export const CallToday = () => {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [query, setQuery] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
   const ranked = [...(donors ?? [])].sort((a, b) => b.score - a.score);
   const search = query.trim().toLocaleLowerCase();
   const visible = ranked.filter(
@@ -89,6 +94,8 @@ export const CallToday = () => {
           </span>
         </div>
       </header>
+
+      <TargetsCard />
 
       <div className="donor-inbox-workspace">
         <aside className="inbox-folders" aria-label="Outreach views">
@@ -138,10 +145,20 @@ export const CallToday = () => {
               </h3>
               <p>A small list. A meaningful difference.</p>
             </div>
-            <span className="inbox-priority-label">
-              <Sparkles size={14} aria-hidden="true" />
-              Priority order
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inbox-priority-label">
+                <Sparkles size={14} aria-hidden="true" />
+                Priority order
+              </span>
+              <Button
+                type="button"
+                className="min-h-11 rounded-[28px] bg-primary px-5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                onClick={() => setImportOpen(true)}
+              >
+                <Upload />
+                Import donors
+              </Button>
+            </div>
           </header>
 
           <div className="inbox-search">
@@ -301,6 +318,7 @@ export const CallToday = () => {
           </footer>
         </section>
       </div>
+      <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
       <DonorDrawer donorId={selectedId} onClose={() => setSelectedId(null)} />
     </div>
   );

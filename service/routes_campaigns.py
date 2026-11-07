@@ -288,50 +288,81 @@ def approve_small(campaign_id: int, approved_by: str | None = Body(None, embed=T
             "flagged": detail["counts"]["flagged"], "campaign": detail}
 
 
+# ----------------------------------------------------------------------------------------------
+# Delivery: ONE place where a provider plugs in (deliver). outbound.deliver is a dry run by default:
+# nothing leaves the laptop unless EMAIL_SEND=on / SMS_PROVIDER is set (service/README.md).
+# ----------------------------------------------------------------------------------------------
+
+def simulated_adapter(channel: str, to_address: str, subject: str | None, body: str) -> dict:
+    """Delivers nothing. Same arguments and shape as any adapter; the outbox row is written either way."""
+    return {"delivered": False, "simulated": True, "provider": None}
+
+
+def outbound_adapter(channel: str, to_address: str, subject: str | None, body: str) -> dict:
+    """service.outbound.deliver (dry run unless configured) in this hook's shape, plus its status fields."""
+    from service import outbound
+
+    r = outbound.deliver(channel, to_address, subject, body)
+    return {**r, "delivered": not r["simulated"] and r["status"] == "sent"}
+
+
+# >>> DELIVERY ADAPTER HOOK: every approved message goes through this, once. <<<
+deliver = outbound_adapter
+
+
+def send_message(conn: sqlite3.Connection, m: sqlite3.Row, sent_at: str) -> dict:
+    """One approved message -> (delivery adapter) -> one outbox row; the message becomes 'sent'.
+
+    Returns {"sent": True, "outbox_id", "simulated"} or {"sent": False, "reason", ...}. A failed delivery
+    leaves the message 'approved' and writes no outbox row. The caller commits."""
+    if m["status"] != "approved" or m["flags"] != "[]" or not (m["approved_by"] or "").strip():
+        return {"sent": False, "reason": "not approved"}        # the db triggers block these too
+    address = m["email"] if m["channel"] == "email" else m["phone"]
+    if not address:
+        return {"sent": False, "reason": f"no {'email' if m['channel'] == 'email' else 'phone'} on file"}
+    r = deliver(m["channel"], address, m["subject"], m["body"])
+    simulated = bool(r.get("simulated", not r.get("delivered")))
+    status = r.get("status") or ("sent" if r.get("delivered") else "queued (dry run)")
+    if status.startswith("failed"):
+        return {"sent": False, "reason": status, "failed": True, "detail": r.get("detail")}
+    if "provider" in {c[1] for c in conn.execute("PRAGMA table_info(outbox)")}:
+        outbox_id = conn.execute(
+            "INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, "
+            "simulated, provider, delivery_status, provider_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at, int(simulated),
+             r.get("provider") or "dryrun", status, r.get("provider_id"))).lastrowid
+    elif not simulated:     # an outbox from before the provider columns can't log a real send honestly
+        return {"sent": False, "reason": "failed: outbox has no provider columns", "failed": True, "detail": None}
+    else:
+        outbox_id = conn.execute(
+            "INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, simulated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+            (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at)).lastrowid
+    conn.execute("UPDATE campaign_messages SET status = 'sent', sent_at = ? WHERE id = ?", (sent_at, m["id"]))
+    return {"sent": True, "outbox_id": outbox_id, "simulated": simulated}
+
+
 @router.post("/campaigns/{campaign_id}/send")
 def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    """Approved messages go out through outbound.deliver (dry run unless EMAIL_SEND=on / SMS_PROVIDER is set),
-    one outbox row each; the message becomes 'sent'. A failed delivery stays 'approved' and is reported."""
-    from service.outbound import deliver
-
+    """Approved messages go out through send_message (the deliver hook: a dry run unless configured).
+    A failed delivery stays 'approved' and is reported under "failed"."""
     campaign_detail(conn, campaign_id)
     sent, no_address, failed, any_real = 0, [], [], False
     sent_at = now()
-    # An outbox made before the provider columns can only record dry runs: never send for real into it
-    real_ok = "provider" in {r[1] for r in conn.execute("PRAGMA table_info(outbox)")}
     rows = conn.execute("""SELECT m.*, d.email, d.phone, d.full_name FROM campaign_messages m
                            JOIN donors d ON d.id = m.donor_id
                            WHERE m.campaign_id = ? AND m.status = 'approved' ORDER BY m.id""", (campaign_id,)).fetchall()
     with conn:
         for m in rows:
-            if m["flags"] != "[]" or not (m["approved_by"] or "").strip():
-                continue        # the triggers block these too; never send them
-            address = m["email"] if m["channel"] == "email" else m["phone"]
-            if not address:
-                no_address.append({"message_id": m["id"], "donor_name": m["full_name"],
-                                   "reason": f"no {'email' if m['channel'] == 'email' else 'phone'} on file"})
-                continue
-            if real_ok:
-                result = deliver(m["channel"], address, m["subject"], m["body"])
-            else:
-                result = {"provider": "dryrun", "status": "queued (dry run)", "simulated": True, "provider_id": None}
-            if result["status"].startswith("failed"):
-                failed.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["status"],
+            result = send_message(conn, m, sent_at)
+            if result["sent"]:
+                sent += 1
+                any_real = any_real or not result["simulated"]
+            elif result.get("failed"):
+                failed.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"],
                                "detail": result.get("detail")})
-                continue
-            if real_ok:
-                conn.execute("INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, "
-                             "sent_at, simulated, provider, delivery_status, provider_id) "
-                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                             (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at,
-                              int(result["simulated"]), result["provider"], result["status"], result["provider_id"]))
-            else:
-                conn.execute("INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, "
-                             "sent_at, simulated) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
-                             (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at))
-            conn.execute("UPDATE campaign_messages SET status = 'sent', sent_at = ? WHERE id = ?", (sent_at, m["id"]))
-            sent += 1
-            any_real = any_real or not result["simulated"]
+            elif result["reason"].startswith("no "):
+                no_address.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"]})
         left = conn.execute("SELECT COUNT(*) FROM campaign_messages WHERE campaign_id = ? AND status IN ('draft', 'approved')",
                             (campaign_id,)).fetchone()[0]
         if sent and not left:

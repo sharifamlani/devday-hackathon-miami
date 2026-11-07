@@ -57,6 +57,24 @@ CREATE TABLE IF NOT EXISTS gifts (
 CREATE INDEX IF NOT EXISTS idx_gifts_donor ON gifts(donor_id);
 
 -- Written by others, never by ingest ----------------------------------------------------
+-- Every merge, with enough to undo it exactly (dedupe.merge / dedupe.undo_merge). The dropped
+-- donor row is deleted from donors but lives here whole, so no history is lost.
+CREATE TABLE IF NOT EXISTS merge_log (
+    id            INTEGER PRIMARY KEY,
+    suggestion_id INTEGER,
+    kept_id       INTEGER NOT NULL,
+    merged_id     INTEGER NOT NULL,
+    merged_at     TEXT NOT NULL,   -- ISO UTC
+    approved_by   TEXT,
+    kept_before   TEXT NOT NULL,   -- JSON: the kept donor row before the merge
+    merged_row    TEXT NOT NULL,   -- JSON: the dropped donor row
+    merged_score  TEXT,            -- JSON: its donor_scores row, or null
+    moved         TEXT NOT NULL,   -- JSON: {"gifts": [ids], "research_facts": [ids], "outreach_drafts": [ids]}
+    superseded    TEXT NOT NULL,   -- JSON: duplicate_suggestions ids this merge superseded
+    undone_at     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_merge_log_kept ON merge_log(kept_id);
+
 CREATE TABLE IF NOT EXISTS donor_scores (
     donor_id    INTEGER PRIMARY KEY REFERENCES donors(id) ON DELETE CASCADE,
     score       INTEGER NOT NULL,  -- 0-100
@@ -222,7 +240,7 @@ BEGIN
 END;
 """
 
-TABLES = ["outreach_drafts", "prospects", "icp_profile", "org_context", "org_profile", "research_facts", "duplicate_suggestions",
+TABLES = ["merge_log", "outreach_drafts", "prospects", "icp_profile", "org_context", "org_profile", "research_facts", "duplicate_suggestions",
           "donor_scores", "gifts", "donors"]
 
 # Campaigns (#38): bulk drafts -> human approval -> a SIMULATED outbox. Nothing leaves the laptop.

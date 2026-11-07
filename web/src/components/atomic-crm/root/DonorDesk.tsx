@@ -1,6 +1,7 @@
 import { memoryStore } from "ra-core";
 
 import { CallToday } from "../dashboard/CallToday";
+import { KindredLandingGate } from "../landing/KindredLanding";
 import { authProvider } from "../providers/fakerest";
 import { dataProvider } from "../providers/local";
 import { CRM } from "./CRM";
@@ -16,11 +17,13 @@ import { CRM } from "./CRM";
  * toggle still switches to dark or system for the session.
  */
 export const DonorDesk = () => (
-  <CRM
-    dataProvider={dataProvider}
-    authProvider={authProvider}
-    store={memoryStore({ theme: "light" })}
-    dashboard={CallToday}
-    disableTelemetry
-  />
+  <KindredLandingGate>
+    <CRM
+      dataProvider={dataProvider}
+      authProvider={authProvider}
+      store={memoryStore({ theme: "light" })}
+      dashboard={CallToday}
+      disableTelemetry
+    />
+  </KindredLandingGate>
 );
