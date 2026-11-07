@@ -15,10 +15,10 @@
     "canonical_donors": 33,
     "individuals": 26,
     "organizations": 7,
-    "unique_gifts": 101,
-    "total_amount": 1268910,
-    "gift_source_rows": 102,
-    "gift_source_rows_amount": 1269410,
+    "unique_gifts": 114,
+    "total_amount": 1269510,
+    "gift_source_rows": 115,
+    "gift_source_rows_amount": 1270010,
     "duplicate_groups": 6
   },
   "canonical_donors": [
@@ -181,32 +181,20 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 28",
+          "location": "sheet 'Online' row 29",
           "name_as_written": "Robert Nguyen",
           "kind": "gift_row"
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 29",
+          "location": "sheet 'Online' row 31",
           "name_as_written": "Bob Nguyen",
           "kind": "gift_row"
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 34",
-          "name_as_written": "Robert Nguyen",
-          "kind": "gift_row"
-        },
-        {
-          "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 35",
-          "name_as_written": "Robert Nguyen",
-          "kind": "gift_row"
-        },
-        {
-          "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 37",
-          "name_as_written": "R. Nguyen",
+          "name_as_written": "Robert Nguyen",
           "kind": "gift_row"
         },
         {
@@ -217,19 +205,31 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 41",
-          "name_as_written": "Robert Nguyen",
-          "kind": "gift_row"
-        },
-        {
-          "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 42",
-          "name_as_written": "Robert Nguyen",
-          "kind": "gift_row"
-        },
-        {
-          "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 43",
+          "name_as_written": "R. Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 47",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 50",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 53",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 56",
           "name_as_written": "Robert Nguyen",
           "kind": "gift_row"
         },
@@ -438,7 +438,7 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 30",
+          "location": "sheet 'Online' row 32",
           "name_as_written": "Teo Salinas",
           "kind": "gift_row"
         },
@@ -568,8 +568,8 @@
         "walter.brandt@example.com"
       ],
       "phone": null,
-      "city": null,
-      "state": null,
+      "city": "Key Biscayne",
+      "state": "FL",
       "fund_type": "Designated",
       "notes": "Gives each spring.",
       "names_as_written": [
@@ -616,8 +616,8 @@
         "sam.achterberg@example.org"
       ],
       "phone": null,
-      "city": "Pinecrest",
-      "state": "FL",
+      "city": null,
+      "state": null,
       "fund_type": "Unrestricted",
       "notes": "",
       "names_as_written": [
@@ -652,7 +652,7 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 38",
+          "location": "sheet 'Online' row 45",
           "name_as_written": "S. Achterberg",
           "kind": "gift_row_duplicate_recording"
         }
@@ -737,7 +737,7 @@
       "source_rows": [
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 40",
+          "location": "sheet 'Online' row 49",
           "name_as_written": "Marcus Oyelaran",
           "kind": "gift_row"
         }
@@ -842,8 +842,8 @@
         "tobias.lindqvist@example.com"
       ],
       "phone": null,
-      "city": "Fort Lauderdale",
-      "state": "FL",
+      "city": null,
+      "state": null,
       "fund_type": "Unrestricted",
       "notes": "",
       "names_as_written": [
@@ -858,7 +858,7 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 36",
+          "location": "sheet 'Online' row 41",
           "name_as_written": "Tobias Lindqvist",
           "kind": "gift_row"
         },
@@ -920,8 +920,8 @@
         "jerome.baptiste@example.com"
       ],
       "phone": null,
-      "city": null,
-      "state": null,
+      "city": "North Miami",
+      "state": "FL",
       "fund_type": "Unrestricted",
       "notes": "",
       "names_as_written": [
@@ -936,7 +936,7 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 33",
+          "location": "sheet 'Online' row 35",
           "name_as_written": "Jerome Baptiste",
           "kind": "gift_row"
         }
@@ -956,8 +956,8 @@
         "hyejin.park@example.org"
       ],
       "phone": null,
-      "city": null,
-      "state": null,
+      "city": "Aventura",
+      "state": "FL",
       "fund_type": "Unrestricted",
       "notes": "",
       "names_as_written": [
@@ -981,6 +981,42 @@
           "location": "sheet 'GMD gifts' row 30",
           "name_as_written": "Hye-jin Park",
           "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 40",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 44",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 48",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 51",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 54",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 57",
+          "name_as_written": "Hye-jin Park",
+          "kind": "failed_gift_row"
         }
       ],
       "tab": "giver",
@@ -998,8 +1034,8 @@
         "rafael.quintero@example.com"
       ],
       "phone": null,
-      "city": null,
-      "state": null,
+      "city": "Kendall",
+      "state": "FL",
       "fund_type": "Unrestricted",
       "notes": "",
       "names_as_written": [
@@ -1015,6 +1051,54 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'GMD gifts' row 27",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 28",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 30",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 36",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 38",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 42",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 46",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 52",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 55",
           "name_as_written": "Rafael Quintero",
           "kind": "gift_row"
         }
@@ -1182,7 +1266,7 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 31",
+          "location": "sheet 'Online' row 33",
           "name_as_written": "Victor Szymanski",
           "kind": "gift_row"
         }
@@ -1202,8 +1286,8 @@
         "imani.rutherford@example.org"
       ],
       "phone": null,
-      "city": null,
-      "state": null,
+      "city": "Miami Gardens",
+      "state": "FL",
       "fund_type": "Unrestricted",
       "notes": "",
       "names_as_written": [
@@ -1218,7 +1302,7 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 32",
+          "location": "sheet 'Online' row 34",
           "name_as_written": "Imani Rutherford",
           "kind": "gift_row"
         }
@@ -1729,32 +1813,20 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 28",
+          "location": "sheet 'Online' row 29",
           "name_as_written": "Robert Nguyen",
           "kind": "gift_row"
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 29",
+          "location": "sheet 'Online' row 31",
           "name_as_written": "Bob Nguyen",
           "kind": "gift_row"
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 34",
-          "name_as_written": "Robert Nguyen",
-          "kind": "gift_row"
-        },
-        {
-          "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 35",
-          "name_as_written": "Robert Nguyen",
-          "kind": "gift_row"
-        },
-        {
-          "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 37",
-          "name_as_written": "R. Nguyen",
+          "name_as_written": "Robert Nguyen",
           "kind": "gift_row"
         },
         {
@@ -1765,19 +1837,31 @@
         },
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 41",
-          "name_as_written": "Robert Nguyen",
-          "kind": "gift_row"
-        },
-        {
-          "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 42",
-          "name_as_written": "Robert Nguyen",
-          "kind": "gift_row"
-        },
-        {
-          "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 43",
+          "name_as_written": "R. Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 47",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 50",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 53",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 56",
           "name_as_written": "Robert Nguyen",
           "kind": "gift_row"
         },
@@ -3019,7 +3103,7 @@
       "name_as_written": "Robert Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 28"
+        "location": "sheet 'Online' row 29"
       }
     },
     {
@@ -3034,7 +3118,7 @@
       "name_as_written": "Bob Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 29"
+        "location": "sheet 'Online' row 31"
       }
     },
     {
@@ -3049,7 +3133,7 @@
       "name_as_written": "Teo Salinas",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 30"
+        "location": "sheet 'Online' row 32"
       }
     },
     {
@@ -3064,7 +3148,7 @@
       "name_as_written": "Imani Rutherford",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 32"
+        "location": "sheet 'Online' row 34"
       },
       "channel_note": "event gift"
     },
@@ -3080,7 +3164,7 @@
       "name_as_written": "Victor Szymanski",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 31"
+        "location": "sheet 'Online' row 33"
       },
       "channel_note": "event gift"
     },
@@ -3096,7 +3180,7 @@
       "name_as_written": "Jerome Baptiste",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 33"
+        "location": "sheet 'Online' row 35"
       }
     },
     {
@@ -3111,7 +3195,7 @@
       "name_as_written": "Robert Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 34"
+        "location": "sheet 'Online' row 37"
       }
     },
     {
@@ -3126,7 +3210,7 @@
       "name_as_written": "Robert Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 35"
+        "location": "sheet 'Online' row 39"
       }
     },
     {
@@ -3156,7 +3240,7 @@
       "name_as_written": "Tobias Lindqvist",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 36"
+        "location": "sheet 'Online' row 41"
       }
     },
     {
@@ -3187,7 +3271,7 @@
       "name_as_written": "R. Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 37"
+        "location": "sheet 'Online' row 43"
       }
     },
     {
@@ -3208,7 +3292,7 @@
       "also_recorded_at": [
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
-          "location": "sheet 'Online' row 38",
+          "location": "sheet 'Online' row 45",
           "name_as_written": "S. Achterberg",
           "date_as_entered": "2026-07-15"
         }
@@ -3274,7 +3358,7 @@
       "name_as_written": "Robert Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 39"
+        "location": "sheet 'Online' row 47"
       }
     },
     {
@@ -3321,7 +3405,7 @@
       "name_as_written": "Marcus Oyelaran",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 40"
+        "location": "sheet 'Online' row 49"
       }
     },
     {
@@ -3368,7 +3452,7 @@
       "name_as_written": "Robert Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 41"
+        "location": "sheet 'Online' row 50"
       }
     },
     {
@@ -3446,7 +3530,7 @@
       "name_as_written": "Robert Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 42"
+        "location": "sheet 'Online' row 53"
       }
     },
     {
@@ -3476,7 +3560,202 @@
       "name_as_written": "Robert Nguyen",
       "source": {
         "file": "give_miami_day_export_2022-2025.xlsx",
-        "location": "sheet 'Online' row 43"
+        "location": "sheet 'Online' row 56"
+      }
+    },
+    {
+      "gift_id": "G102",
+      "donor_id": "D18",
+      "donor": "Hye-jin Park",
+      "amount": 40,
+      "gift_date": "2026-06-10",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Hye-jin Park",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 40"
+      }
+    },
+    {
+      "gift_id": "G103",
+      "donor_id": "D18",
+      "donor": "Hye-jin Park",
+      "amount": 40,
+      "gift_date": "2026-07-10",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Hye-jin Park",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 44"
+      }
+    },
+    {
+      "gift_id": "G104",
+      "donor_id": "D18",
+      "donor": "Hye-jin Park",
+      "amount": 40,
+      "gift_date": "2026-08-10",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Hye-jin Park",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 48"
+      }
+    },
+    {
+      "gift_id": "G105",
+      "donor_id": "D18",
+      "donor": "Hye-jin Park",
+      "amount": 40,
+      "gift_date": "2026-09-10",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Hye-jin Park",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 51"
+      }
+    },
+    {
+      "gift_id": "G106",
+      "donor_id": "D18",
+      "donor": "Hye-jin Park",
+      "amount": 40,
+      "gift_date": "2026-10-10",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Hye-jin Park",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 54"
+      }
+    },
+    {
+      "gift_id": "G107",
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "amount": 50,
+      "gift_date": "2026-03-03",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Rafael Quintero",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 28"
+      }
+    },
+    {
+      "gift_id": "G108",
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "amount": 50,
+      "gift_date": "2026-04-03",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Rafael Quintero",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 30"
+      }
+    },
+    {
+      "gift_id": "G109",
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "amount": 50,
+      "gift_date": "2026-05-03",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Rafael Quintero",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 36"
+      }
+    },
+    {
+      "gift_id": "G110",
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "amount": 50,
+      "gift_date": "2026-06-03",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Rafael Quintero",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 38"
+      }
+    },
+    {
+      "gift_id": "G111",
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "amount": 50,
+      "gift_date": "2026-07-03",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Rafael Quintero",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 42"
+      }
+    },
+    {
+      "gift_id": "G112",
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "amount": 50,
+      "gift_date": "2026-08-03",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Rafael Quintero",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 46"
+      }
+    },
+    {
+      "gift_id": "G113",
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "amount": 50,
+      "gift_date": "2026-10-03",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Rafael Quintero",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 52"
+      }
+    },
+    {
+      "gift_id": "G114",
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "amount": 50,
+      "gift_date": "2026-11-03",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": false,
+      "name_as_written": "Rafael Quintero",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 55"
       }
     }
   ],
@@ -3491,7 +3770,7 @@
     },
     "duplicate_recording": {
       "file": "give_miami_day_export_2022-2025.xlsx",
-      "location": "sheet 'Online' row 38"
+      "location": "sheet 'Online' row 45"
     },
     "rule": "Same gift (same check, dated 7/14 vs 7/15). Count once: the check log row is canonical."
   },
@@ -3583,6 +3862,40 @@
       "reason": "Quarterly donor, last gift 2026-04-15; two expected gifts (Jul, Oct) missed, about 207 days since last gift vs a 91-day cadence."
     }
   ],
+  "gift_alerts_expected": [
+    {
+      "donor_id": "D18",
+      "donor": "Hye-jin Park",
+      "kind": "failed",
+      "reason": "Monthly $40 donor (10th of each month, 2026-06 .. 2026-10). The 2026-11-10 charge is in the Online sheet (sheet 'Online' row 57) marked 'card declined' and no later good gift exists. The declined $40 is NOT a gift and is not in any total."
+    },
+    {
+      "donor_id": "D06",
+      "donor": "Teodoro Salinas",
+      "kind": "late",
+      "reason": "Quarterly $300 donor (15th of Jan/Apr/Jul/Oct); last gift 2026-04-15, missed 2026-07-15 and 2026-10-15."
+    },
+    {
+      "donor_id": "D19",
+      "donor": "Rafael Quintero",
+      "kind": "failed",
+      "reason": "Missed Sep 2026 monthly gift. Monthly $50 donor (3rd of each month, 2026-03 .. 2026-11) with no September gift; resumed in October."
+    }
+  ],
+  "failed_gifts_not_counted": [
+    {
+      "donor_id": "D18",
+      "donor": "Hye-jin Park",
+      "amount": 40,
+      "date": "2026-11-10",
+      "source": {
+        "file": "give_miami_day_export_2022-2025.xlsx",
+        "location": "sheet 'Online' row 57"
+      },
+      "note": "monthly - card declined",
+      "rule": "A declined charge is not a gift: excluded from gifts, totals, gift_source_rows and lifetime giving."
+    }
+  ],
   "tab_counts": {
     "giver": 33,
     "neighbor": 20,
@@ -3601,7 +3914,21 @@
       ],
       "reason": "Pantry client (intake form) who told staff he wants to give $10 a month once his new job starts. A stated intention, no gift yet; stays community, flag for review.",
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 6'",
+          "name_as_written": "Marcus Bell",
+          "kind": "intake_form"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "lines 33-34",
+          "name_as_written": "Marcus Bell",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "C15",
@@ -3613,7 +3940,15 @@
         "giver"
       ],
       "reason": "Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.",
-      "has_contact": false
+      "has_contact": false,
+      "source_rows": [
+        {
+          "file": "board_retreat_notes.md",
+          "location": "lines 31-32",
+          "name_as_written": "Dolores Quinones",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "N20",
@@ -3625,7 +3960,15 @@
         "giver"
       ],
       "reason": "Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.",
-      "has_contact": false
+      "has_contact": false,
+      "source_rows": [
+        {
+          "file": "board_retreat_notes.md",
+          "location": "lines 35-36",
+          "name_as_written": "Gabriela Rincon",
+          "kind": "mention"
+        }
+      ]
     }
   ],
   "people": [
@@ -3634,49 +3977,363 @@
       "full_name": "Maria Delgado",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 9",
+          "name_as_written": "Maria Delgado",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 18",
+          "name_as_written": "Maria Delgado",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 23",
+          "name_as_written": "María Delgado-Ruiz",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 31",
+          "name_as_written": "María Delgado-Ruiz",
+          "kind": "gift_row"
+        },
+        {
+          "file": "donor_intake_forms_2026.docx",
+          "location": "section 'Intake Form 1'",
+          "name_as_written": "María Delgado-Ruiz",
+          "kind": "intake_form"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 8",
+          "name_as_written": "Maria Delgado",
+          "kind": "mention"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 9",
+          "name_as_written": "María Delgado-Ruiz",
+          "kind": "mention"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 5",
+          "name_as_written": "Maria D.",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "D02",
       "full_name": "Robert Nguyen",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 6",
+          "name_as_written": "Bob Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "handwritten notes paragraph 3",
+          "name_as_written": "Bob N.",
+          "kind": "mention"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 11",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 13",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 14",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 16",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 18",
+          "name_as_written": "Bob Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 21",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 23",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 25",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 29",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 31",
+          "name_as_written": "Bob Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 37",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 39",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 43",
+          "name_as_written": "R. Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 47",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 50",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 53",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 56",
+          "name_as_written": "Robert Nguyen",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 16",
+          "name_as_written": "Robert Nguyen",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D03",
       "full_name": "Priscilla Okafor",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 10",
+          "name_as_written": "Priscilla Okafor",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 26",
+          "name_as_written": "Priscilla Okafor",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 17",
+          "name_as_written": "Priscilla Okafor",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D04",
       "full_name": "Elizabeth Fontaine",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 5",
+          "name_as_written": "Liz Fontaine",
+          "kind": "gift_row"
+        },
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "handwritten notes paragraph 2",
+          "name_as_written": "Liz F.",
+          "kind": "mention"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 6",
+          "name_as_written": "Elizabeth Fontaine",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 24",
+          "name_as_written": "Liz Fontaine",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D05",
       "full_name": "Harold Whitaker",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 4",
+          "name_as_written": "Harold Whitaker",
+          "kind": "gift_row"
+        },
+        {
+          "file": "stock_and_daf_grants.docx",
+          "location": "table 1 row 1",
+          "name_as_written": "Whitaker Family Charitable Fund",
+          "kind": "gift_row"
+        },
+        {
+          "file": "stock_and_daf_grants.docx",
+          "location": "table 1 row 2",
+          "name_as_written": "Whitaker Family Charitable Fund",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 20",
+          "name_as_written": "Harold Whitaker",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D06",
       "full_name": "Teodoro Salinas",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 7",
+          "name_as_written": "Teodoro Salinas",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 9",
+          "name_as_written": "Teodoro Salinas",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 12",
+          "name_as_written": "Teodoro Salinas",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 17",
+          "name_as_written": "Teodoro Salinas",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 24",
+          "name_as_written": "Teo Salinas",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 32",
+          "name_as_written": "Teo Salinas",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 41",
+          "name_as_written": "Teo Salinas",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D07",
       "full_name": "Gloria Pierre-Louis",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 2",
+          "name_as_written": "Gloria Pierre-Louis",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 3",
+          "name_as_written": "Gloria Pierre-Louis",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 6",
+          "name_as_written": "Gloria Pierre-Louis",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 22",
+          "name_as_written": "Gloria Pierre-Louis",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D08",
@@ -3684,182 +4341,774 @@
       "tab": "giver",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 17",
+          "name_as_written": "Priya Raman",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 20",
+          "name_as_written": "Priya Raman",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 36",
+          "name_as_written": "Priya Raman",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 27",
+          "name_as_written": "Priya Raman",
+          "kind": "gift_row"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 16",
+          "name_as_written": "priya raman",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "D09",
       "full_name": "Walter Brandt",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 4",
+          "name_as_written": "Walter Brandt",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 8",
+          "name_as_written": "Walter Brandt",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 19",
+          "name_as_written": "Walter Brandt",
+          "kind": "mention"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 41",
+          "name_as_written": "Walter Brandt",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D10",
       "full_name": "Samuel Achterberg",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 2",
+          "name_as_written": "Samuel Achterberg",
+          "kind": "gift_row"
+        },
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "handwritten notes paragraph 4",
+          "name_as_written": "Samuel A.",
+          "kind": "mention"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 12",
+          "name_as_written": "Samuel Achterberg",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 35",
+          "name_as_written": "Samuel Achterberg",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 45",
+          "name_as_written": "S. Achterberg",
+          "kind": "gift_row_duplicate_recording"
+        }
+      ]
     },
     {
       "person_id": "D11",
       "full_name": "Lucia Ferrante",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 12",
+          "name_as_written": "Lucia Ferrante",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 5",
+          "name_as_written": "Lucia Ferrante",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 15",
+          "name_as_written": "Lucia Ferrante",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 10",
+          "name_as_written": "Lucia Ferrante",
+          "kind": "mention"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 19",
+          "name_as_written": "Lucia F",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "D12",
       "full_name": "Marcus Oyelaran",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 49",
+          "name_as_written": "Marcus Oyelaran",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D13",
       "full_name": "Dana Kowalczyk",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 3",
+          "name_as_written": "D. Kowalczyk",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 21",
+          "name_as_written": "Dana Kowalczyk",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 32",
+          "name_as_written": "Dana Kowalczyk",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D14",
       "full_name": "Esperanza Villaverde",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 4",
+          "name_as_written": "Esperanza Villaverde",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 8",
+          "name_as_written": "Esperanza Villaverde",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 37",
+          "name_as_written": "Esperanza Villaverde",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D15",
       "full_name": "Tobias Lindqvist",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 14",
+          "name_as_written": "Tobias Lindqvist",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 41",
+          "name_as_written": "Tobias Lindqvist",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 12",
+          "name_as_written": "Tobias Lindqvist",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D16",
       "full_name": "Naomi Castellanos",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 15",
+          "name_as_written": "Naomi Castellanos",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 27",
+          "name_as_written": "Naomi Castellanos",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D17",
       "full_name": "Jerome Baptiste",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 33",
+          "name_as_written": "Jerome Baptiste",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 35",
+          "name_as_written": "Jerome Baptiste",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D18",
       "full_name": "Hye-jin Park",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 16",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 26",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 30",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 40",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 44",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 48",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 51",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 54",
+          "name_as_written": "Hye-jin Park",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 57",
+          "name_as_written": "Hye-jin Park",
+          "kind": "failed_gift_row"
+        }
+      ]
     },
     {
       "person_id": "D19",
       "full_name": "Rafael Quintero",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 7",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 27",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 28",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 30",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 36",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 38",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 42",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 46",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 52",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 55",
+          "name_as_written": "Rafael Quintero",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D20",
       "full_name": "Annelise Moreau",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 10",
+          "name_as_written": "Annelise Moreau",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 7",
+          "name_as_written": "Annelise Moreau",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 11",
+          "name_as_written": "Annelise Moreau",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 28",
+          "name_as_written": "Annelise Moreau",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 11",
+          "name_as_written": "Annelise Moreau",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D21",
       "full_name": "Desmond Achebe-Wells",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "stock_and_daf_grants.docx",
+          "location": "table 1 row 4",
+          "name_as_written": "Desmond Achebe-Wells",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D22",
       "full_name": "Carmen Ibarra",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 1",
+          "name_as_written": "Carmen Ibarra",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 6",
+          "name_as_written": "Carmen Ibarra",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 11",
+          "name_as_written": "Carmen Ibarra",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D23",
       "full_name": "Victor Szymanski",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 5",
+          "name_as_written": "Victor Szymanski",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 19",
+          "name_as_written": "Victor Szymanski",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 33",
+          "name_as_written": "Victor Szymanski",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D24",
       "full_name": "Imani Rutherford",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 20",
+          "name_as_written": "Imani Rutherford",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Online' row 34",
+          "name_as_written": "Imani Rutherford",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D25",
       "full_name": "Leopold Tran",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "donor_intake_forms_2026.docx",
+          "location": "section 'Intake Form 2'",
+          "name_as_written": "Leopold Tran",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "D26",
       "full_name": "Sofia Marchetti",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "donor_intake_forms_2026.docx",
+          "location": "section 'Intake Form 3'",
+          "name_as_written": "Sofia Marchetti",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "D27",
       "full_name": "Veloria Bay Foundation",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 3",
+          "name_as_written": "Veloria Bay Fdn",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 5",
+          "name_as_written": "Veloria Bay Foundation",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 8",
+          "name_as_written": "Veloria Bay Foundation",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 10",
+          "name_as_written": "Veloria Bay Foundation Inc",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 21",
+          "name_as_written": "Veloria Bay Foundation",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D28",
       "full_name": "Bellweather Pines Family Foundation",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 7",
+          "name_as_written": "Bellweather Pines Family Fdn.",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 9",
+          "name_as_written": "Bellweather Pines Family Fdn.",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 13",
+          "name_as_written": "Bellweather Pines Family Foundation",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D29",
       "full_name": "Tamarind Quay Hardware LLC",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 9",
+          "name_as_written": "Tamarind Quay Hardware, LLC",
+          "kind": "gift_row"
+        },
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "handwritten notes paragraph 1",
+          "name_as_written": "hardware place",
+          "kind": "mention"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 13",
+          "name_as_written": "Tamarind Quay Hardware LLC",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 22",
+          "name_as_written": "Tamarind Quay Hdwe, L.L.C.",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 34",
+          "name_as_written": "Tamarind Quay Hardware, LLC",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 11",
+          "name_as_written": "Tamarind Quay",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "D30",
       "full_name": "Halcyon Reef Dental Group",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'Major gifts 22-25' row 12",
+          "name_as_written": "Halcyon Reef Dental Group",
+          "kind": "gift_row"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 26",
+          "name_as_written": "Halcyon Reef Dental Group",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D31",
       "full_name": "Quillfeather Coffee Roasters",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 25",
+          "name_as_written": "Quillfeather Coffee Roasters",
+          "kind": "gift_row"
+        },
+        {
+          "file": "give_miami_day_export_2022-2025.xlsx",
+          "location": "sheet 'GMD gifts' row 38",
+          "name_as_written": "Quillfeather Coffee Roasters",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "D32",
       "full_name": "Marrow Lane Print Co.",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 8",
+          "name_as_written": "Marrow Lane Print Co.",
+          "kind": "gift_row"
+        },
+        {
+          "file": "donor_intake_forms_2026.docx",
+          "location": "section 'Intake Form 4'",
+          "name_as_written": "Bernard Okoye",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "D33",
       "full_name": "Ostrander-Pell Charitable Trust",
       "tab": "giver",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "check_deposit_log_q3_2026.docx",
+          "location": "table 1 row 11",
+          "name_as_written": "Ostrander-Pell Charitable Trust",
+          "kind": "gift_row"
+        },
+        {
+          "file": "stock_and_daf_grants.docx",
+          "location": "table 1 row 3",
+          "name_as_written": "Ostrander-Pell Charitable Trust",
+          "kind": "gift_row"
+        }
+      ]
     },
     {
       "person_id": "C01",
@@ -3867,14 +5116,36 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 1'",
+          "name_as_written": "Rosa Elena Martinez",
+          "kind": "intake_form"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 18",
+          "name_as_written": "Rosa E. Martinez",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "C02",
       "full_name": "Jean-Robert Toussaint",
       "tab": "community",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 2'",
+          "name_as_written": "Jean-Robert Toussaint",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C03",
@@ -3882,7 +5153,21 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 3'",
+          "name_as_written": "Keisha Williams",
+          "kind": "intake_form"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 14",
+          "name_as_written": "Keisha W.",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "C04",
@@ -3890,7 +5175,15 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 4'",
+          "name_as_written": "Dmitri Volkov",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C05",
@@ -3898,7 +5191,15 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 5'",
+          "name_as_written": "Altagracia Pena",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C06",
@@ -3911,7 +5212,21 @@
       ],
       "reason": "Pantry client (intake form) who told staff he wants to give $10 a month once his new job starts. A stated intention, no gift yet; stays community, flag for review.",
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 6'",
+          "name_as_written": "Marcus Bell",
+          "kind": "intake_form"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "lines 33-34",
+          "name_as_written": "Marcus Bell",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "C07",
@@ -3919,7 +5234,15 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 7'",
+          "name_as_written": "Nguyen Thi Lan",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C08",
@@ -3927,14 +5250,30 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 8'",
+          "name_as_written": "Yolanda Cruz-Beltran",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C09",
       "full_name": "Andre Lafleur",
       "tab": "community",
       "ambiguous": false,
-      "has_contact": false
+      "has_contact": false,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 9'",
+          "name_as_written": "Andre Lafleur",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C10",
@@ -3942,7 +5281,21 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 10'",
+          "name_as_written": "Mildred Hayes",
+          "kind": "intake_form"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 10",
+          "name_as_written": "Millie Hayes",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "C11",
@@ -3950,14 +5303,30 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 11'",
+          "name_as_written": "Santiago Ortega",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C12",
       "full_name": "Fatima Al-Sayed",
       "tab": "community",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 12'",
+          "name_as_written": "Fatima Al-Sayed",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C13",
@@ -3965,7 +5334,15 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 13'",
+          "name_as_written": "Luis Fernando Paz",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C14",
@@ -3973,7 +5350,15 @@
       "tab": "community",
       "ambiguous": false,
       "has_dog": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 14'",
+          "name_as_written": "Tamika Brooks",
+          "kind": "intake_form"
+        }
+      ]
     },
     {
       "person_id": "C15",
@@ -3985,7 +5370,15 @@
         "giver"
       ],
       "reason": "Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.",
-      "has_contact": false
+      "has_contact": false,
+      "source_rows": [
+        {
+          "file": "board_retreat_notes.md",
+          "location": "lines 31-32",
+          "name_as_written": "Dolores Quinones",
+          "kind": "mention"
+        }
+      ]
     },
     {
       "person_id": "N01",
@@ -3993,21 +5386,51 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 25",
+          "name_as_written": "Camila Restrepo",
+          "kind": "signin_row"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 30",
+          "name_as_written": "camila r.",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N02",
       "full_name": "Jamal Pierce",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 9",
+          "name_as_written": "Jamal Pierce",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N03",
       "full_name": "Ingrid Solheim",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 17",
+          "name_as_written": "Ingrid Solheim",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N04",
@@ -4015,14 +5438,30 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": false
+      "has_contact": false,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 23",
+          "name_as_written": "Tyrone Gaines",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N05",
       "full_name": "Beatriz Almeida",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 29",
+          "name_as_written": "Beatriz Almeida",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N06",
@@ -4030,14 +5469,30 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 26",
+          "name_as_written": "Owen Castellan",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N07",
       "full_name": "Nadia Haddad",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 22",
+          "name_as_written": "Nadia Haddad",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N08",
@@ -4045,21 +5500,51 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 7",
+          "name_as_written": "Felix Okonkwo",
+          "kind": "signin_row"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 13",
+          "name_as_written": "F. Okonkwo",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N09",
       "full_name": "Svetlana Petrova",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 4",
+          "name_as_written": "Svetlana Petrova",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N10",
       "full_name": "Darnell Washington",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 6",
+          "name_as_written": "Darnell Washington",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N11",
@@ -4067,14 +5552,30 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 15",
+          "name_as_written": "Lourdes Quesada",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N12",
       "full_name": "Mateo Bianchi",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 27",
+          "name_as_written": "Mateo Bianchi",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N13",
@@ -4082,14 +5583,30 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 12",
+          "name_as_written": "Jocelyn Fairweather",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N14",
       "full_name": "Anil Deshmukh",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 28",
+          "name_as_written": "Anil Deshmukh",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N15",
@@ -4097,14 +5614,30 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 24",
+          "name_as_written": "Renata Silva-Cho",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N16",
       "full_name": "Elliot Brandvold",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 21",
+          "name_as_written": "Elliot Brandvold",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N17",
@@ -4112,14 +5645,30 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 11",
+          "name_as_written": "Yasmin Farouk",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N18",
       "full_name": "Gus Lindemann",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": false
+      "has_contact": false,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 8",
+          "name_as_written": "Gus Lindemann",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N19",
@@ -4127,7 +5676,15 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": true
+      "has_contact": true,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 20",
+          "name_as_written": "Pilar Echeverria",
+          "kind": "signin_row"
+        }
+      ]
     },
     {
       "person_id": "N20",
@@ -4139,7 +5696,15 @@
         "giver"
       ],
       "reason": "Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.",
-      "has_contact": false
+      "has_contact": false,
+      "source_rows": [
+        {
+          "file": "board_retreat_notes.md",
+          "location": "lines 35-36",
+          "name_as_written": "Gabriela Rincon",
+          "kind": "mention"
+        }
+      ]
     }
   ],
   "community_members": [
@@ -4339,7 +5904,7 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "line 33",
+          "location": "lines 33-34",
           "name_as_written": "Marcus Bell",
           "kind": "mention"
         }
@@ -4619,7 +6184,7 @@
       "source_rows": [
         {
           "file": "board_retreat_notes.md",
-          "location": "line 31",
+          "location": "lines 31-32",
           "name_as_written": "Dolores Quinones",
           "kind": "mention"
         }
@@ -5124,7 +6689,7 @@
       "source_rows": [
         {
           "file": "board_retreat_notes.md",
-          "location": "line 35",
+          "location": "lines 35-36",
           "name_as_written": "Gabriela Rincon",
           "kind": "mention"
         }
