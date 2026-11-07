@@ -193,3 +193,21 @@ def test_icp_stage_saves_prospects_even_before_draft_prospect_lands(env, stubs):
     assert conn.execute("SELECT COUNT(*) FROM prospects WHERE status = 'new'").fetchone()[0] == 2
     assert conn.execute("SELECT COUNT(*) FROM outreach_drafts WHERE prospect_id IS NOT NULL").fetchone()[0] == 0
     conn.close()
+
+
+def test_no_seed_mode_runs_on_an_empty_db_and_on_ingested_rows(env, stubs):
+    out = env / "snapshot.json"
+    report = {r["stage"]: r for r in pipeline.run_pipeline(AS_OF, keep_db=True, out=out)}
+    assert report["rebuild"]["detail"].startswith("kept existing rows; scored 0")
+    assert all(r["status"] == "ok" for r in report.values()), report
+    assert json.loads(out.read_text(encoding="utf-8"))["donors"] == []
+
+    conn = db.connect()                                      # what ingest would write
+    db.insert_donor(conn, {"full_name": "Ingested Org", "donor_type": "organization", "source_row": "row 2",
+                           "gifts": [(5000, "2025-11-20", "Give Miami Day")]})
+    conn.commit()
+    conn.close()
+    pipeline.run_pipeline(AS_OF, keep_db=True, out=out)
+    snap = json.loads(out.read_text(encoding="utf-8"))
+    assert [d["full_name"] for d in snap["donors"]] == ["Ingested Org"]       # no seed was added
+    assert snap["donors"][0]["is_sample"] is False and snap["donors"][0]["status"] == "due"   # 1 gift: assumed yearly, 353 days on
