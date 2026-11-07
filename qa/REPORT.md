@@ -159,3 +159,11 @@ Open:
 | #17 docs/onboarding-plan | a944b59 | 48 passed | docs only | APPROVE |
 
 §9 "Duplicates 6/6" can now be measured: data/sample_inputs/answer_key.json has 6 planted groups. It runs once ingest lands.
+
+| #17 docs/onboarding-plan (re-check) | **a2faffb** | n/a | docs only; Sat Nov 7 weekday correct | APPROVE |
+
+### Gate protocol addition (Sharif, Sat 2026-11-07): overlap and integration across all open PRs
+Each verdict also runs:
+1. **Overlap map:** every file touched by more than one open PR, with both owners. Overlaps get a joint check or an agreed order.
+2. **All-open integration:** merge every open PR together into one throwaway tree on current main; run `pytest service/tests`,
+   and `npm run build:demo` when web/ is touched. A PR that passes alone but breaks with another is REJECTed until the owners reconcile.
