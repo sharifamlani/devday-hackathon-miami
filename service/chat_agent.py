@@ -188,17 +188,27 @@ def batch_summary(detail: dict) -> dict:
             "flagged": [m["donor_name"] for m in msgs if m["flags"]]}
 
 
-def send_item(m: dict) -> dict:
+def send_item(m: dict, contact_type: str = "giver") -> dict:
     """A campaign message in the UI's SendItem shape (addresses already masked)."""
-    return {"id": m["id"], "person_id": m["donor_id"], "full_name": m["donor_name"], "contact_type": "giver",
+    return {"id": m["id"], "person_id": m["donor_id"], "full_name": m["donor_name"], "contact_type": contact_type,
             "channel": m["channel"], "to": m["to"], "subject": m["subject"], "body": m["body"],
             "facts_used": m["facts_used"], "needs_individual_approval": m["needs_individual_approval"],
             "approval_reason": m["approval_reason"], "flags": m["flags"], "status": m["status"]}
 
 
+def contact_types(ids: list[int]) -> dict[int, str]:
+    """{donor id: giver | neighbor | community} once data's contact_type exists; empty before (all givers)."""
+    if not ids or "contact_type" not in {r["name"] for r in query("PRAGMA table_info(donors)")}:
+        return {}
+    marks = ", ".join("?" * len(ids))
+    return {r["id"]: r["contact_type"] or "giver"
+            for r in query(f"SELECT id, contact_type FROM donors WHERE id IN ({marks})", tuple(ids))}
+
+
 def pending_batch(detail: dict) -> dict:
+    types = contact_types([m["donor_id"] for m in detail["messages"]])
     return {"id": detail["id"], "title": detail["name"], "channel": detail["channel"], "counts": detail["counts"],
-            "items": [send_item(m) for m in detail["messages"]]}
+            "items": [send_item(m, types.get(m["donor_id"], "giver")) for m in detail["messages"]]}
 
 
 @function_tool
