@@ -132,3 +132,10 @@ def test_quote_must_appear_on_the_page():
     assert not icp_agent.quote_on_page("support adult education programs across Miami-Dade", text)
     assert not icp_agent.quote_on_page("youth and family", text)             # too short to prove anything
     assert not icp_agent.quote_on_page("support youth and family programs across", None)
+
+
+def test_numbers_in_a_fact_must_be_on_the_page():
+    text = icp_agent.normalize_text("In 2025 our attorneys gave 3,582 pro bono hours to Miami nonprofits.")
+    assert icp_agent.numbers_on_page("Gave 3,582 pro bono hours in 2025.", text)
+    assert not icp_agent.numbers_on_page("Gave 5,000 pro bono hours in 2025.", text)
+    assert icp_agent.fact_on_page("Gave 3,582 hours in 2025.", "our attorneys gave 3,582 pro bono hours to Miami", text)

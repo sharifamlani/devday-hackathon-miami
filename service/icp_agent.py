@@ -42,6 +42,8 @@ load_dotenv(REPO_ROOT / ".env")
 
 ICP_CACHE = REPO_ROOT / "data" / "icp_cache.json"
 MIN_FACTS = 2
+SEARCH_KINDS = ["companies with corporate giving programs (banks, law firms, utilities, employers)",
+                "private, family and corporate foundations"]
 MAX_PROSPECTS = 10
 
 # The Miami Foundation's five priorities (plan §11), matched to research text by keyword in Python
@@ -93,10 +95,31 @@ def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
+def key_words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9][a-z0-9'-]+", normalize_text(text)) if len(w) >= 4}
+
+
 def quote_on_page(quote: str, text: str | None) -> bool:
-    """True when the quote (at least 6 words) appears verbatim on the page."""
+    """True when the quote (6+ words) is on the page verbatim, or 80%+ of its key words are on it."""
     q = normalize_text(quote).strip(" .\"'")
-    return bool(text) and len(q.split()) >= 6 and q in text
+    if not text or len(q.split()) < 6:
+        return False
+    if q in text:
+        return True
+    words = key_words(q)
+    return bool(words) and len(words & key_words(text)) / len(words) >= 0.8
+
+
+def numbers_on_page(fact: str, text: str | None) -> bool:
+    """Every number in the fact ($25,000, 3,582 hours, 2024) must appear on the page too."""
+    page = re.sub(r"(?<=\d),(?=\d)", "", text or "")
+    numbers = {n.replace(",", "").rstrip(".") for n in re.findall(r"\d[\d,.]*", fact)}
+    return all(n in page for n in numbers if n)
+
+
+def fact_on_page(fact: str, quote: str, text: str | None) -> bool:
+    """The cited page states the fact: its quote and every number in it are on the page."""
+    return quote_on_page(quote, text) and numbers_on_page(fact, text)
 
 
 def priority_hits(text: str) -> list[str]:
@@ -320,7 +343,7 @@ the exact URL of the page that STATES it (a grants, news or community page, not 
 links there) and a quote of 6-30 words copied exactly from that page; facts are checked against the page. matched_traits lists which ICP traits it shares (sector, causes,
 geography, foundation_priorities); priority is the Foundation priority it fits best.
 Never invent facts or URLs. Prefer sources that are plain public pages (news releases, grant pages, annual reports) over pages
-that block automated access. Return 12-14 prospects, best fit first.""",
+that block automated access. Search only for the kind of organization named in search_for. Return 8-10 prospects, best fit first.""",
     model=os.getenv("OPENAI_MODEL_DEFAULT"),
     tools=[WebSearchTool(search_context_size="low")],
     output_type=Prospects,
@@ -402,7 +425,11 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
              "recent_focus": [{"fact": c["fact"], "priority": c["priority"], "posted_at": c.get("posted_at")}
                               for c in icp.get("recent_context", [])],
              "exclude": sorted(exclude_names)}
-    found = Runner.run_sync(prospect_agent, json.dumps(brief, indent=1)).final_output.prospects
+    # Two searches in parallel (companies, foundations) for a wider pool: many sources fail the page check
+    briefs = [json.dumps({**brief, "search_for": kind}, indent=1) for kind in SEARCH_KINDS]
+    with ThreadPoolExecutor(max_workers=len(briefs)) as pool:
+        found = [p for result in pool.map(lambda b: Runner.run_sync(prospect_agent, b), briefs)
+                 for p in result.final_output.prospects]
 
     seen, candidates = set(), []
     for p in found:
@@ -421,7 +448,7 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
         # A fact stays only if its page loads AND states it: the quote must appear on that page
         facts = [{"fact": clean_fact(f.fact), "url": f.url, "quote": f.quote, "via": "web search",
                   "retrieved_at": retrieved_at}
-                 for f in p.facts if quote_on_page(f.quote, pages.get(f.url))]
+                 for f in p.facts if fact_on_page(f.fact, f.quote, pages.get(f.url))]
         if len(facts) < MIN_FACTS:
             continue
         prospect = {"name": p.name, "org_type": p.org_type, "city": p.city,
