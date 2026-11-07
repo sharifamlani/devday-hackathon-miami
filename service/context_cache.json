@@ -1,0 +1,238 @@
+{
+  "miamifoundation.org": {
+    "profile": {
+      "name": "The Miami Foundation",
+      "website": "https://miamifoundation.org/",
+      "x_url": null,
+      "linkedin_url": "https://www.linkedin.com/company/the-miami-foundation/",
+      "instagram_url": "https://www.instagram.com/miamifoundation/",
+      "priorities": [
+        "Youth & Families",
+        "Prosperity",
+        "Civic",
+        "Climate & Resilience",
+        "Inequities"
+      ],
+      "voice": {
+        "phrases": [
+          "We invest in leaders.",
+          "Hub for Collaboration",
+          "where everyone can thrive",
+          "Carrying out a mission for a Greater Miami."
+        ],
+        "urls": [
+          "https://miamifoundation.org/",
+          "https://miamifoundation.org/",
+          "https://miamifoundation.org/",
+          "https://miamifoundation.org/who-we-are/our-team/"
+        ]
+      }
+    },
+    "facts": [
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-september-2026/",
+        "posted_at": "2026-10-01",
+        "fact": "The Miami Foundation hosted two in-person SET Summits in Wynwood and Homestead to prepare nonprofits for Give Miami Day.",
+        "quote": "we hosted two in-person SET Summits in Wynwood and Homestead",
+        "priority": "Civic",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-september-2026/",
+        "posted_at": "2026-10-01",
+        "fact": "The Miami Foundation partnered with McDermott Will & Schulte to provide free legal counsel to 17 Miami nonprofits, delivering 398 hours of service valued at more than $500,000.",
+        "quote": "398 hours of service valued at more than $500,000",
+        "priority": "Inequities",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/",
+        "posted_at": "2026-09-23",
+        "fact": "The Miami Foundation committed $100,000 to support Spanish-language coverage through elTOQUE and City of Miami coverage through The Florida Trib in partnership with the Coconut Grove Spotlight.",
+        "quote": "$100,000 from The Miami Foundation",
+        "priority": "Civic",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
+        "posted_at": "2026-08-31",
+        "fact": "The Miami Foundation announced a $1 million investment from Amazon for South-Dade nonprofit organizations alongside its study of nonprofit funding in the region.",
+        "quote": "a $1 million investment from Amazon intended for more than a dozen South-Dade nonprofit organizations",
+        "priority": "Inequities",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+        "posted_at": "2026-08-31",
+        "fact": "The Miami Foundation's scholarships program awarded 969 students scholarships totaling $3.45 million.",
+        "quote": "969 students received scholarships totaling $3.45 million.",
+        "priority": "Youth & Families",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+        "posted_at": "2026-08-31",
+        "fact": "The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 CreARTE investment supporting 28 organizational capacity-building projects and four collaborative arts ecosystem initiatives.",
+        "quote": "a $720,000 investment",
+        "priority": "Prosperity",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+        "posted_at": "2026-08-31",
+        "fact": "The Miami Foundation hosted three Vote Miami forums to help residents feel informed at the ballot box.",
+        "quote": "hosted three Vote Miami forums",
+        "priority": "Civic",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/Amazon-Commits-1-Million-to-13-South-Dade-Nonprofits/",
+        "posted_at": "2026-08-31",
+        "fact": "The Miami Foundation unveiled a commissioned study of South Dade nonprofit funding that analyzed more than 1,400 grants made to 262 nonprofits and included interviews with 19 community leaders, providers and advocates.",
+        "quote": "analyzed more than 1,400 grants made to 262 South Dade nonprofits",
+        "priority": "Inequities",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/Amazon-Commits-1-Million-to-13-South-Dade-Nonprofits/",
+        "posted_at": "2026-08-31",
+        "fact": "The Miami Foundation's South Dade funding report inspired Amazon to announce a $1 million investment in 13 South Dade nonprofit organizations.",
+        "quote": "Inspired directly by the report’s findings, Amazon announced a $1 million investment",
+        "priority": "Inequities",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+        "posted_at": "2026-08-31",
+        "fact": "The Miami Foundation awarded scholarships totaling $3.45 million to 969 students.",
+        "quote": "969 students received scholarships totaling $3.45 million",
+        "priority": "Youth & Families",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+        "posted_at": "2026-08-31",
+        "fact": "The Miami Foundation hosted three Vote Miami forums to help residents become informed voters.",
+        "quote": "hosted three Vote Miami forums",
+        "priority": "Civic",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+        "posted_at": "2026-08-31",
+        "fact": "The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 CreARTE investment supporting nonprofit arts infrastructure and resilience.",
+        "quote": "a $720,000 investment",
+        "priority": "Prosperity",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "news",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+        "posted_at": "2026-08-31",
+        "fact": "The Miami Foundation published its second Disaster Resilience in Greater Miami Infographic, mapping nonprofit disaster preparedness needs and resources.",
+        "quote": "Disaster Resilience in Greater Miami Infographic",
+        "priority": "Climate & Resilience",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/featured/learn-about-local-disaster-resilience-in-our-2026-nonprofit-disaster-readiness-infographic/",
+        "posted_at": "2026-08-20",
+        "fact": "The Miami Foundation published its 2026 Nonprofit Disaster Readiness Infographic about local disaster resilience.",
+        "quote": "Learn about local disaster resilience in our 2026 Nonprofit Disaster Readiness Infographic",
+        "priority": "Climate & Resilience",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/blog/introducing-the-south-florida-news-database/",
+        "posted_at": "2026-04-08",
+        "fact": "Press Forward South Florida introduced the South Florida News Database, providing a snapshot of a regional news and information ecosystem with more than 100 providers.",
+        "quote": "a dynamic and diverse landscape of more than 100 providers",
+        "priority": "Civic",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-march-2026/",
+        "posted_at": "2026-03-30",
+        "fact": "Miami Fellows Class XII launched a 15-month leadership journey with learning labs exploring Miami's history and its implications for leadership.",
+        "quote": "Miami Fellows Class XII launched their 15-month leadership journey",
+        "priority": "Civic",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/news/foundation-newsletter-march-2026/",
+        "posted_at": "2026-03-30",
+        "fact": "The Miami Foundation helped host the first Florida Natural Disaster and Journalism Summit to strengthen newsrooms' preparation for informing communities before, during and after natural disasters.",
+        "quote": "the first Florida Natural Disaster and Journalism Summit",
+        "priority": "Climate & Resilience",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/blog/2025-at-the-miami-foundation-a-year-in-review/",
+        "posted_at": "2025-12-16",
+        "fact": "The Miami Foundation awarded $300,000 in unrestricted LGBTQ+ Equity Fund grants to nine organizations addressing health equity and systems change.",
+        "quote": "we awarded $300,000 in unrestricted grants to nine organizations",
+        "priority": "Inequities",
+        "captured_at": "2026-11-07T21:58:39+00:00",
+        "verification": "search-cited"
+      }
+    ],
+    "sources": {
+      "website": "ok",
+      "news": "ok",
+      "x": "skipped",
+      "linkedin": "skipped",
+      "instagram": "skipped"
+    },
+    "source_notes": {
+      "website": "done 9 facts",
+      "news": "done 9 facts",
+      "x": "not provided",
+      "linkedin": "saved, not connected",
+      "instagram": "saved, not connected"
+    },
+    "dropped": {
+      "website": [
+        "Press Forward total (sources disagree)"
+      ],
+      "news": [
+        "Press Forward total (sources disagree)"
+      ]
+    },
+    "run_seconds": 19.7,
+    "captured_at": "2026-11-07T21:58:39+00:00"
+  }
+}

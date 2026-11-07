@@ -29,3 +29,4 @@ data/*.db
 # Runtime agent output (research_cache.json is committed on purpose: precomputed demo data)
 data/research_facts.json
 data/outreach_drafts.json
+data/context_live.json

@@ -92,3 +92,85 @@ def test_prospect_ranking_prefers_its_priority():
     assert rank_org_facts(prospect_as_donor(p), [], org_facts, p["priority"])[0]["url"] == "u2"
     p = p | {"priority": "Prosperity"}
     assert rank_org_facts(prospect_as_donor(p), [], org_facts, p["priority"])[0]["url"] == "u3"
+
+
+# ---- context agent (no network) -------------------------------------------------------------------
+
+def test_context_helpers_clean_urls_and_text():
+    from org_context import match_priority, norm_url, PRIORITIES, site_host, strip_links
+    assert norm_url("https://miamifoundation.org/es/news/x?utm_source=openai#a") == "https://miamifoundation.org/news/x/"
+    assert site_host("https://www.MiamiFoundation.org/who-we-are/") == "miamifoundation.org"
+    assert strip_links("All of us, together. ([miamifoundation.org](https://miamifoundation.org/?utm_source=openai))") == "All of us, together."
+    assert match_priority("Generating Prosperity", list(PRIORITIES)) == "Prosperity"
+
+
+def test_build_context_without_refresh_returns_the_cached_run():
+    from org_context import FOUNDATION_URLS, build_context
+    seen = []
+    res = build_context(FOUNDATION_URLS, refresh=False, progress=lambda s, st: seen.append((s, st)))
+    assert len(res["facts"]) >= 10 and {"website", "news"} <= {f["source"] for f in res["facts"]}
+    assert all(f["url"] and f["posted_at"] for f in res["facts"])
+    assert res["sources"]["website"] == "cached" and res["sources"]["linkedin"] == "skipped"
+    assert res["source_notes"]["linkedin"] == "saved, not connected"
+    assert ("website", "cached") in seen
+
+
+def test_live_runs_never_rewrite_the_committed_cache(tmp_path, monkeypatch):
+    import org_context
+    committed, live = tmp_path / "context_cache.json", tmp_path / "data" / "context_live.json"
+    committed.write_text('{"miamifoundation.org": {"facts": [{"fact": "old", "url": "u0"}], "sources": {}}}', encoding="utf-8")
+    monkeypatch.setattr(org_context, "CONTEXT_CACHE", committed)
+    monkeypatch.setattr(org_context, "CONTEXT_LIVE", live)
+    before = committed.read_text(encoding="utf-8")
+
+    run = {"facts": [{"fact": "new", "url": "u1"}], "sources": {"website": "ok"}}
+    org_context.save_run("miamifoundation.org", run)                       # a live run
+    assert committed.read_text(encoding="utf-8") == before                 # committed cache untouched
+    assert org_context.cached_run("miamifoundation.org")["facts"][0]["fact"] == "new"   # runtime read first
+
+    org_context.save_run("miamifoundation.org", run, write_cache=True)    # the pipeline's --write-cache
+    assert '"new"' in committed.read_text(encoding="utf-8")
+
+
+def test_unreachable_site_is_an_error_not_done(tmp_path, monkeypatch):
+    import org_context
+    monkeypatch.setattr(org_context, "CONTEXT_LIVE", tmp_path / "live.json")
+    seen = []
+    res = org_context.build_context({"website": "https://no-such-org-qa.invalid"}, refresh=True,
+                                    progress=lambda s, st: seen.append((s, st)))
+    assert res["facts"] == []
+    assert res["sources"]["website"].startswith("error") and res["sources"]["news"].startswith("error")
+    assert res["source_notes"]["website"].startswith("error")
+    assert ("website", res["sources"]["website"]) in seen
+    assert not (tmp_path / "live.json").exists()                          # a failed run is never cached
+
+
+def test_zero_surviving_facts_is_an_error():
+    from types import SimpleNamespace as F
+    from org_context import validate_source
+    found = [F(url="https://miamifoundation.org/x/", posted_at="", fact="undated", quote="q", priority="Civic")]
+    kept, dropped, status = validate_source("website", found, {"https://miamifoundation.org/x/"},
+                                            "miamifoundation.org", ["Civic"], "now")
+    assert kept == [] and status == "error: no usable facts (1 dropped)"
+    kept, dropped, status = validate_source("website", [], set(), "miamifoundation.org", ["Civic"], "now")
+    assert status == "error: search found no pages on miamifoundation.org"
+
+
+def test_cached_run_keeps_the_request_urls():
+    from org_context import build_context
+    res = build_context({"website": "https://miamifoundation.org/", "x_url": "https://x.com/example"}, refresh=False)
+    p = res["profile"]
+    assert p["x_url"] == "https://x.com/example" and p["instagram_url"] is None and p["linkedin_url"] is None
+    assert res["source_notes"]["x"] == "saved, not connected"
+    assert res["source_notes"]["instagram"] == "not provided"
+
+
+def test_cached_strings_are_clean_utf8():
+    import json
+    from org_context import CONTEXT_CACHE, clean_text, clean_phrase
+    raw = CONTEXT_CACHE.read_text(encoding="utf-8")
+    assert "\u00e2\u20ac" not in raw and "\u00e2\x80" not in raw                 # no mojibake ("â€")
+    for run in json.loads(raw).values():
+        assert all(p == clean_phrase(p) for p in run["profile"]["voice"]["phrases"])   # no wrapping quotes
+    good = "\u201cWe invest in leaders.\u201d"
+    assert clean_text(good.encode("utf-8").decode("latin-1")) == good
