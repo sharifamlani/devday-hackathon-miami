@@ -121,3 +121,109 @@ def test_star_draft_can_never_be_ready(conn):
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("UPDATE outreach_drafts SET status = 'ready' WHERE id = ?", (draft,))
     conn.execute("UPDATE outreach_drafts SET status = 'approved', approved_by = 'staff' WHERE id = ?", (draft,))
+
+
+# ---- name-only matching (planted groups in data/sample_inputs/answer_key.json) --------------------
+
+def names_paired(conn, *rows):
+    """Insert rows with no contact details and return the suggested (name, name) pairs + reasons."""
+    ids = [add(conn, **r) for r in rows]
+    donors = [dict(r) for r in conn.execute("SELECT * FROM donors")]
+    by_id = {d["id"]: d["full_name"] for d in donors}
+    return {(by_id[p["donor_a_id"]], by_id[p["donor_b_id"]]): p for p in dedupe.find_pairs(donors)
+            if p["donor_a_id"] in ids and p["donor_b_id"] in ids}
+
+
+def test_nickname_and_initial_with_same_surname(conn):
+    pairs = names_paired(conn, {"full_name": "Robert Nguyen"}, {"full_name": "Bob Nguyen"}, {"full_name": "R. Nguyen"})
+    assert set(pairs) == {("Robert Nguyen", "Bob Nguyen"), ("Robert Nguyen", "R. Nguyen"), ("Bob Nguyen", "R. Nguyen")}
+    assert "nickname bob ~ robert" in pairs[("Robert Nguyen", "Bob Nguyen")]["reasons"][0] or \
+        "nickname robert ~ bob" in pairs[("Robert Nguyen", "Bob Nguyen")]["reasons"][0]
+    assert pairs[("Robert Nguyen", "Bob Nguyen")]["confidence"] == 0.60
+
+
+def test_liz_elizabeth_millie_mildred_teo_teodoro(conn):
+    pairs = names_paired(conn, {"full_name": "Elizabeth Fontaine"}, {"full_name": "Liz Fontaine"},
+                         {"full_name": "Mildred Hayes"}, {"full_name": "Millie Hayes"},
+                         {"full_name": "Teodoro Salinas"}, {"full_name": "Teo Salinas"})
+    assert set(pairs) == {("Elizabeth Fontaine", "Liz Fontaine"), ("Mildred Hayes", "Millie Hayes"),
+                          ("Teodoro Salinas", "Teo Salinas")}
+
+
+def test_nickname_plus_same_phone_is_high_confidence(conn):
+    pairs = names_paired(conn, {"full_name": "Mildred Hayes", "phone": "305-555-0190"},
+                         {"full_name": "Millie Hayes", "phone": "(305) 555-0190"})
+    assert pairs[("Mildred Hayes", "Millie Hayes")]["confidence"] == 0.90
+
+
+def test_initial_first_name_and_surname_initial_from_signin_sheets(conn):
+    pairs = names_paired(conn, {"full_name": "Dana Kowalczyk"}, {"full_name": "D. Kowalczyk"},
+                         {"full_name": "Maria Delgado"}, {"full_name": "Maria D."},
+                         {"full_name": "Lucia Ferrante"}, {"full_name": "Lucia F"})
+    assert set(pairs) == {("Dana Kowalczyk", "D. Kowalczyk"), ("Maria Delgado", "Maria D."),
+                          ("Lucia Ferrante", "Lucia F")}
+
+
+def test_same_name_with_no_contact_overlap(conn):
+    pairs = names_paired(conn, {"full_name": "Priscilla Okafor", "email": "priscilla.okafor@example.com"},
+                         {"full_name": "Priscilla Okafor", "email": "priscilla.okafor.law@example.org"},
+                         {"full_name": "Lucia Ferrante"}, {"full_name": "Lucia Ferrante"})
+    assert pairs[("Priscilla Okafor", "Priscilla Okafor")]["confidence"] == 0.75
+    assert pairs[("Lucia Ferrante", "Lucia Ferrante")]["reasons"] == ["same name: Lucia Ferrante"]
+
+
+def test_organization_suffixes_abbreviations_and_short_names(conn):
+    orgs = [{"full_name": n, "donor_type": "organization"} for n in
+            ["Tamarind Quay Hardware LLC", "Tamarind Quay Hdwe, L.L.C.", "Tamarind Quay Hardware, LLC",
+             "Veloria Bay Foundation", "Veloria Bay Foundation Inc", "Tamarind Quay"]]
+    pairs = names_paired(conn, *orgs)
+    assert pairs[("Tamarind Quay Hardware LLC", "Tamarind Quay Hdwe, L.L.C.")]["confidence"] == 0.80
+    assert ("Tamarind Quay Hardware LLC", "Tamarind Quay Hardware, LLC") in pairs
+    assert ("Veloria Bay Foundation", "Veloria Bay Foundation Inc") in pairs
+    assert pairs[("Tamarind Quay Hardware LLC", "Tamarind Quay")]["reasons"][0].startswith("shortened organization name")
+    assert not any("Veloria" in a and "Tamarind" in b or "Tamarind" in a and "Veloria" in b for a, b in pairs)
+
+
+def test_donor_and_family_fund(conn):
+    pairs = names_paired(conn, {"full_name": "Harold Whitaker"},
+                         {"full_name": "Whitaker Family Charitable Fund", "donor_type": "individual"},
+                         {"full_name": "Grace Whitaker"})
+    assert pairs[("Harold Whitaker", "Whitaker Family Charitable Fund")]["reasons"][0].startswith("fund named for")
+    assert ("Harold Whitaker", "Grace Whitaker") not in pairs                 # different first names
+
+
+def test_name_only_matching_does_not_pair_different_people(conn):
+    pairs = names_paired(conn, {"full_name": "John Smith"}, {"full_name": "Jane Smith"},
+                         {"full_name": "Maria Lopez"}, {"full_name": "Maria Delgado"},
+                         {"full_name": "Amerant Bank", "donor_type": "organization"},
+                         {"full_name": "Amerant Hardware", "donor_type": "organization"})
+    assert pairs == {}
+
+
+def test_answer_key_planted_groups_found_on_names_alone_with_no_false_pairs():
+    """Ground truth: every name variant in answer_key.json as its own record with no contact details."""
+    import pathlib
+    key = json.loads((pathlib.Path(db.REPO_ROOT) / "data/sample_inputs/answer_key.json").read_text(encoding="utf-8"))
+    canon = {c["donor_id"]: c for c in key["canonical_donors"]}
+    records, owner = [], {}
+    for person in key["people"]:
+        names = {r["name_as_written"] for r in person.get("source_rows", []) if r.get("name_as_written")}
+        for n in sorted(names | {person["full_name"]}):
+            records.append({"id": len(records) + 1, "full_name": n,
+                            "donor_type": canon.get(person["person_id"], {}).get("donor_type")})
+            owner[len(records)] = person["person_id"]
+    pairs = dedupe.find_pairs(records)
+    assert [p for p in pairs if owner[p["donor_a_id"]] != owner[p["donor_b_id"]]] == []   # no false pairs
+
+    parent = {r["id"]: r["id"] for r in records}
+
+    def find(x):
+        while parent[x] != x:
+            x = parent[x]
+        return x
+    for p in pairs:
+        parent[find(p["donor_a_id"])] = find(p["donor_b_id"])
+    for g in key["duplicate_groups"]:
+        members = {m.split(" (")[0] for m in g["members"]}
+        ids = [r["id"] for r in records if owner[r["id"]] == g["donor_id"] and r["full_name"] in members]
+        assert len({find(i) for i in ids}) == 1, (g["group"], g["members"])
