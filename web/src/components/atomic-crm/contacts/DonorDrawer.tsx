@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -20,6 +19,14 @@ import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
 
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
 /** Right-hand drawer: where the AI's work is visible (why · research · draft). */
 export const DonorDrawer = ({
   donorId,
@@ -33,33 +40,45 @@ export const DonorDrawer = ({
     <Sheet open={donorId != null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl"
+        className="w-full overflow-y-auto bg-card data-[side=right]:sm:max-w-xl"
       >
         {donor ? (
           <>
-            <SheetHeader className="pb-0">
+            <SheetHeader className="border-b border-border bg-surface px-6 pb-5 pt-6">
               <div className="flex items-start justify-between gap-4 pr-10">
-                <div>
-                  <SheetTitle className="text-lg">
+                <div
+                  aria-hidden
+                  className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand text-base font-bold text-brand-foreground"
+                >
+                  {initialsOf(donor.full_name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <SheetTitle className="text-xl font-bold tracking-tight">
                     {donor.is_star && (
-                      <span className="mr-1 text-amber-500" aria-label="Star donor">
+                      <span className="mr-1 text-brand-soft-foreground"
+                        aria-label="Star donor">
                         ★
                       </span>
                     )}
                     {donor.full_name}
                   </SheetTitle>
-                  <SheetDescription className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant="outline">{tierLabel[donor.tier]} donor</Badge>
+                  <SheetDescription className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-border bg-card px-2.5 text-muted-foreground"
+                    >
+                      {tierLabel[donor.tier]} donor
+                    </Badge>
                     {donor.is_sample && <SampleHistoryBadge />}
                     <span
                       className={cn(
-                        "rounded px-1.5 py-0.5 text-xs font-medium",
+                        "rounded-full px-2.5 py-0.5 text-xs font-semibold",
                         statusClass[donor.status],
                       )}
                     >
                       {statusLabel[donor.status]}
                     </span>
-                    <span className="text-xs">
+                    <span className="text-xs text-muted-foreground">
                       {[
                         donor.donor_type === "organization"
                           ? "Organization"
@@ -73,10 +92,12 @@ export const DonorDrawer = ({
                   </SheetDescription>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-muted-foreground">Score</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Score
+                  </div>
                   <div
                     className={cn(
-                      "text-3xl font-bold tabular-nums",
+                      "text-4xl font-bold leading-none tabular-nums",
                       scoreClass(donor.score),
                     )}
                   >
@@ -85,11 +106,9 @@ export const DonorDrawer = ({
                 </div>
               </div>
             </SheetHeader>
-            <div className="space-y-5 px-4 pb-6">
+            <div className="space-y-4 px-5 pb-8 pt-5">
               <ScoreWhyPanel donor={donor} />
-              <Separator />
               <ResearchPanel donor={donor} />
-              <Separator />
               <OutreachPanel donor={donor} />
             </div>
           </>
