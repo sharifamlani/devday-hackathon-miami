@@ -96,7 +96,7 @@ const AssistantMessage = () => {
         ) : (
           <BatchCard
             batch={meta.batch}
-            demo={meta.demo}
+            demo={false} // the message above already carries the demo label
             onResolved={(r) => {
               saveReceipt(threadId, r);
               onBatchResolved?.(r.batchId);
