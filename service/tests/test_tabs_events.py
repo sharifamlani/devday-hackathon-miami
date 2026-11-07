@@ -301,11 +301,16 @@ def test_event_batch_id_is_null_until_campaigns_link_events(db_file):
     (gmd, fivek) = db.save_events(conn, EVENTS[:2])["ids"]
     conn.close()
     c = client()
-    assert all(e["batch_id"] is None for e in c.get("/events").json())     # no campaigns.event_id yet
+    conn = db.connect(db_file)
+    has_link = "event_id" in {r[1] for r in conn.execute("PRAGMA table_info(campaigns)")}
+    conn.close()
+    assert all(e["batch_id"] is None for e in c.get("/events").json())     # no linked campaign yet
+    assert has_link or c.get(f"/events/{gmd}").json()["batch_id"] is None
     conn = db.connect(db_file)                                              # 90's hook adds the column
-    conn.executescript("""CREATE TABLE IF NOT EXISTS campaigns (id INTEGER PRIMARY KEY, name TEXT);
-                          ALTER TABLE campaigns ADD COLUMN event_id INTEGER;""")
-    conn.executemany("INSERT INTO campaigns (name, event_id) VALUES (?, ?)", [("old", gmd), ("new", gmd), ("x", None)])
+    if "event_id" not in {r[1] for r in conn.execute("PRAGMA table_info(campaigns)")}:
+        conn.execute("ALTER TABLE campaigns ADD COLUMN event_id INTEGER")
+    conn.executemany("INSERT INTO campaigns (name, intent, channel, event_id) VALUES (?, 'check_in', 'email', ?)",
+                     [("old", gmd), ("new", gmd), ("x", None)])
     conn.commit()
     latest = conn.execute("SELECT MAX(id) FROM campaigns WHERE event_id = ?", (gmd,)).fetchone()[0]
     conn.close()
