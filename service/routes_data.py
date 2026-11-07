@@ -10,6 +10,10 @@ POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id
 POST /duplicates/{id}/dismiss    "not a duplicate"
 POST /score/run                  rescore everyone, refresh duplicate suggestions (?as_of=YYYY-MM-DD)
 POST /drafts/{id}/approve        a human approves a draft (optional edited body) → status approved
+GET  /icp                        the latest ideal donor profile (traits, stats, evidence)
+GET  /prospects                  organization prospects, best fit first (?include_dismissed=true)
+GET  /prospects/{id}             one prospect with its first-touch drafts
+POST /prospects/{id}/dismiss     "not a fit"
 """
 
 from __future__ import annotations
@@ -155,3 +159,56 @@ def approve_draft(draft_id: int, req: ApproveDraft, conn: sqlite3.Connection = D
                  (approved_by, approved_at, draft_id))
     conn.commit()
     return _draft_out(conn.execute("SELECT * FROM outreach_drafts WHERE id = ?", (draft_id,)).fetchone())
+
+
+def _icp_out(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    for k in ("traits", "stats", "evidence"):
+        d[k] = json.loads(d[k]) if d.get(k) else ([] if k != "stats" else {})
+    return d
+
+
+def _prospect_out(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    d["matched_traits"] = json.loads(d.get("matched_traits") or "[]")
+    d["facts"] = json.loads(d.get("facts") or "[]")
+    return d
+
+
+def latest_icp(conn: sqlite3.Connection) -> dict | None:
+    row = conn.execute("SELECT * FROM icp_profile ORDER BY id DESC LIMIT 1").fetchone()
+    return _icp_out(row) if row else None
+
+
+@router.get("/icp")
+def get_icp(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    icp = latest_icp(conn)
+    if icp is None:
+        raise HTTPException(404, "no ideal donor profile yet: run the pipeline or POST /icp/run")
+    return icp
+
+
+@router.get("/prospects")
+def list_prospects(include_dismissed: bool = Query(False), conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+    where = "" if include_dismissed else "WHERE status != 'dismissed'"
+    return [_prospect_out(r) for r in conn.execute(
+        f"SELECT * FROM prospects {where} ORDER BY fit_score DESC, id")]
+
+
+@router.get("/prospects/{prospect_id}")
+def get_prospect(prospect_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    row = conn.execute("SELECT * FROM prospects WHERE id = ?", (prospect_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, f"prospect {prospect_id} not found")
+    prospect = _prospect_out(row)
+    prospect["outreach_drafts"] = [_draft_out(r) for r in conn.execute(
+        "SELECT * FROM outreach_drafts WHERE prospect_id = ? ORDER BY created_at DESC, id DESC", (prospect_id,))]
+    return prospect
+
+
+@router.post("/prospects/{prospect_id}/dismiss")
+def dismiss_prospect(prospect_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    if conn.execute("UPDATE prospects SET status = 'dismissed' WHERE id = ?", (prospect_id,)).rowcount == 0:
+        raise HTTPException(404, f"prospect {prospect_id} not found")
+    conn.commit()
+    return get_prospect(prospect_id, conn)

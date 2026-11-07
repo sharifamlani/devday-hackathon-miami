@@ -21,7 +21,7 @@ def env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def stubs(monkeypatch):
-    calls = {"enriched": [], "drafted": []}
+    calls = {"enriched": [], "drafted": [], "prospect_drafts": [], "excluded": set()}
 
     enrich = types.ModuleType("service.enrich_agent")
     enrich.read_cache = lambda: {"Amazon": [], "Frederick A. DeLuca Foundation": []}
@@ -59,12 +59,41 @@ def stubs(monkeypatch):
                                                       json.dumps(draft.facts_used), draft.status))
         return "db"
 
-    outreach.draft_outreach, outreach.save_draft = draft_outreach, save_draft
+    def draft_prospect(prospect, profile, org_facts, today=None):
+        calls["prospect_drafts"].append((prospect["name"], today, len(profile["traits"])))
+        return types.SimpleNamespace(subject=f"Introducing The Miami Foundation to {prospect['name']}",
+                                     body="Intro", call_script="Hi",
+                                     facts_used=[{"fact": "f", "url": "https://miamifoundation.org/x"}],
+                                     status="draft")
+
+    outreach.draft_outreach, outreach.save_draft, outreach.draft_prospect = draft_outreach, save_draft, draft_prospect
+
+    icp = types.ModuleType("service.icp_agent")
+    icp.build_profile = lambda refresh=False: {
+        "traits": [{"trait": "sector", "value": "foundation", "evidence": []},
+                   {"trait": "cause", "value": "arts", "evidence": []}],
+        "stats": {"org_donors": 5}, "evidence": [{"trait": "cause", "donor": "Frederick A. DeLuca Foundation",
+                                                  "fact": "funds arts", "url": "https://example.org/a"}]}
+
+    def find_prospects(profile, exclude_names, refresh=False):
+        calls["excluded"] = set(exclude_names)
+        return [
+            {"name": "Coral Reef Arts Fund", "org_type": "foundation", "city": "Miami", "fit_score": 88,
+             "matched_traits": ["sector", "cause"], "priority": "Prosperity",
+             "facts": [{"fact": "Funds arts", "url": "https://example.org/1"}, {"fact": "Miami", "url": "https://example.org/2"}]},
+            {"name": "Everglades Futures Co", "org_type": "company", "city": "Doral", "fit_score": 61,
+             "matched_traits": ["sector"], "priority": "Climate & Resilience",
+             "facts": [{"fact": "Climate", "url": "https://example.org/3"}, {"fact": "Doral", "url": "https://example.org/4"}]},
+            {"name": "AMAZON", "org_type": "company", "city": "Miami", "fit_score": 99,       # a current donor
+             "matched_traits": ["sector"], "priority": "Civic", "facts": []},
+        ]
+
+    icp.find_prospects = find_prospects
     org_context = types.ModuleType("service.org_context")
     org_context.load_org_facts = lambda: [{"fact": "f", "url": "https://miamifoundation.org/x"}]
 
     for name, mod in [("service.enrich_agent", enrich), ("service.outreach_agent", outreach),
-                      ("service.org_context", org_context)]:
+                      ("service.org_context", org_context), ("service.icp_agent", icp)]:
         monkeypatch.setitem(sys.modules, name, mod)
     return calls
 
@@ -72,7 +101,7 @@ def stubs(monkeypatch):
 def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     out = env / "snapshot.json"
     report = pipeline.run_pipeline(AS_OF, top_n=3, out=out)
-    assert [r["status"] for r in report] == ["ok"] * 4, report
+    assert [r["status"] for r in report] == ["ok"] * 5, report
 
     # Orgs only, cache only: the two cached orgs; no individual, no uncached org
     assert sorted(stubs["enriched"]) == ["Amazon", "Frederick A. DeLuca Foundation"]
@@ -94,13 +123,27 @@ def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     assert all(today == AS_OF for _, today, _ in stubs["drafted"])
     assert snap["meta"]["as_of"] == "2026-11-08"
 
+    # ICP stage: profile, prospects best-fit first, current donors excluded, a 'draft' per prospect
+    assert "Amazon" in stubs["excluded"]
+    assert len(snap["icp"]["traits"]) == 2 and snap["icp"]["stats"] == {"org_donors": 5}
+    assert [p["name"] for p in snap["prospects"]] == ["Coral Reef Arts Fund", "Everglades Futures Co"]
+    for p in snap["prospects"]:
+        assert p["status"] == "drafted"
+        drafts = snap["prospect_details"][str(p["id"])]["outreach_drafts"]
+        assert len(drafts) == 1 and drafts[0]["status"] == "draft" and drafts[0]["donor_id"] is None
+    assert all(today == AS_OF for _, today, _ in stubs["prospect_drafts"])
+
 
 def test_pipeline_is_idempotent_on_keep_db(env, stubs):
     out = env / "snapshot.json"
     pipeline.run_pipeline(AS_OF, out=out)
     pipeline.run_pipeline(AS_OF, keep_db=True, out=out)
     conn = db.connect()
-    assert conn.execute("SELECT COUNT(*) FROM outreach_drafts").fetchone()[0] == 5      # top 3 + 2 stars
+    assert conn.execute("SELECT COUNT(*) FROM outreach_drafts WHERE donor_id IS NOT NULL").fetchone()[0] == 5  # top 3 + 2 stars
+    assert conn.execute("SELECT COUNT(*) FROM outreach_drafts WHERE prospect_id IS NOT NULL").fetchone()[0] == 2
+    assert conn.execute("SELECT COUNT(*) FROM prospects").fetchone()[0] == 2
+    assert conn.execute("SELECT COUNT(*) FROM icp_profile").fetchone()[0] == 2   # one per run; GET /icp serves the latest
+
     assert conn.execute("SELECT COUNT(*) FROM research_facts").fetchone()[0] == 2
     conn.close()
 
@@ -112,4 +155,5 @@ def test_missing_stage_is_named_and_rest_still_runs(env, monkeypatch):
     report = {r["stage"]: r for r in pipeline.run_pipeline(AS_OF, out=out)}
     assert report["enrich"]["status"] == "missing" and "PR #5" in report["enrich"]["detail"]
     assert report["outreach"]["status"] == "missing" and "PR #7" in report["outreach"]["detail"]
+    assert report["icp"]["status"] == "missing" and "42" in report["icp"]["detail"]
     assert report["export"]["status"] == "ok" and out.exists()

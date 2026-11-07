@@ -10,6 +10,9 @@ Stages, in order:
                  --live-enrich. Writes research_facts via enrich_agent.save_facts.
     3. outreach  draft for the top N donors plus every ★ donor (live model calls, run in parallel),
                  using service/org_facts.json. Writes outreach_drafts via outreach_agent.save_draft.
+    3b. icp      ideal donor profile from the org donors → new organization prospects → a first-touch
+                 draft for each (icp_agent is pure; db.save_icp / save_prospects are the only writers;
+                 drafts are saved with prospect_id, always 'draft').
     4. export    web/public/snapshot.json for the Vercel build
 
 Enrich and outreach are imported lazily: if one isn't on this branch yet, that stage is reported as
@@ -20,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import json
 import os
 import time
 import uuid
@@ -29,15 +33,17 @@ from pathlib import Path
 
 from service import db, dedupe, score
 from service.export_snapshot import DEFAULT_OUT, build_snapshot, write_snapshot
-from service.routes_data import get_donor
+from service.routes_data import get_donor, get_prospect
 
 STAGE_MODULES = {
     "enrich": ["service.enrich_agent"],
     "outreach": ["service.outreach_agent", "service.org_context"],
+    "icp": ["service.icp_agent", "service.outreach_agent", "service.org_context"],
 }
 MISSING_HINT = {
     "enrich": "service/enrich_agent.py (PR #5, feat/enrich)",
     "outreach": "service/outreach_agent.py + service/org_context.py (PR #7, feat/outreach)",
+    "icp": "service/icp_agent.py (42, feat/icp) + outreach_agent.draft_prospect (86, feat/outreach)",
 }
 
 
@@ -158,6 +164,61 @@ def stage_outreach(as_of: date, top_n: int, workers: int = 4) -> str:
     return detail
 
 
+def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
+    icp_agent, outreach_agent, org_context = load_stage("icp")
+    if not hasattr(outreach_agent, "draft_prospect"):
+        raise StageMissing(f"icp stage unavailable: needs {MISSING_HINT['icp']} (no draft_prospect yet)")
+    bound_model_calls()
+
+    conn = db.connect()
+    exclude = {r[0] for r in conn.execute("SELECT full_name FROM donors")}
+    exclude |= {r[0] for r in conn.execute("SELECT org_name FROM donors WHERE org_name IS NOT NULL")}
+    conn.close()
+
+    profile = icp_agent.build_profile(refresh=refresh)
+    found = icp_agent.find_prospects(profile, exclude, refresh=refresh)
+    conn = db.connect()
+    db.save_icp(conn, profile)
+    ids = db.save_prospects(conn, found)
+    prospects = [get_prospect(i, conn) for i in ids]
+    conn.close()
+    targets = [p for p in prospects if p["status"] != "dismissed"]
+
+    org_facts = org_context.load_org_facts()
+
+    def draft(p: dict):
+        try:
+            return p, outreach_agent.draft_prospect(p, profile, org_facts, today=as_of), None
+        except Exception as e:                      # one bad draft must not sink the demo run
+            return p, None, f"{type(e).__name__}: {e}"
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(draft, targets))
+
+    saved, failed = 0, []
+    conn = db.connect()
+    with conn:
+        for p, d, error in results:
+            if error:
+                failed.append(f"{p['name']} ({error})")
+                continue
+            conn.execute("DELETE FROM outreach_drafts WHERE prospect_id = ?", (p["id"],))
+            conn.execute(
+                "INSERT INTO outreach_drafts (prospect_id, channel, subject, body, call_script, facts_used, status) "
+                "VALUES (?, 'email', ?, ?, ?, ?, 'draft')",
+                (p["id"], d.subject, d.body, d.call_script,
+                 json.dumps([f.model_dump() if hasattr(f, "model_dump") else dict(f) for f in d.facts_used])))
+            conn.execute("UPDATE prospects SET status = 'drafted' WHERE id = ? AND status = 'new'", (p["id"],))
+            saved += 1
+    conn.close()
+    detail = f"profile with {len(profile.get('traits') or [])} traits; {len(ids)} prospects; {saved} first-touch drafts"
+    if len(found) != len(ids):
+        detail += f"; {len(found) - len(ids)} dropped as current donors"
+    if failed:
+        detail += f"; FAILED: {'; '.join(failed)}"
+    return detail
+
+
 def stage_export(out: Path) -> str:
     conn = db.connect()
     snapshot = build_snapshot(conn, rescore=False)
@@ -181,6 +242,7 @@ def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich
         ("rebuild", lambda: stage_rebuild(as_of, keep_db)),
         ("enrich", lambda: stage_enrich(live_enrich)),
         ("outreach", lambda: stage_outreach(as_of, top_n)),
+        ("icp", lambda: stage_icp(as_of)),
         ("export", lambda: stage_export(out)),
     ]
     report = []
@@ -208,7 +270,7 @@ def main() -> int:
     parser.add_argument("--top", type=int, default=3, help="draft outreach for the top N donors (plus every ★)")
     parser.add_argument("--keep-db", action="store_true", help="keep ingested rows; don't rebuild from the seed")
     parser.add_argument("--live-enrich", action="store_true", help="web-search orgs missing from the cache")
-    parser.add_argument("--skip", action="append", default=[], choices=["enrich", "outreach", "export"])
+    parser.add_argument("--skip", action="append", default=[], choices=["enrich", "outreach", "icp", "export"])
     parser.add_argument("--out", default=str(DEFAULT_OUT))
     args = parser.parse_args()
 
