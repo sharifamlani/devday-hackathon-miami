@@ -246,7 +246,10 @@ export type ApiContext =
  *  (503 until the context module lands). */
 export interface ApiContextRun {
   state: string; // done | failed
-  cached: boolean; // true: the live read timed out or failed; saved context shown
+  // live: refresh=true read the site · cache: refresh=false, served from the
+  // cache by request · fallback: the live read failed or timed out (9c7c6d0)
+  served_from?: "live" | "cache" | "fallback";
+  cached: boolean; // true only on fallback
   detail: string | null;
   started_at?: string | null;
   finished_at?: string | null;

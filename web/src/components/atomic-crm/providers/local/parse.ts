@@ -602,9 +602,12 @@ export const parseContextRun = (raw: ApiContextRun): ContextRun => {
     { profile: raw.profile ?? null, facts: raw.facts ?? [] },
     { cached: raw.cached },
   );
+  // Older builds lack served_from: cached:true meant the fallback.
+  const servedFrom = raw.served_from ?? (raw.cached ? "fallback" : "live");
   return {
     status: raw.state === "done" ? "done" : "failed",
-    cached: !!raw.cached,
+    served_from: servedFrom,
+    cached: servedFrom === "fallback",
     detail: raw.detail ?? null,
     sources,
     profile: context.profile,

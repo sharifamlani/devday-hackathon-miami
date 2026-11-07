@@ -81,7 +81,8 @@ research.mutate({ website, x_url, linkedin_url, instagram_url });
 // research.isPending → "Reading your website…"
 // research.data.sources → [{ label: "Website", state: "done", fact_count: 12 },
 //                          { label: "X", state: "saved_not_connected", status_text: "saved, not connected" }, …]
-// research.data.cached → true: show "Showing saved context" with research.data.detail as a tooltip
+// research.data.served_from → "live" | "cache" | "fallback"
+//   "fallback" (live read failed/timed out): show "Showing saved context", detail as a tooltip
 ```
 
 Outside React (a script or test), call the same functions directly:
@@ -178,7 +179,9 @@ fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_ur
 - `ContextFact`: `{ id, source, source_url, posted_at, fact, quote, priority }`. `quote` holds the exact words the fact was verified against.
 - `OrgContext`: `{ profile, facts, cached }`.
 - `ContextRunInput`: `{ website, x_url?, linkedin_url?, instagram_url?, refresh? }`. Empty strings are sent as `null`.
-- `ContextRun`: `{ status: "done" | "failed", cached, detail, sources, profile, facts, finished_at }`.
+- `ContextRun`: `{ status: "done" | "failed", served_from, cached, detail, sources, profile, facts, finished_at }`.
+  `served_from` is `"live"` (the site was read), `"cache"` (a cache read on request, the fast stage path)
+  or `"fallback"` (the live read failed or timed out). `cached` is `true` only for `"fallback"`.
 - `ContextRunSource`: `{ source, label, state, status_text, fact_count, detail }`, where `state` is
   `"done" | "blocked" | "failed" | "not_provided" | "saved_not_connected"`. Show `status_text` (the API's
   own words) and put `detail` (block reason, or the saved URL for socials) in a tooltip.
@@ -196,8 +199,8 @@ fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_ur
 | Snapshot mode + approve | Succeeds in memory only | "Demo only: not saved (cached sample)" |
 | Upload before ingest is running (404/503) | `"Upload isn't available yet: the ingest service is not running."` | The message |
 | Research before the context service is running (503) | `"Website research isn't available yet: …"` | The message |
-| Research ran but the live read timed out | `ContextRun.cached = true` | "Showing saved context", with `detail` as a tooltip |
-| Snapshot mode + research | Simulated, instantly done, `cached: true` | "Cached sample"; the website shows "no saved context" if the snapshot has none |
+| Research ran but the live read failed or timed out | `served_from: "fallback"` | "Showing saved context", with `detail` as a tooltip |
+| Snapshot mode + research | Simulated, instantly done, `served_from: "cache"` | "Cached sample"; the website shows "no saved context" if the snapshot has none |
 
 Live timings: list < 2 s, research < 1 s (cached), outreach about 11 s, website context up to 30 s. Always show a busy state on agent buttons.
 

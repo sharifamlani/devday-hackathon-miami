@@ -225,7 +225,10 @@ export interface ContextRunSource {
 
 export interface ContextRun {
   status: "done" | "failed";
-  cached: boolean; // true: live read timed out/failed, saved context shown
+  // Drive the UI from this: "fallback" → show "Showing saved context" with
+  // detail as a tooltip. "cache" is a normal, requested cache read.
+  served_from: "live" | "cache" | "fallback";
+  cached: boolean; // true only when served_from is "fallback"
   detail: string | null; // why, for a tooltip
   sources: ContextRunSource[]; // website and news first, then socials
   profile: OrgProfile | null;

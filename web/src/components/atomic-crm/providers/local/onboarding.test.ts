@@ -50,6 +50,20 @@ describe("parseContextRun", () => {
     });
     expect(parsed.status).toBe("done");
     expect(parsed.cached).toBe(false);
+    expect(parsed.served_from).toBe("live"); // no served_from + cached:false
+  });
+
+  it("reads served_from, and treats only 'fallback' as cached", () => {
+    expect(parseContextRun({ ...run, served_from: "cache", cached: false })).toMatchObject({
+      served_from: "cache",
+      cached: false,
+    });
+    expect(parseContextRun({ ...run, served_from: "fallback", cached: true })).toMatchObject({
+      served_from: "fallback",
+      cached: true,
+    });
+    // An older build without served_from: cached:true meant fallback.
+    expect(parseContextRun({ ...run, cached: true }).served_from).toBe("fallback");
   });
 
   it("keeps sourced facts only, newest first", () => {
