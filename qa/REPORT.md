@@ -151,3 +151,11 @@ Open:
 - Q11 (Sharif): local branch `docs/roadmap-v03` (in the shared devday_hackathon folder) still tracks origin/main.
   The lead says they lack permission to change it. QA didn't change it on their behalf. It's merged and won't be pushed again.
 - The live :8000 db still has duplicate research rows from before #14. Rebuild before the demo walk.
+
+| PR | SHA | Tests | Live / content check | Verdict |
+|---|---|---|---|---|
+| #15 feat/icp-schema (re-check) | **6f0ef8e** | 55 passed | only snapshot.json changed since 43b9ef4; snapshot_check 27/27, no duplicate research | APPROVE |
+| #16 feat/sample-inputs | 2c868d3 | 48 passed | all 5 inputs open; 35 emails all example.com/.org; phones 305-555-01xx; all 8 answer-key totals recomputed (33 donors, 101 gifts = $1,268,910, 6 duplicate groups) | APPROVE |
+| #17 docs/onboarding-plan | a944b59 | 48 passed | docs only | APPROVE |
+
+§9 "Duplicates 6/6" can now be measured: data/sample_inputs/answer_key.json has 6 planted groups. It runs once ingest lands.
