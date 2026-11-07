@@ -1,4 +1,4 @@
-# Demo script: <PROJECT NAME>
+# Demo script: Kindred outreach inbox
 
 **This file is the spec.** It is written right after the idea locks, **before any code**. No
 sentence here, no feature. Every change to the click order updates this file in the same step.
@@ -19,15 +19,19 @@ the moment, not to more features.
 
 | Seconds | Say | Do (click / speak / show) |
 |---|---|---|
-| | | |
+| 0:00–0:10 | “A missed gift should start a thoughtful conversation.” | Show Outreach inbox, with Rosa’s overdue gift and Elena’s simulated active call. |
+| 0:10–0:25 | “First, one trustworthy donor history.” | Import the fictional CSV, preview mapped columns, review Rosa’s duplicate, approve merge, inspect preserved gift sources. |
+| 0:25–0:40 | “Here is who needs attention, and why.” | Open Rosa: compare last three monthly gifts with the next expected date, seven-day grace window, and unknown payment status; edit and approve the example follow-up draft. |
+| 0:40–0:52 | “A staff member can pick up with context.” | Open Elena’s flagged call, read the reason and fixture transcript; join simulation, mute, leave, then record an outcome. |
+| 0:52–1:00 | “Less reconciliation. More time for people.” | Show completed follow-up and retained gift timeline. |
 
-**Where the AI is visible:** <the exact screen element a judge can point at>
+**Where the AI is visible:** The donor briefing and editable outreach draft. In this frontend slice both are explicitly labeled sample text; no model has been called. Sharif owns the live Agents SDK backend integration.
 
-**If asked "where's the AI?":** <one sentence>
+**If asked "where's the AI?":** This branch implements and verifies the UI flow and deterministic cadence; live model generation is a separate backend integration and is not claimed here.
 
-**If asked "is that live?":** <one sentence>
+**If asked "is that live?":** CSV parsing, merge review, history, cadence calculations and UI state are real local operations; voice, transcripts and drafts are labeled simulations or examples; no messages or calls leave the browser.
 
-**If asked "how do you know it's right?":** <one sentence>
+**If asked "how do you know it's right?":** Local tests cover quoted CSV, rejected imports, repeated transaction IDs, human-approved merges and cadence boundaries; the UI exposes the underlying source rows.
 
 ## Rules
 
