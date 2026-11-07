@@ -144,6 +144,18 @@ def test_send_moves_approved_messages_to_a_masked_simulated_outbox(client):
     assert client.post(f"/campaigns/{c['id']}/send").json()["sent"] == 0
 
 
+def test_send_calls_the_single_delivery_hook_once_per_message(client, monkeypatch):
+    from service import routes_campaigns
+    assert routes_campaigns.deliver is routes_campaigns.simulated_adapter      # default: simulated, sends nothing
+    calls = []
+    monkeypatch.setattr(routes_campaigns, "deliver", lambda *a: calls.append(a) or {"delivered": False})
+    c = client.post("/campaigns", json={"donor_ids": [1, 3], "intent": "check_in", "channel": "email"}).json()
+    client.post(f"/campaigns/{c['id']}/approve-small")
+    assert client.post(f"/campaigns/{c['id']}/send").json()["sent"] == 2
+    assert sorted(a[1] for a in calls) == ["jcarter@example.com", "maria.delgado@example.com"]
+    assert len(client.get("/outbox").json()) == 2
+
+
 def test_text_campaign_masks_phone_and_stays_under_320(client):
     c = client.post("/campaigns", json={"donor_ids": [1, 9, 11], "intent": "re_engage", "channel": "text"}).json()
     assert all(len(m["body"]) <= ca.SMS_MAX and m["subject"] is None for m in c["messages"])

@@ -203,3 +203,6 @@ export const useOrgProfile = () => {
     queryFn: () => dataProvider.getOrgProfile(),
   });
 };
+
+/* ---------- Campaigns (#38): simulated outbox ---------- */
+export * from "./campaignHooks";

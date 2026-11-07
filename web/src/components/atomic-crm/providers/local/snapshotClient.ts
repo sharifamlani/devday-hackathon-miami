@@ -1,4 +1,5 @@
 import type { ApiSnapshot } from "./apiTypes";
+import { campaignSnapshotMethods } from "./campaigns";
 import { APPROVER_NAME, SNAPSHOT_URL } from "./config";
 import { requireWebsite } from "./validate";
 import {
@@ -202,4 +203,5 @@ export const snapshotMethods: DonorDeskMethods = {
     const row = snapshot.prospects?.find((p) => p.id === id);
     if (row) row.status = "dismissed";
   },
+  ...campaignSnapshotMethods(loadSnapshot, APPROVER_NAME),
 };

@@ -9,6 +9,7 @@ import type {
   ApiOrgProfile,
   ApiProspect,
 } from "./apiTypes";
+import { campaignHttpMethods } from "./campaigns";
 import { API_URL, APPROVER_NAME } from "./config";
 import { requireWebsite } from "./validate";
 import {
@@ -38,7 +39,7 @@ export class ApiError extends Error {
 
 const request = async <T>(
   path: string,
-  init?: { method?: "GET" | "POST"; body?: unknown },
+  init?: { method?: "GET" | "POST" | "PATCH"; body?: unknown },
 ): Promise<T> => {
   const method = init?.method ?? "GET";
   const isForm = init?.body instanceof FormData;
@@ -221,4 +222,5 @@ export const localApiMethods: DonorDeskMethods = {
       throw error;
     }
   },
+  ...campaignHttpMethods(request),
 };

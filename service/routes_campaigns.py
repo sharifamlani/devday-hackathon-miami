@@ -287,10 +287,41 @@ def approve_small(campaign_id: int, approved_by: str | None = Body(None, embed=T
             "flagged": detail["counts"]["flagged"], "campaign": detail}
 
 
+# ----------------------------------------------------------------------------------------------
+# Delivery: ONE place where a real provider would plug in. Today it is simulated and sends nothing.
+# ----------------------------------------------------------------------------------------------
+
+def simulated_adapter(channel: str, to_address: str, subject: str | None, body: str) -> dict:
+    """The default delivery adapter: delivers nothing. A real adapter (SMS / email, dry-run by default)
+    takes the same arguments and returns the same shape; the outbox row is written either way."""
+    return {"delivered": False, "simulated": True, "provider": None}
+
+
+# >>> DELIVERY ADAPTER HOOK: set this to a provider adapter to deliver for real (not in this PR). <<<
+deliver = simulated_adapter
+
+
+def send_message(conn: sqlite3.Connection, m: sqlite3.Row, sent_at: str) -> dict:
+    """One approved message -> (delivery adapter) -> one outbox row; the message becomes 'sent'.
+
+    Returns {"sent": True, "outbox_id"} or {"sent": False, "reason"}. The caller commits."""
+    if m["status"] != "approved" or m["flags"] != "[]" or not (m["approved_by"] or "").strip():
+        return {"sent": False, "reason": "not approved"}        # the db triggers block these too
+    address = m["email"] if m["channel"] == "email" else m["phone"]
+    if not address:
+        return {"sent": False, "reason": f"no {'email' if m['channel'] == 'email' else 'phone'} on file"}
+    deliver(m["channel"], address, m["subject"], m["body"])     # simulated: delivers nothing
+    outbox_id = conn.execute(
+        "INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, simulated) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+        (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at)).lastrowid
+    conn.execute("UPDATE campaign_messages SET status = 'sent', sent_at = ? WHERE id = ?", (sent_at, m["id"]))
+    return {"sent": True, "outbox_id": outbox_id}
+
+
 @router.post("/campaigns/{campaign_id}/send")
 def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    """Approved messages go to the SIMULATED outbox: one outbox row each, the message becomes 'sent'.
-    No email or SMS provider is called; there isn't one."""
+    """Approved messages go to the SIMULATED outbox through send_message. No provider is called."""
     campaign_detail(conn, campaign_id)
     sent, no_address = 0, []
     sent_at = now()
@@ -299,18 +330,11 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
                            WHERE m.campaign_id = ? AND m.status = 'approved' ORDER BY m.id""", (campaign_id,)).fetchall()
     with conn:
         for m in rows:
-            if m["flags"] != "[]" or not (m["approved_by"] or "").strip():
-                continue        # the triggers block these too; never send them
-            address = m["email"] if m["channel"] == "email" else m["phone"]
-            if not address:
-                no_address.append({"message_id": m["id"], "donor_name": m["full_name"],
-                                   "reason": f"no {'email' if m['channel'] == 'email' else 'phone'} on file"})
-                continue
-            conn.execute("INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, "
-                         "simulated) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
-                         (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at))
-            conn.execute("UPDATE campaign_messages SET status = 'sent', sent_at = ? WHERE id = ?", (sent_at, m["id"]))
-            sent += 1
+            result = send_message(conn, m, sent_at)
+            if result["sent"]:
+                sent += 1
+            elif result["reason"].startswith("no "):
+                no_address.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"]})
         left = conn.execute("SELECT COUNT(*) FROM campaign_messages WHERE campaign_id = ? AND status IN ('draft', 'approved')",
                             (campaign_id,)).fetchone()[0]
         if sent and not left:

@@ -49,6 +49,10 @@ import { useIsMobile } from "@/hooks/use-mobile.ts";
 import { ContactListMobile } from "../contacts/ContactList.tsx";
 import { ContactShow } from "../contacts/ContactShow.tsx";
 import { NoteShowPage } from "../notes/NoteShowPage.tsx";
+import { CampaignList } from "../campaigns/CampaignList";
+import { CampaignNew } from "../campaigns/CampaignNew";
+import { CampaignReview } from "../campaigns/CampaignReview";
+import { OutboxList } from "../campaigns/OutboxList";
 
 const defaultStore = localStorageStore(undefined, "CRM");
 
@@ -246,6 +250,13 @@ const DesktopAdmin = (
         <Route path={OAuthConsentPage.path} element={<OAuthConsentPage />} />
       </CustomRoutes>
 
+      {/* Campaigns (#38): bulk drafts, approval, simulated outbox */}
+      <CustomRoutes>
+        <Route path="/campaigns" element={<CampaignList />} />
+        <Route path="/campaigns/new" element={<CampaignNew />} />
+        <Route path="/campaigns/:id" element={<CampaignReview />} />
+        <Route path="/outbox" element={<OutboxList />} />
+      </CustomRoutes>
       {/* Donor Desk: deals, companies, tasks, sales and settings screens are
           hidden. Their resources stay registered (no views) because the merge
           logic and summary views still reference those tables. */}
@@ -316,6 +327,13 @@ const MobileAdmin = (
             element={<ForgotPasswordPage />}
           />
           <Route path={OAuthConsentPage.path} element={<OAuthConsentPage />} />
+        </CustomRoutes>
+        {/* Campaigns (#38): bulk drafts, approval, simulated outbox */}
+        <CustomRoutes>
+          <Route path="/campaigns" element={<CampaignList />} />
+          <Route path="/campaigns/new" element={<CampaignNew />} />
+          <Route path="/campaigns/:id" element={<CampaignReview />} />
+          <Route path="/outbox" element={<OutboxList />} />
         </CustomRoutes>
         <Resource
           name="contacts"
