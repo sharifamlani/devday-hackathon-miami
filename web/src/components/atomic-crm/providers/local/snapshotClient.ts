@@ -153,9 +153,12 @@ export const snapshotMethods: DonorDeskMethods = {
       fact_count: 0,
       detail: url || null,
     });
+    // A requested cache read, not a failed live one: the header chip already
+    // says "Cached sample · read-only".
     return {
       status: "done",
-      cached: true,
+      served_from: "cache",
+      cached: false,
       detail: "Cached sample: the snapshot cannot run live research.",
       sources: [
         // Never report "done" for facts the snapshot doesn't have.
