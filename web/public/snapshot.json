@@ -1,7 +1,7 @@
 {
  "meta": {
   "as_of": "2026-11-08",
-  "generated_at": "2026-11-07T21:15:04+00:00",
+  "generated_at": "2026-11-07T21:18:11+00:00",
   "label": "Cached sample",
   "donor_count": 12,
   "source": "service/export_snapshot.py from data/donors.db"
@@ -852,7 +852,26 @@
     }
    ],
    "research_facts": [],
-   "outreach_drafts": []
+   "outreach_drafts": [
+    {
+     "id": 1,
+     "donor_id": 1,
+     "channel": "email",
+     "subject": "Maria, a Miami update before Give Miami Day",
+     "body": "Dear Maria,\n\nThank you for your Give Miami Day gifts in 2022, 2023, 2024 and 2025. Your steady generosity is worth celebrating, and we’re grateful for your commitment to Miami.\n\nHere’s what we did recently: The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000. It’s a local example of what bringing professional expertise and nonprofit needs together can look like.\n\nAs Give Miami Day approaches, we’re celebrating the many ways people contribute to our community. Everyone has a role to play.\n\nWould you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nThank you for considering another year of giving alongside your Miami neighbors.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Opener: Hi Maria, this is [staff member] with The Miami Foundation’s philanthropy team. Thank you for your Give Miami Day gifts in 2022, 2023, 2024 and 2025. We’re grateful for your steady generosity.\n\nThe update: I wanted to share what we did recently. The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000.\n\nThe ask: Would you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nIf Maria says “not this year”: Of course, and thank you for your past generosity—we’re grateful you’re part of Miami’s giving community.",
+     "facts_used": [
+      {
+       "fact": "The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000.",
+       "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/"
+      }
+     ],
+     "status": "ready",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:18:11+00:00"
+    }
+   ]
   },
   "7": {
    "id": 7,
@@ -959,7 +978,30 @@
     }
    ],
    "research_facts": [],
-   "outreach_drafts": []
+   "outreach_drafts": [
+    {
+     "id": 2,
+     "donor_id": 7,
+     "channel": "email",
+     "subject": "Luis, a Miami update before Give Miami Day",
+     "body": "Dear Luis,\n\nThank you for your December gifts online in 2022, 2023, 2024, and 2025. We’re grateful for your steady generosity and the care you bring to giving in Miami.\n\nHere’s a recent update from The Miami Foundation: The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.\n\nThe Miami Disaster Resilience Fund is also investing $135,000 in resilience hubs and community-based organizations strengthening preparedness across Miami-Dade County. These updates reflect work close to home, from the arts to community preparedness.\n\nWill you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nEveryone has a role to play. Thank you for the role you’ve played through your giving, and for considering this invitation to celebrate Miami’s nonprofits.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Opener: Hi Luis, this is a member of The Miami Foundation’s philanthropy team. Thank you for your December gifts online in 2022, 2023, 2024, and 2025. We’re grateful for your steady generosity.\n\nThe update: Here’s a recent update: The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.\n\nThe ask: Will you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nIf Luis says ‘not this year’: Of course, Luis—thank you for your past generosity and for taking a moment to connect today.",
+     "facts_used": [
+      {
+       "fact": "The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.",
+       "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/"
+      },
+      {
+       "fact": "The Miami Disaster Resilience Fund is investing $135,000 in resilience hubs and community-based organizations strengthening preparedness across Miami-Dade County.",
+       "url": "https://miamifoundation.org/news/foundation-newsletter-july-2026/"
+      }
+     ],
+     "status": "ready",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:18:11+00:00"
+    }
+   ]
   },
   "12": {
    "id": 12,
@@ -1042,8 +1084,52 @@
      "source_row": "seed"
     }
    ],
-   "research_facts": [],
-   "outreach_drafts": []
+   "research_facts": [
+    {
+     "id": 9,
+     "donor_id": 12,
+     "fact": "McDermott hired Jayme Cassidy as Miami-based transactions pro bono counsel in January 2025 to expand legal support for nonprofits, NGOs, small businesses and low-income entrepreneurs in underserved communities.",
+     "source_url": "https://www.mcdermottlaw.com/news/mcdermott-welcomes-jayme-cassidy-as-transactions-pro-bono-counsel/",
+     "retrieved_at": "2026-11-07T21:09:45+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    },
+    {
+     "id": 8,
+     "donor_id": 12,
+     "fact": "The Miami office received Legal Services of Greater Miami’s 2023 Equal Justice Pro Bono Large Firm Award for work including transactional clinics and full representation benefiting nonprofits, individuals and low-to-moderate-income small-business owners.",
+     "source_url": "https://www.mcdermottlaw.com/news/mcdermotts-miami-office-receives-equal-justice-pro-bono-large-firm-award-from-legal-services-of-greater-miami-inc/",
+     "retrieved_at": "2026-11-07T21:09:45+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    },
+    {
+     "id": 7,
+     "donor_id": 12,
+     "fact": "Legal Services of Greater Miami listed McDermott Will & Emery among its Leadership Circle financial donors in its April 2023 newsletter.",
+     "source_url": "https://www.legalservicesmiami.org/s/Legal-Services-SPRING-2023-Newsletter-428.pdf",
+     "retrieved_at": "2026-11-07T21:09:45+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    }
+   ],
+   "outreach_drafts": [
+    {
+     "id": 3,
+     "donor_id": 12,
+     "channel": "email",
+     "subject": "Thank you, McDermott Will & Schulte—let’s celebrate Miami",
+     "body": "Dear McDermott Will & Schulte team,\n\nThank you for your in-kind gifts of $7,500 in March 2024 and $7,500 in March 2025. We’re grateful for your commitment to Miami and for the expertise you share with our community.\n\nHere’s what we did together recently: The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000. That partnership gives us something proudly local to celebrate—and a meaningful example of the many ways people and organizations can contribute.\n\nEveryone has a role to play. As Give Miami Day approaches, will you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nThank you for being part of Miami’s spirit of generosity.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Opener: Hello, this is [staff member] with The Miami Foundation’s philanthropy team. Thank you for McDermott Will & Schulte’s in-kind gifts of $7,500 in March 2024 and $7,500 in March 2025.\n\nUpdate: Here’s what we did together recently: The Miami Foundation partnered with your firm to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000. We’re grateful for that partnership and the expertise your team shared.\n\nAsk: Will McDermott Will & Schulte make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nIf not this year: We understand, and we’re grateful for what you’ve already shared with Miami. Thank you for your partnership.",
+     "facts_used": [
+      {
+       "fact": "The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000.",
+       "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/"
+      }
+     ],
+     "status": "ready",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:18:11+00:00"
+    }
+   ]
   },
   "5": {
    "id": 5,
@@ -1251,8 +1337,56 @@
      "source_row": "seed"
     }
    ],
-   "research_facts": [],
-   "outreach_drafts": []
+   "research_facts": [
+    {
+     "id": 6,
+     "donor_id": 11,
+     "fact": "It awarded Women In Distress of Broward County a $1.5 million matching grant for a capital campaign providing transitional housing for domestic violence survivors and their children.",
+     "source_url": "https://widbroward.org/building-a-safer-tomorrow/",
+     "retrieved_at": "2026-11-07T21:07:34+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    },
+    {
+     "id": 5,
+     "donor_id": 11,
+     "fact": "It committed a $5 million matching grant to help launch and endow the Community Foundation of Broward’s Broward Center for Nonprofit Excellence.",
+     "source_url": "https://www.cfbroward.org/articles/10-million-fuels-permanent-support-for-broward-nonprofit-excellence",
+     "retrieved_at": "2026-11-07T21:07:34+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    },
+    {
+     "id": 4,
+     "donor_id": 11,
+     "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
+     "source_url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf",
+     "retrieved_at": "2026-11-07T21:07:34+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    }
+   ],
+   "outreach_drafts": [
+    {
+     "id": 4,
+     "donor_id": 11,
+     "channel": "email",
+     "subject": "A Miami update and a year-end conversation",
+     "body": "Dear Frederick A. DeLuca Foundation team,\n\nThank you for your $300,000 gift on June 29, 2026, and for your continued giving over the past three years.\n\nHere’s a recent update from The Miami Foundation: The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County’s nonprofit arts sector through its CreARTE grant program.\n\nWe also commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.\n\nWith Give Miami Day approaching, would you be open to a call or coffee with our philanthropy team about your year-end giving? We’d welcome the opportunity to hear your priorities and share more about this work, at a time that works for your team.\n\nEveryone has a role to play. Thank you for yours.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Opener: Hello, and thank you to the Frederick A. DeLuca Foundation for your $300,000 gift on June 29, 2026. I’m calling from The Miami Foundation’s philanthropy team, and we appreciate your continued giving.\n\nThe update: I wanted to share a recent update: The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County’s nonprofit arts sector through its CreARTE grant program.\n\nThe ask: With Give Miami Day approaching, would your team be open to a call or coffee with our philanthropy team about your year-end giving?\n\nIf ‘not this year’: Of course—we appreciate your support this year, and thank you for taking the time to connect.",
+     "facts_used": [
+      {
+       "fact": "The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.",
+       "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/"
+      },
+      {
+       "fact": "The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.",
+       "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"
+      }
+     ],
+     "status": "draft",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:18:11+00:00"
+    }
+   ]
   },
   "3": {
    "id": 3,
@@ -1618,7 +1752,30 @@
     }
    ],
    "research_facts": [],
-   "outreach_drafts": []
+   "outreach_drafts": [
+    {
+     "id": 5,
+     "donor_id": 4,
+     "channel": "email",
+     "subject": "Thank you for your support—and a South Dade update",
+     "body": "Dear Biscayne Harbor Family Foundation team,\n\nThank you for your $450,000 gift on September 8, and for your continued generosity each September since 2023. We’re grateful for your commitment to Miami.\n\nHere’s what we did recently: The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape. The report analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.\n\nInspired directly by that report, Amazon announced a $1 million investment in 13 South Dade nonprofit organizations to strengthen their capacity and deepen their community impact. It’s an encouraging example of local research inspiring investment in our community.\n\nWith Give Miami Day approaching, would you be open to a call or coffee with our philanthropy team about your year-end giving? We’d welcome the chance to hear what matters most to you as you look ahead.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Opener: Hello, this is a member of The Miami Foundation’s philanthropy team. Thank you for Biscayne Harbor Family Foundation’s $450,000 gift on September 8, and for your generosity each September since 2023.\n\nUpdate: I wanted to share what we’ve done recently. We commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates. Inspired directly by the report, Amazon announced a $1 million investment in 13 South Dade nonprofit organizations to strengthen their capacity and deepen their community impact.\n\nAsk: With Give Miami Day approaching, would you be open to a call or coffee with our philanthropy team about your year-end giving?\n\nIf ‘not this year’: Of course—we’re grateful for your support this year, and we appreciate the chance to share this update.",
+     "facts_used": [
+      {
+       "fact": "The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.",
+       "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"
+      },
+      {
+       "fact": "Inspired directly by the Foundation-commissioned report, Amazon announced a $1 million investment in 13 South Dade nonprofit organizations to strengthen their capacity and deepen their community impact.",
+       "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"
+      }
+     ],
+     "status": "draft",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:18:11+00:00"
+    }
+   ]
   },
   "9": {
    "id": 9,
@@ -1732,7 +1889,24 @@
      "source_row": "seed"
     }
    ],
-   "research_facts": [],
+   "research_facts": [
+    {
+     "id": 2,
+     "donor_id": 9,
+     "fact": "Knight awarded $3 million in November 2022 to establish the Miami-Dade Innovation Authority, supporting technology adoption in climate resilience, health and financial inclusion.",
+     "source_url": "https://knightfoundation.org/wp-content/uploads/2025/11/Tax-Year-2024-Knight-Foundation-Form-990-PF.pdf",
+     "retrieved_at": "2026-11-07T21:09:25+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    },
+    {
+     "id": 1,
+     "donor_id": 9,
+     "fact": "The Miami Foundation administers the Knight-supported Esserman-Knight Journalism Awards, recognizing investigative and public-service reporting in Miami-Dade, Broward and Monroe counties.",
+     "source_url": "https://knightfoundation.org/events/main/",
+     "retrieved_at": "2026-11-07T21:09:25+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    }
+   ],
    "outreach_drafts": []
   },
   "10": {
@@ -1826,7 +2000,16 @@
      "source_row": "seed"
     }
    ],
-   "research_facts": [],
+   "research_facts": [
+    {
+     "id": 3,
+     "donor_id": 10,
+     "fact": "In January 2021, Amazon announced $500,000 for United Way organizations in Miami-Dade and Broward counties to support vulnerable families during the pandemic.",
+     "source_url": "https://www.gflalliance.org/news/2021/01/28/press-releases/south-florida-united-ways-to-receive-500-000-from-amazon/",
+     "retrieved_at": "2026-11-07T21:09:06+00:00",
+     "agent_run_id": "pipeline-0b17af84"
+    }
+   ],
    "outreach_drafts": []
   },
   "2": {
@@ -2050,7 +2233,7 @@
    ],
    "confidence": 0.95,
    "status": "pending",
-   "created_at": "2026-11-07 21:15:04",
+   "created_at": "2026-11-07 21:17:47",
    "resolved_at": null,
    "donor_a": {
     "id": 1,
