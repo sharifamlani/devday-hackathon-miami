@@ -1,9 +1,21 @@
-import { useId, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import { useState } from "react";
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Heart,
+  Inbox,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  X,
+} from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { DonorDrawer } from "../contacts/DonorDrawer";
+import { DuplicateBanner } from "../contacts/DuplicateMerge";
 import {
   formatMonthYear,
   formatUsd,
@@ -12,361 +24,282 @@ import {
   statusLabel,
   tierLabel,
 } from "../contacts/donorFormat";
-import { DuplicateBanner } from "../contacts/DuplicateMerge";
-import { useDonors, useDuplicates } from "../providers/local/hooks";
-import { CallTodayOverview } from "./CallTodayOverview";
+import { DATA_MODE } from "../providers/local/config";
+import { useDonors, useSourceLabel } from "../providers/local/hooks";
+import type { DonorSummary } from "../providers/local/types";
+import "./donor-inbox.css";
 
-type Filter = "all" | "lapsing" | "due" | "stars";
+type InboxFilter = "all" | "attention" | "due" | "on_track" | "stars";
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "lapsing", label: "Lapsing" },
-  { id: "due", label: "Due" },
-  { id: "stars", label: "Stars" },
-];
+const belongsTo = (donor: DonorSummary, filter: InboxFilter) =>
+  filter === "all" ||
+  (filter === "stars"
+    ? donor.is_star
+    : filter === "attention"
+      ? donor.status === "lapsing" || donor.status === "lapsed"
+      : donor.status === filter);
 
-const avatarTones = ["bg-olive", "bg-alert", "bg-good", "bg-quiet"];
+const filters = [
+  { id: "all", label: "All outreach", icon: Inbox },
+  { id: "attention", label: "Needs attention", icon: Heart },
+  { id: "due", label: "Upcoming", icon: CalendarDays },
+  { id: "on_track", label: "On track", icon: CheckCircle2 },
+  { id: "stars", label: "Star donors", icon: Sparkles },
+] as const;
 
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-
-const focusRing =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
-
-/** Home screen: every donor, ranked by propensity score, highest first. */
+/** Inbox presentation over the existing donor service; score and mutations stay in the shared layer. */
 export const CallToday = () => {
   const { data: donors, isPending, error } = useDonors();
-  const { data: duplicates } = useDuplicates();
+  const { data: sourceLabel } = useSourceLabel();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<InboxFilter>("all");
   const [query, setQuery] = useState("");
-  const searchId = useId();
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
   const ranked = [...(donors ?? [])].sort((a, b) => b.score - a.score);
-  const needCall = ranked.filter(
-    (d) => d.status === "lapsing" || d.status === "due",
-  ).length;
-  const stars = ranked.filter((d) => d.is_star).length;
-  const briefDonor = ranked.find((d) => d.is_star) ?? ranked[0];
-  const nextSteps = ranked
-    .filter(
-      (d) =>
-        d.id !== briefDonor?.id &&
-        (d.status === "due" || d.status === "lapsing"),
-    )
-    .slice(0, 3);
-
-  const needle = query.trim().toLowerCase();
-  const rows = ranked
-    .map((donor, index) => ({ donor, rank: index + 1 }))
-    .filter(({ donor }) => {
-      if (filter === "lapsing" && donor.status !== "lapsing") return false;
-      if (filter === "due" && donor.status !== "due") return false;
-      if (filter === "stars" && !donor.is_star) return false;
-      return !needle || donor.full_name.toLowerCase().includes(needle);
-    });
-
-  const onTabKeyDown = (event: KeyboardEvent, index: number) => {
-    let next = index;
-    if (event.key === "ArrowRight") next = (index + 1) % FILTERS.length;
-    else if (event.key === "ArrowLeft")
-      next = (index - 1 + FILTERS.length) % FILTERS.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = FILTERS.length - 1;
-    else return;
-    event.preventDefault();
-    setFilter(FILTERS[next].id);
-    tabRefs.current[next]?.focus();
+  const search = query.trim().toLocaleLowerCase();
+  const visible = ranked.filter(
+    (donor) =>
+      belongsTo(donor, filter) &&
+      [donor.full_name, donor.email, donor.org_name]
+        .filter(Boolean)
+        .some((value) => value!.toLocaleLowerCase().includes(search)),
+  );
+  const selectedFilter = filters.find((item) => item.id === filter)!;
+  const clearFilters = () => {
+    setQuery("");
+    setFilter("all");
   };
 
   return (
-    <div className="space-y-6 pt-2 max-md:px-4 max-md:pt-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Philanthropy desk
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-          Call today
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Ranked by propensity: recency, frequency, amount and the gap since
-          each donor's usual gift. Click a donor to see why, research and a
-          draft.
-          <br />
-          Start at the top; every draft stays a draft until you send it.
-        </p>
-      </div>
+    <div className="donor-inbox">
+      <header className="donor-inbox-welcome">
+        <div>
+          <p className="inbox-eyebrow">OUTREACH, WITH CARE</p>
+          <h2>Every connection matters.</h2>
+          <p>A thoughtful next step, grounded in each donor’s history.</p>
+        </div>
+        <div className="inbox-source">
+          <ShieldCheck size={15} aria-hidden="true" />
+          <span>
+            <strong>SAMPLE DATA</strong>
+            <span>
+              {DATA_MODE === "local"
+                ? "Live donor service"
+                : `${sourceLabel ?? "Snapshot"} · changes stay in this tab`}
+            </span>
+          </span>
+        </div>
+      </header>
 
-      <CallTodayOverview
-        loading={isPending}
-        total={ranked.length}
-        needCall={needCall}
-        stars={stars}
-        duplicates={duplicates ? duplicates.length : null}
-      />
+      <div className="donor-inbox-workspace">
+        <aside className="inbox-folders" aria-label="Outreach views">
+          <div className="inbox-workspace-name">
+            <span className="inbox-workspace-icon">
+              <Heart size={18} aria-hidden="true" />
+            </span>
+            <span>
+              Donor Desk<small>The Miami Foundation</small>
+            </span>
+          </div>
+          <p className="inbox-eyebrow">YOUR WORKSPACE</p>
+          <div className="inbox-folder-list">
+            {filters.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                className={cn("inbox-folder", filter === id && "is-active")}
+                aria-pressed={filter === id}
+                onClick={() => setFilter(id)}
+              >
+                <Icon size={18} aria-hidden="true" />
+                <span>{label}</span>
+                <b>{ranked.filter((donor) => belongsTo(donor, id)).length}</b>
+              </button>
+            ))}
+          </div>
+          <div className="inbox-sidebar-note">
+            <Users size={19} aria-hidden="true" />
+            <strong>The person behind the record.</strong>
+            <p>
+              Open a donor for their giving history, sourced research, and a
+              draft you can review.
+            </p>
+          </div>
+        </aside>
 
-      <DuplicateBanner />
-
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <section
-          aria-labelledby={`${searchId}-title`}
-          className="min-w-0 rounded-[24px] bg-card p-4 shadow-sm md:p-6"
+          className="inbox-main-panel"
+          aria-label="Donor outreach inbox"
+          aria-busy={isPending}
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h2 id={`${searchId}-title`} className="text-xl font-semibold">
-                Ranked donors
-              </h2>
-              <span className="rounded-full bg-quiet px-2.5 py-0.5 text-sm font-medium tabular-nums text-quiet-foreground">
-                {rows.length}
-                <span className="sr-only"> shown</span>
-              </span>
-            </div>
+          <header className="inbox-panel-heading">
             <div>
-              <label htmlFor={searchId} className="sr-only">
-                Search donors by name
-              </label>
-              <input
-                id={searchId}
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search donors"
-                className={cn(
-                  "h-10 w-64 max-w-full rounded-full border-0 bg-surface px-4 text-sm placeholder:text-muted-foreground",
-                  focusRing,
-                )}
-              />
+              <h3>
+                Outreach inbox <span>{ranked.length}</span>
+              </h3>
+              <p>A small list. A meaningful difference.</p>
             </div>
+            <span className="inbox-priority-label">
+              <Sparkles size={14} aria-hidden="true" />
+              Priority order
+            </span>
+          </header>
+
+          <div className="inbox-search">
+            <Search size={18} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Search outreach donors"
+              placeholder="Search people, email, or organization"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear donor search"
+                onClick={() => setQuery("")}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <div className="inbox-list-heading">
+            <strong>{selectedFilter.label}</strong>
+            <p role="status" aria-live="polite">
+              {visible.length} of {ranked.length} people
+            </p>
+          </div>
+          <div className="inbox-duplicate-slot">
+            <DuplicateBanner />
           </div>
 
-          <div
-            role="tablist"
-            aria-label="Filter donors"
-            className="mt-4 flex gap-5 border-b border-border"
-          >
-            {FILTERS.map((f, i) => {
-              const active = filter === f.id;
-              return (
-                <button
-                  key={f.id}
-                  ref={(el) => {
-                    tabRefs.current[i] = el;
-                  }}
-                  type="button"
-                  role="tab"
-                  id={`${searchId}-tab-${f.id}`}
-                  aria-selected={active}
-                  aria-controls={`${searchId}-panel`}
-                  tabIndex={active ? 0 : -1}
-                  onClick={() => setFilter(f.id)}
-                  onKeyDown={(e) => onTabKeyDown(e, i)}
-                  className={cn(
-                    "-mb-px border-b-2 px-0.5 py-2 text-xs",
-                    focusRing,
-                    active
-                      ? "border-primary font-semibold text-foreground"
-                      : "border-transparent font-medium text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {f.label}
+          {error ? (
+            <div role="alert" className="inbox-empty text-destructive">
+              <Inbox size={30} aria-hidden="true" />
+              <h4>We couldn’t load your outreach list.</h4>
+              <p>{error.message}</p>
+            </div>
+          ) : isPending ? (
+            <div className="inbox-loading" aria-label="Loading donors">
+              {Array.from({ length: 6 }, (_, index) => (
+                <Skeleton key={index} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="inbox-empty">
+              <Inbox size={32} aria-hidden="true" />
+              <h4>
+                {query
+                  ? "No matching people"
+                  : "Nothing in this view right now"}
+              </h4>
+              <p>
+                {query
+                  ? "Try another name, email, or organization."
+                  : "Choose another view to see the rest of your outreach list."}
+              </p>
+              {(query || filter !== "all") && (
+                <button type="button" onClick={clearFilters}>
+                  Show all outreach <ArrowRight size={15} aria-hidden="true" />
                 </button>
-              );
-            })}
-          </div>
-
-          <div
-            role="tabpanel"
-            id={`${searchId}-panel`}
-            aria-labelledby={`${searchId}-tab-${filter}`}
-          >
-            {error ? (
-              <p role="alert" className="mt-4 text-sm text-destructive">
-                Could not load donors: {error.message}
-              </p>
-            ) : isPending ? (
-              <div className="mt-4 space-y-2">
-                {Array.from({ length: 6 }, (_, i) => (
-                  <Skeleton key={i} className="h-14 w-full" />
-                ))}
-              </div>
-            ) : rows.length === 0 ? (
-              <p className="mt-4 rounded-2xl bg-quiet p-6 text-center text-sm text-quiet-foreground">
-                No donors match this filter.
-              </p>
-            ) : (
-              <ul>
-                {rows.map(({ donor, rank }) => (
-                  <li
-                    key={donor.id}
-                    className="border-b border-border last:border-b-0"
+              )}
+            </div>
+          ) : (
+            <ul
+              className="inbox-donor-list"
+              aria-label="Donors ranked by priority"
+            >
+              {visible.map((donor) => (
+                <li key={donor.id}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "inbox-donor-row",
+                      selectedId === donor.id && "is-selected",
+                    )}
+                    data-donor-id={donor.id}
+                    aria-label={`Open ${donor.full_name}`}
+                    aria-describedby={`donor-reason-${donor.id}`}
+                    onClick={() => setSelectedId(donor.id)}
                   >
-                    <button
-                      type="button"
-                      data-donor-id={donor.id}
-                      onClick={() => setSelectedId(donor.id)}
-                      className="flex w-full items-center gap-3 px-1 py-3 text-left sm:gap-4 hover:bg-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring md:px-2"
+                    <span
+                      className={cn(
+                        "inbox-donor-avatar",
+                        donor.donor_type === "organization" &&
+                          "is-organization",
+                      )}
+                      aria-hidden="true"
                     >
-                      <span className="w-6 shrink-0 text-xs tabular-nums text-muted-foreground max-sm:sr-only">
-                        <span className="sr-only">Rank </span>
-                        {rank}
+                      {donor.full_name
+                        .trim()
+                        .split(/\s+/)
+                        .slice(0, 2)
+                        .map((name) => name[0])
+                        .join("")}
+                    </span>
+                    <span className="inbox-donor-copy">
+                      <span className="inbox-donor-name">
+                        {donor.full_name}
+                        {donor.is_star && (
+                          <Sparkles
+                            size={14}
+                            className="inbox-star"
+                            aria-label="Star donor"
+                          />
+                        )}
                       </span>
                       <span
-                        aria-hidden="true"
-                        className={cn(
-                          "flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-                          avatarTones[(rank - 1) % avatarTones.length],
-                        )}
+                        id={`donor-reason-${donor.id}`}
+                        className="inbox-donor-reason"
                       >
-                        {initials(donor.full_name)}
+                        {donor.why_short}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">
-                          {donor.is_star && (
-                            <span
-                              className="mr-1 text-brand-soft-foreground"
-                              role="img"
-                              aria-label="Star donor"
-                            >
-                              ★
-                            </span>
-                          )}
-                          {donor.full_name}
-                        </span>
-                        <span className="block truncate text-sm text-muted-foreground">
-                          {donor.why_short}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 flex-col-reverse items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
+                      <span className="inbox-donor-meta">
                         <span
                           className={cn(
-                            "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                            "inbox-status",
                             statusClass[donor.status],
                           )}
                         >
                           {statusLabel[donor.status]}
                         </span>
-                        <span
-                          className={cn(
-                            "w-9 text-right text-lg font-bold tabular-nums",
-                            scoreClass(donor.score),
-                          )}
-                        >
-                          {donor.score}
-                          <span className="sr-only"> score</span>
+                        <span>{tierLabel[donor.tier]} donor</span>
+                        <span className="inbox-gift-summary">
+                          Last gift {formatMonthYear(donor.last_gift_date)} ·{" "}
+                          {formatUsd(donor.last_gift_amount)}
                         </span>
-                        <span className="hidden w-28 text-right text-xs text-muted-foreground sm:block">
-                          <span className="block">{tierLabel[donor.tier]}</span>
-                          <span className="block">
-                            {formatMonthYear(donor.last_gift_date)} ·{" "}
-                            {formatUsd(donor.last_gift_amount)}
+                        {donor.is_sample && (
+                          <span className="inbox-sample-history">
+                            Sample history
                           </span>
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-
-        <aside aria-label="Call support" className="space-y-4">
-          {briefDonor && (
-            <section
-              aria-labelledby={`${searchId}-brief`}
-              className="rounded-[24px] bg-primary p-6 text-primary-foreground"
-            >
-              <h2
-                id={`${searchId}-brief`}
-                className="text-xs font-semibold uppercase tracking-widest opacity-80"
-              >
-                Call brief
-              </h2>
-              <p className="mt-3 text-xl font-semibold">
-                {briefDonor.is_star && (
-                  <span
-                    className="mr-1 text-brand"
-                    role="img"
-                    aria-label="Star donor"
-                  >
-                    ★
-                  </span>
-                )}
-                {briefDonor.full_name}
-              </p>
-              <p className="mt-1 text-sm opacity-90">{briefDonor.why_short}</p>
-              <p className="mt-3 text-sm opacity-90">
-                Last gift {formatUsd(briefDonor.last_gift_amount)} ·{" "}
-                {formatMonthYear(briefDonor.last_gift_date)}
-              </p>
-              <button
-                type="button"
-                onClick={() => setSelectedId(briefDonor.id)}
-                className={cn(
-                  "mt-5 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-brand-foreground hover:brightness-95",
-                  focusRing,
-                )}
-              >
-                Open call brief
-              </button>
-              <p className="mt-3 text-xs opacity-80">
-                Drafts only. No call is placed.
-              </p>
-            </section>
-          )}
-          <section
-            aria-labelledby={`${searchId}-next`}
-            className="rounded-[24px] bg-card p-6 shadow-sm"
-          >
-            <h2 id={`${searchId}-next`} className="text-base font-semibold">
-              Next steps
-            </h2>
-            {nextSteps.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                No other donors need a call right now.
-              </p>
-            ) : (
-              <ul className="mt-2">
-                {nextSteps.map((donor) => (
-                  <li
-                    key={donor.id}
-                    className="border-b border-border last:border-b-0"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(donor.id)}
-                      className="flex w-full items-center justify-between gap-3 py-2.5 text-left hover:bg-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">
-                          {donor.full_name}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {donor.why_short}
-                        </span>
-                      </span>
-                      <span
-                        className={cn(
-                          "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          statusClass[donor.status],
                         )}
-                      >
-                        {statusLabel[donor.status]}
                       </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </aside>
+                    </span>
+                    <span
+                      className="inbox-row-score"
+                      aria-label={`Priority score ${donor.score} out of 100`}
+                    >
+                      <strong className={scoreClass(donor.score)}>
+                        {donor.score}
+                      </strong>
+                      <small>priority</small>
+                    </span>
+                    <ArrowRight
+                      size={17}
+                      className="inbox-row-arrow"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <footer className="inbox-panel-footer">
+            <ShieldCheck size={14} aria-hidden="true" />
+            <span>Human decisions. Complete donor context.</span>
+            <span>Ranked by giving history</span>
+          </footer>
+        </section>
       </div>
       <DonorDrawer donorId={selectedId} onClose={() => setSelectedId(null)} />
     </div>
