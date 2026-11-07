@@ -570,6 +570,13 @@ def validate_source(source: str, found: list, cited: set[str], host: str, priori
     return kept, why_dropped, status
 
 
+def org_name(name: str | None) -> str | None:
+    """A name, not prose: the model sometimes explains a failure in the name field."""
+    name = clean_text(strip_links(name)).strip()
+    prose = re.search(r"\b(?:unable|could not|cannot|couldn't|not found|no results|unknown)\b", name, re.I)
+    return None if not name or prose or len(name) > 80 or name.count(".") > 1 else name
+
+
 def context_result(urls, website, socials, prof, priorities, facts, sources, dropped, started, captured_at) -> dict:
     import time
     host = site_host(website)
@@ -579,12 +586,15 @@ def context_result(urls, website, socials, prof, priorities, facts, sources, dro
         sources[k] = "skipped"
         notes[k] = "saved, not connected" if u else "not provided"
     facts.sort(key=lambda f: f["posted_at"], reverse=True)
-    voice_urls = [norm_url(u) for u in (prof.voice_urls if prof else []) if site_host(u) == host]
+    found = bool(facts)                               # nothing from the site: report nothing about it
+    voice_urls = [norm_url(u) for u in (prof.voice_urls if prof else []) if site_host(u) == host] if found else []
     return {
-        "profile": {"name": urls.get("name") or (prof.name if prof else host), "website": website,
+        "profile": {"name": urls.get("name") or (org_name(prof.name) if prof and found else None), "website": website,
                     "x_url": socials["x"], "linkedin_url": socials["linkedin"], "instagram_url": socials["instagram"],
-                    "priorities": [p for p in priorities if any(f["priority"] == p for f in facts)] or list(priorities),
-                    "voice": {"phrases": [clean_phrase(v) for v in (prof.voice if prof else [])][:5], "urls": voice_urls}},
+                    "priorities": ([p for p in priorities if any(f["priority"] == p for f in facts)] or list(priorities))
+                                  if found else [],
+                    "voice": {"phrases": [clean_phrase(v) for v in (prof.voice if prof else [])][:5] if found else [],
+                              "urls": voice_urls}},
         "facts": facts,
         "sources": sources,
         "source_notes": notes,
