@@ -501,3 +501,13 @@ against the laptop (`VITE_DATA_MODE=local`). This also covers "precompute slow A
 
 **Integration order (dependency):** Local database (schema + routes) → Carlos's ingest fills it → scoring →
 enrich + outreach (in parallel) → UI wires to all → end-to-end smoke on the demo laptop.
+
+### Contract amendments (lead decisions during the build)
+- **Sat Nov 7: `outreach_drafts.status`** = `draft` (★/big donor: needs a human) · `ready` (small donor,
+  may be sent) · `approved` (a human approved it) · `sent`. A DB trigger blocks `sent` on ★ donors without
+  `approved_by`. New columns: `subject`, `call_script`, `facts_used` (JSON list of `{fact, url}`). Found by
+  integration QA: `ready` crashed the old CHECK, and call scripts and citations were being dropped.
+- **Sat Nov 7: `why` key names** are the ones in `service/score.py`: `days_since_last_gift`,
+  `usual_cadence_days`, `overdue_ratio`, `reasons[]`, `points{}`, `pattern`, `give_miami_day{date, days_away}`.
+- **Sat Nov 7: demo date** `SCORE_AS_OF=2026-11-08` everywhere (scoring and outreach); day counts are
+  computed, never typed in.
