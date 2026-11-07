@@ -1,8 +1,8 @@
 export const englishCrmMessages = {
   resources: {
     companies: {
-      name: "Company |||| Companies",
-      forcedCaseName: "Company",
+      name: "Organization |||| Organizations",
+      forcedCaseName: "Organization",
       fields: {
         name: "Company name",
         website: "Website",
@@ -62,8 +62,8 @@ export const englishCrmMessages = {
       },
     },
     contacts: {
-      name: "Contact |||| Contacts",
-      forcedCaseName: "Contact",
+      name: "Donor |||| Donors",
+      forcedCaseName: "Donor",
       field_categories: {
         background_info: "Background info",
         identity: "Identity",
@@ -474,8 +474,8 @@ export const englishCrmMessages = {
       untitled_result: "(no title)",
       show_more: "Show more",
       groups: {
-        contacts: "Contacts",
-        companies: "Companies",
+        contacts: "Donors",
+        companies: "Organizations",
         deals: "Deals",
         tasks: "Tasks",
         contact_notes: "Contact notes",

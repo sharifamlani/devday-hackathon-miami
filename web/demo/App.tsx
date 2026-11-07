@@ -1,16 +1,5 @@
-import { CRM } from "@/components/atomic-crm/root/CRM";
-import {
-  authProvider,
-  dataProvider,
-} from "@/components/atomic-crm/providers/fakerest";
-import { memoryStore } from "ra-core";
+import { DonorDesk } from "@/components/atomic-crm/root/DonorDesk";
 
-const App = () => (
-  <CRM
-    dataProvider={dataProvider}
-    authProvider={authProvider}
-    store={memoryStore()}
-  />
-);
+const App = () => <DonorDesk />;
 
 export default App;
