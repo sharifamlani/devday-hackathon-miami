@@ -107,17 +107,36 @@ def test_move_person_between_tabs(db_file):
 
 # ---- events -------------------------------------------------------------------------------------
 
-def test_save_events_upserts_drops_sourceless_and_keeps_audience(conn):
+def test_save_events_new_changed_and_sourceless(conn):
     db.seed(conn)
-    ids = db.save_events(conn, EVENTS)
-    assert len(ids) == 4                                                    # "No source" dropped
-    db.save_event_audience(conn, ids[0], {"event_kind": "giving", "person_ids": [1], "why": {"1": "lapsing"}})
-    again = db.save_events(conn, [{**EVENTS[0], "place": "Everywhere"}])
-    assert again == [ids[0]]
-    row = conn.execute("SELECT place, audience FROM events WHERE id = ?", (ids[0],)).fetchone()
-    assert row["place"] == "Everywhere" and json.loads(row["audience"])["person_ids"] == [1]
-    with pytest.raises(LookupError):
-        db.save_event_audience(conn, 9999, {})
+    first = db.save_events(conn, EVENTS)
+    assert (first["added"], first["changed"], first["removed"]) == (4, 0, 0)        # "No source" dropped
+    assert len(first["ids"]) == 5 and first["ids"][4] is None                        # ids line up with the input
+    status = dict(conn.execute("SELECT title, status FROM events").fetchall())
+    assert status["Summer arts night"] == "past" and status["Give Miami Day"] == "upcoming"
+
+    moved = [{**EVENTS[1], "starts_at": "2026-11-15T08:00"}]                        # same date, new time
+    second = db.save_events(conn, moved)
+    assert (second["added"], second["changed"]) == (0, 1) and second["ids"] == [first["ids"][1]]
+    row = conn.execute("SELECT status, starts_at FROM events WHERE id = ?", (first["ids"][1],)).fetchone()
+    assert tuple(row) == ("changed", "2026-11-15T08:00")
+    assert db.save_events(conn, moved)["changed"] == 0                             # no new change...
+    assert conn.execute("SELECT status FROM events WHERE id = ?", (first["ids"][1],)).fetchone()[0] == "changed"
+
+
+def test_only_a_complete_run_removes_missing_future_events(conn):
+    db.seed(conn)
+    ids = db.save_events(conn, EVENTS)["ids"]
+    partial = db.save_events(conn, EVENTS[:1])                                      # failed/partial run
+    assert partial["removed"] == 0 and conn.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 4
+
+    maria = person_id(conn, "Maria Delgado")
+    db.save_event_draft(conn, ids[1], maria, {"subject": "5K", "email_body": "Run with us", "status": "ready"})
+    full = db.save_events(conn, EVENTS[:1], complete=True)                         # 5K + early giving gone
+    assert full["removed"] == 2
+    titles = {r[0] for r in conn.execute("SELECT title FROM events")}
+    assert titles == {"Give Miami Day", "Summer arts night"}                        # past events are kept
+    assert conn.execute("SELECT COUNT(*) FROM outreach_drafts WHERE body = 'Run with us'").fetchone()[0] == 0
 
 
 def test_events_list_upcoming_first_then_past(conn):
@@ -127,10 +146,25 @@ def test_events_list_upcoming_first_then_past(conn):
     assert titles == ["Early giving opens", "Give Miami 5K", "Give Miami Day", "Summer arts night"]
 
 
+def test_event_audience_rows_replace_and_skip_unknown_people(conn):
+    db.seed(conn)
+    (gmd,) = db.save_events(conn, EVENTS[:1])["ids"]
+    maria = person_id(conn, "Maria Delgado")
+    n = db.save_event_audience(conn, gmd, {"event_kind": "giving", "person_ids": [maria, 9999, maria],
+                                           "why": {str(maria): "lapsing Give Miami Day giver"}, "rationale": "r"})
+    assert n == 1
+    assert conn.execute("SELECT reason FROM event_audience WHERE event_id = ?", (gmd,)).fetchone()[0] == \
+        "lapsing Give Miami Day giver"
+    db.save_event_audience(conn, gmd, {"event_kind": "giving", "person_ids": []})
+    assert conn.execute("SELECT COUNT(*) FROM event_audience WHERE event_id = ?", (gmd,)).fetchone()[0] == 0
+    with pytest.raises(LookupError):
+        db.save_event_audience(conn, 9999, {})
+
+
 def test_event_drafts_link_replace_and_obey_star_rules(conn):
     db.seed(conn)
     score.run(conn, AS_OF)
-    (gmd,) = db.save_events(conn, EVENTS[:1])
+    (gmd,) = db.save_events(conn, EVENTS[:1])["ids"]
     maria = person_id(conn, "Maria Delgado")
     invite = {"subject": "Give Miami Day is Nov 19", "email_body": "Hi Maria", "sms": "GMD Nov 19!",
               "facts_used": [{"fact": "f", "url": "https://x", "date": "2026-11-01"}], "status": "ready"}
@@ -138,16 +172,16 @@ def test_event_drafts_link_replace_and_obey_star_rules(conn):
     assert conn.execute("SELECT body FROM outreach_drafts WHERE id = ?", (first,)).fetchone()[0] == "Hi Maria"
     second = db.save_event_draft(conn, gmd, maria, {**invite, "email_body": "Hi again"})
     assert conn.execute("SELECT COUNT(*) FROM event_drafts WHERE event_id = ?", (gmd,)).fetchone()[0] == 1
-    assert conn.execute("SELECT sms, body FROM outreach_drafts WHERE id = ?", (second,)).fetchone()[:] == ("GMD Nov 19!", "Hi again")
-
+    assert conn.execute("SELECT sms, body FROM outreach_drafts WHERE id = ?", (second,)).fetchone()[:] == \
+        ("GMD Nov 19!", "Hi again")
     star = conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 1").fetchone()[0]
     with pytest.raises(sqlite3.IntegrityError):                            # a star invite is never 'ready'
         db.save_event_draft(conn, gmd, star, invite)
 
 
-def test_event_routes_with_audience_and_drafts(db_file):
+def test_event_routes_with_recipients_and_drafts(db_file):
     conn = db.connect(db_file)
-    ids = db.save_events(conn, EVENTS)
+    ids = db.save_events(conn, EVENTS)["ids"]
     danielle, keisha = person_id(conn, "Danielle Okafor"), person_id(conn, "Keisha Grant")
     db.save_event_audience(conn, ids[1], {"event_kind": "pet", "person_ids": [danielle, keisha],
                                           "why": {str(danielle): "has a dog", str(keisha): "has a dog"},
@@ -159,12 +193,46 @@ def test_event_routes_with_audience_and_drafts(db_file):
     events = c.get("/events").json()
     assert events[0]["title"] == "Early giving opens"
     fivek = next(e for e in events if e["title"] == "Give Miami 5K")
-    assert fivek["draft_count"] == 1 and fivek["source_url"].startswith("https://")
+    assert (fivek["audience_count"], fivek["drafts_ready"]) == (2, 1)
+    assert fivek["status"] == "upcoming" and fivek["source_url"].startswith("https://")
     detail = c.get(f"/events/{ids[1]}").json()
-    assert [p["full_name"] for p in detail["audience_people"]] == ["Danielle Okafor", "Keisha Grant"]
-    assert all(p["has_dog"] is True and p["why"] == "has a dog" for p in detail["audience_people"])
-    assert detail["drafts"][0]["person_name"] == "Danielle Okafor" and detail["drafts"][0]["status"] == "ready"
+    assert detail["event_kind"] == "pet" and detail["rationale"] == "puppy outreach"
+    assert [(r["full_name"], r["contact_type"], r["reason"]) for r in detail["recipients"]] == [
+        ("Danielle Okafor", "neighbor", "has a dog"), ("Keisha Grant", "community", "has a dog")]
+    assert all(r["has_dog"] is True for r in detail["recipients"])           # puppy event: only dog owners
+    d = detail["drafts"][0]
+    assert (d["full_name"], d["contact_type"], d["person_id"], d["status"]) == ("Danielle Okafor", "neighbor", danielle, "ready")
     assert c.get("/events/9999").status_code == 404
+
+
+# ---- context refresh log ------------------------------------------------------------------------
+
+def test_refresh_log_and_context_status(db_file):
+    c = client()
+    assert c.get("/context/status").json() == {"last_refreshed_at": None, "last_run": None}
+    conn = db.connect(db_file)
+    ctx = db.save_context(conn, {"profile": {"name": "The Miami Foundation"},
+                                 "facts": [{"source": "website", "url": "https://m.org/a", "fact": "A", "posted_at": "2026-10-01"}],
+                                 "sources": {"website": "ok", "x": "skipped"}})
+    assert (ctx["facts_added"], ctx["facts_removed"]) == (1, 0)
+    ctx2 = db.save_context(conn, {"facts": [{"source": "website", "url": "https://m.org/b", "fact": "B"}],
+                                  "sources": {"website": "ok"}})
+    assert (ctx2["facts_added"], ctx2["facts_removed"]) == (1, 1)
+    ev = db.save_events(conn, EVENTS[:2])
+    log_id = db.log_context_refresh(conn, "2026-11-08T10:00:00", {"website": "ok", "x": "skipped"}, ctx2, ev,
+                                    errors=["instagram: blocked"])
+    conn.close()
+    status = c.get("/context/status").json()
+    assert status["last_refreshed_at"] is not None
+    run = status["last_run"]
+    assert run["id"] == log_id and run["sources_read"] == {"website": "ok", "x": "skipped"}
+    assert (run["facts_added"], run["facts_removed"], run["events_added"]) == (1, 1, 2)
+    assert run["errors"] == ["instagram: blocked"] and run["finished_at"]
+
+
+def test_blocked_refresh_keeps_last_refreshed_at_unchanged(conn):
+    db.save_context(conn, {"profile": {}, "facts": [], "sources": {"website": "blocked"}})
+    assert conn.execute("SELECT last_refreshed_at FROM org_profile").fetchone()[0] is None
 
 
 # ---- community stats ----------------------------------------------------------------------------
@@ -186,7 +254,7 @@ def test_community_stats_counts_recorded_fields_with_not_recorded_bucket(db_file
 
 def test_snapshot_people_events_and_stats_mirror_routes(db_file):
     conn = db.connect(db_file)
-    ids = db.save_events(conn, EVENTS[:2])
+    ids = db.save_events(conn, EVENTS[:2])["ids"]
     snap = json.loads(json.dumps(build_snapshot(conn, rescore=False)))
     conn.close()
     c = client()
@@ -196,5 +264,6 @@ def test_snapshot_people_events_and_stats_mirror_routes(db_file):
     assert snap["events"] == c.get("/events").json()
     assert snap["event_details"][str(ids[0])] == c.get(f"/events/{ids[0]}").json()
     assert snap["community_stats"] == c.get("/community/stats").json()
+    assert snap["context_status"] == c.get("/context/status").json()
     keisha = next(p for p in snap["people"]["community"] if p["full_name"] == "Keisha Grant")
     assert snap["donor_details"][str(keisha["id"])]["full_name"] == "Keisha Grant"

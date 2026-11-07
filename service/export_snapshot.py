@@ -11,6 +11,7 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "events":     [...]          # == GET /events
       "event_details": {"<id>": {...}}     # == GET /events/{id}
       "community_stats": {...}     # == GET /community/stats
+      "context_status": {...}      # == GET /context/status
       (donor_details covers every person in every tab, so the drawer works on all three.)
       "icp":        {...} | null   # == GET /icp (null before the ICP stage has run)
       "prospects":  [...]          # == GET /prospects
@@ -34,7 +35,8 @@ from service.db import REPO_ROOT, connect, create_schema
 from service.routes_data import (get_donor, get_org_profile_or_none, get_prospect, latest_icp, list_context,
                                  list_donors, list_duplicates, list_prospects)
 
-from service.routes_data import community_stats, event_detail, list_events, list_people, people_counts  # 5E
+from service.routes_data import (community_stats, context_status, event_detail, list_events, list_people,  # 5E
+                                 people_counts)
 
 DEFAULT_OUT = REPO_ROOT / "web" / "public" / "snapshot.json"
 MAX_BYTES = 2 * 1024 * 1024
@@ -62,6 +64,7 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "events": (events := list_events(conn)),
         "event_details": {str(e["id"]): event_detail(conn, e["id"]) for e in events},
         "community_stats": community_stats(conn),
+        "context_status": context_status(conn),
         "icp": latest_icp(conn),
         "prospects": (prospects := list_prospects(include_dismissed=False, conn=conn)),
         "prospect_details": {str(p["id"]): get_prospect(p["id"], conn) for p in prospects},

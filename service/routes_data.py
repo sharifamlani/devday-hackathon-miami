@@ -18,8 +18,9 @@ GET  /org-profile                the Foundation's profile: URLs, priorities, voi
 GET  /context                    dated, sourced facts about the Foundation, newest first (?source=x)
 GET  /people                     people in one tab (?type=giver|neighbor|community, ?has_dog, ?interest) + counts
 PATCH /people/{id}               move a person to another tab {"contact_type": ...}
-GET  /events                     the calendar, upcoming first, with draft counts
-GET  /events/{id}                one event: audience (with names and why) + its drafted invites
+GET  /events                     the calendar, upcoming first, with audience and draft counts
+GET  /events/{id}                one event: recipients across the tabs (with why) + its drafted invites
+GET  /context/status             when the context was last refreshed + the last refresh log row
 GET  /community/stats            counts by each recorded demographic field, with a "not recorded" bucket
 """
 
@@ -91,7 +92,8 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
     donor["research_facts"] = [dict(r) for r in conn.execute(
         "SELECT * FROM research_facts WHERE donor_id = ? ORDER BY retrieved_at DESC, id DESC", (donor_id,))]
     donor["outreach_drafts"] = [_draft_out(r) for r in conn.execute(
-        "SELECT * FROM outreach_drafts WHERE donor_id = ? ORDER BY created_at DESC, id DESC", (donor_id,))]
+        "SELECT d.*, (SELECT ed.event_id FROM event_drafts ed WHERE ed.draft_id = d.id) AS event_id "
+        "FROM outreach_drafts d WHERE d.donor_id = ? ORDER BY d.created_at DESC, d.id DESC", (donor_id,))]   # event_id: an invite
     return donor
 
 
@@ -316,14 +318,11 @@ def move_person(person_id: int, req: MovePerson, conn: sqlite3.Connection = Depe
     return get_donor(person_id, conn)
 
 
-def _event_out(row: sqlite3.Row) -> dict:
-    d = dict(row)
-    d["audience"] = json.loads(d.get("audience") or "{}")
-    return d
-
-
-EVENT_WITH_COUNT = """
-SELECT e.*, (SELECT COUNT(*) FROM event_drafts ed WHERE ed.event_id = e.id) AS draft_count
+EVENT_WITH_COUNTS = """
+SELECT e.*,
+       (SELECT COUNT(*) FROM event_audience ea WHERE ea.event_id = e.id) AS audience_count,
+       (SELECT COUNT(*) FROM event_drafts ed JOIN outreach_drafts d ON d.id = ed.draft_id
+         WHERE ed.event_id = e.id AND d.status IN ('draft', 'ready', 'approved')) AS drafts_ready
 FROM events e
 """
 
@@ -332,10 +331,10 @@ def list_events(conn: sqlite3.Connection, today: date | None = None) -> list[dic
     """Upcoming first (soonest first), then past events (most recent first)."""
     today_s = (today or score.default_as_of()).isoformat()
     rows = conn.execute(
-        EVENT_WITH_COUNT + " ORDER BY substr(e.starts_at, 1, 10) < ?, "
+        EVENT_WITH_COUNTS + " ORDER BY substr(e.starts_at, 1, 10) < ?, "
         "CASE WHEN substr(e.starts_at, 1, 10) >= ? THEN e.starts_at END ASC, e.starts_at DESC, e.id",
         (today_s, today_s))
-    return [_event_out(r) for r in rows]
+    return [dict(r) for r in rows]
 
 
 @router.get("/events")
@@ -344,22 +343,23 @@ def get_events(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
 
 
 def event_detail(conn: sqlite3.Connection, event_id: int) -> dict | None:
-    row = conn.execute(EVENT_WITH_COUNT + " WHERE e.id = ?", (event_id,)).fetchone()
+    row = conn.execute(EVENT_WITH_COUNTS + " WHERE e.id = ?", (event_id,)).fetchone()
     if row is None:
         return None
-    event = _event_out(row)
-    why = event["audience"].get("why") or {}
-    people = []
-    for pid in event["audience"].get("person_ids") or []:
-        p = conn.execute("SELECT id, full_name, contact_type, donor_type, has_dog FROM donors WHERE id = ?",
-                         (pid,)).fetchone()
-        if p:
-            people.append({**dict(p), "has_dog": None if p["has_dog"] is None else bool(p["has_dog"]),
-                           "why": why.get(str(pid)) or why.get(pid)})
-    event["audience_people"] = people
-    event["drafts"] = [{**_draft_out(r), "person_name": r["person_name"]} for r in conn.execute(
-        "SELECT d.*, p.full_name AS person_name FROM outreach_drafts d JOIN event_drafts ed ON ed.draft_id = d.id "
-        "LEFT JOIN donors p ON p.id = d.donor_id WHERE ed.event_id = ? ORDER BY d.id", (event_id,))]
+    event = dict(row)
+    event["recipients"] = [
+        {"person_id": r["person_id"], "full_name": r["full_name"], "contact_type": r["contact_type"],
+         "donor_type": r["donor_type"], "has_dog": None if r["has_dog"] is None else bool(r["has_dog"]),
+         "reason": r["reason"]}
+        for r in conn.execute(
+            "SELECT ea.person_id, ea.reason, p.full_name, p.contact_type, p.donor_type, p.has_dog "
+            "FROM event_audience ea JOIN donors p ON p.id = ea.person_id WHERE ea.event_id = ? "
+            "ORDER BY ea.rowid", (event_id,))]
+    event["drafts"] = [
+        {**_draft_out(r), "person_id": r["donor_id"], "full_name": r["full_name"], "contact_type": r["contact_type"]}
+        for r in conn.execute(
+            "SELECT d.*, p.full_name, p.contact_type FROM outreach_drafts d JOIN event_drafts ed ON ed.draft_id = d.id "
+            "LEFT JOIN donors p ON p.id = d.donor_id WHERE ed.event_id = ? ORDER BY d.id", (event_id,))]
     return event
 
 
@@ -369,6 +369,22 @@ def get_event(event_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
     if event is None:
         raise HTTPException(404, f"event {event_id} not found")
     return event
+
+
+def context_status(conn: sqlite3.Connection) -> dict:
+    profile = conn.execute("SELECT last_refreshed_at FROM org_profile WHERE id = 1").fetchone()
+    row = conn.execute("SELECT * FROM context_refresh_log ORDER BY id DESC LIMIT 1").fetchone()
+    last = None
+    if row:
+        last = dict(row)
+        last["sources_read"] = json.loads(last["sources_read"] or "{}")
+        last["errors"] = json.loads(last["errors"] or "[]")
+    return {"last_refreshed_at": profile["last_refreshed_at"] if profile else None, "last_run": last}
+
+
+@router.get("/context/status")
+def get_context_status(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    return context_status(conn)
 
 
 def community_stats(conn: sqlite3.Connection) -> dict:
@@ -396,7 +412,14 @@ def community_stats(conn: sqlite3.Connection) -> dict:
             "buckets": [{"value": v, "count": n} for v, n in sorted(buckets.items(), key=lambda kv: (-kv[1], kv[0]))]
                        + ([{"value": NOT_RECORDED, "count": missing}] if missing else []),
         }
-    return {"total": len(people), "fields": fields}
+    return {
+        "total": len(people),
+        "as_of": score.default_as_of().isoformat(),
+        "note": "Counts use only what the nonprofit recorded; nothing is inferred.",
+        "fields": fields,
+        # Flat view for charts: {field: {bucket: count}}, with "not recorded" as a bucket.
+        "breakdowns": {f: {b["value"]: b["count"] for b in v["buckets"]} for f, v in fields.items()},
+    }
 
 
 @router.get("/community/stats")
