@@ -222,6 +222,34 @@ SEED_DONORS = [
         "notes": "SAMPLE: first gift this year",
         "gifts": [(200, "2026-08-20", "online")],
     },
+    # Real, publicly reported Miami Foundation supporters (plan §11). Gift histories are invented
+    # SAMPLE data; their names match data/research_cache.json so enrichment shows real sourced facts.
+    {
+        "full_name": "John S. and James L. Knight Foundation", "org_name": "John S. and James L. Knight Foundation",
+        "donor_type": "organization", "city": "Miami", "state": "FL", "fund_type": "Field of Interest",
+        "source_row": "SAMPLE", "notes": "SAMPLE gift history (invented); real organization",
+        "gifts": [(50000, "2022-10-03", "check"), (50000, "2023-10-02", "check"),
+                  (50000, "2024-10-01", "check"), (50000, "2025-10-01", "check"),
+                  (50000, "2026-10-05", "check")],
+    },
+    {
+        "full_name": "Amazon", "org_name": "Amazon", "donor_type": "organization",
+        "city": "Miami", "state": "FL", "fund_type": "Designated",
+        "source_row": "SAMPLE", "notes": "SAMPLE gift history (invented); real organization",
+        "gifts": [(25000, "2024-09-16", "online"), (50000, "2025-09-15", "online"), (50000, "2026-09-14", "online")],
+    },
+    {
+        "full_name": "Frederick A. DeLuca Foundation", "org_name": "Frederick A. DeLuca Foundation",
+        "donor_type": "organization", "city": "Miami", "state": "FL", "fund_type": "Field of Interest",
+        "source_row": "SAMPLE", "notes": "SAMPLE gift history (invented); real organization; Shack-level star",
+        "gifts": [(400000, "2024-06-28", "check"), (350000, "2025-06-30", "check"), (300000, "2026-06-29", "check")],
+    },
+    {
+        "full_name": "McDermott Will & Schulte", "org_name": "McDermott Will & Schulte",
+        "donor_type": "organization", "city": "Miami", "state": "FL", "fund_type": None,
+        "source_row": "SAMPLE", "notes": "SAMPLE gift history (invented); real organization; in-kind support valued in USD",
+        "gifts": [(7500, "2024-03-12", "in-kind"), (7500, "2025-03-11", "in-kind")],
+    },
 ]
 
 

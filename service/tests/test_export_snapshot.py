@@ -23,4 +23,4 @@ def test_snapshot_mirrors_routes(db_file, tmp_path):
     assert set(loaded) == {"meta", "donors", "donor_details", "duplicates"}
     assert loaded["meta"]["label"] == "Cached sample"
     assert loaded["meta"]["as_of"] == "2026-11-07"     # conftest pins SCORE_AS_OF
-    assert len(loaded["donor_details"]) == loaded["meta"]["donor_count"] == 8
+    assert len(loaded["donor_details"]) == loaded["meta"]["donor_count"] == 12

@@ -14,7 +14,7 @@ def test_donors_sorted_by_score_with_score_fields(db_file):
     r = client().get("/donors")
     assert r.status_code == 200
     donors = r.json()
-    assert len(donors) == 8
+    assert len(donors) == 12
     assert donors[0]["full_name"] == "Maria Delgado"
     assert [d["score"] for d in donors] == sorted((d["score"] for d in donors), reverse=True)
     top = donors[0]
@@ -47,7 +47,7 @@ def test_duplicates_merge_flow(db_file):
     assert body["kept_donor_id"] == s["donor_a_id"]
     assert len(body["donor"]["gifts"]) == 5
     assert c.get("/duplicates").json() == []
-    assert len(c.get("/donors").json()) == 7
+    assert len(c.get("/donors").json()) == 11
     assert c.post(f"/duplicates/{s['id']}/merge", json={}).status_code == 409
     assert c.post("/duplicates/9999/merge", json={}).status_code == 404
 
@@ -71,5 +71,31 @@ def test_score_run(db_file):
     r = client().post("/score/run", params={"as_of": "2026-11-07"})
     assert r.status_code == 200
     body = r.json()
-    assert body["scored"] == 8 and body["as_of"] == "2026-11-07"
+    assert body["scored"] == 12 and body["as_of"] == "2026-11-07"
     assert body["top"][0]["full_name"] == "Maria Delgado"
+
+
+def test_draft_columns_round_trip_through_detail(db_file):
+    import json as _json
+    from service import db as _db
+    conn = _db.connect(db_file)
+    donor_id = conn.execute("SELECT id FROM donors WHERE full_name = 'Maria Delgado'").fetchone()[0]
+    facts = [{"fact": "Record Give Miami Day, ~$43.8M", "url": "https://miamifoundation.org/news/x"}]
+    conn.execute(
+        "INSERT INTO outreach_drafts (donor_id, subject, body, call_script, facts_used, status) "
+        "VALUES (?, 'Thank you', 'Body', 'Hi Maria...', ?, 'ready')", (donor_id, _json.dumps(facts)))
+    conn.commit()
+    conn.close()
+    draft = client().get(f"/donors/{donor_id}").json()["outreach_drafts"][0]
+    assert (draft["subject"], draft["call_script"], draft["status"]) == ("Thank you", "Hi Maria...", "ready")
+    assert draft["facts_used"] == facts
+
+
+def test_seed_has_real_orgs_and_two_stars(db_file):
+    donors = client().get("/donors").json()
+    by_name = {d["full_name"]: d for d in donors}
+    for org in ["Amazon", "John S. and James L. Knight Foundation", "Frederick A. DeLuca Foundation",
+                "McDermott Will & Schulte"]:
+        assert by_name[org]["donor_type"] == "organization" and by_name[org]["source_row"] == "SAMPLE"
+    stars = {d["full_name"] for d in donors if d["is_star"]}
+    assert stars == {"Frederick A. DeLuca Foundation", "Biscayne Harbor Family Foundation"}
