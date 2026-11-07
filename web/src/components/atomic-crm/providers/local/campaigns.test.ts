@@ -80,7 +80,11 @@ describe("snapshot campaigns", () => {
     expect(c.name).toBe("Thank you · Email · 3 donors");
     expect(c.counts.bulk_approvable).toBe(1);
     await expect(
-      m.createCampaign({ donor_ids: [2], intent: "thank_you", channel: "email" }),
+      m.createCampaign({
+        donor_ids: [2],
+        intent: "thank_you",
+        channel: "email",
+      }),
     ).rejects.toThrow(/local API/);
   });
 
@@ -92,7 +96,11 @@ describe("snapshot campaigns", () => {
       channel: "email",
     });
     const bulk = await m.approveSmallDrafts(c.id);
-    expect(bulk).toEqual({ approved: 1, left_for_individual_approval: 2, flagged: 0 });
+    expect(bulk).toEqual({
+      approved: 1,
+      left_for_individual_approval: 2,
+      flagged: 0,
+    });
     const star = c.messages[1];
     const knight = c.messages[2];
     await m.updateCampaignMessage(c.id, star.id, { status: "approved" });
@@ -101,7 +109,11 @@ describe("snapshot campaigns", () => {
     const sent = await m.sendCampaign(c.id);
     expect(sent.sent).toBe(2);
     expect(sent.no_address).toEqual([
-      { message_id: knight.id, donor_name: "Knight", reason: "no email on file" },
+      {
+        message_id: knight.id,
+        donor_name: "Knight",
+        reason: "no email on file",
+      },
     ]);
     const outbox = await m.getOutbox();
     expect(outbox.map((o) => [o.donor_name, o.to, o.simulated])).toEqual([

@@ -13,7 +13,13 @@ import type {
   CampaignIntent,
 } from "../providers/local/campaignTypes";
 import type { DonorSummary } from "../providers/local/types";
-import { CHANNELS, INTENTS, intentLabel, isIntent, pillButton } from "./campaignFormat";
+import {
+  CHANNELS,
+  INTENTS,
+  intentLabel,
+  isIntent,
+  pillButton,
+} from "./campaignFormat";
 import { LinkPill, PageShell, SimulatedNote } from "./campaignUi";
 
 const MAX_DONORS = 25;

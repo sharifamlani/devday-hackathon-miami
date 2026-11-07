@@ -28,7 +28,6 @@ from pathlib import Path
 
 from service import dedupe, score
 from service.db import REPO_ROOT, connect, create_schema
-from service.routes_campaigns import campaigns_demo
 from service.routes_data import (get_donor, get_org_profile_or_none, get_prospect, latest_icp, list_context,
                                  list_donors, list_duplicates, list_prospects)
 
@@ -58,8 +57,17 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "prospects": (prospects := list_prospects(include_dismissed=False, conn=conn)),
         "prospect_details": {str(p["id"]): get_prospect(p["id"], conn) for p in prospects},
         "context": {"profile": get_org_profile_or_none(conn), "facts": list_context(conn)},
-        "campaigns_demo": campaigns_demo(conn),
+        "campaigns_demo": campaigns_snapshot(conn),
     }
+
+
+def campaigns_snapshot(conn) -> dict | None:
+    """#38's sample campaign + template drafts; null when the outreach lane isn't on this build."""
+    try:
+        from service.routes_campaigns import campaigns_demo
+        return campaigns_demo(conn)
+    except ImportError:
+        return None
 
 
 def write_snapshot(snapshot: dict, out: Path) -> int:
