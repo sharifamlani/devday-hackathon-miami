@@ -518,3 +518,46 @@ enrich + outreach (in parallel) → UI wires to all → end-to-end smoke on the 
 - **For Carlos's ingest:** `is_sample` is true only when `source_row` is literally `SAMPLE`. If the sample
   CSV you ingest should display as sample data, write `source_row = 'SAMPLE'` (or agree another marker with
   the lead).
+
+---
+
+## 15. Onboarding: two screens → local context dataset (Sharif, Sat Nov 7 evening)
+
+**What the user does on first run:**
+
+| Screen | User action | What happens under the hood | Owner |
+|---|---|---|---|
+| **1. Upload your data** | Drops in messy files: the Excel export, notes (.md), Word docs | `POST /ingest` → Carlos's ingest agent extracts donors + gifts into the §13 fields → `donors.db` → scoring + duplicate suggestions run | 🔒 Carlos (agent) · Christian (screen) · 80 (data layer) |
+| **2. Tell us where you are online** | Enters URLs: website, X, LinkedIn, Instagram | `POST /context/run` → the **context agent** reads the website and each social profile, extracts dated, sourced facts tagged to the org's priorities → the **local context dataset** | context agent: 86 + social helper · routes: 90 · table: 8b |
+
+**The local context dataset** (SQLite, `data/donors.db`): `org_profile(id, name, website, x_url, linkedin_url,
+instagram_url, priorities JSON, voice JSON, updated_at)` and `org_context(id, source 'website'|'x'|'linkedin'|
+'instagram'|'news', url, posted_at, fact, quote, priority, captured_at)`. Routes: `POST /context/run`, `GET /context`,
+`GET /org-profile`. In the snapshot under `context`.
+
+**Who uses it:**
+- **Enricher / ICP + prospect finder (42):** the org's priorities and recent focus steer *which* new organizations it
+  looks for ("funds climate resilience in South Dade" → prospects that fund the same).
+- **Outreach (86):** drafts lead with the newest fitting fact from *any* source (a LinkedIn post from last week
+  beats a June newsletter), with the post URL and date cited.
+
+**Rules:** public information only, with every fact quote-verified and carrying its URL + date. Social media is
+read through official APIs when tokens exist (X API, Instagram Graph, LinkedIn Org API); otherwise from a cache of
+public posts. Never by logging in or getting around a bot wall. A blocked platform shows as "blocked," never faked.
+For the demo: the Miami Foundation's URLs, precomputed so the context step is instant on stage.
+
+### §15 amendment: the context agent runs live in the app (Sharif, Sat Nov 7 evening)
+The context agent runs **in real time during onboarding**, not as a manual step:
+1. **Live web research** via the OpenAI Agents SDK hosted web search: the org's website plus its public social
+   profiles and posts as indexed by search (e.g. `site:linkedin.com/company/<org>`, `site:x.com/<handle>`,
+   Instagram). Every fact comes back with its source URL and date and is quote-verified. This is legitimate search:
+   no logins, no bot-wall workarounds. (The direct fetch is blocked: X shows no text, LinkedIn needs a login,
+   Instagram hides captions, and miamifoundation.org serves a CAPTCHA to scripts. Findings in PR #19.)
+2. **"Connect your accounts" (official sign-in, OAuth):** an org can grant access to its own X / Instagram
+   Business / LinkedIn page, and the agent then pulls its own posts via the official APIs. Optional; adapters in
+   `service/social_context.py`.
+3. **Live progress:** `POST /context/run` starts a job; `GET /context/run/{job_id}` returns per-source status
+   (`searching` | `done n facts` | `blocked: reason`) for screen 2 to show live.
+4. **Stage safety:** the last successful run is cached, and the UI falls back to it (labeled cached) on timeout.
+
+**Scope cut (Sharif, Sat Nov 7 late evening): for the demo the context agent researches the WEBSITE ONLY.** Screen 2 still collects the Instagram, X and LinkedIn URLs and saves them to `org_profile`, shown as "saved, not connected". They are not fetched or integrated in the demo. Steps 1 (social search), 2 (account connection) and per-social progress above are post-demo.

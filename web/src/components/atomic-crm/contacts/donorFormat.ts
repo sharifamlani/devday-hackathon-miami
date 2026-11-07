@@ -46,17 +46,18 @@ export const statusLabel: Record<DonorStatus, string> = {
   no_gifts: "no gifts",
 };
 
+/** Kindred badge colors (soft fill, dark text); tokens live in src/index.css. */
 export const statusClass: Record<DonorStatus, string> = {
-  lapsing: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-  due: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300",
-  on_track: "bg-muted text-muted-foreground",
-  lapsed: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  no_gifts: "bg-muted text-muted-foreground",
+  lapsing: "bg-alert text-alert-foreground",
+  due: "bg-warn text-warn-foreground",
+  on_track: "bg-good text-good-foreground",
+  lapsed: "bg-quiet text-quiet-foreground",
+  no_gifts: "bg-quiet text-quiet-foreground",
 };
 
 export const scoreClass = (score: number) =>
   score >= 75
-    ? "text-red-700 dark:text-red-400"
+    ? "text-alert-foreground"
     : score >= 50
-      ? "text-amber-700 dark:text-amber-400"
+      ? "text-warn-foreground"
       : "text-muted-foreground";

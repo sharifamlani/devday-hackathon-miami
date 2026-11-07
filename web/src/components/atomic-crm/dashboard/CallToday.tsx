@@ -1,17 +1,21 @@
 import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Heart,
+  Inbox,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  X,
+} from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { DonorDrawer } from "../contacts/DonorDrawer";
+import { DuplicateBanner } from "../contacts/DuplicateMerge";
 import {
   formatMonthYear,
   formatUsd,
@@ -20,113 +24,283 @@ import {
   statusLabel,
   tierLabel,
 } from "../contacts/donorFormat";
-import { DuplicateBanner } from "../contacts/DuplicateMerge";
-import { useDonors } from "../providers/local/hooks";
+import { DATA_MODE } from "../providers/local/config";
+import { useDonors, useSourceLabel } from "../providers/local/hooks";
+import type { DonorSummary } from "../providers/local/types";
+import "./donor-inbox.css";
 
-/** Home screen: every donor, ranked by propensity score, highest first. */
+type InboxFilter = "all" | "attention" | "due" | "on_track" | "stars";
+
+const belongsTo = (donor: DonorSummary, filter: InboxFilter) =>
+  filter === "all" ||
+  (filter === "stars"
+    ? donor.is_star
+    : filter === "attention"
+      ? donor.status === "lapsing" || donor.status === "lapsed"
+      : donor.status === filter);
+
+const filters = [
+  { id: "all", label: "All outreach", icon: Inbox },
+  { id: "attention", label: "Needs attention", icon: Heart },
+  { id: "due", label: "Upcoming", icon: CalendarDays },
+  { id: "on_track", label: "On track", icon: CheckCircle2 },
+  { id: "stars", label: "Star donors", icon: Sparkles },
+] as const;
+
+/** Inbox presentation over the existing donor service; score and mutations stay in the shared layer. */
 export const CallToday = () => {
   const { data: donors, isPending, error } = useDonors();
+  const { data: sourceLabel } = useSourceLabel();
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [filter, setFilter] = useState<InboxFilter>("all");
+  const [query, setQuery] = useState("");
   const ranked = [...(donors ?? [])].sort((a, b) => b.score - a.score);
+  const search = query.trim().toLocaleLowerCase();
+  const visible = ranked.filter(
+    (donor) =>
+      belongsTo(donor, filter) &&
+      [donor.full_name, donor.email, donor.org_name]
+        .filter(Boolean)
+        .some((value) => value!.toLocaleLowerCase().includes(search)),
+  );
+  const selectedFilter = filters.find((item) => item.id === filter)!;
+  const clearFilters = () => {
+    setQuery("");
+    setFilter("all");
+  };
 
   return (
-    <div className="space-y-4 pt-2">
-      <DuplicateBanner />
-      <div>
-        <h2 className="text-2xl font-semibold">Call today</h2>
-        <p className="text-sm text-muted-foreground">
-          Ranked by propensity: recency, frequency, amount and the gap since
-          each donor's usual gift. Click a donor to see why, research and a
-          draft.
-        </p>
-      </div>
-
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          Could not load donors: {error.message}
-        </p>
-      ) : isPending ? (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
+    <div className="donor-inbox">
+      <header className="donor-inbox-welcome">
+        <div>
+          <p className="inbox-eyebrow">OUTREACH, WITH CARE</p>
+          <h2>Every connection matters.</h2>
+          <p>A thoughtful next step, grounded in each donor’s history.</p>
         </div>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Donor</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead>Last gift</TableHead>
-                <TableHead>Usual</TableHead>
-                <TableHead className="text-right">Score</TableHead>
-                <TableHead>Why</TableHead>
-                <TableHead className="w-8">
-                  <span className="sr-only">Open</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ranked.map((donor, index) => (
-                <TableRow
-                  key={donor.id}
-                  onClick={() => setSelectedId(donor.id)}
-                  className="cursor-pointer"
-                  data-donor-id={donor.id}
-                >
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {index + 1}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {donor.is_star && (
-                      <span className="mr-1 text-amber-500" aria-label="Star donor">
-                        ★
-                      </span>
-                    )}
-                    {donor.full_name}
-                  </TableCell>
-                  <TableCell>{tierLabel[donor.tier]}</TableCell>
-                  <TableCell>
-                    {formatMonthYear(donor.last_gift_date)}
-                    <span className="ml-1 text-xs text-muted-foreground">
-                      {formatUsd(donor.last_gift_amount)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {donor.usual_cadence ?? "—"}
-                  </TableCell>
-                  <TableCell
+        <div className="inbox-source">
+          <ShieldCheck size={15} aria-hidden="true" />
+          <span>
+            <strong>SAMPLE DATA</strong>
+            <span>
+              {DATA_MODE === "local"
+                ? "Live donor service"
+                : `${sourceLabel ?? "Snapshot"} · changes stay in this tab`}
+            </span>
+          </span>
+        </div>
+      </header>
+
+      <div className="donor-inbox-workspace">
+        <aside className="inbox-folders" aria-label="Outreach views">
+          <div className="inbox-workspace-name">
+            <span className="inbox-workspace-icon">
+              <Heart size={18} aria-hidden="true" />
+            </span>
+            <span>
+              Donor Desk<small>The Miami Foundation</small>
+            </span>
+          </div>
+          <p className="inbox-eyebrow">YOUR WORKSPACE</p>
+          <div className="inbox-folder-list">
+            {filters.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                className={cn("inbox-folder", filter === id && "is-active")}
+                aria-pressed={filter === id}
+                onClick={() => setFilter(id)}
+              >
+                <Icon size={18} aria-hidden="true" />
+                <span>{label}</span>
+                <b>{ranked.filter((donor) => belongsTo(donor, id)).length}</b>
+              </button>
+            ))}
+          </div>
+          <div className="inbox-sidebar-note">
+            <Users size={19} aria-hidden="true" />
+            <strong>The person behind the record.</strong>
+            <p>
+              Open a donor for their giving history, sourced research, and a
+              draft you can review.
+            </p>
+          </div>
+        </aside>
+
+        <section
+          className="inbox-main-panel"
+          aria-label="Donor outreach inbox"
+          aria-busy={isPending}
+        >
+          <header className="inbox-panel-heading">
+            <div>
+              <h3>
+                Outreach inbox <span>{ranked.length}</span>
+              </h3>
+              <p>A small list. A meaningful difference.</p>
+            </div>
+            <span className="inbox-priority-label">
+              <Sparkles size={14} aria-hidden="true" />
+              Priority order
+            </span>
+          </header>
+
+          <div className="inbox-search">
+            <Search size={18} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Search outreach donors"
+              placeholder="Search people, email, or organization"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear donor search"
+                onClick={() => setQuery("")}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <div className="inbox-list-heading">
+            <strong>{selectedFilter.label}</strong>
+            <p role="status" aria-live="polite">
+              {visible.length} of {ranked.length} people
+            </p>
+          </div>
+          <div className="inbox-duplicate-slot">
+            <DuplicateBanner />
+          </div>
+
+          {error ? (
+            <div role="alert" className="inbox-empty text-destructive">
+              <Inbox size={30} aria-hidden="true" />
+              <h4>We couldn’t load your outreach list.</h4>
+              <p>{error.message}</p>
+            </div>
+          ) : isPending ? (
+            <div className="inbox-loading" aria-label="Loading donors">
+              {Array.from({ length: 6 }, (_, index) => (
+                <Skeleton key={index} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="inbox-empty">
+              <Inbox size={32} aria-hidden="true" />
+              <h4>
+                {query
+                  ? "No matching people"
+                  : "Nothing in this view right now"}
+              </h4>
+              <p>
+                {query
+                  ? "Try another name, email, or organization."
+                  : "Choose another view to see the rest of your outreach list."}
+              </p>
+              {(query || filter !== "all") && (
+                <button type="button" onClick={clearFilters}>
+                  Show all outreach <ArrowRight size={15} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <ul
+              className="inbox-donor-list"
+              aria-label="Donors ranked by priority"
+            >
+              {visible.map((donor) => (
+                <li key={donor.id}>
+                  <button
+                    type="button"
                     className={cn(
-                      "text-right text-base font-bold tabular-nums",
-                      scoreClass(donor.score),
+                      "inbox-donor-row",
+                      selectedId === donor.id && "is-selected",
                     )}
+                    data-donor-id={donor.id}
+                    aria-label={`Open ${donor.full_name}`}
+                    aria-describedby={`donor-reason-${donor.id}`}
+                    onClick={() => setSelectedId(donor.id)}
                   >
-                    {donor.score}
-                  </TableCell>
-                  <TableCell className="max-w-80 whitespace-normal">
                     <span
                       className={cn(
-                        "mr-2 rounded px-1.5 py-0.5 text-xs font-medium",
-                        statusClass[donor.status],
+                        "inbox-donor-avatar",
+                        donor.donor_type === "organization" &&
+                          "is-organization",
                       )}
+                      aria-hidden="true"
                     >
-                      {statusLabel[donor.status]}
+                      {donor.full_name
+                        .trim()
+                        .split(/\s+/)
+                        .slice(0, 2)
+                        .map((name) => name[0])
+                        .join("")}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {donor.why_short}
+                    <span className="inbox-donor-copy">
+                      <span className="inbox-donor-name">
+                        {donor.full_name}
+                        {donor.is_star && (
+                          <Sparkles
+                            size={14}
+                            className="inbox-star"
+                            aria-label="Star donor"
+                          />
+                        )}
+                      </span>
+                      <span
+                        id={`donor-reason-${donor.id}`}
+                        className="inbox-donor-reason"
+                      >
+                        {donor.why_short}
+                      </span>
+                      <span className="inbox-donor-meta">
+                        <span
+                          className={cn(
+                            "inbox-status",
+                            statusClass[donor.status],
+                          )}
+                        >
+                          {statusLabel[donor.status]}
+                        </span>
+                        <span>{tierLabel[donor.tier]} donor</span>
+                        <span className="inbox-gift-summary">
+                          Last gift {formatMonthYear(donor.last_gift_date)} ·{" "}
+                          {formatUsd(donor.last_gift_amount)}
+                        </span>
+                        {donor.is_sample && (
+                          <span className="inbox-sample-history">
+                            Sample history
+                          </span>
+                        )}
+                      </span>
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
+                    <span
+                      className="inbox-row-score"
+                      aria-label={`Priority score ${donor.score} out of 100`}
+                    >
+                      <strong className={scoreClass(donor.score)}>
+                        {donor.score}
+                      </strong>
+                      <small>priority</small>
+                    </span>
+                    <ArrowRight
+                      size={17}
+                      className="inbox-row-arrow"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </li>
               ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+            </ul>
+          )}
+          <footer className="inbox-panel-footer">
+            <ShieldCheck size={14} aria-hidden="true" />
+            <span>Human decisions. Complete donor context.</span>
+            <span>Ranked by giving history</span>
+          </footer>
+        </section>
+      </div>
       <DonorDrawer donorId={selectedId} onClose={() => setSelectedId(null)} />
     </div>
   );

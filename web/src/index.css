@@ -6,7 +6,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Kindred renders in Avenir Next on Apple devices; bundled Inter covers the rest. */
+  --font-sans: "Avenir Next", Avenir, "Inter Variable", -apple-system, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -42,95 +43,141 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* Kindred palette (sites/kindred): beige canvas, warm surface, yellow accent */
+  --color-surface: var(--surface);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-foreground: var(--brand-soft-foreground);
+  --color-olive: var(--olive);
+  --color-good: var(--good);
+  --color-good-foreground: var(--good-foreground);
+  --color-warn: var(--warn);
+  --color-warn-foreground: var(--warn-foreground);
+  --color-alert: var(--alert);
+  --color-alert-foreground: var(--alert-foreground);
+  --color-quiet: var(--quiet);
+  --color-quiet-foreground: var(--quiet-foreground);
 }
 
+/* Kindred look. Colors come from sites/kindred/dist/index.html; text colors are
+   darkened where Kindred's originals fall under WCAG 2.2 AA (4.5:1) on white. */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --avatar-0: oklch(0.85 0.08 240);
-  --avatar-1: oklch(0.88 0.1 340);
-  --avatar-2: oklch(0.85 0.07 180);
-  --avatar-3: oklch(0.9 0.09 40);
-  --avatar-4: oklch(0.87 0.08 300);
-  --avatar-5: oklch(0.85 0.08 150);
-  --avatar-6: oklch(0.87 0.08 200);
-  --avatar-7: oklch(0.88 0.09 10);
-  --avatar-8: oklch(0.92 0.08 80);
-  --avatar-9: oklch(0.86 0.09 270);
+  --radius: 1rem;
+  --background: #dcd9d2;
+  --foreground: #242728;
+  --surface: #f5f4ef;
+  --card: #ffffff;
+  --card-foreground: #242728;
+  --popover: #ffffff;
+  --popover-foreground: #242728;
+  --primary: #242728;
+  --primary-foreground: #ffffff;
+  --secondary: #efeee7;
+  --secondary-foreground: #242728;
+  --muted: #f1f1ea;
+  --muted-foreground: #66695f;
+  --accent: #f3f2eb;
+  --accent-foreground: #242728;
+  --destructive: #a63f2c;
+  --border: #e8e7df;
+  --input: #e0e3d8;
+  --ring: #ad960c;
+  --brand: #f4d958;
+  --brand-foreground: #242728;
+  --brand-soft: #faf2cc;
+  --brand-soft-foreground: #6e5f14;
+  --olive: #e6e7db;
+  --good: #edf2e9;
+  --good-foreground: #46624b;
+  --warn: #faf2cc;
+  --warn-foreground: #6e5f14;
+  --alert: #fbede4;
+  --alert-foreground: #94492b;
+  --quiet: #f1f1ea;
+  --quiet-foreground: #5f6358;
+  --chart-1: #f4d958;
+  --chart-2: #55705b;
+  --chart-3: #d97556;
+  --chart-4: #8a9a7b;
+  --chart-5: #242728;
+  --sidebar: #f5f4ef;
+  --sidebar-foreground: #242728;
+  --sidebar-primary: #242728;
+  --sidebar-primary-foreground: #f4d958;
+  --sidebar-accent: #f3f2eb;
+  --sidebar-accent-foreground: #242728;
+  --sidebar-border: #e8e7df;
+  --sidebar-ring: #ad960c;
+  --avatar-0: #ebe8db;
+  --avatar-1: #f2dfd2;
+  --avatar-2: #e0e7dc;
+  --avatar-3: #e4e9ed;
+  --avatar-4: #e8e1e9;
+  --avatar-5: #ebe8db;
+  --avatar-6: #f2dfd2;
+  --avatar-7: #e0e7dc;
+  --avatar-8: #e4e9ed;
+  --avatar-9: #e8e1e9;
 }
 
+/* Kindred has no dark theme; this is a warm dark counterpart with the same roles. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 15%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-  --avatar-0: oklch(0.35 0.12 240);
-  --avatar-1: oklch(0.38 0.14 340);
-  --avatar-2: oklch(0.35 0.11 180);
-  --avatar-3: oklch(0.38 0.13 40);
-  --avatar-4: oklch(0.36 0.12 300);
-  --avatar-5: oklch(0.35 0.11 150);
-  --avatar-6: oklch(0.37 0.12 200);
-  --avatar-7: oklch(0.38 0.14 10);
-  --avatar-8: oklch(0.4 0.11 80);
-  --avatar-9: oklch(0.36 0.13 270);
+  --background: #141615;
+  --foreground: #f1f0ea;
+  --surface: #1d201e;
+  --card: #262927;
+  --card-foreground: #f1f0ea;
+  --popover: #262927;
+  --popover-foreground: #f1f0ea;
+  --primary: #f1f0ea;
+  --primary-foreground: #1d201e;
+  --secondary: #2f3330;
+  --secondary-foreground: #f1f0ea;
+  --muted: #2f3330;
+  --muted-foreground: #b3b6aa;
+  --accent: #2f3330;
+  --accent-foreground: #f1f0ea;
+  --destructive: #f08a70;
+  --border: #ffffff1a;
+  --input: #ffffff26;
+  --ring: #e3c74a;
+  --brand: #f4d958;
+  --brand-foreground: #1d201e;
+  --brand-soft: #3b3518;
+  --brand-soft-foreground: #f3dd7a;
+  --olive: #343830;
+  --good: #24322a;
+  --good-foreground: #a9cfae;
+  --warn: #3b3518;
+  --warn-foreground: #f3dd7a;
+  --alert: #3e2a22;
+  --alert-foreground: #f3b79e;
+  --quiet: #2f3330;
+  --quiet-foreground: #c4c7bb;
+  --chart-1: #f4d958;
+  --chart-2: #8fb596;
+  --chart-3: #e8977c;
+  --chart-4: #b3c2a4;
+  --chart-5: #f1f0ea;
+  --sidebar: #1d201e;
+  --sidebar-foreground: #f1f0ea;
+  --sidebar-primary: #f1f0ea;
+  --sidebar-primary-foreground: #1d201e;
+  --sidebar-accent: #2f3330;
+  --sidebar-accent-foreground: #f1f0ea;
+  --sidebar-border: #ffffff1a;
+  --sidebar-ring: #e3c74a;
+  --avatar-0: #3a3a30;
+  --avatar-1: #47352b;
+  --avatar-2: #2f3d31;
+  --avatar-3: #2f3a42;
+  --avatar-4: #3d3340;
+  --avatar-5: #3a3a30;
+  --avatar-6: #47352b;
+  --avatar-7: #2f3d31;
+  --avatar-8: #2f3a42;
+  --avatar-9: #3d3340;
 }
 
 a,
@@ -185,7 +232,8 @@ input[type="time"] {
 }
 
 body {
-  font-family: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 14px;
 }
 
 /* The mobile pull-to-refresh (see layout/PullToRefresh.tsx) owns the overscroll
@@ -196,5 +244,14 @@ body {
 @media (max-width: 767px) {
   html {
     overscroll-behavior-y: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
