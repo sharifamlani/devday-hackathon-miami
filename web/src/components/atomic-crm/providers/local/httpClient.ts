@@ -16,6 +16,7 @@ import { campaignHttpMethods } from "./campaigns";
 import { parseAskResponse, type ApiAskResponse } from "./ask";
 import { API_URL, APPROVER_NAME } from "./config";
 import type { UploadTarget } from "./crmTypes";
+import { knownRoutes, routeExists } from "./routes";
 import { requireWebsite } from "./validate";
 import {
   parseContext,
@@ -50,6 +51,14 @@ export const request = async <T>(
   init?: { method?: "GET" | "POST" | "PATCH"; body?: unknown },
 ): Promise<T> => {
   const method = init?.method ?? "GET";
+  // Don't call a route this API build doesn't serve (see routes.ts): answer
+  // the way an unmounted route would, without a request or a console error.
+  const routes = await knownRoutes();
+  if (routes && !routeExists(routes, method, path)) {
+    throw new ApiError(`${method} ${path} isn't served by this API build`, 404, {
+      detail: "Not Found",
+    });
+  }
   const isForm = init?.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     method,
