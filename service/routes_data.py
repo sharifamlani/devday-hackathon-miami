@@ -165,7 +165,7 @@ def approve_draft(draft_id: int, req: ApproveDraft, conn: sqlite3.Connection = D
 
 def _icp_out(row: sqlite3.Row) -> dict:
     d = dict(row)
-    for k in ("traits", "stats", "evidence"):
+    for k in ("traits", "stats", "evidence", "recent_context"):
         d[k] = json.loads(d[k]) if d.get(k) else ([] if k != "stats" else {})
     return d
 
@@ -174,6 +174,8 @@ def _prospect_out(row: sqlite3.Row) -> dict:
     d = dict(row)
     d["matched_traits"] = json.loads(d.get("matched_traits") or "[]")
     d["facts"] = json.loads(d.get("facts") or "[]")
+    d["fit_breakdown"] = json.loads(d.get("fit_breakdown") or "{}")
+    d["matched_context"] = json.loads(d.get("matched_context") or "[]")
     return d
 
 

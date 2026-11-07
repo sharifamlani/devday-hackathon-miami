@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS icp_profile (
     traits      TEXT NOT NULL,     -- JSON (icp_agent)
     stats       TEXT NOT NULL,     -- JSON, deterministic Python
     evidence    TEXT NOT NULL,     -- JSON list: the donor + fact + URL behind each trait
+    recent_context TEXT,           -- JSON list: the org's recent work that steered the profile
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -109,6 +110,8 @@ CREATE TABLE IF NOT EXISTS prospects (
     matched_traits TEXT NOT NULL DEFAULT '[]',   -- JSON list of ICP traits it matches
     facts          TEXT NOT NULL DEFAULT '[]',   -- JSON list of {fact, url}
     priority       TEXT,           -- the Foundation priority it fits
+    fit_breakdown  TEXT,           -- JSON {component: points} behind fit_score (icp_agent)
+    matched_context TEXT,          -- JSON list of the org's own recent facts it ties to
     status         TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'drafted', 'dismissed')),
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -231,9 +234,21 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     return conn
 
 
+# Nullable columns added after a table first shipped; create_schema adds any that are missing.
+ADDED_COLUMNS = {
+    "icp_profile": {"recent_context": "TEXT"},
+    "prospects": {"fit_breakdown": "TEXT", "matched_context": "TEXT"},
+}
+
+
 def create_schema(conn: sqlite3.Connection) -> None:
     migrate_outreach_drafts(conn)
     conn.executescript(SCHEMA)
+    for table, columns in ADDED_COLUMNS.items():
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, kind in columns.items():
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
     conn.commit()
 
 
@@ -272,9 +287,9 @@ def _name_key(name: str | None) -> str:
 
 def save_icp(conn: sqlite3.Connection, profile: dict) -> int:
     cur = conn.execute(
-        "INSERT INTO icp_profile (traits, stats, evidence) VALUES (?, ?, ?)",
+        "INSERT INTO icp_profile (traits, stats, evidence, recent_context) VALUES (?, ?, ?, ?)",
         (json.dumps(profile.get("traits") or []), json.dumps(profile.get("stats") or {}),
-         json.dumps(profile.get("evidence") or [])))
+         json.dumps(profile.get("evidence") or []), json.dumps(profile.get("recent_context") or [])))
     conn.commit()
     return cur.lastrowid
 
@@ -289,16 +304,18 @@ def save_prospects(conn: sqlite3.Connection, prospects: list[dict]) -> list[int]
         if not p.get("name") or _name_key(p["name"]) in donor_keys:
             continue
         values = (p.get("org_type"), p.get("city"), int(round(p.get("fit_score") or 0)),
-                  json.dumps(p.get("matched_traits") or []), json.dumps(p.get("facts") or []), p.get("priority"))
+                  json.dumps(p.get("matched_traits") or []), json.dumps(p.get("facts") or []), p.get("priority"),
+                  json.dumps(p.get("fit_breakdown") or {}), json.dumps(p.get("matched_context") or []))
         row = conn.execute("SELECT id FROM prospects WHERE name = ?", (p["name"],)).fetchone()
         if row:
             conn.execute("UPDATE prospects SET org_type = ?, city = ?, fit_score = ?, matched_traits = ?, "
-                         "facts = ?, priority = ? WHERE id = ?", (*values, row[0]))
+                         "facts = ?, priority = ?, fit_breakdown = ?, matched_context = ? WHERE id = ?",
+                         (*values, row[0]))
             ids.append(row[0])
         else:
             ids.append(conn.execute(
-                "INSERT INTO prospects (name, org_type, city, fit_score, matched_traits, facts, priority) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)", (p["name"], *values)).lastrowid)
+                "INSERT INTO prospects (name, org_type, city, fit_score, matched_traits, facts, priority, "
+                "fit_breakdown, matched_context) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (p["name"], *values)).lastrowid)
     conn.commit()
     return ids
 
