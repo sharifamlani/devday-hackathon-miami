@@ -176,3 +176,14 @@ No shared files; all three merge together; pytest 70 passed; no secrets.
 | #20 feat/org-outreach | 39f6906 | 31 org facts, all on miamifoundation.org; 12/12 distinct URLs load in a browser; 2 live prospect drafts are 'draft', no money ask, no relationship claim | APPROVE |
 | #18 feat/icp | 49a000b | 7 prospects, all organizations, none an existing donor, 3 facts each; 9/10 URLs pass outright | APPROVE + follow-ups Q12 (Peacock: 2 facts cited to a homepage that doesn't show them) and Q13 (no "via web search" provenance on prospect facts) |
 | #19 feat/social-context | 02ced45 | not imported anywhere in service/; tests pass | APPROVE (no-harm, post-demo) |
+
+### Gate round: #21, #23, #24, #26 (all-open overlap + combined tree)
+
+| PR | SHA | Checks | Verdict |
+|---|---|---|---|
+| #21 feat/service-onboarding | 40dfac3 | /context/run: cached 18 facts in 2.1 s, live 16 in 17.6 s (≤30 s cap); socials "saved, not connected"; 404 leaks no path | APPROVE (merged) |
+| #23 feat/org-outreach | a40881f → bd26456 → b718649 | unreachable site reported "done" (a40881f, bd26456); a live run dirtied the committed cache (a40881f, fixed in bd26456); at b718649 its own cached-run test fails on main (LinkedIn 'not provided') | REJECT (owner 86), plus 2 cached-path bugs from the lead's UI walk |
+| #24 feat/ui-onboarding | 37f4c64 → 395bf50 | web/ only; 28/28 tests; build:demo ok; demo with #26 snapshot renders 0.67 s, 0 console errors, 0 4xx/5xx | APPROVE |
+| #26 feat/icp-schema | 7a9eef1 | 83 passed alone; empty-db /icp and /org-profile 200 null; 7 prospects × 1 'draft', donor_id null, no money ask; 0 mojibake; profile matches org_config | APPROVE |
+
+The combined tree caught 1 failure (87/1); isolation showed it was #23's own test, not a clash.
