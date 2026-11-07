@@ -3,6 +3,10 @@
 Run from the repo root:
     python -m service.enrich_agent "Frederick A. DeLuca Foundation"
     python -m service.enrich_agent "Jane Doe" --org "Acme Corp" --city Miami --donor-id 7
+    python -m service.enrich_agent "Amazon" --focus "Miami giving" --cache   # research live, store in the cache
+
+Lookups read data/research_cache.json first (committed, so nothing slow runs live on stage);
+pass refresh=True / --refresh to research live anyway.
 
 Public professional information only: what they fund, board roles, foundation ties, press.
 No home addresses, family members or personal social media. Every fact keeps a URL that loads;
@@ -31,6 +35,8 @@ load_dotenv(REPO_ROOT / ".env")
 
 # Until db.py lands, facts go here; save_facts() is the only writer, so swapping in SQLite is one edit
 FACTS_JSON = REPO_ROOT / "data" / "research_facts.json"
+# Precomputed research keyed by donor name, committed so the demo never waits on web search
+CACHE_JSON = REPO_ROOT / "data" / "research_cache.json"
 NO_INFO = "no public information found"
 URL_TIMEOUT_S = 8
 
@@ -85,13 +91,37 @@ def url_loads(url: str) -> bool:
         return False
 
 
-def enrich_donor(name: str, org_name: str | None = None, city: str | None = None) -> list[Fact]:
-    """Research one donor and return sourced facts whose URLs load. Empty list means nothing public found."""
+def read_cache() -> dict[str, list[dict]]:
+    return json.loads(CACHE_JSON.read_text(encoding="utf-8")) if CACHE_JSON.exists() else {}
+
+
+def write_cache(name: str, facts: list[Fact]) -> None:
+    """Store one donor's facts in the cache under its name, replacing any earlier entry."""
+    cache = read_cache()
+    cache[name] = [f.model_dump() for f in facts]
+    CACHE_JSON.parent.mkdir(parents=True, exist_ok=True)
+    CACHE_JSON.write_text(json.dumps(cache, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def enrich_donor(name: str, org_name: str | None = None, city: str | None = None,
+                 focus: str | None = None, refresh: bool = False) -> list[Fact]:
+    """Research one donor and return sourced facts whose URLs load. Empty list means nothing public found.
+
+    Cached donors come back from data/research_cache.json without a model call unless refresh=True.
+    focus steers the search (e.g. "Miami giving"); it only applies to live runs.
+    """
+    if not refresh:
+        cached = read_cache().get(name)
+        if cached is not None:
+            return [Fact(**f) for f in cached]
+
     query = f"Donor: {name}"
     if org_name:
         query += f"\nOrganization: {org_name}"
     if city:
         query += f"\nCity: {city}"
+    if focus:
+        query += f"\nFocus the research on: {focus}"
 
     result = Runner.run_sync(agent, query)
     retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -121,17 +151,26 @@ def main() -> int:
     parser.add_argument("name")
     parser.add_argument("--org", dest="org_name")
     parser.add_argument("--city")
+    parser.add_argument("--focus", help="what the live research should concentrate on")
     parser.add_argument("--donor-id", type=int, help="also save the facts as research_facts rows")
+    parser.add_argument("--refresh", action="store_true", help="ignore the cache and research live")
+    parser.add_argument("--cache", action="store_true", help="research live and store the result in the cache")
     args = parser.parse_args()
 
     start = time.perf_counter()
-    facts = enrich_donor(args.name, args.org_name, args.city)
+    facts = enrich_donor(args.name, args.org_name, args.city, args.focus, refresh=args.refresh or args.cache)
     elapsed = time.perf_counter() - start
 
     if not facts:
         print(NO_INFO)
     for i, f in enumerate(facts, 1):
         print(f"{i}. {f.fact}\n   {f.source_url}\n   retrieved {f.retrieved_at}")
+    if args.cache:
+        if facts:
+            write_cache(args.name, facts)
+            print(f"cached {len(facts)} fact(s) under {args.name!r} in {CACHE_JSON.relative_to(REPO_ROOT)}")
+        else:
+            print("nothing cached: no facts survived")
     if args.donor_id is not None:
         run_id = uuid.uuid4().hex[:12]
         print(f"saved {save_facts(args.donor_id, facts, run_id)} fact(s), agent_run_id={run_id}")
