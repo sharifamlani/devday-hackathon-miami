@@ -457,3 +457,31 @@ Ingest writes rows into these SQLite tables. Scoring, enrichment, outreach and t
 
 **Written by others, never by ingest:** `donor_scores` (score.py), `duplicate_suggestions` (dedupe),
 `research_facts` (enrich_agent), `outreach_drafts` (outreach_agent). Shapes as in §12 "Add".
+
+---
+
+## 14. The build team: Claude Code agents + a lead
+
+**Lead: the "Ideas" session (main).** It owns `plan.md`, `ROADMAP.md`, `docs/`, assignments, integration
+order and merge readiness. It writes no feature code; it dispatches, reviews, verifies and integrates.
+Builders report to the lead and never merge their own PRs.
+
+| Agent (session) | Lane | Owns (and only these paths) | Reads | First deliverable |
+|---|---|---|---|---|
+| **CRM UI** | Front end | `web/` | §7 wireframes, §13 contract | Call-today list + donor drawer on the local API |
+| **Local database** | Data layer | `service/db.py`, `service/main.py` (all routes except the `/ingest` body), `data/answer_key.json` | §13 contract | `donors.db` created from §13; REST routes the UI and agents use |
+| **Enrich agent** | Research | `service/enrich_agent.py` | `donors` | Sourced `research_facts` for a real Miami org |
+| **Outreach agent** | Drafts | `service/outreach_agent.py`, `service/org_context.py` | `donors`, `donor_scores`, `research_facts`, §11 | A draft citing a real miamifoundation.org fact |
+| 🔒 **Carlos** (human) | Ingest | `service/ingest/`, `/ingest` route body | §13 contract | Messy CSV → `donors` + `gifts` |
+| ⚠ **Unassigned** | Scoring + dedupe | `service/score.py`, `service/tests/test_score.py`, `duplicate_suggestions` | `gifts` | **Most important feature: needs an owner** |
+
+**Working rules for every agent**
+1. **One branch per agent, in its own git worktree** (`git worktree add ../dd-<lane> -b feat/<lane>`).
+   Sessions sharing one folder would switch branches under each other.
+2. Touch only your paths. Anything outside them goes to the lead as a request.
+3. Build against the §13 contract. Contract changes go through Carlos + Sharif via the lead.
+4. Commit small, push your branch, open a PR, and tell the lead. **Never push to `main`; never merge.**
+5. Each deliverable ends with its §8 smoke passing, and the output pasted to the lead.
+
+**Integration order (dependency):** Local database (schema + routes) → Carlos's ingest fills it → scoring →
+enrich + outreach (in parallel) → UI wires to all → end-to-end smoke on the demo laptop.
