@@ -57,6 +57,24 @@ CREATE TABLE IF NOT EXISTS gifts (
 CREATE INDEX IF NOT EXISTS idx_gifts_donor ON gifts(donor_id);
 
 -- Written by others, never by ingest ----------------------------------------------------
+-- Every merge, with enough to undo it exactly (dedupe.merge / dedupe.undo_merge). The dropped
+-- donor row is deleted from donors but lives here whole, so no history is lost.
+CREATE TABLE IF NOT EXISTS merge_log (
+    id            INTEGER PRIMARY KEY,
+    suggestion_id INTEGER,
+    kept_id       INTEGER NOT NULL,
+    merged_id     INTEGER NOT NULL,
+    merged_at     TEXT NOT NULL,   -- ISO UTC
+    approved_by   TEXT,
+    kept_before   TEXT NOT NULL,   -- JSON: the kept donor row before the merge
+    merged_row    TEXT NOT NULL,   -- JSON: the dropped donor row
+    merged_score  TEXT,            -- JSON: its donor_scores row, or null
+    moved         TEXT NOT NULL,   -- JSON: {"gifts": [ids], "research_facts": [ids], "outreach_drafts": [ids]}
+    superseded    TEXT NOT NULL,   -- JSON: duplicate_suggestions ids this merge superseded
+    undone_at     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_merge_log_kept ON merge_log(kept_id);
+
 CREATE TABLE IF NOT EXISTS donor_scores (
     donor_id    INTEGER PRIMARY KEY REFERENCES donors(id) ON DELETE CASCADE,
     score       INTEGER NOT NULL,  -- 0-100
@@ -222,8 +240,83 @@ BEGIN
 END;
 """
 
-TABLES = ["outreach_drafts", "prospects", "icp_profile", "org_context", "org_profile", "research_facts", "duplicate_suggestions",
+TABLES = ["merge_log", "outreach_drafts", "prospects", "icp_profile", "org_context", "org_profile", "research_facts", "duplicate_suggestions",
           "donor_scores", "gifts", "donors"]
+
+# Campaigns (#38): bulk drafts -> human approval -> a SIMULATED outbox. Nothing leaves the laptop.
+# The outbox doubles as the contact log (who, when, which channel) until plan.md §16's text_log exists.
+# campaign_messages.outreach_draft_id is a plain nullable id (no FK), so outreach_drafts can be rebuilt.
+CAMPAIGN_SCHEMA = """
+CREATE TABLE IF NOT EXISTS campaigns (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,
+    intent      TEXT NOT NULL CHECK (intent IN ('thank_you', 're_engage', 'check_in')),
+    channel     TEXT NOT NULL CHECK (channel IN ('email', 'text')),
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    created_by  TEXT,
+    status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent'))
+);
+
+CREATE TABLE IF NOT EXISTS campaign_messages (
+    id                INTEGER PRIMARY KEY,
+    campaign_id       INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    donor_id          INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+    outreach_draft_id INTEGER,
+    channel           TEXT NOT NULL CHECK (channel IN ('email', 'text')),
+    subject           TEXT,
+    body              TEXT NOT NULL,
+    facts_used        TEXT NOT NULL DEFAULT '[]',   -- JSON list of {fact, url, date}
+    flags             TEXT NOT NULL DEFAULT '[]',   -- JSON list: output-guardrail findings; non-empty blocks approval
+    drafted_by        TEXT NOT NULL DEFAULT 'template' CHECK (drafted_by IN ('model', 'template')),
+    draft_note        TEXT,
+    status            TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'approved', 'sent', 'skipped')),
+    needs_individual_approval INTEGER NOT NULL DEFAULT 0,   -- star, big tier or organization
+    approved_by       TEXT,
+    approved_via      TEXT CHECK (approved_via IN ('individual', 'bulk')),
+    approved_at       TEXT,
+    sent_at           TEXT,
+    UNIQUE (campaign_id, donor_id)
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_messages_campaign ON campaign_messages(campaign_id);
+
+CREATE TABLE IF NOT EXISTS outbox (
+    id                  INTEGER PRIMARY KEY,
+    campaign_message_id INTEGER REFERENCES campaign_messages(id) ON DELETE SET NULL,
+    donor_id            INTEGER REFERENCES donors(id) ON DELETE SET NULL,
+    channel             TEXT NOT NULL CHECK (channel IN ('email', 'text')),
+    to_address          TEXT NOT NULL,     -- stored in full locally; masked in every API response
+    subject             TEXT,
+    body                TEXT NOT NULL,
+    sent_at             TEXT NOT NULL DEFAULT (datetime('now')),
+    simulated           INTEGER NOT NULL DEFAULT 1 CHECK (simulated = 1)   -- no real provider exists
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_donor ON outbox(donor_id);
+
+-- Nothing is sent without a named approver; flagged drafts are never approved or sent.
+CREATE TRIGGER IF NOT EXISTS campaign_message_needs_approver
+BEFORE UPDATE OF status ON campaign_messages
+WHEN NEW.status IN ('approved', 'sent') AND (NEW.approved_by IS NULL OR trim(NEW.approved_by) = '')
+BEGIN
+    SELECT RAISE(ABORT, 'campaign messages need a named human approver');
+END;
+
+-- Star, big and organization donors are approved one by one, never by the bulk button.
+CREATE TRIGGER IF NOT EXISTS campaign_message_no_bulk_for_big
+BEFORE UPDATE OF status, approved_via ON campaign_messages
+WHEN NEW.needs_individual_approval = 1 AND NEW.approved_via = 'bulk'
+BEGIN
+    SELECT RAISE(ABORT, 'star, big and organization donors need individual approval');
+END;
+
+CREATE TRIGGER IF NOT EXISTS campaign_message_flagged_blocked
+BEFORE UPDATE OF status ON campaign_messages
+WHEN NEW.status IN ('approved', 'sent') AND NEW.flags <> '[]'
+BEGIN
+    SELECT RAISE(ABORT, 'flagged campaign messages cannot be approved or sent');
+END;
+"""
+SCHEMA += CAMPAIGN_SCHEMA
+TABLES = ["outbox", "campaign_messages", "campaigns"] + TABLES
 
 
 def connect(path: str | Path | None = None) -> sqlite3.Connection:
