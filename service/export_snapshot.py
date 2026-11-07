@@ -11,6 +11,11 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "prospects":  [...]          # == GET /prospects
       "prospect_details": {"<id>": {...}}  # == GET /prospects/{id}
       "context":    {"profile": GET /org-profile | null, "facts": GET /context}
+      "people":     {"counts": {...}, "giver": [...], "neighbor": [...], "community": [...]}  # == GET /people?type=
+      "events":     [...]          # == GET /events
+      "event_details": {"<id>": {...}}     # == GET /events/{id}
+      "community_stats": {...}     # == GET /community/stats
+    donor_details covers every person in every tab (the drawer works on all three).
     }
 
     python -m service.export_snapshot                    # rescore as of the demo date, write web/public/snapshot.json
@@ -26,8 +31,9 @@ from pathlib import Path
 
 from service import dedupe, score
 from service.db import REPO_ROOT, connect, create_schema
-from service.routes_data import (get_donor, get_org_profile_or_none, get_prospect, latest_icp, list_context,
-                                 list_donors, list_duplicates, list_prospects)
+from service.routes_data import (community_stats, event_detail, get_donor, get_org_profile_or_none, get_prospect,
+                                 latest_icp, list_context, list_donors, list_duplicates, list_events, list_people,
+                                 list_prospects, people_counts)
 
 DEFAULT_OUT = REPO_ROOT / "web" / "public" / "snapshot.json"
 MAX_BYTES = 2 * 1024 * 1024
@@ -49,12 +55,16 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
             "source": "service/export_snapshot.py from data/donors.db",
         },
         "donors": donors,
-        "donor_details": {str(d["id"]): get_donor(d["id"], conn) for d in donors},
+        "donor_details": {str(r[0]): get_donor(r[0], conn) for r in conn.execute("SELECT id FROM donors ORDER BY id")},
         "duplicates": list_duplicates(conn),
         "icp": latest_icp(conn),
         "prospects": (prospects := list_prospects(include_dismissed=False, conn=conn)),
         "prospect_details": {str(p["id"]): get_prospect(p["id"], conn) for p in prospects},
         "context": {"profile": get_org_profile_or_none(conn), "facts": list_context(conn)},
+        "people": {"counts": people_counts(conn), **{t: list_people(conn, t) for t in ("giver", "neighbor", "community")}},
+        "events": (events := list_events(conn)),
+        "event_details": {str(e["id"]): event_detail(conn, e["id"]) for e in events},
+        "community_stats": community_stats(conn),
     }
 
 

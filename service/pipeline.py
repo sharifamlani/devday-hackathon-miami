@@ -118,8 +118,10 @@ def stage_enrich(live: bool) -> str:
     cache = enrich_agent.read_cache()
     conn = db.connect()
     orgs = [dict(r) for r in conn.execute(
-        "SELECT id, full_name, org_name, city FROM donors WHERE donor_type = 'organization' ORDER BY id")]
-    individuals = conn.execute("SELECT COUNT(*) FROM donors WHERE donor_type = 'individual'").fetchone()[0]
+        "SELECT id, full_name, org_name, city FROM donors WHERE donor_type = 'organization' "
+        "AND contact_type = 'giver' ORDER BY id")]
+    individuals = conn.execute("SELECT COUNT(*) FROM donors WHERE donor_type = 'individual' "
+                               "AND contact_type = 'giver'").fetchone()[0]
     conn.close()
 
     run_id = f"pipeline-{uuid.uuid4().hex[:8]}"
