@@ -1,0 +1,2396 @@
+{
+ "meta": {
+  "as_of": "2026-11-08",
+  "generated_at": "2026-11-07T21:34:52+00:00",
+  "label": "Cached sample",
+  "donor_count": 12,
+  "source": "service/export_snapshot.py from data/donors.db"
+ },
+ "donors": [
+  {
+   "id": 1,
+   "full_name": "Maria Delgado",
+   "first_name": "Maria",
+   "last_name": "Delgado",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "maria.delgado@example.com",
+   "emails_all": [
+    "maria.delgado@example.com"
+   ],
+   "phone": "+13055550101",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Donor Advised",
+   "notes": "SAMPLE: lapsing Give Miami Day giver",
+   "source_row": "SAMPLE",
+   "score": 89,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "missed_seasonal_window",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 55.0,
+     "value": 16.8,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 11000.0,
+    "largest_gift": 3000.0,
+    "last_gift": {
+     "date": "2025-11-20",
+     "amount": 3000.0,
+     "channel": "Give Miami Day"
+    },
+    "days_since_last_gift": 353,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.97,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 11,
+     "month_name": "November",
+     "channel": "Give Miami Day",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 7,
+   "full_name": "Luis Herrera",
+   "first_name": "Luis",
+   "last_name": "Herrera",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "luis.herrera@example.com",
+   "emails_all": [
+    "luis.herrera@example.com"
+   ],
+   "phone": "+13055550155",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Donor Advised",
+   "notes": "SAMPLE: December giver, window next month",
+   "source_row": "SAMPLE",
+   "score": 80,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "seasonal_window_next_month",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 46.8,
+     "value": 15.2,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 4400.0,
+    "largest_gift": 1200.0,
+    "last_gift": {
+     "date": "2025-12-15",
+     "amount": 1200.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 328,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.9,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 12,
+     "month_name": "December",
+     "channel": "online",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 12,
+   "full_name": "McDermott Will & Schulte",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "McDermott Will & Schulte",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE gift history (invented); real organization; in-kind support valued in USD",
+   "source_row": "SAMPLE",
+   "score": 79,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "overdue_vs_cadence"
+    ],
+    "points": {
+     "urgency": 51.3,
+     "value": 17.4,
+     "frequency": 4.8,
+     "engagement": 5.6
+    },
+    "gift_count": 2,
+    "lifetime_total": 15000.0,
+    "largest_gift": 7500.0,
+    "last_gift": {
+     "date": "2025-03-11",
+     "amount": 7500.0,
+     "channel": "in-kind"
+    },
+    "days_since_last_gift": 607,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 1.67,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 3,
+     "month_name": "March",
+     "channel": "in-kind",
+     "years": [
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 5,
+   "full_name": "Robert Nguyen",
+   "first_name": "Robert",
+   "last_name": "Nguyen",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "rob.nguyen@example.com",
+   "emails_all": [
+    "rob.nguyen@example.com"
+   ],
+   "phone": "+13055550177",
+   "city": "Doral",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE: quarterly donor, overdue",
+   "source_row": "SAMPLE",
+   "score": 71,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "overdue_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 36.5,
+     "value": 14.5,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 6,
+    "lifetime_total": 3000.0,
+    "largest_gift": 500.0,
+    "last_gift": {
+     "date": "2026-04-09",
+     "amount": 500.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 213,
+    "usual_cadence_days": 91,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 2.34,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 11,
+   "full_name": "Frederick A. DeLuca Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Frederick A. DeLuca Foundation",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Field of Interest",
+   "notes": "SAMPLE gift history (invented); real organization; Shack-level star",
+   "source_row": "SAMPLE",
+   "score": 46,
+   "tier": "big",
+   "is_star": true,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "shack_society_level"
+    ],
+    "points": {
+     "urgency": 5.9,
+     "value": 25.0,
+     "frequency": 7.2,
+     "engagement": 8.0
+    },
+    "gift_count": 3,
+    "lifetime_total": 1050000.0,
+    "largest_gift": 400000.0,
+    "last_gift": {
+     "date": "2026-06-29",
+     "amount": 300000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 132,
+    "usual_cadence_days": 365,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.36,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 6,
+     "month_name": "June",
+     "channel": "check",
+     "years": [
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 3,
+   "full_name": "James Carter",
+   "first_name": "James",
+   "last_name": "Carter",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "jcarter@example.com",
+   "emails_all": [
+    "jcarter@example.com"
+   ],
+   "phone": "+13055550144",
+   "city": "Coral Gables",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE: on-track monthly donor",
+   "source_row": "SAMPLE",
+   "score": 45,
+   "tier": "mid",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 12.5,
+     "value": 12.7,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 22,
+    "lifetime_total": 1100.0,
+    "largest_gift": 50.0,
+    "last_gift": {
+     "date": "2026-10-15",
+     "amount": 50.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 24,
+    "usual_cadence_days": 31,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.77,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 4,
+   "full_name": "Biscayne Harbor Family Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Biscayne Harbor Family Foundation",
+   "donor_type": "organization",
+   "email": "grants@biscayneharbor.example.org",
+   "emails_all": [
+    "grants@biscayneharbor.example.org"
+   ],
+   "phone": "+13055550199",
+   "city": "Miami Beach",
+   "state": "FL",
+   "fund_type": "Endowment",
+   "notes": "SAMPLE: Shack-level star fundholder, on track",
+   "source_row": "SAMPLE",
+   "score": 45,
+   "tier": "big",
+   "is_star": true,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "shack_society_level",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 2.7,
+     "value": 25.0,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 1650000.0,
+    "largest_gift": 500000.0,
+    "last_gift": {
+     "date": "2026-09-08",
+     "amount": 450000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 61,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.17,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 9,
+     "month_name": "September",
+     "channel": "check",
+     "years": [
+      2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 9,
+   "full_name": "John S. and James L. Knight Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "John S. and James L. Knight Foundation",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Field of Interest",
+   "notes": "SAMPLE gift history (invented); real organization",
+   "source_row": "SAMPLE",
+   "score": 44,
+   "tier": "big",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 1.5,
+     "value": 22.5,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 5,
+    "lifetime_total": 250000.0,
+    "largest_gift": 50000.0,
+    "last_gift": {
+     "date": "2026-10-05",
+     "amount": 50000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 34,
+    "usual_cadence_days": 365,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.09,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 10,
+     "month_name": "October",
+     "channel": "check",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 10,
+   "full_name": "Amazon",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Amazon",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE gift history (invented); real organization",
+   "source_row": "SAMPLE",
+   "score": 39,
+   "tier": "big",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence"
+    ],
+    "points": {
+     "urgency": 2.4,
+     "value": 21.2,
+     "frequency": 7.2,
+     "engagement": 8.0
+    },
+    "gift_count": 3,
+    "lifetime_total": 125000.0,
+    "largest_gift": 50000.0,
+    "last_gift": {
+     "date": "2026-09-14",
+     "amount": 50000.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 55,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.15,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 9,
+     "month_name": "September",
+     "channel": "online",
+     "years": [
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 2,
+   "full_name": "María Delgado-Ruiz",
+   "first_name": "María",
+   "last_name": "Delgado-Ruiz",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "mdelgado@work.example.com",
+   "emails_all": [
+    "mdelgado@work.example.com",
+    "Maria.Delgado@example.com"
+   ],
+   "phone": "(305) 555-0101",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: planted duplicate of Maria Delgado (name variant, shared email)",
+   "source_row": "SAMPLE",
+   "score": 29,
+   "tier": "small",
+   "is_star": false,
+   "status": "lapsed",
+   "why": {
+    "status": "lapsed",
+    "reasons": [
+     "overdue_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 16.5,
+     "value": 10.0,
+     "frequency": 2.4,
+     "engagement": 0.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 250.0,
+    "largest_gift": 250.0,
+    "last_gift": {
+     "date": "2021-06-02",
+     "amount": 250.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 1985,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 5.44,
+    "gave_this_year": false,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 6,
+   "full_name": "Angela Brooks",
+   "first_name": "Angela",
+   "last_name": "Brooks",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "angela.brooks@example.com",
+   "emails_all": [
+    "angela.brooks@example.com"
+   ],
+   "phone": "+13055550122",
+   "city": "Homestead",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: one gift long ago",
+   "source_row": "SAMPLE",
+   "score": 27,
+   "tier": "small",
+   "is_star": false,
+   "status": "lapsed",
+   "why": {
+    "status": "lapsed",
+    "reasons": [
+     "overdue_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 16.5,
+     "value": 8.3,
+     "frequency": 2.4,
+     "engagement": 0.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 100.0,
+    "largest_gift": 100.0,
+    "last_gift": {
+     "date": "2019-05-03",
+     "amount": 100.0,
+     "channel": "event"
+    },
+    "days_since_last_gift": 2746,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 7.52,
+    "gave_this_year": false,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  },
+  {
+   "id": 8,
+   "full_name": "Priya Shah",
+   "first_name": "Priya",
+   "last_name": "Shah",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "priya.shah@example.com",
+   "emails_all": [
+    "priya.shah@example.com"
+   ],
+   "phone": "+13055550166",
+   "city": "Aventura",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: first gift this year",
+   "source_row": "SAMPLE",
+   "score": 24,
+   "tier": "small",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 3.5,
+     "value": 9.6,
+     "frequency": 2.4,
+     "engagement": 8.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 200.0,
+    "largest_gift": 200.0,
+    "last_gift": {
+     "date": "2026-08-20",
+     "amount": 200.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 80,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 0.22,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true
+  }
+ ],
+ "donor_details": {
+  "1": {
+   "id": 1,
+   "full_name": "Maria Delgado",
+   "first_name": "Maria",
+   "last_name": "Delgado",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "maria.delgado@example.com",
+   "emails_all": [
+    "maria.delgado@example.com"
+   ],
+   "phone": "+13055550101",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Donor Advised",
+   "notes": "SAMPLE: lapsing Give Miami Day giver",
+   "source_row": "SAMPLE",
+   "score": 89,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "missed_seasonal_window",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 55.0,
+     "value": 16.8,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 11000.0,
+    "largest_gift": 3000.0,
+    "last_gift": {
+     "date": "2025-11-20",
+     "amount": 3000.0,
+     "channel": "Give Miami Day"
+    },
+    "days_since_last_gift": 353,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.97,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 11,
+     "month_name": "November",
+     "channel": "Give Miami Day",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 4,
+     "donor_id": 1,
+     "amount": 3000.0,
+     "gift_date": "2025-11-20",
+     "channel": "Give Miami Day",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 3,
+     "donor_id": 1,
+     "amount": 3000.0,
+     "gift_date": "2024-11-21",
+     "channel": "Give Miami Day",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 2,
+     "donor_id": 1,
+     "amount": 2500.0,
+     "gift_date": "2023-11-16",
+     "channel": "Give Miami Day",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 1,
+     "donor_id": 1,
+     "amount": 2500.0,
+     "gift_date": "2022-11-17",
+     "channel": "Give Miami Day",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": [
+    {
+     "id": 1,
+     "donor_id": 1,
+     "channel": "email",
+     "subject": "Maria, a Miami update ahead of Give Miami Day",
+     "body": "Dear Maria,\n\nThank you for giving through Give Miami Day in 2022, 2023, 2024 and 2025. Your steady commitment to Miami is something we’re grateful to celebrate.\n\nHere’s what we did recently: The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000. That partnership is a concrete example of bringing people and professional expertise together in support of our local nonprofit community.\n\nEveryone has a role to play, and we’re thankful for the role you’ve chosen through your giving.\n\nWill you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nThank you for being part of this proudly local celebration of generosity.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Hi Maria, this is [staff name] with The Miami Foundation’s philanthropy team. Thank you for giving through Give Miami Day in 2022, 2023, 2024 and 2025.\n\nI wanted to share a recent update: The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000. We’re glad to share this example of local partnership with you.\n\nWill you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nIf not this year: Of course, Maria—thank you for your past generosity and for taking a moment to connect today.",
+     "facts_used": [
+      {
+       "fact": "The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000.",
+       "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/"
+      }
+     ],
+     "status": "ready",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:34:52+00:00"
+    }
+   ]
+  },
+  "7": {
+   "id": 7,
+   "full_name": "Luis Herrera",
+   "first_name": "Luis",
+   "last_name": "Herrera",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "luis.herrera@example.com",
+   "emails_all": [
+    "luis.herrera@example.com"
+   ],
+   "phone": "+13055550155",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Donor Advised",
+   "notes": "SAMPLE: December giver, window next month",
+   "source_row": "SAMPLE",
+   "score": 80,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "seasonal_window_next_month",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 46.8,
+     "value": 15.2,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 4400.0,
+    "largest_gift": 1200.0,
+    "last_gift": {
+     "date": "2025-12-15",
+     "amount": 1200.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 328,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.9,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 12,
+     "month_name": "December",
+     "channel": "online",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 42,
+     "donor_id": 7,
+     "amount": 1200.0,
+     "gift_date": "2025-12-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 41,
+     "donor_id": 7,
+     "amount": 1200.0,
+     "gift_date": "2024-12-16",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 40,
+     "donor_id": 7,
+     "amount": 1000.0,
+     "gift_date": "2023-12-12",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 39,
+     "donor_id": 7,
+     "amount": 1000.0,
+     "gift_date": "2022-12-14",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": [
+    {
+     "id": 2,
+     "donor_id": 7,
+     "channel": "email",
+     "subject": "Luis, a Miami update before Give Miami Day",
+     "body": "Dear Luis,\n\nThank you for giving online each December in 2022, 2023, 2024, and 2025. We’re grateful for your steady generosity.\n\nHere’s a recent update from The Miami Foundation: The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.\n\nThe Miami Disaster Resilience Fund is also investing $135,000 in resilience hubs and community-based organizations strengthening preparedness across Miami-Dade County. These investments reflect work across our community, from the arts to disaster preparedness.\n\nWould you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nEveryone has a role to play. We’re glad you’re part of Miami’s giving community.\n\nWith gratitude,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Opener: Hi Luis, this is a member of The Miami Foundation’s philanthropy team. Thank you for your online gifts each December in 2022, 2023, 2024, and 2025. We appreciate your steady generosity.\n\nUpdate: I wanted to share a recent update: The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.\n\nAsk: Would you make a Give Miami Day gift at givemiamiday.org when early giving opens Saturday, November 14, 2026?\n\nIf Luis says ‘not this year’: Absolutely, and thank you for letting me know. We’re grateful for your past generosity and glad you’re part of this community.",
+     "facts_used": [
+      {
+       "fact": "The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.",
+       "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/"
+      },
+      {
+       "fact": "The Miami Disaster Resilience Fund is investing $135,000 in resilience hubs and community-based organizations strengthening preparedness across Miami-Dade County.",
+       "url": "https://miamifoundation.org/news/foundation-newsletter-july-2026/"
+      }
+     ],
+     "status": "ready",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:34:52+00:00"
+    }
+   ]
+  },
+  "12": {
+   "id": 12,
+   "full_name": "McDermott Will & Schulte",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "McDermott Will & Schulte",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE gift history (invented); real organization; in-kind support valued in USD",
+   "source_row": "SAMPLE",
+   "score": 79,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "overdue_vs_cadence"
+    ],
+    "points": {
+     "urgency": 51.3,
+     "value": 17.4,
+     "frequency": 4.8,
+     "engagement": 5.6
+    },
+    "gift_count": 2,
+    "lifetime_total": 15000.0,
+    "largest_gift": 7500.0,
+    "last_gift": {
+     "date": "2025-03-11",
+     "amount": 7500.0,
+     "channel": "in-kind"
+    },
+    "days_since_last_gift": 607,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 1.67,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 3,
+     "month_name": "March",
+     "channel": "in-kind",
+     "years": [
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 56,
+     "donor_id": 12,
+     "amount": 7500.0,
+     "gift_date": "2025-03-11",
+     "channel": "in-kind",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 55,
+     "donor_id": 12,
+     "amount": 7500.0,
+     "gift_date": "2024-03-12",
+     "channel": "in-kind",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [
+    {
+     "id": 9,
+     "donor_id": 12,
+     "fact": "McDermott hired Jayme Cassidy as Miami-based transactions pro bono counsel in January 2025 to expand legal support for nonprofits, NGOs, small businesses and low-income entrepreneurs in underserved communities.",
+     "source_url": "https://www.mcdermottlaw.com/news/mcdermott-welcomes-jayme-cassidy-as-transactions-pro-bono-counsel/",
+     "retrieved_at": "2026-11-07T21:09:45+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    },
+    {
+     "id": 8,
+     "donor_id": 12,
+     "fact": "The Miami office received Legal Services of Greater Miami’s 2023 Equal Justice Pro Bono Large Firm Award for work including transactional clinics and full representation benefiting nonprofits, individuals and low-to-moderate-income small-business owners.",
+     "source_url": "https://www.mcdermottlaw.com/news/mcdermotts-miami-office-receives-equal-justice-pro-bono-large-firm-award-from-legal-services-of-greater-miami-inc/",
+     "retrieved_at": "2026-11-07T21:09:45+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    },
+    {
+     "id": 7,
+     "donor_id": 12,
+     "fact": "Legal Services of Greater Miami listed McDermott Will & Emery among its Leadership Circle financial donors in its April 2023 newsletter.",
+     "source_url": "https://www.legalservicesmiami.org/s/Legal-Services-SPRING-2023-Newsletter-428.pdf",
+     "retrieved_at": "2026-11-07T21:09:45+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    }
+   ],
+   "outreach_drafts": [
+    {
+     "id": 3,
+     "donor_id": 12,
+     "channel": "email",
+     "subject": "Thank you for your partnership in Miami",
+     "body": "Dear McDermott Will & Schulte team,\n\nThank you for your partnership and support of The Miami Foundation.\n\nHere’s what we did together: The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000. We’re proud to share that accomplishment with you.\n\nWe also have news from Press Forward South Florida, an initiative fueled in part by The Miami Foundation: it announced grants to more than a dozen newsrooms and partnerships serving Broward, Miami-Dade and Monroe counties.\n\nAs Give Miami Day approaches, would your team be available for a call or coffee with our philanthropy team about your year-end giving? We’d welcome a personal conversation about what matters most to you.\n\nEveryone has a role to play. Thank you for yours.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Opener: Hello, this is a member of The Miami Foundation’s philanthropy team. Thank you for McDermott Will & Schulte’s partnership and support.\n\nUpdate: Here’s what we did together: The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000. We’re proud of that shared accomplishment.\n\nAsk: As Give Miami Day approaches, would your team be available for a call or coffee with our philanthropy team about your year-end giving?\n\nIf they say “not this year”: Of course—we appreciate your partnership and support, and thank you for taking the time today.",
+     "facts_used": [
+      {
+       "fact": "The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000.",
+       "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/"
+      },
+      {
+       "fact": "Press Forward South Florida, an initiative fueled in part by The Miami Foundation, announced grants to more than a dozen newsrooms and partnerships serving Broward, Miami-Dade and Monroe counties.",
+       "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/"
+      }
+     ],
+     "status": "draft",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:34:52+00:00"
+    }
+   ]
+  },
+  "5": {
+   "id": 5,
+   "full_name": "Robert Nguyen",
+   "first_name": "Robert",
+   "last_name": "Nguyen",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "rob.nguyen@example.com",
+   "emails_all": [
+    "rob.nguyen@example.com"
+   ],
+   "phone": "+13055550177",
+   "city": "Doral",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE: quarterly donor, overdue",
+   "source_row": "SAMPLE",
+   "score": 71,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "overdue_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 36.5,
+     "value": 14.5,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 6,
+    "lifetime_total": 3000.0,
+    "largest_gift": 500.0,
+    "last_gift": {
+     "date": "2026-04-09",
+     "amount": 500.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 213,
+    "usual_cadence_days": 91,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 2.34,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 37,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2026-04-09",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 36,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2026-01-12",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 35,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2025-10-10",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 34,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2025-07-10",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 33,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2025-04-10",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 32,
+     "donor_id": 5,
+     "amount": 500.0,
+     "gift_date": "2025-01-10",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "11": {
+   "id": 11,
+   "full_name": "Frederick A. DeLuca Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Frederick A. DeLuca Foundation",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Field of Interest",
+   "notes": "SAMPLE gift history (invented); real organization; Shack-level star",
+   "source_row": "SAMPLE",
+   "score": 46,
+   "tier": "big",
+   "is_star": true,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "shack_society_level"
+    ],
+    "points": {
+     "urgency": 5.9,
+     "value": 25.0,
+     "frequency": 7.2,
+     "engagement": 8.0
+    },
+    "gift_count": 3,
+    "lifetime_total": 1050000.0,
+    "largest_gift": 400000.0,
+    "last_gift": {
+     "date": "2026-06-29",
+     "amount": 300000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 132,
+    "usual_cadence_days": 365,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.36,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 6,
+     "month_name": "June",
+     "channel": "check",
+     "years": [
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 54,
+     "donor_id": 11,
+     "amount": 300000.0,
+     "gift_date": "2026-06-29",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 53,
+     "donor_id": 11,
+     "amount": 350000.0,
+     "gift_date": "2025-06-30",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 52,
+     "donor_id": 11,
+     "amount": 400000.0,
+     "gift_date": "2024-06-28",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [
+    {
+     "id": 6,
+     "donor_id": 11,
+     "fact": "It awarded Women In Distress of Broward County a $1.5 million matching grant for a capital campaign providing transitional housing for domestic violence survivors and their children.",
+     "source_url": "https://widbroward.org/building-a-safer-tomorrow/",
+     "retrieved_at": "2026-11-07T21:07:34+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    },
+    {
+     "id": 5,
+     "donor_id": 11,
+     "fact": "It committed a $5 million matching grant to help launch and endow the Community Foundation of Broward’s Broward Center for Nonprofit Excellence.",
+     "source_url": "https://www.cfbroward.org/articles/10-million-fuels-permanent-support-for-broward-nonprofit-excellence",
+     "retrieved_at": "2026-11-07T21:07:34+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    },
+    {
+     "id": 4,
+     "donor_id": 11,
+     "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
+     "source_url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf",
+     "retrieved_at": "2026-11-07T21:07:34+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    }
+   ],
+   "outreach_drafts": [
+    {
+     "id": 4,
+     "donor_id": 11,
+     "channel": "email",
+     "subject": "A Miami update and a conversation about year-end giving",
+     "body": "Dear Frederick A. DeLuca Foundation team,\n\nThank you for your partnership and support of The Miami Foundation. We appreciate the opportunity to stay connected around Miami’s future.\n\nHere’s what we did recently: The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County’s nonprofit arts sector through its CreARTE grant program.\n\nThe Miami Foundation also commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates. It’s a local perspective we’re glad to bring into conversations about philanthropy.\n\nWith Give Miami Day approaching, would you join our philanthropy team for a call or coffee about your year-end giving? We’d welcome the chance to hear what matters most to your team.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "OPENER: Hello, I’m calling from The Miami Foundation’s philanthropy team. Thank you for your partnership and support.\n\nUPDATE: I wanted to share a recent update: The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County’s nonprofit arts sector through its CreARTE grant program. We also commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.\n\nASK: With Give Miami Day approaching, would your team be open to a call or coffee with our philanthropy team about your year-end giving?\n\nIF ‘NOT THIS YEAR’: Of course—thank you for letting us know, and for your partnership and support.",
+     "facts_used": [
+      {
+       "fact": "The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.",
+       "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/"
+      },
+      {
+       "fact": "The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.",
+       "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"
+      }
+     ],
+     "status": "draft",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:34:52+00:00"
+    }
+   ]
+  },
+  "3": {
+   "id": 3,
+   "full_name": "James Carter",
+   "first_name": "James",
+   "last_name": "Carter",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "jcarter@example.com",
+   "emails_all": [
+    "jcarter@example.com"
+   ],
+   "phone": "+13055550144",
+   "city": "Coral Gables",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE: on-track monthly donor",
+   "source_row": "SAMPLE",
+   "score": 45,
+   "tier": "mid",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 12.5,
+     "value": 12.7,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 22,
+    "lifetime_total": 1100.0,
+    "largest_gift": 50.0,
+    "last_gift": {
+     "date": "2026-10-15",
+     "amount": 50.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 24,
+    "usual_cadence_days": 31,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.77,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 15,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-10-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 14,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-09-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 13,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-08-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 12,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-07-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 11,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-06-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 10,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-05-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 9,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-04-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 8,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-03-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 7,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-02-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 6,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2026-01-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 27,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-12-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 26,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-11-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 25,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-10-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 24,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-09-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 23,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-08-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 22,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-07-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 21,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-06-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 20,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-05-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 19,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-04-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 18,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-03-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 17,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-02-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 16,
+     "donor_id": 3,
+     "amount": 50.0,
+     "gift_date": "2025-01-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "4": {
+   "id": 4,
+   "full_name": "Biscayne Harbor Family Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Biscayne Harbor Family Foundation",
+   "donor_type": "organization",
+   "email": "grants@biscayneharbor.example.org",
+   "emails_all": [
+    "grants@biscayneharbor.example.org"
+   ],
+   "phone": "+13055550199",
+   "city": "Miami Beach",
+   "state": "FL",
+   "fund_type": "Endowment",
+   "notes": "SAMPLE: Shack-level star fundholder, on track",
+   "source_row": "SAMPLE",
+   "score": 45,
+   "tier": "big",
+   "is_star": true,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "shack_society_level",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 2.7,
+     "value": 25.0,
+     "frequency": 9.6,
+     "engagement": 8.0
+    },
+    "gift_count": 4,
+    "lifetime_total": 1650000.0,
+    "largest_gift": 500000.0,
+    "last_gift": {
+     "date": "2026-09-08",
+     "amount": 450000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 61,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.17,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 9,
+     "month_name": "September",
+     "channel": "check",
+     "years": [
+      2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 31,
+     "donor_id": 4,
+     "amount": 450000.0,
+     "gift_date": "2026-09-08",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 30,
+     "donor_id": 4,
+     "amount": 500000.0,
+     "gift_date": "2025-09-09",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 29,
+     "donor_id": 4,
+     "amount": 400000.0,
+     "gift_date": "2024-09-10",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 28,
+     "donor_id": 4,
+     "amount": 300000.0,
+     "gift_date": "2023-09-12",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": [
+    {
+     "id": 5,
+     "donor_id": 4,
+     "channel": "email",
+     "subject": "A South Dade update and a conversation before Give Miami Day",
+     "body": "Dear Biscayne Harbor Family Foundation team,\n\nThank you for your partnership and support of The Miami Foundation. We’re grateful to have you alongside us in Miami.\n\nHere’s what we did recently: we commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape. The report analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.\n\nInspired directly by that report, Amazon announced a $1 million investment in 13 South Dade nonprofit organizations to strengthen their capacity and deepen their community impact.\n\nAs Give Miami Day approaches, would you join our philanthropy team for a call or coffee to talk about your year-end giving? We’d welcome a personal conversation about what matters most to your foundation and how you’re thinking about supporting Miami.\n\nEveryone has a role to play. Thank you for your partnership in this community.\n\nWarmly,\nThe Miami Foundation’s Philanthropy Team",
+     "call_script": "Opener: Hello, I’m calling from The Miami Foundation’s philanthropy team. Thank you for Biscayne Harbor Family Foundation’s partnership and support.\n\nThe update: I wanted to share what we did recently. We commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape. It analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.\n\nThe ask: As Give Miami Day approaches, would you join our philanthropy team for a call or coffee about your year-end giving? We’d love to hear what matters most to your foundation.\n\nIf they say ‘not this year’: Of course, and thank you for letting us know. We’re grateful for your partnership and support.",
+     "facts_used": [
+      {
+       "fact": "The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.",
+       "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"
+      },
+      {
+       "fact": "Inspired directly by the Foundation-commissioned report, Amazon announced a $1 million investment in 13 South Dade nonprofit organizations to strengthen their capacity and deepen their community impact.",
+       "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"
+      }
+     ],
+     "status": "draft",
+     "approved_by": null,
+     "approved_at": null,
+     "created_at": "2026-11-07T21:34:52+00:00"
+    }
+   ]
+  },
+  "9": {
+   "id": 9,
+   "full_name": "John S. and James L. Knight Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "John S. and James L. Knight Foundation",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Field of Interest",
+   "notes": "SAMPLE gift history (invented); real organization",
+   "source_row": "SAMPLE",
+   "score": 44,
+   "tier": "big",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 1.5,
+     "value": 22.5,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 5,
+    "lifetime_total": 250000.0,
+    "largest_gift": 50000.0,
+    "last_gift": {
+     "date": "2026-10-05",
+     "amount": 50000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 34,
+    "usual_cadence_days": 365,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.09,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 10,
+     "month_name": "October",
+     "channel": "check",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 48,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2026-10-05",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 47,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2025-10-01",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 46,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2024-10-01",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 45,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2023-10-02",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 44,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2022-10-03",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [
+    {
+     "id": 2,
+     "donor_id": 9,
+     "fact": "Knight awarded $3 million in November 2022 to establish the Miami-Dade Innovation Authority, supporting technology adoption in climate resilience, health and financial inclusion.",
+     "source_url": "https://knightfoundation.org/wp-content/uploads/2025/11/Tax-Year-2024-Knight-Foundation-Form-990-PF.pdf",
+     "retrieved_at": "2026-11-07T21:09:25+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    },
+    {
+     "id": 1,
+     "donor_id": 9,
+     "fact": "The Miami Foundation administers the Knight-supported Esserman-Knight Journalism Awards, recognizing investigative and public-service reporting in Miami-Dade, Broward and Monroe counties.",
+     "source_url": "https://knightfoundation.org/events/main/",
+     "retrieved_at": "2026-11-07T21:09:25+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    }
+   ],
+   "outreach_drafts": []
+  },
+  "10": {
+   "id": 10,
+   "full_name": "Amazon",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Amazon",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE gift history (invented); real organization",
+   "source_row": "SAMPLE",
+   "score": 39,
+   "tier": "big",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence"
+    ],
+    "points": {
+     "urgency": 2.4,
+     "value": 21.2,
+     "frequency": 7.2,
+     "engagement": 8.0
+    },
+    "gift_count": 3,
+    "lifetime_total": 125000.0,
+    "largest_gift": 50000.0,
+    "last_gift": {
+     "date": "2026-09-14",
+     "amount": 50000.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 55,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.15,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 9,
+     "month_name": "September",
+     "channel": "online",
+     "years": [
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 51,
+     "donor_id": 10,
+     "amount": 50000.0,
+     "gift_date": "2026-09-14",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 50,
+     "donor_id": 10,
+     "amount": 50000.0,
+     "gift_date": "2025-09-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    },
+    {
+     "id": 49,
+     "donor_id": 10,
+     "amount": 25000.0,
+     "gift_date": "2024-09-16",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [
+    {
+     "id": 3,
+     "donor_id": 10,
+     "fact": "In January 2021, Amazon announced $500,000 for United Way organizations in Miami-Dade and Broward counties to support vulnerable families during the pandemic.",
+     "source_url": "https://www.gflalliance.org/news/2021/01/28/press-releases/south-florida-united-ways-to-receive-500-000-from-amazon/",
+     "retrieved_at": "2026-11-07T21:09:06+00:00",
+     "agent_run_id": "pipeline-f5315ef0"
+    }
+   ],
+   "outreach_drafts": []
+  },
+  "2": {
+   "id": 2,
+   "full_name": "María Delgado-Ruiz",
+   "first_name": "María",
+   "last_name": "Delgado-Ruiz",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "mdelgado@work.example.com",
+   "emails_all": [
+    "mdelgado@work.example.com",
+    "Maria.Delgado@example.com"
+   ],
+   "phone": "(305) 555-0101",
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: planted duplicate of Maria Delgado (name variant, shared email)",
+   "source_row": "SAMPLE",
+   "score": 29,
+   "tier": "small",
+   "is_star": false,
+   "status": "lapsed",
+   "why": {
+    "status": "lapsed",
+    "reasons": [
+     "overdue_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 16.5,
+     "value": 10.0,
+     "frequency": 2.4,
+     "engagement": 0.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 250.0,
+    "largest_gift": 250.0,
+    "last_gift": {
+     "date": "2021-06-02",
+     "amount": 250.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 1985,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 5.44,
+    "gave_this_year": false,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 5,
+     "donor_id": 2,
+     "amount": 250.0,
+     "gift_date": "2021-06-02",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "6": {
+   "id": 6,
+   "full_name": "Angela Brooks",
+   "first_name": "Angela",
+   "last_name": "Brooks",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "angela.brooks@example.com",
+   "emails_all": [
+    "angela.brooks@example.com"
+   ],
+   "phone": "+13055550122",
+   "city": "Homestead",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: one gift long ago",
+   "source_row": "SAMPLE",
+   "score": 27,
+   "tier": "small",
+   "is_star": false,
+   "status": "lapsed",
+   "why": {
+    "status": "lapsed",
+    "reasons": [
+     "overdue_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 16.5,
+     "value": 8.3,
+     "frequency": 2.4,
+     "engagement": 0.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 100.0,
+    "largest_gift": 100.0,
+    "last_gift": {
+     "date": "2019-05-03",
+     "amount": 100.0,
+     "channel": "event"
+    },
+    "days_since_last_gift": 2746,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 7.52,
+    "gave_this_year": false,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 38,
+     "donor_id": 6,
+     "amount": 100.0,
+     "gift_date": "2019-05-03",
+     "channel": "event",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "8": {
+   "id": 8,
+   "full_name": "Priya Shah",
+   "first_name": "Priya",
+   "last_name": "Shah",
+   "org_name": null,
+   "donor_type": "individual",
+   "email": "priya.shah@example.com",
+   "emails_all": [
+    "priya.shah@example.com"
+   ],
+   "phone": "+13055550166",
+   "city": "Aventura",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE: first gift this year",
+   "source_row": "SAMPLE",
+   "score": 24,
+   "tier": "small",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "single_gift"
+    ],
+    "points": {
+     "urgency": 3.5,
+     "value": 9.6,
+     "frequency": 2.4,
+     "engagement": 8.0
+    },
+    "gift_count": 1,
+    "lifetime_total": 200.0,
+    "largest_gift": 200.0,
+    "last_gift": {
+     "date": "2026-08-20",
+     "amount": 200.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 80,
+    "usual_cadence_days": 365,
+    "cadence_basis": "assumed_yearly",
+    "overdue_ratio": 0.22,
+    "gave_this_year": true,
+    "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "is_sample": true,
+   "gifts": [
+    {
+     "id": 43,
+     "donor_id": 8,
+     "amount": 200.0,
+     "gift_date": "2026-08-20",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "SAMPLE"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  }
+ },
+ "duplicates": [
+  {
+   "id": 1,
+   "donor_a_id": 1,
+   "donor_b_id": 2,
+   "reasons": [
+    "same email: maria.delgado@example.com",
+    "similar name + same phone: +13055550101",
+    "similar name + same city: Miami"
+   ],
+   "confidence": 0.95,
+   "status": "pending",
+   "created_at": "2026-11-07 21:34:28",
+   "resolved_at": null,
+   "donor_a": {
+    "id": 1,
+    "full_name": "Maria Delgado",
+    "first_name": "Maria",
+    "last_name": "Delgado",
+    "org_name": null,
+    "donor_type": "individual",
+    "email": "maria.delgado@example.com",
+    "emails_all": [
+     "maria.delgado@example.com"
+    ],
+    "phone": "+13055550101",
+    "city": "Miami",
+    "state": "FL",
+    "fund_type": "Donor Advised",
+    "notes": "SAMPLE: lapsing Give Miami Day giver",
+    "source_row": "SAMPLE",
+    "score": 89,
+    "tier": "mid",
+    "is_star": false,
+    "status": "lapsing",
+    "why": {
+     "status": "lapsing",
+     "reasons": [
+      "missed_seasonal_window",
+      "loyal_repeat_giver"
+     ],
+     "points": {
+      "urgency": 55.0,
+      "value": 16.8,
+      "frequency": 9.6,
+      "engagement": 8.0
+     },
+     "gift_count": 4,
+     "lifetime_total": 11000.0,
+     "largest_gift": 3000.0,
+     "last_gift": {
+      "date": "2025-11-20",
+      "amount": 3000.0,
+      "channel": "Give Miami Day"
+     },
+     "days_since_last_gift": 353,
+     "usual_cadence_days": 364,
+     "cadence_basis": "median_interval",
+     "overdue_ratio": 0.97,
+     "gave_this_year": false,
+     "pattern": {
+      "month": 11,
+      "month_name": "November",
+      "channel": "Give Miami Day",
+      "years": [
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "gave_this_year": false
+     },
+     "days_left_in_year": 53,
+     "give_miami_day": {
+      "date": "2026-11-19",
+      "days_away": 11
+     },
+     "as_of": "2026-11-08"
+    },
+    "score_as_of": "2026-11-08",
+    "is_sample": true
+   },
+   "donor_a_gift_count": 4,
+   "donor_b": {
+    "id": 2,
+    "full_name": "María Delgado-Ruiz",
+    "first_name": "María",
+    "last_name": "Delgado-Ruiz",
+    "org_name": null,
+    "donor_type": "individual",
+    "email": "mdelgado@work.example.com",
+    "emails_all": [
+     "mdelgado@work.example.com",
+     "Maria.Delgado@example.com"
+    ],
+    "phone": "(305) 555-0101",
+    "city": "Miami",
+    "state": "FL",
+    "fund_type": null,
+    "notes": "SAMPLE: planted duplicate of Maria Delgado (name variant, shared email)",
+    "source_row": "SAMPLE",
+    "score": 29,
+    "tier": "small",
+    "is_star": false,
+    "status": "lapsed",
+    "why": {
+     "status": "lapsed",
+     "reasons": [
+      "overdue_vs_cadence",
+      "single_gift"
+     ],
+     "points": {
+      "urgency": 16.5,
+      "value": 10.0,
+      "frequency": 2.4,
+      "engagement": 0.0
+     },
+     "gift_count": 1,
+     "lifetime_total": 250.0,
+     "largest_gift": 250.0,
+     "last_gift": {
+      "date": "2021-06-02",
+      "amount": 250.0,
+      "channel": "online"
+     },
+     "days_since_last_gift": 1985,
+     "usual_cadence_days": 365,
+     "cadence_basis": "assumed_yearly",
+     "overdue_ratio": 5.44,
+     "gave_this_year": false,
+     "pattern": null,
+     "days_left_in_year": 53,
+     "give_miami_day": {
+      "date": "2026-11-19",
+      "days_away": 11
+     },
+     "as_of": "2026-11-08"
+    },
+    "score_as_of": "2026-11-08",
+    "is_sample": true
+   },
+   "donor_b_gift_count": 1
+  }
+ ]
+}
