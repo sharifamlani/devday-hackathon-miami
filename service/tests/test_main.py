@@ -132,3 +132,15 @@ def test_fallback_never_serves_another_orgs_context(db_file, monkeypatch):
     assert body["served_from"] == "fallback" and body["state"] == "failed"
     assert body["profile"] is None and body["facts"] == []
     assert body["sources"]["website"]["status"] == "failed"
+
+
+@pytest.mark.parametrize("facts_from, state", [((), "failed"), (("website",), "partial")])
+def test_source_ok_with_no_facts_counts_as_failed(db_file, monkeypatch, facts_from, state):
+    result = context_result("ok", "ok")  # build_context says both sources are fine...
+    result["facts"] = [f for f in result["facts"] if f["source"] in facts_from]  # ...but some found nothing
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: result)
+
+    body = TestClient(app).post("/context/run", json={"website": "https://example.org"}).json()
+
+    assert body["state"] == state
+    assert body["sources"]["news"] == {"status": "failed", "facts": 0, "detail": "error: no facts found"}

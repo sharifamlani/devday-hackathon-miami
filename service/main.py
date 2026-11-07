@@ -318,7 +318,9 @@ def source_progress(req: "ContextRun", result: dict | None, fallback: bool = Fal
         status = str(raw.get(source, "ok" if counts.get(source) else "skipped"))
         shown = SOURCE_STATUS.get(status, "failed" if status.startswith("error") else status)
         detail = status if shown in ("failed", "blocked") or status == "cached" else None
-        if fallback and shown == "done":
+        if shown == "done" and not counts.get(source):  # "ok" with nothing found is not a success
+            shown, detail = "failed", "error: no facts found"
+        elif fallback and shown == "done":
             shown, detail = "cached (fallback)", "live read failed; showing saved context"
         elif fallback and source == "website" and not result:
             shown, detail = "failed", "live read failed; no saved context for this site"
