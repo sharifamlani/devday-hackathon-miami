@@ -112,6 +112,17 @@ def cached_icp() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+def prospect_status(prospect_id: int) -> str | None:
+    """'new' | 'drafted' | 'dismissed', or None when there is no such prospect."""
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        row = conn.execute("SELECT status FROM prospects WHERE id = ?", (prospect_id,)).fetchone()
+    finally:
+        conn.close()
+    return row["status"] if row else None
+
+
 def draft_id_of(where_saved: str) -> int | None:
     # save_draft reports "donors.db:outreach_drafts#<id>" when it wrote to the db, a JSON path otherwise
     return int(where_saved.rsplit("#", 1)[1]) if "#" in where_saved else None
@@ -197,10 +208,18 @@ def persist_icp(result: dict) -> dict | None:
 
 @app.post("/prospects/{prospect_id}/outreach")
 async def prospect_outreach(prospect_id: int) -> dict:
+    """409 for a dismissed prospect, 404 for an unknown one; otherwise a first-touch draft (status 'draft')."""
     try:
         from service.outreach_agent import draft_for_prospect
     except ImportError:
         raise not_landed("service.outreach_agent.draft_for_prospect")
+
+    # Checked before the model call: a dismissed prospect never gets a draft
+    status = prospect_status(prospect_id)
+    if status is None:
+        raise HTTPException(404, f"prospect {prospect_id} not found")
+    if status == "dismissed":
+        raise HTTPException(409, f"prospect {prospect_id} is dismissed")
 
     try:
         draft, where_saved = await run_agent(
