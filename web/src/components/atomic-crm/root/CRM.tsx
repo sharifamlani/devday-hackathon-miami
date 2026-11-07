@@ -16,6 +16,8 @@ import { SetPasswordPage } from "@/components/supabase/set-password-page";
 import { OAuthConsentPage } from "@/components/supabase/oauth-consent-page";
 
 import { AskPage } from "../ask/AskPage";
+import { OnboardingPage } from "../onboarding/OnboardingPage";
+import { PeoplePage } from "../people/PeoplePage";
 import contacts from "../contacts";
 import { Dashboard } from "../dashboard/Dashboard";
 import { MobileDashboard } from "../dashboard/MobileDashboard";
@@ -252,6 +254,11 @@ const DesktopAdmin = (
       </CustomRoutes>
       <CustomRoutes>
         <Route path="/ask" element={<AskPage />} />
+      </CustomRoutes>
+      {/* plan.md §17: onboarding and the three-tab People screen */}
+      <CustomRoutes>
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/people" element={<PeoplePage />} />
       </CustomRoutes>
 
       {/* Campaigns (#38): bulk drafts, approval, simulated outbox */}
