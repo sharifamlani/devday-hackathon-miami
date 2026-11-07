@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDonorDesk } from "./index";
+import type { UploadTarget } from "./crmTypes";
 import type { ContextRunInput } from "./types";
 
 const ROOT = "donor-desk";
@@ -167,7 +168,9 @@ export const useUploadFiles = () => {
   const dataProvider = useDonorDesk();
   const invalidateAll = useInvalidateAll();
   return useMutation({
-    mutationFn: (files: File[]) => dataProvider.uploadFiles(files),
+    // target: "giver" | "neighbor" | "community" | "auto" (the agent sorts)
+    mutationFn: ({ files, target = "auto" }: { files: File[]; target?: UploadTarget }) =>
+      dataProvider.uploadFiles(files, target),
     onSuccess: invalidateAll,
   });
 };

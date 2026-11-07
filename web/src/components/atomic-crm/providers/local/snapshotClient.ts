@@ -11,7 +11,7 @@ import {
   parseProspect,
   parseProspectDetail,
 } from "./parse";
-import type { DonorDeskMethods } from "./types";
+import type { BaseDonorDeskMethods } from "./types";
 
 /**
  * Serves `python -m service.export_snapshot` output (VITE_DATA_MODE=snapshot).
@@ -21,7 +21,7 @@ import type { DonorDeskMethods } from "./types";
  */
 let snapshotPromise: Promise<ApiSnapshot> | null = null;
 
-const loadSnapshot = () => {
+export const loadSnapshot = () => {
   if (!snapshotPromise) {
     snapshotPromise = fetch(SNAPSHOT_URL).then(async (response) => {
       if (!response.ok) {
@@ -63,7 +63,7 @@ const contextOf = (snapshot: ApiSnapshot) =>
 const READ_ONLY =
   "This is a read-only snapshot. Running the agents needs the local API.";
 
-export const snapshotMethods: DonorDeskMethods = {
+export const snapshotMethods: BaseDonorDeskMethods = {
   getDonors: async () => (await loadSnapshot()).donors.map(parseDonorRow),
   getDonor: async (id) =>
     parseDonorDetail(structuredClone(detailOf(await loadSnapshot(), id))),

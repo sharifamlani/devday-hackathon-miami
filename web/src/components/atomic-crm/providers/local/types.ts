@@ -250,12 +250,14 @@ export interface MergeResult {
   merged_id: number;
 }
 
+import type { CrmMethods, UploadTarget } from "./crmTypes";
+
 /**
  * Donor Desk methods, added to the ra-core data provider as custom methods.
  * Writes resolve when the server is done; screens then refetch GET
  * /donors/{id}, so they never depend on a POST's response body.
  */
-export interface DonorDeskMethods {
+export interface DonorDeskMethods extends CrmMethods {
   getDonors(): Promise<DonorSummary[]>;
   getDonor(id: number): Promise<DonorDetail>;
   getDuplicates(): Promise<DuplicatePair[]>;
@@ -272,8 +274,9 @@ export interface DonorDeskMethods {
   getProspect(id: number): Promise<ProspectDetail>;
   draftProspectOutreach(id: number): Promise<void>;
   dismissProspect(id: number): Promise<void>;
-  /** Screen 1: multipart POST /ingest with every file under "files". */
-  uploadFiles(files: File[]): Promise<IngestResult>;
+  /** Screen 1: multipart POST /ingest with every file under "files" and the
+   *  tab under "target" (default "auto": the agent sorts, plan.md §17). */
+  uploadFiles(files: File[], target?: UploadTarget): Promise<IngestResult>;
   /** Screen 2: saves the URLs and researches the website. One call,
    *  up to 30 s; the result includes the saved profile and facts. */
   runContext(input: ContextRunInput): Promise<ContextRun>;
@@ -283,3 +286,6 @@ export interface DonorDeskMethods {
   /** "Cached sample" in snapshot mode; null when live. */
   getSourceLabel(): Promise<string | null>;
 }
+
+/** What httpClient/snapshotClient implement; the CRM methods live in crm*.ts. */
+export type BaseDonorDeskMethods = Omit<DonorDeskMethods, keyof CrmMethods>;
