@@ -4,9 +4,10 @@
     app.include_router(data_router)
 
 GET  /donors                     every donor with score fields, highest score first
-GET  /donors/{id}                one donor: gifts, score + why, research_facts, outreach_drafts
+GET  /donors/{id}                one donor: gifts, score + why, research_facts, outreach_drafts, merges
 GET  /duplicates                 pending duplicate suggestions with both donors
-POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id": n})
+POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id": n, "approved_by": "name"}) → includes merge_id
+POST /merges/{id}/undo           undo the newest merge into a donor → {kept_id, restored_id, donor, restored}
 POST /duplicates/{id}/dismiss    "not a duplicate"
 POST /score/run                  rescore everyone, refresh duplicate suggestions (?as_of=YYYY-MM-DD)
 POST /drafts/{id}/approve        a human approves a draft (optional edited body) → status approved
@@ -80,6 +81,7 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
         "SELECT * FROM research_facts WHERE donor_id = ? ORDER BY retrieved_at DESC, id DESC", (donor_id,))]
     donor["outreach_drafts"] = [_draft_out(r) for r in conn.execute(
         "SELECT * FROM outreach_drafts WHERE donor_id = ? ORDER BY created_at DESC, id DESC", (donor_id,))]
+    donor["merges"] = dedupe.merges_for(conn, donor_id)
     return donor
 
 
@@ -107,9 +109,10 @@ def list_duplicates(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
 
 @router.post("/duplicates/{suggestion_id}/merge")
 def merge_duplicate(suggestion_id: int, keep_id: int | None = Body(None, embed=True),
+                    approved_by: str | None = Body(None, embed=True),
                     conn: sqlite3.Connection = Depends(get_conn)) -> dict:
     try:
-        result = dedupe.merge(conn, suggestion_id, keep_id)
+        result = dedupe.merge(conn, suggestion_id, keep_id, (approved_by or "").strip() or None)
     except LookupError as e:
         raise HTTPException(404, str(e))
     except ValueError as e:
@@ -117,6 +120,18 @@ def merge_duplicate(suggestion_id: int, keep_id: int | None = Body(None, embed=T
     score.run(conn)
     result["donor"] = get_donor(result["kept_donor_id"], conn)
     return result
+
+
+@router.post("/merges/{merge_id}/undo")
+def undo_merge(merge_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    try:
+        result = dedupe.undo_merge(conn, merge_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    score.run(conn)
+    return {**result, "donor": get_donor(result["kept_id"], conn), "restored": get_donor(result["restored_id"], conn)}
 
 
 @router.post("/duplicates/{suggestion_id}/dismiss")
