@@ -667,3 +667,97 @@ web/.../providers/local/      80: hooks for the classes, brief and demographics
 ## Appendix: separate `stat-mcp` prototype
 
 The repository also contains `stat-mcp/`, a FastMCP prototype for CSV/JSON/text import, required-field normalization, duplicate suggestions, and configurable criterion scoring. It is a separate implementation with in-memory datasets and a canonical one-row-per-donor contract; the primary product described above uses the FastAPI/SQLite service and its donors/gifts and person-classification contracts. The prototype is not wired into the primary service or web UI. Do not treat its score as the deterministic gift-history propensity score, or substitute its schema without an explicit integration decision. See `stat-mcp/AGENT_INTEGRATION.md`, `stat-mcp/REQUIRED_FIELDS.md`, and `stat-mcp/TOOLS.md`.
+
+---
+
+## 17. Three CRMs in one + chat agent + event calendar (Sharif, Sat Nov 7 night). Supersedes §16 where they differ
+
+**What stays:** everything built so far (scoring, research, outreach, context, prospects, local SQLite,
+Vercel snapshot, the chat panel). **No iPhone app.** **No AI phone calls** (call scripts only).
+
+### The three tabs
+| Tab | Who | Fed by | What the agents do |
+|---|---|---|---|
+| **Givers** (locked) | gave to us (people + organizations) | uploads | **enrichment agent** (sourced facts), score + "call today", **campaign builder** in chat, donor brief → call script, email/text (approval for orgs/★) |
+| **Connections** (working name) | met, not yet either | uploads | **email + texting**: welcome / event invite / follow-up drafted from current context; next-step suggestion; move to another tab in one click |
+| **(name TBD: see options)** | the people the nonprofit helps | uploads | **slice + analyze** the data the nonprofit collected (demographic breakdowns, counts, trends); email/text about programs + help, **never a donation ask** |
+
+Name options for the third tab (Sharif to pick): **Community** · **Familia** · **Our People** · **Members** ·
+**Participants** · **Circle**.
+
+### Upload (one screen feeds all three)
+Drop messy files (.xlsx, .docx, .md, .csv) → **pick the tab** (Givers / Connections / third tab) **or "Let the agent
+sort them"** (default). Sorting: a gift → Givers, an intake or service record → third tab, otherwise → Connections;
+anyone unclear or a cross-file duplicate is flagged for one-click review, never guessed. Carlos's import agent does
+the reading (adapter pending his OK); the tab choice or agent sort sets `contact_type`.
+
+### Event calendar (new)
+- The context agent keeps an **events list** current: title, date/time, place, audience, source URL. Sources are the
+  website + news (live via hosted search) and **social posts when reachable** (publicly indexed posts via search now,
+  official X / Instagram / LinkedIn APIs once tokens exist). A source that can't be read is labeled, never faked.
+- **The agent acts ahead of time:** for each upcoming event it picks the audience across the three tabs (donor event →
+  Givers, lapsing/★ first; "puppy outreach" → people in any tab tagged with dogs) and **pre-drafts the invites**, so
+  staff open the calendar to "41 drafts ready → review".
+- Stretch: a **daily plan** ("3 meetings today; follow up with these 4; Give Miami Day in 11 days").
+- Demo events are real and on the Foundation's site: early giving opens **Sat Nov 14**, Give Miami 5K **Sun Nov 15**,
+  **Give Miami Day Thu Nov 19**.
+
+### Chat agent (right side, every screen)
+Knows which tab or calendar you're on; uses tools visibly (find people, segment, get context and events, draft email,
+draft SMS, analyze, build brief); **asks before anything is sent**. Per tab: Givers = campaign builder;
+third tab = analyst + outreach; Connections = follow-ups; Calendar = event outreach.
+
+### Texting
+Provider under evaluation: **Linq** or **Twilio**, behind one `send_sms()` adapter so the choice can change late.
+Demo texts go only to team members' phones (with consent); the fictional records have fake numbers.
+
+### Guardrails
+- Individual-giver research: **parked** (Sharif to decide on human review later). Demo research stays organizations-only.
+- Third-tab data: analysis uses only what the nonprofit recorded; nothing inferred, nothing searched online.
+- No donation asks to the third tab; approval required for orgs/★; every fact and event has a source.
+
+### File tree (only what changes)
+```
+service/
+├── db.py                  8b: contact_type, events table, text_log, interest tags
+├── routes_data.py         8b: GET /people?type=, PATCH /people/{id}, GET /events
+├── ingest_adapter.py      NEW (pending Carlos's OK): files → text → stat_mcp extraction → people/gifts + contact_type
+├── events_agent.py        NEW (86): context → events list (dated, sourced); audience suggestion
+├── outreach_agent.py      86: invites per event + per tab; SMS drafts
+├── chat_agent.py          NEW (90): Agents SDK agent with the tools above, approval-gated sends
+├── sms.py                 NEW (90): send_sms() adapter (Linq | Twilio)
+└── main.py                90: /chat, /events/{id}/drafts, /send (approval-gated)
+data/sample_inputs/        helper: + intake forms (with "has a dog"), event sign-in sheet; answer key per tab
+web/.../providers/local/   80: hooks for tabs, upload target, events, chat
+(Christian)                tabs, upload screen, calendar, chat panel visuals
+```
+
+### Flow
+```
+ [Upload + tab choice] --> ingest (Carlos) --> people(contact_type) --+--> Givers: enrich + score + campaigns
+                                                                     +--> Connections: follow-ups
+                                                                     +--> third tab: analysis + outreach
+ [Website + socials] --> context agent --> org_context --> events agent --> events (dated, sourced)
+                                                                    |
+                         audience across the 3 tabs <---------------+
+                                    |
+                     outreach agent pre-drafts invites --> [staff approve in calendar or chat] --> email / send_sms --> text_log
+```
+
+### Build order (cut from the bottom if the clock wins)
+1. Live upload → three tabs (ingest adapter + sorting + tab choice)
+2. Calendar v1: events from website/news context + audience + pre-drafted invites
+3. Chat agent with tools; email sending first
+4. Campaign builder (Givers) · analysis (third tab) · texting provider · social events · daily plan
+
+### Evaluation criteria
+| Criterion | Threshold | How measured |
+|---|---|---|
+| Upload with "let the agent sort" puts people in the right tab | at least 95% vs answer key | QA script |
+| Upload with a chosen tab files everyone there | 100% | QA script |
+| Calendar shows the Foundation's real upcoming events with source links | Nov 14, 15, 19 present; 100% sourced | QA vs miamifoundation.org |
+| Each event has an audience + drafts ready | 100% of upcoming events | API check |
+| Puppy-type event targets only people tagged with dogs | 0 untagged recipients | QA script |
+| Nothing sends without approval; orgs/★ need individual approval | 0 unapproved sends | text_log + email log audit |
+| Third-tab texts contain no donation ask | 0 | regex + review |
+| Demo path clean | 0 console errors, 0 4xx/5xx | Playwright |
