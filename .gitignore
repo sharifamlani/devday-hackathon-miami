@@ -14,3 +14,6 @@ transcripts/
 
 # Team contact info: personal emails, never committed (repo may be shared with judges)
 TEAM_CONTACTS.md
+
+# Judge research: kept local, not part of the submission
+docs/judges.md
