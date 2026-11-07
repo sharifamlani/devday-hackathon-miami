@@ -21,8 +21,11 @@ on the OpenAI Agents SDK runs on Sharif's laptop with local SQLite (no Supabase)
   `httpx`, `pytest`.
 - Carlos writes `service/ingest/router.py` (you mount it; **never edit `service/ingest/`**).
 - Enrich is done (PR #5): `from service.enrich_agent import enrich_donor, save_facts, Fact`.
-  `enrich_donor` blocks (`Runner.run_sync`), so call it via `run_in_threadpool`. Wire it to `POST /enrich/{donor_id}`.
-- Outreach (devday-hackathon-86) exposes `draft_outreach(...)`. Wire it to `POST /outreach/{donor_id}`.
+  `enrich_donor` blocks (`Runner.run_sync`), so call it via `run_in_threadpool`. Wire it to `POST /enrich/{donor_id}`:
+  `enrich_donor(full_name, org_name, city, donor_type=donor_type)` using the donors row, then `save_facts(id, facts, run_id)`.
+  Individuals return `[]` by design (orgs-only research policy).
+- Outreach (PR #7): `POST /outreach/{donor_id}` calls `service.outreach_agent.draft_for_donor(donor_id)`, which returns
+  `(Draft, where_saved)` and saves to `outreach_drafts` itself.
 - Stub any import that doesn't exist yet so the app runs.
 
 **Task:** a runnable service frame: FastAPI app, CORS for the Vite dev server, `/health`, router mounting,
