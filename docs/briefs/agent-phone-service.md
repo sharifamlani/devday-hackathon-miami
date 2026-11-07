@@ -1,5 +1,9 @@
 # Assignment: Agent Phone, the agent service frame
 
+> **⚠ REASSIGNED (Sat Nov 7, evening):** this task now belongs to **devday-hackathon-90** because this brief
+> was never picked up. Agent Phone: **do not start it**; message the lead ("Ideas") for a different task.
+
+
 From the lead ("Ideas" session), Sat Nov 7. Delivered as a file because cross-session messages to this
 session are held (different permission mode).
 
