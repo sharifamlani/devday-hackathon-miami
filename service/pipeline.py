@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import os
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -101,8 +102,26 @@ def outreach_targets(conn, top_n: int) -> list[int]:
     return list(dict.fromkeys(top + stars))
 
 
+MODEL_TIMEOUT_S = 90
+
+
+def bound_model_calls(timeout_s: float = MODEL_TIMEOUT_S) -> None:
+    """The Agents SDK's default OpenAI client waits up to 600 s per request; one stalled call
+    once hung a demo build for 10+ minutes. Fail fast instead (with retries) so the run finishes."""
+    try:
+        from agents import set_default_openai_client
+        from dotenv import load_dotenv
+        from openai import AsyncOpenAI
+    except ImportError:
+        return                                      # stub stages in tests; nothing to bound
+    load_dotenv(db.REPO_ROOT / ".env")
+    if os.environ.get("OPENAI_API_KEY"):
+        set_default_openai_client(AsyncOpenAI(timeout=timeout_s, max_retries=2))
+
+
 def stage_outreach(as_of: date, top_n: int, workers: int = 4) -> str:
     outreach_agent, org_context = load_stage("outreach")
+    bound_model_calls()
     org_facts = org_context.load_org_facts()
 
     conn = db.connect()
