@@ -929,8 +929,8 @@ def build_key():
                  reason=f"Monthly $40 donor (10th of each month, 2026-06 .. 2026-10). The 2026-11-10 charge is in the Online sheet ({FAILED_GIFTS[0]['loc']}) marked 'card declined' and no later good gift exists. The declined $40 is NOT a gift and is not in any total."),
             dict(donor_id=D["salinas"]["id"], donor="Teodoro Salinas", kind="late",
                  reason="Quarterly $300 donor (15th of Jan/Apr/Jul/Oct); last gift 2026-04-15, missed 2026-07-15 and 2026-10-15."),
-            dict(donor_id=D["quintero"]["id"], donor="Rafael Quintero", kind="late",
-                 reason="Monthly $50 donor (3rd of each month, 2026-03 .. 2026-11) who skipped September 2026 and resumed in October. Late once, now back on track."),
+            dict(donor_id=D["quintero"]["id"], donor="Rafael Quintero", kind="failed",
+                 reason="Missed Sep 2026 monthly gift. Monthly $50 donor (3rd of each month, 2026-03 .. 2026-11) with no September gift; resumed in October."),
         ],
         failed_gifts_not_counted=[dict(donor_id=D[f["donor"]]["id"], donor=f["name"], amount=f["amount"], date=f["date"].isoformat(),
                                        source=dict(file=F_XLSX, location=f["loc"]), note=f["note"],
@@ -1007,7 +1007,7 @@ def verify_tabs(key, check, md, wb_sign):
         p["source_rows"] for p in amb))
     al = key["gift_alerts_expected"]
     check("gift alerts: 1 failed + late (Salinas, Quintero)", sorted((a["donor"], a["kind"]) for a in al) ==
-          [("Hye-jin Park", "failed"), ("Rafael Quintero", "late"), ("Teodoro Salinas", "late")])
+          [("Hye-jin Park", "failed"), ("Rafael Quintero", "failed"), ("Teodoro Salinas", "late")])
     fg = key["failed_gifts_not_counted"][0]
     sheet = load_workbook(OUT / F_XLSX)["Online"]
     row = int(fg["source"]["location"].rsplit(" ", 1)[1])

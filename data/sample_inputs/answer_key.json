@@ -3878,8 +3878,8 @@
     {
       "donor_id": "D19",
       "donor": "Rafael Quintero",
-      "kind": "late",
-      "reason": "Monthly $50 donor (3rd of each month, 2026-03 .. 2026-11) who skipped September 2026 and resumed in October. Late once, now back on track."
+      "kind": "failed",
+      "reason": "Missed Sep 2026 monthly gift. Monthly $50 donor (3rd of each month, 2026-03 .. 2026-11) with no September gift; resumed in October."
     }
   ],
   "failed_gifts_not_counted": [
