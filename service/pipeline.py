@@ -85,7 +85,7 @@ def load_org_config(path: Path = ORG_CONFIG) -> dict:
     return {k: v for k, v in config.items() if not k.startswith("_")}
 
 
-def stage_context(refresh: bool = False, config_path: Path = ORG_CONFIG) -> str:
+def stage_context(refresh_cache: bool = False, config_path: Path = ORG_CONFIG) -> str:
     build_context = None
     for name in CONTEXT_MODULES:
         try:
@@ -98,7 +98,10 @@ def stage_context(refresh: bool = False, config_path: Path = ORG_CONFIG) -> str:
         raise StageMissing(f"context stage unavailable: needs {MISSING_HINT['context']}")
     bound_model_calls()
     urls = load_org_config(config_path)
-    result = build_context(urls, refresh=refresh)
+    # Default: read the db/cache and never rewrite the reviewed service/context_cache.json.
+    # --refresh-demo-cache fetches live and rewrites it (86's write_cache=True).
+    result = (build_context(urls, refresh=True, write_cache=True) if refresh_cache
+              else build_context(urls, refresh=False))
     conn = db.connect()
     saved = db.save_context(conn, result)
     conn.close()
@@ -273,13 +276,13 @@ def table_counts() -> dict[str, int]:
 
 
 def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich: bool = False,
-                 skip: tuple[str, ...] = (), out: Path = DEFAULT_OUT) -> list[dict]:
+                 skip: tuple[str, ...] = (), out: Path = DEFAULT_OUT, refresh_demo_cache: bool = False) -> list[dict]:
     """Run every stage, timing each. Returns [{stage, status, seconds, detail}]; status is
     ok | skipped | missing | failed."""
     # Context first so ICP, prospects and donor drafts can all use it; ICP before outreach.
     stages = [
         ("rebuild", lambda: stage_rebuild(as_of, keep_db)),
-        ("context", lambda: stage_context()),
+        ("context", lambda: stage_context(refresh_demo_cache)),
         ("enrich", lambda: stage_enrich(live_enrich)),
         ("icp", lambda: stage_icp(as_of)),
         ("outreach", lambda: stage_outreach(as_of, top_n)),
@@ -311,12 +314,15 @@ def main() -> int:
     parser.add_argument("--keep-db", "--no-seed", dest="keep_db", action="store_true",
                         help="run on whatever ingest wrote (empty is fine): no rebuild, no seed; just rescore + dedupe")
     parser.add_argument("--live-enrich", action="store_true", help="web-search orgs missing from the cache")
+    parser.add_argument("--refresh-demo-cache", action="store_true",
+                        help="fetch the Foundation's context live and REWRITE the committed service/context_cache.json")
     parser.add_argument("--skip", action="append", default=[], choices=["context", "enrich", "icp", "outreach", "export"])
     parser.add_argument("--out", default=str(DEFAULT_OUT))
     args = parser.parse_args()
 
     as_of = date.fromisoformat(args.as_of) if args.as_of else score.default_as_of()
-    report = run_pipeline(as_of, args.top, args.keep_db, args.live_enrich, tuple(args.skip), Path(args.out))
+    report = run_pipeline(as_of, args.top, args.keep_db, args.live_enrich, tuple(args.skip), Path(args.out),
+                          args.refresh_demo_cache)
 
     print(f"pipeline as of {as_of.isoformat()}")
     for r in report:

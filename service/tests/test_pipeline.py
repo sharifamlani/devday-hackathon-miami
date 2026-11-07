@@ -21,7 +21,7 @@ def env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def stubs(monkeypatch):
-    calls = {"enriched": [], "drafted": [], "prospect_drafts": [], "excluded": set(), "context_urls": None}
+    calls = {"enriched": [], "drafted": [], "prospect_drafts": [], "excluded": set(), "context_urls": None, "context_calls": []}
 
     enrich = types.ModuleType("service.enrich_agent")
     enrich.read_cache = lambda: {"Amazon": [], "Frederick A. DeLuca Foundation": []}
@@ -92,8 +92,9 @@ def stubs(monkeypatch):
     org_context = types.ModuleType("service.org_context")
     org_context.load_org_facts = lambda: [{"fact": "f", "url": "https://miamifoundation.org/x"}]
 
-    def build_context(urls, refresh=False):
+    def build_context(urls, refresh=False, write_cache=False):
         calls["context_urls"] = urls
+        calls["context_calls"].append({"refresh": refresh, "write_cache": write_cache})
         return {"profile": {**urls, "priorities": ["Prosperity", "Climate & Resilience"], "voice": {"phrases": ["Miami"]}},
                 "facts": [{"source": "website", "url": "https://miamifoundation.org/news/a", "posted_at": "2026-10-01",
                            "fact": "Record Give Miami Day", "quote": "record", "priority": "Prosperity"},
@@ -211,3 +212,10 @@ def test_no_seed_mode_runs_on_an_empty_db_and_on_ingested_rows(env, stubs):
     snap = json.loads(out.read_text(encoding="utf-8"))
     assert [d["full_name"] for d in snap["donors"]] == ["Ingested Org"]       # no seed was added
     assert snap["donors"][0]["is_sample"] is False and snap["donors"][0]["status"] == "due"   # 1 gift: assumed yearly, 353 days on
+
+
+def test_context_cache_is_rewritten_only_behind_the_explicit_flag(env, stubs):
+    pipeline.run_pipeline(AS_OF, out=env / "snapshot.json")
+    pipeline.run_pipeline(AS_OF, out=env / "snapshot.json", refresh_demo_cache=True)
+    assert stubs["context_calls"] == [{"refresh": False, "write_cache": False},
+                                      {"refresh": True, "write_cache": True}]
