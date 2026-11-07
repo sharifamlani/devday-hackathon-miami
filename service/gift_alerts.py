@@ -9,8 +9,14 @@ For each donor, the giving cadence is read from gift dates:
 
 Alerts:
     late    the expected date + grace has passed with no gift
-    failed  a gift recorded as failed (amount 0, or "failed"/"declined"/... in its row) with no good gift
-            after it, or a monthly series that skipped a month in the last 6 months
+    failed  a charge recorded as failed with no good gift after it, or a monthly series that skipped a
+            month in the last 6 months. gifts.status ('declined' | 'failed') is the primary signal; when
+            the column is absent, amount 0 or "failed"/"declined"/... in the row text is the fallback.
+            A donor with a failed charge isn't also flagged late: the failed charge is why the gift is missing.
+
+Monthly cadence and missed months are read from the donor's latest unbroken run of gifts (a gap over
+SERIES_BREAK_DAYS starts a new run), so years of Give Miami Day gifts before a new monthly pledge don't
+look like missed months.
 
     python -m service.gift_alerts                    # alerts as of $SCORE_AS_OF or the demo date
     python -m service.gift_alerts --as-of 2026-11-30
@@ -41,6 +47,7 @@ CADENCES = {  # name: (min median gap, max median gap, months between gifts, gra
 GIVE_MIAMI_DAY = {2022: date(2022, 11, 17), **SCORE_GMD}   # score.py starts at 2023
 GMD_WINDOW_DAYS = 3
 MISSED_MONTH_GAP = 45          # a monthly gap longer than this skipped a month
+SERIES_BREAK_DAYS = 100        # ... but a gap longer than this starts a new series, not a missed month
 RECENT_GAP_DAYS = 183          # only gaps in the last ~6 months count as failed
 FAILED_WORDS = re.compile(r"\b(failed|declined|returned|bounced|expired|nsf|chargeback)\b", re.I)
 
@@ -55,8 +62,21 @@ def add_months(d: date, months: int) -> date:
 
 
 def is_failed(gift: dict) -> bool:
-    text = " ".join(str(gift.get(k) or "") for k in ("channel", "source_row", "status"))
+    """gifts.status when present; otherwise amount 0 or failure words in the row text."""
+    status = (gift.get("status") or "").strip().lower()
+    if status:
+        return status in ("declined", "failed")
+    text = " ".join(str(gift.get(k) or "") for k in ("channel", "source_row"))
     return gift["amount"] <= 0 or bool(FAILED_WORDS.search(text))
+
+
+def latest_run(dates: list[date]) -> int:
+    """Index where the latest unbroken run of gifts starts (no gap over SERIES_BREAK_DAYS inside it)."""
+    start = 0
+    for i, (a, b) in enumerate(zip(dates, dates[1:]), 1):
+        if (b - a).days > SERIES_BREAK_DAYS:
+            start = i
+    return start
 
 
 def is_gmd(d: date) -> bool:
@@ -95,6 +115,10 @@ def donor_alerts(donor_id: int, gifts: list[dict], as_of: date) -> list[dict]:
     gifts = sorted((g for g in gifts if date.fromisoformat(g["gift_date"]) <= as_of), key=lambda g: g["gift_date"])
     good = [g for g in gifts if not is_failed(g)]
     dates = [date.fromisoformat(g["gift_date"]) for g in good]
+    # A recent monthly run is read on its own; anything else uses the whole history
+    start = latest_run(dates)
+    if cadence_for(dates[start:]) == "monthly":
+        good, dates = good[start:], dates[start:]
     cadence = cadence_for(dates)
     out = []
 
@@ -106,7 +130,8 @@ def donor_alerts(donor_id: int, gifts: list[dict], as_of: date) -> list[dict]:
                     "evidence": evidence, "reason": reason})
 
     # failed: a failed gift with no good gift after it
-    failed = [g for g in gifts if is_failed(g) and (not good or g["gift_date"] > good[-1]["gift_date"])]
+    # a good gift on the same day doesn't clear a declined charge: only a later good gift does
+    failed = [g for g in gifts if is_failed(g) and (not good or g["gift_date"] >= good[-1]["gift_date"])]
     if failed:
         g = failed[-1]
         alert("failed", date.fromisoformat(g["gift_date"]), [g["id"] for g in failed],
@@ -122,9 +147,9 @@ def donor_alerts(donor_id: int, gifts: list[dict], as_of: date) -> list[dict]:
                 missed = add_months(a, 1)
                 alert("failed", missed, [ga["id"], gb["id"]], f"monthly gift missed around {missed.isoformat()}")
 
-    # late: the next expected gift + grace has passed
+    # late: the next expected gift + grace has passed (unless a failed charge already explains it)
     expected = expected_after(dates[-1], cadence)
-    if expected and as_of > expected + timedelta(days=grace_days(cadence)):
+    if not failed and expected and as_of > expected + timedelta(days=grace_days(cadence)):
         alert("late", expected, [g["id"] for g in good[-3:]],
               f"{cadence.replace('_gmd', ' (Give Miami Day)')} giver; next gift was due {expected.isoformat()}")
     return out
@@ -137,8 +162,10 @@ def alerts(conn: sqlite3.Connection, as_of: date | None = None) -> list[dict]:
     """
     as_of = as_of or default_as_of()
     names = {r["id"]: r["full_name"] for r in conn.execute("SELECT id, full_name FROM donors")}
+    has_status = any(c["name"] == "status" for c in conn.execute("PRAGMA table_info(gifts)"))
+    columns = "id, donor_id, amount, gift_date, channel, source_row" + (", status" if has_status else "")
     by_donor: dict[int, list[dict]] = {}
-    for r in conn.execute("SELECT id, donor_id, amount, gift_date, channel, source_row FROM gifts"):
+    for r in conn.execute(f"SELECT {columns} FROM gifts"):
         by_donor.setdefault(r["donor_id"], []).append(dict(r))
     found = [{**a, "donor": names.get(donor_id)}
              for donor_id, gifts in by_donor.items() for a in donor_alerts(donor_id, gifts, as_of)]

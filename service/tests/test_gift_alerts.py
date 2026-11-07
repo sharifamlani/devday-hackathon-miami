@@ -1,7 +1,9 @@
 import json
+import os
 from datetime import date
 from pathlib import Path
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -98,21 +100,54 @@ def test_alerts_reads_db_and_route_serves_it(tmp_path, monkeypatch):
     assert [a["donor"] for a in body] == ["Teo"]
 
 
-def test_planted_sample_cases_from_the_answer_key(conn):
-    """Ground truth from data/sample_inputs (what ingest should produce): planted cases flag correctly."""
-    key = json.loads(ANSWER_KEY.read_text(encoding="utf-8"))
-    ids = {}
-    for d in key["canonical_donors"]:
-        ids[d["donor_id"]] = db.insert_donor(conn, {"full_name": d["full_name"], "donor_type": d["donor_type"]})
+def load_answer_key(conn, key: dict) -> dict[str, int]:
+    """Gifts as ingest should produce them: good gifts plus declined charges stored with gifts.status."""
+    if not any(c["name"] == "status" for c in conn.execute("PRAGMA table_info(gifts)")):
+        conn.execute("ALTER TABLE gifts ADD COLUMN status TEXT NOT NULL DEFAULT 'ok'")   # 8b's column
+    ids = {d["donor_id"]: db.insert_donor(conn, {"full_name": d["full_name"], "donor_type": d["donor_type"]})
+           for d in key["canonical_donors"]}
     for g in key["gifts"]:
-        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, ?, ?, ?)",
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, status) VALUES (?, ?, ?, ?, 'ok')",
                      (ids[g["donor_id"]], g["amount"], g["gift_date"], g["channel"]))
+    for g in key.get("failed_gifts_not_counted", []):
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, status) VALUES (?, ?, ?, ?, 'declined')",
+                     (ids[g["donor_id"]], g["amount"], g["date"], g.get("note")))
     conn.commit()
-    by_key = {v: k for k, v in ids.items()}
-    found = {by_key[a["donor_id"]]: a for a in alerts(conn, AS_OF)}
+    return ids
 
-    assert found["D06"]["kind"] == "late" and found["D06"]["cadence"] == "quarterly"   # Teodoro Salinas
-    assert found["D06"]["expected_date"] == "2026-07-15"
-    for on_track in ("D01", "D02", "D07", "D08"):     # GMD loyal, monthly on track, December, gave Nov 2026
-        assert on_track not in found, (on_track, found.get(on_track))
-    assert not any(a["kind"] == "failed" for a in found.values())   # no failed gifts are planted
+
+def test_planted_sample_cases_from_the_answer_key(conn, monkeypatch):
+    """Ground truth from data/sample_inputs: exactly the planted regular-gift problems are flagged.
+
+    SAMPLE_ANSWER_KEY points at another key (e.g. PR #44's) to run the same check against it.
+    """
+    path = Path(os.environ.get("SAMPLE_ANSWER_KEY", ANSWER_KEY))
+    key = json.loads(path.read_text(encoding="utf-8"))
+    if not key.get("failed_gifts_not_counted"):
+        pytest.skip("answer key predates the failed-gift cases (PR #44)")
+    ids = load_answer_key(conn, key)
+    by_key = {v: k for k, v in ids.items()}
+    found = {(by_key[a["donor_id"]], a["kind"]) for a in alerts(conn, AS_OF)}
+    assert found == {("D18", "failed"),    # Hye-jin Park: declined monthly charge
+                     ("D19", "failed"),    # Rafael Quintero: skipped September
+                     ("D06", "late"),      # Teodoro Salinas: quarterly overdue
+                     ("D09", "late"),      # Walter Brandt: yearly (March) not given in 2026
+                     ("D27", "late")}      # Veloria Bay Foundation: yearly (April) not given in 2026
+
+
+def test_new_monthly_pledge_after_old_gmd_gifts_has_no_phantom_gap():
+    """Park's shape: GMD gifts 2023-2025, then monthly from June 2026. No 'missed 2025-12' alert."""
+    gmd = [{"id": i, "amount": 100, "gift_date": d} for i, d in enumerate(["2023-11-16", "2024-11-21", "2025-11-20"], 1)]
+    monthly = [{**g, "id": g["id"] + 10} for g in series("2026-06-10", 5, amount=40)]       # Jun .. Oct 10
+    assert donor_alerts(1, gmd + monthly, AS_OF) == []                                      # next due Nov 10
+    declined = {"id": 99, "amount": 40, "gift_date": "2026-10-10", "status": "declined"}
+    found = donor_alerts(1, gmd + monthly + [declined], AS_OF)
+    assert kinds(found) == [("failed", "monthly")] and found[0]["evidence"] == [99]
+
+
+def test_status_column_beats_the_text_fallback():
+    gifts = series("2026-03-03", 8)
+    ok_but_scary_text = {"id": 50, "amount": 50, "gift_date": "2026-11-03", "channel": "card declined", "status": "ok"}
+    assert donor_alerts(1, gifts + [ok_but_scary_text], AS_OF) == []
+    failed = {"id": 51, "amount": 50, "gift_date": "2026-11-03", "status": "failed"}
+    assert kinds(donor_alerts(1, gifts + [failed], AS_OF)) == [("failed", "monthly")]
