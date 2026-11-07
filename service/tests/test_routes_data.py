@@ -99,3 +99,29 @@ def test_seed_has_real_orgs_and_two_stars(db_file):
         assert by_name[org]["donor_type"] == "organization" and by_name[org]["source_row"] == "SAMPLE"
     stars = {d["full_name"] for d in donors if d["is_star"]}
     assert stars == {"Frederick A. DeLuca Foundation", "Biscayne Harbor Family Foundation"}
+
+
+def test_is_sample_on_list_detail_and_snapshot(db_file, tmp_path):
+    from service import db as _db
+    from service.export_snapshot import build_snapshot
+    conn = _db.connect(db_file)
+    real_id = _db.insert_donor(conn, {"full_name": "Ingested Donor", "donor_type": "individual",
+                                      "source_row": "row 7: Ingested Donor,ingested@example.com"})
+    conn.commit()
+    c = client()
+    donors = c.get("/donors").json()
+    by_id = {d["id"]: d for d in donors}
+    assert by_id[real_id]["is_sample"] is False
+    assert all(d["is_sample"] is True for d in donors if d["id"] != real_id)
+    assert c.get("/donors/1").json()["is_sample"] is True
+    assert c.get(f"/donors/{real_id}").json()["is_sample"] is False
+    snap = build_snapshot(conn, rescore=False)
+    conn.close()
+    assert snap["donors"] == donors
+    assert snap["donor_details"][str(real_id)]["is_sample"] is False
+
+
+def test_merged_sample_donor_stays_sample(db_file):
+    c = client()
+    s = c.get("/duplicates").json()[0]
+    assert c.post(f"/duplicates/{s['id']}/merge", json={}).json()["donor"]["is_sample"] is True

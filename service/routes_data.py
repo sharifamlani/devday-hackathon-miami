@@ -38,6 +38,9 @@ def get_conn() -> Iterator[sqlite3.Connection]:
 def _donor_out(row: sqlite3.Row) -> dict:
     d = dict(row)
     d["emails_all"] = json.loads(d.get("emails_all") or "[]")
+    # Invented demo history: the UI badges it and outreach must not cite its amounts as real.
+    # Merged donors keep both source rows, newline-joined; any SAMPLE part makes the donor sample.
+    d["is_sample"] = "SAMPLE" in (d.get("source_row") or "").splitlines()
     if "is_star" in d:
         d["is_star"] = bool(d["is_star"]) if d["is_star"] is not None else False
     if "why" in d:

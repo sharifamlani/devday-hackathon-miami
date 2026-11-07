@@ -275,13 +275,13 @@ def insert_donor(conn: sqlite3.Connection, donor: dict) -> int:
     values = [donor.get(f) for f in fields]
     values[fields.index("emails_all")] = json.dumps(donor.get("emails_all") or [])
     if values[fields.index("source_row")] is None:
-        values[fields.index("source_row")] = "seed"
+        values[fields.index("source_row")] = "SAMPLE"   # every seed row is sample data
     cur = conn.execute(
         f"INSERT INTO donors ({', '.join(fields)}) VALUES ({', '.join('?' * len(fields))})", values)
     donor_id = cur.lastrowid
     for amount, gift_date, channel in donor.get("gifts", []):
         conn.execute(
-            "INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row) VALUES (?, ?, ?, ?, 'seed')",
+            "INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row) VALUES (?, ?, ?, ?, 'SAMPLE')",
             (donor_id, amount, gift_date, channel))
     return donor_id
 
