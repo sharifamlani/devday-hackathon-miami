@@ -14,6 +14,8 @@ GET  /icp                        the latest ideal donor profile (traits, stats, 
 GET  /prospects                  organization prospects, best fit first (?include_dismissed=true)
 GET  /prospects/{id}             one prospect with its first-touch drafts
 POST /prospects/{id}/dismiss     "not a fit"
+GET  /org-profile                the Foundation's profile: URLs, priorities, voice, per-source status
+GET  /context                    dated, sourced facts about the Foundation, newest first (?source=x)
 """
 
 from __future__ import annotations
@@ -212,3 +214,39 @@ def dismiss_prospect(prospect_id: int, conn: sqlite3.Connection = Depends(get_co
         raise HTTPException(404, f"prospect {prospect_id} not found")
     conn.commit()
     return get_prospect(prospect_id, conn)
+
+
+CONTEXT_ORDER = " ORDER BY posted_at IS NULL, posted_at DESC, id DESC"
+
+
+def get_org_profile_or_none(conn: sqlite3.Connection) -> dict | None:
+    row = conn.execute("SELECT * FROM org_profile ORDER BY id DESC LIMIT 1").fetchone()
+    if row is None:
+        return None
+    d = dict(row)
+    d["priorities"] = json.loads(d.get("priorities") or "[]")
+    d["voice"] = json.loads(d.get("voice") or "{}")
+    d["source_status"] = json.loads(d.get("source_status") or "{}")
+    return d
+
+
+def list_context(conn: sqlite3.Connection, source: str | None = None) -> list[dict]:
+    if source:
+        rows = conn.execute("SELECT * FROM org_context WHERE source = ?" + CONTEXT_ORDER, (source,))
+    else:
+        rows = conn.execute("SELECT * FROM org_context" + CONTEXT_ORDER)
+    return [dict(r) for r in rows]
+
+
+@router.get("/org-profile")
+def get_org_profile(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    profile = get_org_profile_or_none(conn)
+    if profile is None:
+        raise HTTPException(404, "no organization profile yet: run onboarding or POST /context/run")
+    return profile
+
+
+@router.get("/context")
+def get_context(source: str | None = Query(None, pattern="^(website|x|linkedin|instagram|news)$"),
+                conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+    return list_context(conn, source)
