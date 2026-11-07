@@ -21,6 +21,8 @@ OPENAI_TIMEOUT_S = float(os.getenv("OPENAI_TIMEOUT_S", "90"))
 OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "2"))
 # Wall-clock cap per agent route: past it the route answers 504 even if a retry is still running
 AGENT_DEADLINE_S = float(os.getenv("AGENT_DEADLINE_S", "120"))
+# Onboarding screen 2 waits on this one; past it /context/run serves the cached context
+CONTEXT_DEADLINE_S = float(os.getenv("CONTEXT_DEADLINE_S", "30"))
 if os.getenv("OPENAI_API_KEY"):
     set_default_openai_client(AsyncOpenAI(timeout=OPENAI_TIMEOUT_S, max_retries=OPENAI_MAX_RETRIES))
 

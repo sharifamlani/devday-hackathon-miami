@@ -10,6 +10,7 @@ POST /outreach/{donor_id}    outreach agent: email + call script, saved to outre
 POST /icp/run                ICP agent: ideal donor profile + matching org prospects (cached unless ?refresh=true)
 POST /prospects/{id}/outreach  first-touch draft for a prospect organization, always status 'draft'
      (ICP read routes)       GET /icp, /prospects, /prospects/{id}, POST /prospects/{id}/dismiss: routes_data.py
+POST /context/run            onboarding screen 2: context agent reads the website (social URLs saved, not fetched)
 POST /agent/ping             one tiny Agents SDK call with structured output (proves key + SDK)
      (ingest routes)         service/ingest/router.py, mounted when Carlos's lane is present
 """
@@ -21,6 +22,8 @@ import json
 import logging
 import sqlite3
 import uuid
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import openai
 from fastapi import FastAPI, HTTPException
@@ -208,6 +211,122 @@ async def prospect_outreach(prospect_id: int) -> dict:
         raise HTTPException(404, str(e))
     return {"prospect_id": prospect_id, "draft_id": draft_id_of(where_saved), "saved_to": where_saved,
             **draft.model_dump()}
+
+
+class ContextRun(BaseModel):
+    """Onboarding screen 2: where the organization is online. Any URL may be left out."""
+    website: str | None = None
+    x_url: str | None = None
+    linkedin_url: str | None = None
+    instagram_url: str | None = None
+    refresh: bool = False
+
+
+SOCIAL = {"x_url": "x", "linkedin_url": "linkedin", "instagram_url": "instagram"}
+# build_context's per-source status → what onboarding screen 2 shows
+SOURCE_STATUS = {"ok": "done", "cached": "done", "blocked": "blocked", "skipped": "not provided",
+                 "not_provided": "not provided"}
+
+
+def cached_context(website: str | None) -> dict | None:
+    """The saved context ({profile, facts} from the db), else the committed service/context_cache.json."""
+    from service import routes_data
+
+    if hasattr(routes_data, "get_org_profile_or_none"):
+        conn = db.connect()
+        try:
+            db.create_schema(conn)
+            profile = routes_data.get_org_profile_or_none(conn)
+            if profile is not None:
+                return {"profile": profile, "facts": routes_data.list_context(conn)}
+        except sqlite3.OperationalError:
+            pass
+        finally:
+            conn.close()
+
+    # the cache file is keyed by the normalized website host
+    path = config.REPO_ROOT / "service" / "context_cache.json"
+    if not path.exists():
+        return None
+    cache = json.loads(path.read_text(encoding="utf-8"))
+    host = urlparse(website if "//" in (website or "") else f"//{website or ''}").hostname or ""
+    host = host.removeprefix("www.")
+    return cache.get(host) or (next(iter(cache.values())) if len(cache) == 1 else None)
+
+
+def persist_context(result: dict) -> dict | None:
+    """build_context is pure; db.save_context is the only writer of org_profile + org_context.
+
+    Returns {"org_profile_id", "context_ids", "replaced_sources"}, or None until save_context lands.
+    """
+    if not hasattr(db, "save_context"):
+        return None
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        return db.save_context(conn, result)
+    finally:
+        conn.close()
+
+
+def source_progress(req: "ContextRun", result: dict | None) -> dict:
+    """{website|news|x|linkedin|instagram: {status, facts, detail}} for the screen's per-source rows.
+
+    Website only (Sharif's scope cut): social URLs are stored in org_profile, never fetched.
+    """
+    result = result or {}
+    raw = result.get("sources") or {}
+    counts: dict[str, int] = {}
+    for f in result.get("facts") or []:
+        counts[f.get("source")] = counts.get(f.get("source"), 0) + 1
+
+    out = {}
+    for source in ("website", "news"):
+        if source == "website" and not req.website:
+            out[source] = {"status": "not provided", "facts": 0, "detail": None}
+            continue
+        status = str(raw.get(source, "ok" if counts.get(source) else "skipped"))
+        shown = SOURCE_STATUS.get(status, "failed" if status.startswith("error") else status)
+        out[source] = {"status": shown, "facts": counts.get(source, 0),
+                       "detail": status if shown in ("failed", "blocked") or status == "cached" else None}
+    for field, source in SOCIAL.items():
+        given = getattr(req, field)
+        out[source] = {"status": "saved, not connected" if given else "not provided", "facts": 0,
+                       "detail": given}
+    return out
+
+
+@app.post("/context/run")
+async def context_run(req: ContextRun) -> dict:
+    """Onboarding screen 2, synchronous: reads the website (≤ CONTEXT_DEADLINE_S), saves, returns per-source status.
+
+    On timeout or failure it returns the cached context with cached: true (still 200, so the screen moves on).
+    """
+    try:
+        from service.org_context import build_context
+    except ImportError:
+        raise not_landed("service.org_context.build_context")
+
+    started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    urls = req.model_dump(exclude={"refresh"})
+    try:
+        result = await asyncio.wait_for(run_in_threadpool(build_context, urls, req.refresh),
+                                        config.CONTEXT_DEADLINE_S)
+        state, cached, detail = "done", False, None
+        saved = await run_in_threadpool(persist_context, result)
+    except Exception as e:  # timeout, model error, site error: fall back, never leave the screen hanging
+        if isinstance(e, asyncio.TimeoutError):
+            detail = f"website read took longer than {config.CONTEXT_DEADLINE_S:.0f} s"
+        else:
+            detail = f"{type(e).__name__}: {e}"
+        log.warning("context run failed, serving cached context: %s", detail)
+        result, state, cached, saved = cached_context(req.website), "failed", True, None
+
+    return {"state": state, "cached": cached, "detail": detail,
+            "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "sources": source_progress(req, result),
+            "profile": (result or {}).get("profile"), "facts": (result or {}).get("facts", []),
+            "saved": saved}
 
 
 class Ping(BaseModel):
