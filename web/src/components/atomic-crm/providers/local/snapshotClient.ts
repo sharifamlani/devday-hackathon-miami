@@ -1,5 +1,6 @@
 import type { ApiSnapshot } from "./apiTypes";
 import { APPROVER_NAME, SNAPSHOT_URL } from "./config";
+import { requireWebsite } from "./validate";
 import {
   parseContext,
   parseDonorDetail,
@@ -143,6 +144,7 @@ export const snapshotMethods: DonorDeskMethods = {
     throw new Error(READ_ONLY);
   },
   runContext: async (input) => {
+    requireWebsite(input); // same rule as live, so the screen behaves the same
     const context = contextOf(await loadSnapshot());
     const website = context.facts.filter((f) => f.source === "website");
     const social = (source: "x" | "linkedin" | "instagram", label: string, url?: string | null) => ({

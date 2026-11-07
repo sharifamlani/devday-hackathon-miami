@@ -10,6 +10,7 @@ import type {
   ApiProspect,
 } from "./apiTypes";
 import { API_URL, APPROVER_NAME } from "./config";
+import { requireWebsite } from "./validate";
 import {
   parseContext,
   parseContextRun,
@@ -186,12 +187,13 @@ export const localApiMethods: DonorDeskMethods = {
     }
   },
   runContext: async (input) => {
+    const website = requireWebsite(input);
     try {
       return parseContextRun(
         await request<ApiContextRun>("/context/run", {
           method: "POST",
           body: {
-            website: input.website || null,
+            website,
             x_url: input.x_url || null,
             linkedin_url: input.linkedin_url || null,
             instagram_url: input.instagram_url || null,

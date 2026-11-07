@@ -178,7 +178,9 @@ fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_ur
   `connected` is `false` and `status` is `"saved, not connected"`.
 - `ContextFact`: `{ id, source, source_url, posted_at, fact, quote, priority }`. `quote` holds the exact words the fact was verified against.
 - `OrgContext`: `{ profile, facts, cached }`.
-- `ContextRunInput`: `{ website, x_url?, linkedin_url?, instagram_url?, refresh? }`. Empty strings are sent as `null`.
+- `ContextRunInput`: `{ website, x_url?, linkedin_url?, instagram_url?, refresh? }`. **`website` is required**
+  (lead decision): a run without it fails and a failed run saves nothing, so socials typed without a
+  website would be dropped. Empty social fields are sent as `null`.
 - `ContextRun`: `{ status: "done" | "failed", served_from, cached, detail, sources, profile, facts, finished_at }`.
   `served_from` is `"live"` (the site was read), `"cache"` (a cache read on request, the fast stage path)
   or `"fallback"` (the live read failed or timed out). `cached` is `true` only for `"fallback"`.
@@ -197,6 +199,7 @@ fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_ur
 | Approve with a blank name | 422 from the API | The message |
 | Snapshot mode + an agent action | `"This is a read-only snapshot. Running the agents needs the local API."` | The message |
 | Snapshot mode + approve | Succeeds in memory only | "Demo only: not saved (cached sample)" |
+| Research without a website | `"Add your website to continue"`, thrown before any request (both modes) | Mark Website as required and disable "Continue" until it's filled; the message is the backstop |
 | Upload before ingest is running (404/503) | `"Upload isn't available yet: the ingest service is not running."` | The message |
 | Research before the context service is running (503) | `"Website research isn't available yet: …"` | The message |
 | Research ran but the live read failed or timed out | `served_from: "fallback"` | "Showing saved context", with `detail` as a tooltip |
