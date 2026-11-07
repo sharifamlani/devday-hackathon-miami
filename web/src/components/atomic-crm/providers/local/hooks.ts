@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDonorDesk } from "./index";
-import type { ContextRunInput, TargetPeriod } from "./types";
+import type { ContextRunInput, ImportInput, TargetPeriod } from "./types";
 
 const ROOT = "donor-desk";
 
@@ -55,6 +55,16 @@ export const useMergeDuplicate = () => {
   return useMutation({
     mutationFn: ({ pairId, keepId }: { pairId: number; keepId: number }) =>
       dataProvider.mergeDuplicate(pairId, keepId),
+    onSuccess: invalidateAll,
+  });
+};
+
+/** Undo a merge; refetches everything so both donors, their gifts and the duplicate pair reappear. */
+export const useUndoMerge = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: (mergeId: number) => dataProvider.undoMerge(mergeId),
     onSuccess: invalidateAll,
   });
 };
@@ -169,6 +179,16 @@ export const useUploadFiles = () => {
   const invalidateAll = useInvalidateAll();
   return useMutation({
     mutationFn: (files: File[]) => dataProvider.uploadFiles(files),
+    onSuccess: invalidateAll,
+  });
+};
+
+/** Import dialog: donors, donor details and duplicates all change, so refetch everything. */
+export const useImportDonors = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: (input: ImportInput) => dataProvider.importDonors(input),
     onSuccess: invalidateAll,
   });
 };

@@ -95,11 +95,28 @@ export interface ApiOutreachDraft {
     | null;
 }
 
+/** One item of GET /donors/{id} "merges": a merge into this donor. */
+export interface ApiMergeLogEntry {
+  id: number;
+  kept_id: number;
+  merged_id: number;
+  merged_name: string;
+  merged_email?: string | null;
+  merged_emails?: string[] | null;
+  gifts_moved?: number | null;
+  merged_at: string;
+  approved_by?: string | null;
+  undone_at?: string | null;
+  can_undo?: boolean | null;
+}
+
 /** GET /donors/{id} */
 export interface ApiDonorDetail extends ApiDonorRow {
   gifts: ApiGift[];
   research_facts: ApiResearchFact[];
   outreach_drafts: ApiOutreachDraft[];
+  // Absent on older servers and snapshots.
+  merges?: ApiMergeLogEntry[] | null;
 }
 
 /** One item of GET /duplicates */
@@ -120,6 +137,15 @@ export interface ApiDuplicate {
 export interface ApiMergeResult {
   kept_donor_id: number;
   removed_donor_id: number;
+  merge_id?: number | null; // absent on servers that predate the merge log
+}
+
+/** POST /merges/{merge_id}/undo */
+export interface ApiUndoMergeResult {
+  kept_id: number;
+  restored_id: number;
+  donor?: ApiDonorRow | null;
+  restored?: unknown;
 }
 
 /** web/public/snapshot.json */

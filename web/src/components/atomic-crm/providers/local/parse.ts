@@ -5,6 +5,9 @@ import type {
   ApiEvidence,
   ApiIcpProfile,
   ApiJson,
+  ApiMergeLogEntry,
+  ApiMergeResult,
+  ApiUndoMergeResult,
   ApiContext,
   ApiContextFact,
   ApiContextFactLite,
@@ -29,6 +32,9 @@ import type {
   FitComponent,
   IcpEvidence,
   IngestResult,
+  MergeLogEntry,
+  MergeResult,
+  UndoMergeResult,
   OrgContext,
   OrgProfile,
   SocialLink,
@@ -120,8 +126,14 @@ const isGiveMiamiDayGiver = (why: ApiWhy) =>
   why.pattern?.channel === "Give Miami Day" ||
   why.last_gift?.channel === "Give Miami Day";
 
+/** Marker reason on imported donors (snapshot mode), which have no real score. */
+export const IMPORTED_UNSCORED = "imported_unscored";
+export const IMPORTED_WHY_SHORT =
+  "Imported · not scored yet (scoring runs on the live service)";
+
 export const whyShort = (why: ApiWhy | null): string => {
   if (!why) return "not scored yet";
+  if (why.reasons?.includes(IMPORTED_UNSCORED)) return IMPORTED_WHY_SHORT;
   const year = why.as_of.slice(0, 4);
   const reasons = new Set(why.reasons);
   let text: string;
@@ -153,6 +165,9 @@ export const whyShort = (why: ApiWhy | null): string => {
 /** The drawer's WHY paragraph: score.py's facts, in plain words. */
 export const whySentence = (why: ApiWhy | null): string => {
   if (!why) return "This donor has not been scored yet.";
+  if (why.reasons.includes(IMPORTED_UNSCORED)) {
+    return "Imported from an uploaded list. Scoring runs on the live service.";
+  }
   if (why.reasons.includes("no_gifts") || !why.last_gift) {
     return "No gifts on record yet, so there is nothing to score.";
   }
@@ -286,6 +301,57 @@ export const parseDonorRow = (row: ApiDonorRow): DonorSummary => {
   };
 };
 
+const toNumber = (value: unknown, fallback = 0) => {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const toText = (value: unknown): string | null =>
+  typeof value === "string" && value ? value : null;
+
+/** One merges[] item. Defensive: older or partial servers may omit fields. */
+export const parseMergeLogEntry = (raw: ApiMergeLogEntry): MergeLogEntry => {
+  const email = toText(raw.merged_email);
+  const emails = Array.isArray(raw.merged_emails)
+    ? raw.merged_emails.filter((e): e is string => typeof e === "string" && !!e)
+    : [];
+  return {
+    id: toNumber(raw.id),
+    kept_id: toNumber(raw.kept_id),
+    merged_id: toNumber(raw.merged_id),
+    merged_name: toText(raw.merged_name) ?? `Donor ${toNumber(raw.merged_id)}`,
+    merged_email: email,
+    merged_emails: emails.length ? emails : email ? [email] : [],
+    gifts_moved: toNumber(raw.gifts_moved),
+    merged_at: toText(raw.merged_at) ?? "",
+    approved_by: toText(raw.approved_by),
+    undone_at: toText(raw.undone_at),
+    can_undo: raw.can_undo === true && !raw.undone_at,
+  };
+};
+
+export const parseMerges = (raw: unknown): MergeLogEntry[] =>
+  Array.isArray(raw)
+    ? raw
+        .filter((m): m is ApiMergeLogEntry => !!m && typeof m === "object")
+        .map(parseMergeLogEntry)
+        .sort((a, b) => b.id - a.id) // newest first
+    : [];
+
+export const parseMergeResult = (raw: ApiMergeResult): MergeResult => ({
+  kept_id: raw.kept_donor_id,
+  merged_id: raw.removed_donor_id,
+  merge_id:
+    typeof raw.merge_id === "number" && Number.isFinite(raw.merge_id)
+      ? raw.merge_id
+      : null,
+});
+
+export const parseUndoMergeResult = (raw: ApiUndoMergeResult): UndoMergeResult => ({
+  kept_id: raw.kept_id,
+  restored_id: raw.restored_id,
+});
+
 export const parseDonorDetail = (raw: ApiDonorDetail): DonorDetail => ({
   ...parseDonorRow(raw),
   phone: raw.phone,
@@ -309,6 +375,7 @@ export const parseDonorDetail = (raw: ApiDonorDetail): DonorDetail => ({
       retrieved_at,
     }),
   ),
+  merges: parseMerges(raw.merges),
   // outreach_drafts comes newest first.
   draft: raw.outreach_drafts?.length ? parseDraft(raw.outreach_drafts[0]) : null,
 });
