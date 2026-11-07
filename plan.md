@@ -21,7 +21,7 @@ why, in your own voice.*
 
 | # | Capability | Detail | Priority |
 |---|---|---|---|
-| 1 | **Ingest** | Upload a messy CSV/XLSX. The agent maps columns and builds clean donor profiles and a gift history | Core |
+| 1 | **Ingest** (🔒 **Carlos**) | Upload messy, unstructured donor data. The agent maps it into the predefined fields (§13) that populate the database | Core |
 | 2 | **Dedupe** | iPhone-style: "We found this donor twice. Merge?" Answers "see each donor once" | Core |
 | 3 | **Gift tracking + propensity score** (*most important*) | Every gift has a date and amount. The score combines recency, frequency, amount and **gap since last gift vs. that donor's usual cadence**. It flags "lapsing" donors and ranks who to contact first | Core |
 | 4 | **Tiering** | Big vs. small donors; big-name sponsors get a ★ flag | Core |
@@ -52,6 +52,7 @@ this year; 23 days left in the year → call first."
 | Who | Owns |
 |---|---|
 | Sharif | Agents, scoring logic, enrichment and outreach back end |
+| **Carlos** | 🔒 **Ingest**: unstructured data → predefined fields → database (§13). Nobody else edits his paths |
 | (name) | UI |
 | (name) | Sample data + demo script |
 | (name) | Pitch + README |
@@ -70,9 +71,8 @@ devday_hackathon/
 ├── data/
 │   ├── sample_donors.csv           messy Miami Foundation sample (§11): dupes, mixed dates, labelled SAMPLE
 │   └── answer_key.json             planted duplicates + expected #1 donor, for the evaluator
-├── web/                            atomic-crm fork (MIT notice kept in LICENSE.md); static Vite SPA on Vercel
-│   ├── supabase/migrations/        NEW: gifts, donor_scores, research_facts, outreach_drafts, duplicate_suggestions
-│   ├── supabase/seed.sql           NEW: pre-created demo user; signup disabled
+├── web/                            atomic-crm fork (MIT notice kept in LICENSE.md); Vite SPA, run locally for the demo
+│   ├── CC/providers/local/         NEW: data provider that talks to the local Python API (replaces Supabase)
 │   ├── CC/root/CRM.tsx             hide deals/companies/tasks/sales; dashboard={CallToday}; disableTelemetry
 │   ├── CC/root/defaultConfiguration.ts   title + logo → Miami Foundation demo branding
 │   ├── CC/providers/commons/englishCrmMessages.ts   relabel Contacts → Donors, Companies → Organizations
@@ -81,8 +81,9 @@ devday_hackathon/
 │   ├── CC/contacts/ContactList.tsx add tier, ★ and score columns
 │   └── CC/contacts/ContactMergeButton.tsx   reuse the dialog, fed by duplicate_suggestions
 └── service/                        Python, OpenAI Agents SDK (not "agents/": shadows the SDK import)
-    ├── main.py                     FastAPI: /ingest /score /enrich /outreach; Supabase REST w/ service-role key
-    ├── ingest.py                   messy headers → clean contacts + gifts (LLM-assisted mapping)
+    ├── main.py                     FastAPI on localhost: /donors /gifts /score /enrich /outreach (+ Carlos's /ingest)
+    ├── db.py                       SQLite schema = the §13 contract; creates data/donors.db
+    ├── ingest/                     🔒 CARLOS ONLY: unstructured data → §13 fields → donors.db
     ├── score.py                    propensity score + tier: pure Python, writes donor_scores
     ├── org_context.py              reads miamifoundation.org news → dated facts with URLs
     ├── enrich_agent.py             web search → sourced research_facts
@@ -201,8 +202,13 @@ devday_hackathon/
 ## 10. Open decisions
 
 - [ ] Product name
-- [x] **Stack: LOCKED Sat Nov 7.** atomic-crm fork (React + Vite + shadcn on Supabase) for the UI and data;
-      a separate Python service on the OpenAI Agents SDK for cleaning, scoring, enrichment and drafts.
+- [x] **Stack: LOCKED Sat Nov 7.** atomic-crm fork (React + Vite + shadcn) for the UI; a Python service on
+      the OpenAI Agents SDK for cleaning, scoring, enrichment and drafts.
+- [x] **Data: LOCKED Sat Nov 7 (Sharif) → local, no Supabase.** All data lives on the demo laptop in a
+      SQLite file (`data/donors.db`, gitignored; rebuilt from `data/sample_donors.csv`). The UI talks to the
+      local Python API. **Consequence:** the demo runs on `localhost`; the Vercel URL stays a shell. That's
+      fine for submission (it needs only the GitHub link). Fallback: a screen recording. Supabase notes in
+      §12 are superseded wherever they say "migration" or "RLS": read them as SQLite tables in `db.py`.
 - [x] **CRM base: LOCKED Sat Nov 7 → [marmelab/atomic-crm](https://github.com/marmelab/atomic-crm)**. Audit in §12. (MIT, verified
       from GitHub metadata; 1.4k stars; pushed Nov 7, 2026). React + Vite + shadcn, on **Supabase**, which we
       already have. Supabase's auto-generated REST API lets the agent service read and write with no extra
@@ -403,3 +409,51 @@ merge logic reference `deals` and `companies`, so we remove their screens and ke
 | FakeRest fallback doesn't know our new tables | Decide by hour 10: seed it, or drop the fallback and use a screen recording |
 | ~15k LOC wired together | Hide, don't delete; touch only the paths in §5 |
 | Windows: `makefile` uses `script`/`lsof` | Run `npm run` scripts directly |
+
+---
+
+## 13. Ownership and the data contract
+
+### 🔒 Blocked out for Carlos: do not touch
+Carlos owns the component that takes **unstructured donor data and maps it into the predefined fields that
+populate the database**. No one else (people or Claude sessions) edits these paths without asking him:
+
+- `service/ingest/` (all of it)
+- the `/ingest` route in `service/main.py` (he owns its body; others may only register it)
+- `data/sample_donors.csv` and `data/answer_key.json` when he takes them over (he says when)
+
+Everyone else builds **against the contract below**, not against his code. If the contract has to change,
+Carlos and Sharif agree first, and the change lands in this section and `service/db.py` in the same commit.
+
+### The contract: predefined fields (proposed: Carlos to confirm)
+Ingest writes rows into these SQLite tables. Scoring, enrichment, outreach and the UI only read them.
+
+**`donors`**
+| Field | Type | Notes |
+|---|---|---|
+| id | integer pk | |
+| full_name | text | required |
+| first_name, last_name | text | |
+| org_name | text | set when the donor is an organization |
+| donor_type | text | `individual` or `organization` |
+| email | text | lower-cased; first email if several |
+| emails_all | text (JSON list) | every email seen, for dedupe |
+| phone | text | E.164 if possible |
+| city, state | text | |
+| fund_type | text | Donor Advised, Designated, Endowment, … (§11 list) or null |
+| notes | text | anything unmapped, kept verbatim |
+| source_row | text | original row(s) for traceability |
+
+**`gifts`**
+| Field | Type | Notes |
+|---|---|---|
+| id | integer pk | |
+| donor_id | integer fk → donors.id | |
+| amount | real | USD |
+| gift_date | text | ISO `YYYY-MM-DD` (ingest normalizes every date format) |
+| channel | text | `Give Miami Day`, `online`, `check`, `event`, … |
+| fund_type | text | nullable |
+| source_row | text | |
+
+**Written by others, never by ingest:** `donor_scores` (score.py), `duplicate_suggestions` (dedupe),
+`research_facts` (enrich_agent), `outreach_drafts` (outreach_agent). Shapes as in §12 "Add".
