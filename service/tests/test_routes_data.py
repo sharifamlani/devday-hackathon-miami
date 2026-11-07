@@ -99,3 +99,123 @@ def test_seed_has_real_orgs_and_two_stars(db_file):
         assert by_name[org]["donor_type"] == "organization" and by_name[org]["source_row"] == "SAMPLE"
     stars = {d["full_name"] for d in donors if d["is_star"]}
     assert stars == {"Frederick A. DeLuca Foundation", "Biscayne Harbor Family Foundation"}
+
+
+def test_is_sample_on_list_detail_and_snapshot(db_file, tmp_path):
+    from service import db as _db
+    from service.export_snapshot import build_snapshot
+    conn = _db.connect(db_file)
+    real_id = _db.insert_donor(conn, {"full_name": "Ingested Donor", "donor_type": "individual",
+                                      "source_row": "row 7: Ingested Donor,ingested@example.com"})
+    conn.commit()
+    c = client()
+    donors = c.get("/donors").json()
+    by_id = {d["id"]: d for d in donors}
+    assert by_id[real_id]["is_sample"] is False
+    assert all(d["is_sample"] is True for d in donors if d["id"] != real_id)
+    assert c.get("/donors/1").json()["is_sample"] is True
+    assert c.get(f"/donors/{real_id}").json()["is_sample"] is False
+    snap = build_snapshot(conn, rescore=False)
+    conn.close()
+    assert snap["donors"] == donors
+    assert snap["donor_details"][str(real_id)]["is_sample"] is False
+
+
+def test_merged_sample_donor_stays_sample(db_file):
+    c = client()
+    s = c.get("/duplicates").json()[0]
+    assert c.post(f"/duplicates/{s['id']}/merge", json={}).json()["donor"]["is_sample"] is True
+
+
+def test_approve_star_draft_then_sent_is_allowed(db_file):
+    import sqlite3 as _sqlite3
+    import pytest as _pytest
+    from service import db as _db
+    conn = _db.connect(db_file)
+    star_id = conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 1").fetchone()[0]
+    draft_id = conn.execute("INSERT INTO outreach_drafts (donor_id, subject, body, status) VALUES (?, 'S', 'Old', 'draft')",
+                            (star_id,)).lastrowid
+    conn.commit()
+    with _pytest.raises(_sqlite3.IntegrityError):                      # not approved yet: trigger refuses
+        conn.execute("UPDATE outreach_drafts SET status = 'sent' WHERE id = ?", (draft_id,))
+    conn.rollback()
+
+    c = client()
+    assert c.post(f"/drafts/{draft_id}/approve", json={"approved_by": "  "}).status_code == 422
+    r = c.post(f"/drafts/{draft_id}/approve", json={"approved_by": "Ana (Philanthropy)", "body": "Edited"})
+    assert r.status_code == 200
+    d = r.json()
+    assert (d["status"], d["approved_by"], d["body"]) == ("approved", "Ana (Philanthropy)", "Edited")
+    assert d["approved_at"] and d["facts_used"] == []
+    assert c.get(f"/donors/{star_id}").json()["outreach_drafts"][0]["status"] == "approved"
+
+    conn.execute("UPDATE outreach_drafts SET status = 'sent' WHERE id = ?", (draft_id,))   # now allowed
+    conn.commit()
+    conn.close()
+    assert c.post(f"/drafts/{draft_id}/approve", json={"approved_by": "Ana"}).status_code == 409
+    assert c.post("/drafts/9999/approve", json={"approved_by": "Ana"}).status_code == 404
+
+
+def test_approve_keeps_body_when_omitted(db_file):
+    from service import db as _db
+    conn = _db.connect(db_file)
+    draft_id = conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (1, 'Keep me', 'ready')").lastrowid
+    conn.commit()
+    conn.close()
+    d = client().post(f"/drafts/{draft_id}/approve", json={"approved_by": "Ana"}).json()
+    assert d["body"] == "Keep me" and d["status"] == "approved"
+
+
+
+def live_server(port_holder):
+    """A real uvicorn server on a free port. TestClient doesn't spread a request's dependency
+    and route across threadpool threads, so only a real server reproduces the 500s."""
+    import socket
+    import threading
+    import time
+
+    import uvicorn
+
+    app = FastAPI()
+    app.include_router(router)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    for _ in range(100):
+        if server.started:
+            break
+        time.sleep(0.05)
+    return server, thread, f"http://127.0.0.1:{port}"
+
+
+def _fire(base, calls, workers=20):
+    from concurrent.futures import ThreadPoolExecutor
+
+    import httpx
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(lambda c: httpx.request(c[0], base + c[1], timeout=30).status_code, calls))
+
+
+def test_concurrent_requests_all_succeed(db_file):
+    """QA: simultaneous requests returned 500 sqlite3.ProgrammingError (connection used across threads)."""
+    server, thread, base = live_server(None)
+    try:
+        codes = _fire(base, [("GET", p) for p in ["/donors", "/donors/1", "/duplicates"] * 20])
+    finally:
+        server.should_exit = True
+        thread.join(5)
+    assert codes == [200] * 60
+
+
+def test_concurrent_writes_wait_instead_of_erroring(db_file):
+    server, thread, base = live_server(None)
+    try:
+        calls = [("POST", "/score/run"), ("GET", "/donors"), ("GET", "/duplicates")] * 6
+        codes = _fire(base, calls, workers=10)
+    finally:
+        server.should_exit = True
+        thread.join(5)
+    assert codes == [200] * 18

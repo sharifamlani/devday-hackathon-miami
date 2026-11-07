@@ -144,13 +144,19 @@ TABLES = ["outreach_drafts", "research_facts", "duplicate_suggestions", "donor_s
 
 
 def connect(path: str | Path | None = None) -> sqlite3.Connection:
-    """Open the db with Row access and foreign keys on. ':memory:' works for tests."""
+    """Open the db with Row access and foreign keys on. ':memory:' works for tests.
+
+    Each API request gets its own connection (routes_data.get_conn), but FastAPI opens it in one
+    threadpool thread and runs the sync route in another, so check_same_thread is off; the
+    connection is still never shared between requests. Writers wait up to 10 s for a lock
+    instead of failing with "database is locked"."""
     target = str(path) if path is not None else str(db_path())
     if target != ":memory:":
         Path(target).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(target)
+    conn = sqlite3.connect(target, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 10000")
     return conn
 
 
@@ -275,13 +281,13 @@ def insert_donor(conn: sqlite3.Connection, donor: dict) -> int:
     values = [donor.get(f) for f in fields]
     values[fields.index("emails_all")] = json.dumps(donor.get("emails_all") or [])
     if values[fields.index("source_row")] is None:
-        values[fields.index("source_row")] = "seed"
+        values[fields.index("source_row")] = "SAMPLE"   # every seed row is sample data
     cur = conn.execute(
         f"INSERT INTO donors ({', '.join(fields)}) VALUES ({', '.join('?' * len(fields))})", values)
     donor_id = cur.lastrowid
     for amount, gift_date, channel in donor.get("gifts", []):
         conn.execute(
-            "INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row) VALUES (?, ?, ?, ?, 'seed')",
+            "INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row) VALUES (?, ?, ?, ?, 'SAMPLE')",
             (donor_id, amount, gift_date, channel))
     return donor_id
 

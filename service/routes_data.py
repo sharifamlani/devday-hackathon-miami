@@ -9,6 +9,7 @@ GET  /duplicates                 pending duplicate suggestions with both donors
 POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id": n})
 POST /duplicates/{id}/dismiss    "not a duplicate"
 POST /score/run                  rescore everyone, refresh duplicate suggestions (?as_of=YYYY-MM-DD)
+POST /drafts/{id}/approve        a human approves a draft (optional edited body) → status approved
 """
 
 from __future__ import annotations
@@ -16,9 +17,10 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from service import dedupe, score
 from service.db import connect, create_schema
@@ -38,6 +40,9 @@ def get_conn() -> Iterator[sqlite3.Connection]:
 def _donor_out(row: sqlite3.Row) -> dict:
     d = dict(row)
     d["emails_all"] = json.loads(d.get("emails_all") or "[]")
+    # Invented demo history: the UI badges it and outreach must not cite its amounts as real.
+    # Merged donors keep both source rows, newline-joined; any SAMPLE part makes the donor sample.
+    d["is_sample"] = "SAMPLE" in (d.get("source_row") or "").splitlines()
     if "is_star" in d:
         d["is_star"] = bool(d["is_star"]) if d["is_star"] is not None else False
     if "why" in d:
@@ -126,3 +131,27 @@ def run_scores(as_of: date | None = Query(None), conn: sqlite3.Connection = Depe
             "as_of": (as_of or score.default_as_of()).isoformat(),
             "top": [{"id": d["id"], "full_name": d["full_name"], "score": d["score"], "status": d["status"]}
                     for d in top]}
+
+
+class ApproveDraft(BaseModel):
+    approved_by: str = Field(min_length=1, description="The staff member approving the draft")
+    body: str | None = Field(None, description="Edited body; omit to keep the draft as written")
+
+
+@router.post("/drafts/{draft_id}/approve")
+def approve_draft(draft_id: int, req: ApproveDraft, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    row = conn.execute("SELECT status FROM outreach_drafts WHERE id = ?", (draft_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    if row["status"] == "sent":
+        raise HTTPException(409, f"draft {draft_id} was already sent")
+    approved_by = req.approved_by.strip()
+    if not approved_by:
+        raise HTTPException(422, "approved_by must name a person")
+    approved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if req.body is not None:
+        conn.execute("UPDATE outreach_drafts SET body = ? WHERE id = ?", (req.body, draft_id))
+    conn.execute("UPDATE outreach_drafts SET status = 'approved', approved_by = ?, approved_at = ? WHERE id = ?",
+                 (approved_by, approved_at, draft_id))
+    conn.commit()
+    return _draft_out(conn.execute("SELECT * FROM outreach_drafts WHERE id = ?", (draft_id,)).fetchone())
