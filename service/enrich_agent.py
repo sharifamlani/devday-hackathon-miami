@@ -39,6 +39,7 @@ FACTS_JSON = REPO_ROOT / "data" / "research_facts.json"
 # Precomputed research keyed by donor name, committed so the demo never waits on web search
 CACHE_JSON = REPO_ROOT / "data" / "research_cache.json"
 NO_INFO = "no public information found"
+INDIVIDUAL_SKIP = "individual donors are not researched in the demo"
 URL_TIMEOUT_S = 8
 
 
@@ -114,17 +115,32 @@ def write_cache(name: str, facts: list[Fact]) -> None:
     CACHE_JSON.write_text(json.dumps(cache, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def skip_reason(org_name: str | None = None, donor_type: str | None = None) -> str | None:
+    """Why a donor is not researched live, or None if it may be.
+
+    Organizations only: the sample individuals are fictional, and a web search on a common name ties
+    a real person's board seat and employer to invented gifts (plan §3).
+    """
+    if donor_type == "individual" or (donor_type != "organization" and not org_name):
+        return INDIVIDUAL_SKIP
+    return None
+
+
 def enrich_donor(name: str, org_name: str | None = None, city: str | None = None,
-                 focus: str | None = None, refresh: bool = False) -> list[Fact]:
+                 focus: str | None = None, refresh: bool = False,
+                 donor_type: str | None = None) -> list[Fact]:
     """Research one donor and return sourced facts whose URLs load. Empty list means nothing public found.
 
     Cached donors come back from data/research_cache.json without a model call unless refresh=True.
     focus steers the search (e.g. "Miami giving"); it only applies to live runs.
+    Individuals are never researched live (see skip_reason); cached entries are vetted organizations.
     """
     if not refresh:
         cached = read_cache().get(name)
         if cached is not None:
             return [Fact(**f) for f in cached]
+    if skip_reason(org_name, donor_type):
+        return []
 
     query = f"Donor: {name}"
     if org_name:
@@ -178,6 +194,8 @@ def main() -> int:
     parser.add_argument("name")
     parser.add_argument("--org", dest="org_name")
     parser.add_argument("--city")
+    parser.add_argument("--type", dest="donor_type", default="organization",
+                        choices=["organization", "individual"], help="individuals are never researched live")
     parser.add_argument("--focus", help="what the live research should concentrate on")
     parser.add_argument("--donor-id", type=int, help="also save the facts as research_facts rows")
     parser.add_argument("--refresh", action="store_true", help="ignore the cache and research live")
@@ -185,11 +203,12 @@ def main() -> int:
     args = parser.parse_args()
 
     start = time.perf_counter()
-    facts = enrich_donor(args.name, args.org_name, args.city, args.focus, refresh=args.refresh or args.cache)
+    facts = enrich_donor(args.name, args.org_name, args.city, args.focus,
+                         refresh=args.refresh or args.cache, donor_type=args.donor_type)
     elapsed = time.perf_counter() - start
 
     if not facts:
-        print(NO_INFO)
+        print(skip_reason(args.org_name, args.donor_type) or NO_INFO)
     for i, f in enumerate(facts, 1):
         print(f"{i}. {f.fact}\n   {f.source_url}\n   retrieved {f.retrieved_at}")
     if args.cache:
