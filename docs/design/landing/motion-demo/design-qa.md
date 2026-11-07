@@ -4,7 +4,7 @@ final result: passed
 
 ## Scope and evidence
 
-Local demo at http://127.0.0.1:5174/. User requested colors that drift slowly on their own. The approved layout and upload component are the visual baseline; moving corner colors and the pause control are intentional additions. No remote push or deployment was performed.
+Local demo at http://127.0.0.1:5174/. User requested colors that drift slowly on their own. The approved layout and upload component are the visual baseline; moving corner colors and the pause control are intentional additions. No deployment was performed.
 
 - Reference: ../desktop.png, 1440 × 810 pixels, initial landing state.
 - Implementation: desktop.png, 1440 × 810 CSS/pixels at device pixel ratio 1. Small phone: mobile.png, 375 × 667 CSS/pixels at density 1.
@@ -32,3 +32,7 @@ First comparison passed without actionable P0/P1/P2 differences. The white cente
 ## Intensity refinement
 
 The user requested slightly stronger intensity. The local version now increases the backdrop saturation to 1.2 and contrast to 1.02, expands the drift range from roughly ±3% to ±4%, and shortens the loop from 24s to 20s. The existing center remains white. `intensity-v2.png` records the current 1206 × 743 CSS/pixel default browser view at density 1; document and viewport dimensions match with no scrolling. Browser-computed styles confirm the new filter, 20s loop and running state. The screenshot was visually inspected: typography, controls and framing remain clear. CSS formatting and diff checks passed. Earlier screenshots and motion observations above document the first version. No additional TypeScript or interaction changes were made in this CSS-only refinement.
+
+## Push verification
+
+Synced with current main, preserving the newer generic upload-button sizing and Vite report configuration. Production demo build including TypeScript passed again. Replaced an incorrectly scaled phone evidence image with a fresh, visually inspected 375 × 667 capture of the current running 20-second version; document dimensions match the viewport and the motion control remains below the process text. The earlier phone artifact was an evidence-capture issue, not a page-layout defect.
