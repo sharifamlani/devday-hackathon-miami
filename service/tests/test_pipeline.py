@@ -182,3 +182,14 @@ def test_missing_stage_is_named_and_rest_still_runs(env, monkeypatch):
     assert report["icp"]["status"] == "missing" and "42" in report["icp"]["detail"]
     assert report["context"]["status"] == "missing" and "build_context" in report["context"]["detail"]
     assert report["export"]["status"] == "ok" and out.exists()
+
+
+def test_icp_stage_saves_prospects_even_before_draft_prospect_lands(env, stubs):
+    del sys.modules["service.outreach_agent"].draft_prospect
+    report = {r["stage"]: r for r in pipeline.run_pipeline(AS_OF, out=env / "snapshot.json")}
+    assert report["icp"]["status"] == "ok"
+    assert "first-touch drafts skipped: needs outreach_agent.draft_prospect (86)" in report["icp"]["detail"]
+    conn = db.connect()
+    assert conn.execute("SELECT COUNT(*) FROM prospects WHERE status = 'new'").fetchone()[0] == 2
+    assert conn.execute("SELECT COUNT(*) FROM outreach_drafts WHERE prospect_id IS NOT NULL").fetchone()[0] == 0
+    conn.close()

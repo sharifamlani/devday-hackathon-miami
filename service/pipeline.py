@@ -50,7 +50,7 @@ MISSING_HINT = {
     "context": "build_context in service/context_agent.py or service/org_context.py (86, plan §15)",
     "enrich": "service/enrich_agent.py (PR #5, feat/enrich)",
     "outreach": "service/outreach_agent.py + service/org_context.py (PR #7, feat/outreach)",
-    "icp": "service/icp_agent.py (42, feat/icp) + outreach_agent.draft_prospect (86, feat/outreach)",
+    "icp": "service/icp_agent.py (42, feat/icp)",
 }
 
 
@@ -203,8 +203,7 @@ def stage_outreach(as_of: date, top_n: int, workers: int = 4) -> str:
 
 def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
     icp_agent, outreach_agent, org_context = load_stage("icp")
-    if not hasattr(outreach_agent, "draft_prospect"):
-        raise StageMissing(f"icp stage unavailable: needs {MISSING_HINT['icp']} (no draft_prospect yet)")
+    can_draft = hasattr(outreach_agent, "draft_prospect")      # 86's piece may land after 42's
     bound_model_calls()
 
     conn = db.connect()
@@ -219,7 +218,7 @@ def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
     ids = db.save_prospects(conn, found)
     prospects = [get_prospect(i, conn) for i in ids]
     conn.close()
-    targets = [p for p in prospects if p["status"] != "dismissed"]
+    targets = [p for p in prospects if p["status"] != "dismissed"] if can_draft else []
 
     org_facts = org_context.load_org_facts()
 
@@ -249,6 +248,8 @@ def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
             saved += 1
     conn.close()
     detail = f"profile with {len(profile.get('traits') or [])} traits; {len(ids)} prospects; {saved} first-touch drafts"
+    if not can_draft:
+        detail += "; first-touch drafts skipped: needs outreach_agent.draft_prospect (86)"
     if len(found) != len(ids):
         detail += f"; {len(found) - len(ids)} dropped as current donors"
     if failed:
