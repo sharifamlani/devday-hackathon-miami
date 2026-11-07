@@ -65,8 +65,8 @@ def test_find_prospects_excludes_donors_and_thin_or_dead_sources(tmp_path, monke
     # Every live page states "funds youth programs in miami-dade" except the dead one and one page that
     # loads but doesn't state its fact (the homepage problem)
     page = "about us: the foundation funds youth programs in miami-dade and broward every year."
-    monkeypatch.setattr(icp_agent, "page_text", lambda url: None if url.startswith("https://dea")
-                        else "mission only" if url == "https://pea/2" else page)
+    text_for = lambda url: None if url.startswith("https://dea") else "mission only" if url == "https://pea/2" else page
+    monkeypatch.setattr(icp_agent, "fetch_pages", lambda urls, budget: {u: text_for(u) for u in urls})
 
     out = icp_agent.find_prospects(ICP, {"Amazon Inc"}, refresh=True)
     assert [p["name"] for p in out] == ["Peacock Foundation"]
@@ -167,8 +167,39 @@ def test_reverify_keeps_only_facts_still_on_their_pages_and_merge_dedupes(monkey
         {"name": "Amazon", "city": "Miami", "priority": "Empower Youth & Families", "matched_traits": [],
          "facts": [{**fact, "url": "https://k/1"}, {**fact, "url": "https://k/2"}], "status": "new"},
     ]
-    monkeypatch.setattr(icp_agent, "page_text", lambda url: "the foundation funds youth programs in miami-dade.")
+    monkeypatch.setattr(icp_agent, "fetch_pages",
+                        lambda urls, budget: {u: "the foundation funds youth programs in miami-dade." for u in urls})
     kept = icp_agent.reverify(old, ICP, {"Amazon"})
     assert [p["name"] for p in kept] == ["Kept Fund"] and kept[0]["fit_score"] > 0
     new = [{**kept[0], "fit_score": 10}, {"name": "Fresh", "fit_score": 50}]
     assert [p["name"] for p in icp_agent.merge_prospects(new, kept)] == ["Fresh", "Kept Fund"]
+
+
+def test_browser_render_sees_only_visible_text_and_needs_200(tmp_path):
+    """Real Chromium against a local server: hidden table cells (Taft's case) and a 403 page don't count."""
+    import functools, http.server, threading
+    (tmp_path / "grants.html").write_text(
+        "<html><body><p>We fund youth programs across Miami-Dade County every year.</p>"
+        "<table style='display:none'><tr><td>Arc Broward</td><td>$450,000</td></tr></table></body></html>",
+        encoding="utf-8")
+
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/blocked":
+                self.send_error(403, "Access Denied")
+            else:
+                super().do_GET()
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Handler, directory=str(tmp_path)))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{server.server_port}"
+    try:
+        pages = icp_agent.fetch_pages([f"{base}/grants.html", f"{base}/blocked"], 60)
+    finally:
+        server.shutdown()
+    text = pages[f"{base}/grants.html"]
+    assert "youth programs across miami-dade" in text and "450,000" not in text and "arc broward" not in text
+    assert pages[f"{base}/blocked"] is None
+    assert not icp_agent.fact_on_page("Taft gave Arc Broward $450,000.", "Arc Broward $450,000 employment transition", text)

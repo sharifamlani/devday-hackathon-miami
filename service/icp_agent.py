@@ -20,7 +20,6 @@ import os
 import re
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
@@ -32,9 +31,6 @@ from openai.types.shared import Reasoning
 from pydantic import BaseModel, Field
 
 from service import db
-import urllib.error
-import urllib.request
-from html import unescape
 
 from service.enrich_agent import clean_fact, read_cache as read_research_cache
 
@@ -44,12 +40,12 @@ load_dotenv(REPO_ROOT / ".env")
 ICP_CACHE = REPO_ROOT / "data" / "icp_cache.json"
 MIN_FACTS = 2
 # Live runs (POST /icp/run) must fit the spec's 90 s cap; the --cache precompute runs before the demo
-# and gets a longer budget so slow searches still contribute
-SEARCH_TIMEOUT_S = 60
-PAGE_BUDGET_S = 20
+# and gets a longer budget so slow searches and page renders still contribute
+SEARCH_TIMEOUT_S = 50
+PAGE_BUDGET_S = 25
 CACHE_SEARCH_TIMEOUT_S = 240
-CACHE_PAGE_BUDGET_S = 45
-PAGE_READ_S = 10
+CACHE_PAGE_BUDGET_S = 120
+PAGE_LOAD_MS = 15000
 SEARCH_KINDS = ["companies with corporate giving programs (banks, utilities, retailers, large employers)",
                 "law, accounting and other professional-services firms with pro bono or community giving",
                 "private, family and corporate foundations"]
@@ -77,33 +73,53 @@ def normalize(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
 
-def page_text(url: str) -> str | None:
-    """The page's visible text, normalized, or None unless it answers a plain script request with HTTP 200.
+def fetch_pages(urls: list[str], budget_s: float) -> dict[str, str | None]:
+    """Each URL's text as a visitor sees it, or None. The source of truth is a real browser render.
 
-    Python's own User-Agent, no disguise: a site that turns scripts away is dropped rather than worked
-    around, so every kept URL also loads for curl and for QA's checks. Non-HTML (PDFs) can't be
-    quote-checked, so it counts as None too.
+    Headless Chromium with its default User-Agent (no spoofing). A page counts only if the browser gets
+    HTTP 200 and an HTML document; its text is body.innerText, which leaves out hidden elements, so a
+    fact buried in a collapsed table or filtered list doesn't count. Pages unfinished at the budget are None.
     """
-    if not url.startswith(("http://", "https://")):
-        return None
+    urls = [u for u in urls if u.startswith(("http://", "https://"))]
+    if not urls:
+        return {}
     try:
-        with urllib.request.urlopen(url, timeout=8) as response:
-            if response.status != 200 or "html" not in response.headers.get("Content-Type", ""):
-                return None
-            chunks, size, start = [], 0, time.monotonic()
-            while size < 3_000_000 and time.monotonic() - start < PAGE_READ_S:   # a slow trickle can't stall us
-                chunk = response.read(65536)
-                if not chunk:
-                    break
-                chunks.append(chunk)
-                size += len(chunk)
-            else:
-                return None
-            html = b"".join(chunks).decode(response.headers.get_content_charset() or "utf-8", "replace")
-    except (urllib.error.URLError, TimeoutError, ValueError):
-        return None
-    html = re.sub(r"(?is)<(script|style|noscript)\b.*?</\1>", " ", html)
-    return normalize_text(unescape(re.sub(r"<[^>]+>", " ", html)))
+        return asyncio.run(asyncio.wait_for(_render_all(urls), budget_s))
+    except asyncio.TimeoutError:
+        return dict(_partial)
+
+
+_partial: dict[str, str | None] = {}
+
+
+async def _render_all(urls: list[str]) -> dict[str, str | None]:
+    from playwright.async_api import async_playwright
+    _partial.clear()
+    gate = asyncio.Semaphore(6)
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        try:
+            async def one(url):
+                async with gate:
+                    page = await browser.new_page()
+                    try:
+                        response = await page.goto(url, wait_until="domcontentloaded", timeout=PAGE_LOAD_MS)
+                        ok = bool(response) and response.status == 200 and \
+                            "html" in (response.headers.get("content-type") or "")
+                        if ok:
+                            try:
+                                await page.wait_for_load_state("networkidle", timeout=4000)
+                            except Exception:
+                                pass    # busy pages: use what has rendered so far
+                        _partial[url] = normalize_text(await page.inner_text("body")) if ok else None
+                    except Exception:
+                        _partial[url] = None
+                    finally:
+                        await page.close()
+            await asyncio.gather(*(one(u) for u in urls))
+        finally:
+            await browser.close()
+    return dict(_partial)
 
 
 def normalize_text(text: str) -> str:
@@ -467,11 +483,7 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False,
         seen.add(key)
         candidates.append(p)
     urls = sorted({f.url for p in candidates for f in p.facts})
-    pool = ThreadPoolExecutor(max_workers=12)
-    futures = {pool.submit(page_text, u): u for u in urls}
-    done, _ = wait(futures, timeout=CACHE_PAGE_BUDGET_S if precompute else PAGE_BUDGET_S)        # pages still loading after the budget count as failed
-    pages = {futures[f]: f.result() for f in done}
-    pool.shutdown(wait=False, cancel_futures=True)
+    pages = fetch_pages(urls, CACHE_PAGE_BUDGET_S if precompute else PAGE_BUDGET_S)
     retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     prospects = []
@@ -523,11 +535,7 @@ def reverify(prospects: list[dict], icp: dict, exclude_names: set[str]) -> list[
     """
     excluded = {normalize(n) for n in exclude_names}
     urls = sorted({f["url"] for p in prospects for f in p["facts"] if f.get("quote")})
-    pool = ThreadPoolExecutor(max_workers=12)
-    futures = {pool.submit(page_text, u): u for u in urls}
-    done, _ = wait(futures, timeout=CACHE_PAGE_BUDGET_S)
-    pages = {futures[f]: f.result() for f in done}
-    pool.shutdown(wait=False, cancel_futures=True)
+    pages = fetch_pages(urls, CACHE_PAGE_BUDGET_S)
 
     kept = []
     for p in prospects:
