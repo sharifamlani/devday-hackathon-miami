@@ -15,6 +15,8 @@ POST /chat                   chat agent (tab-aware tools); drafts land as a batc
 POST /send/{batch_id}        a human approves a chat batch (orgs/star/big need per-item ids) and it goes out
                              through outbound.deliver: dry run unless EMAIL_SEND=on / SMS_PROVIDER is set
 POST /events/refresh, GET /events/{id}/drafts   events agent (86), 503 until it lands
+POST /context/refresh        "Refresh now": context + calendar refresh (86's service.refresh) on org_profile's URLs;
+                             the same pass runs daily at REFRESH_DAILY_AT (HH:MM) when set
      (campaign routes)       service/routes_campaigns.py: /campaigns, /outbox (the single send log)
 POST /agent/ping             one tiny Agents SDK call with structured output (proves key + SDK)
      (ingest routes)         service/ingest/router.py, mounted when Carlos's lane is present
@@ -25,9 +27,12 @@ import asyncio
 import importlib.util
 import json
 import logging
+import os
 import sqlite3
+import threading
+import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 import openai
@@ -537,6 +542,75 @@ async def send(req: SendRequest) -> dict:
 @app.post("/send/{batch_id}")
 async def send_path(batch_id: int, req: SendRequest) -> dict:
     return await run_in_threadpool(send_batch, batch_id, req)
+
+
+def org_urls(conn: sqlite3.Connection) -> dict | None:
+    """The saved org's URLs (onboarding screen 2), or None before onboarding."""
+    row = conn.execute("SELECT website, x_url, linkedin_url, instagram_url FROM org_profile "
+                       "ORDER BY id DESC LIMIT 1").fetchone()
+    return dict(row) if row and row["website"] else None
+
+
+def run_refresh() -> dict:
+    """One refresh pass on the saved org. 86's refresh never wipes good data on a failed source."""
+    from service.refresh import refresh
+
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        urls = org_urls(conn)
+        if urls is None:
+            return {"state": "failed", "detail": "no website saved yet: run onboarding first", "changes": None}
+        return {"state": "done", "detail": None, "changes": refresh(conn, urls)}
+    finally:
+        conn.close()
+
+
+@app.post("/context/refresh")
+async def context_refresh() -> dict:
+    """{state: done | failed, detail, changes}. A failure is 200 with the reason; saved data stays as it was."""
+    if not module_present("service.refresh"):
+        raise not_landed("service.refresh")
+    try:
+        return await asyncio.wait_for(run_in_threadpool(run_refresh), config.REFRESH_DEADLINE_S)
+    except asyncio.TimeoutError:
+        return {"state": "failed", "changes": None,
+                "detail": f"refresh took longer than {config.REFRESH_DEADLINE_S:.0f} s (it keeps running in the background)"}
+    except Exception as e:  # a site or model error: report it, keep the saved context and calendar
+        log.warning("context refresh failed: %s", e)
+        return {"state": "failed", "detail": f"{type(e).__name__}: {e}", "changes": None}
+
+
+def seconds_until(hh_mm: str, now: datetime | None = None) -> float:
+    """Seconds from now until the next local HH:MM."""
+    now = now or datetime.now()
+    hour, minute = (int(x) for x in hh_mm.split(":"))
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if target <= now:
+        target += timedelta(days=1)
+    return (target - now).total_seconds()
+
+
+def daily_refresh_loop(hh_mm: str) -> None:
+    while True:
+        time.sleep(seconds_until(hh_mm))
+        try:
+            result = run_refresh()
+            log.info("daily refresh: %s", result["state"])
+        except Exception:
+            log.exception("daily refresh failed; saved context and calendar unchanged")
+
+
+@app.on_event("startup")
+def start_daily_refresh() -> None:
+    """In-process scheduler: off unless REFRESH_DAILY_AT is set, and never under pytest.
+    For a laptop that isn't always serving, use Windows Task Scheduler instead (service/README.md)."""
+    if not config.REFRESH_DAILY_AT or "PYTEST_CURRENT_TEST" in os.environ or not module_present("service.refresh"):
+        return
+    seconds_until(config.REFRESH_DAILY_AT)                     # fail fast on a malformed HH:MM
+    threading.Thread(target=daily_refresh_loop, args=(config.REFRESH_DAILY_AT,), daemon=True,
+                     name="daily-refresh").start()
+    log.info("daily context refresh scheduled at %s", config.REFRESH_DAILY_AT)
 
 
 def events_agent():

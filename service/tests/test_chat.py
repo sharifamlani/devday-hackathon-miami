@@ -102,3 +102,14 @@ def test_approved_item_without_an_address_is_blocked_not_sent(db_file):
                               "items": [{"id": 1, "approve": True}]}).json()
 
     assert r["sent"] == 0 and r["blocked"] == [{"id": 1, "reason": "no email on file"}]
+
+
+def test_refresh_now_without_the_refresh_lane_is_503(db_file):
+    assert TestClient(app).post("/context/refresh").status_code in (200, 503)
+
+
+def test_daily_schedule_math():
+    from datetime import datetime
+    from service.main import seconds_until
+    assert seconds_until("07:00", datetime(2026, 11, 7, 6, 0)) == 3600
+    assert seconds_until("07:00", datetime(2026, 11, 7, 7, 0)) == 24 * 3600

@@ -65,6 +65,35 @@ If the read takes longer than `CONTEXT_DEADLINE_S` (30 s) or fails, it still ans
 screen can move on. A blocked site shows as `blocked`; it is never faked. Uploads need `python-multipart`
 (in `requirements.txt`).
 
+## Chat and sending (plan.md §17)
+
+`POST /chat {message, history, context: {screen, person_id?, event_id?}}` returns
+`{reply, steps: [{tool, args, summary, status}], pending_batch: {id, title, items} | null}`. The agent can look
+things up and **draft** batches; it has no tool that sends. A batch is a campaign (`routes_campaigns.py`).
+
+`POST /send {batch_id, approved_by, items: [{id, approve}] | null}` is the only way anything goes out. With
+`items: null` it sends only items that need no individual approval and have no flags; organizations, star and big
+donors go only when listed with `approve: true`. Delivery goes through `outbound.deliver`:
+
+| Setting (`.env`) | Effect |
+|---|---|
+| nothing set (default) | dry run: outbox rows say `queued (dry run)`, nothing leaves the laptop |
+| `SMS_PROVIDER=twilio` + `TWILIO_*` | texts go through Twilio (missing credentials → dry run) |
+| `EMAIL_SEND=on` + `GMAIL_TOKEN_PATH` | email goes through the Gmail API (token file with client_id, client_secret, refresh_token; never committed) |
+
+`GET /outbox` is the single send log.
+
+## Daily refresh
+
+`POST /context/refresh` ("Refresh now") runs one context + calendar pass (`service.refresh`) on the saved
+organization's URLs and returns the change summary; a failure answers 200 with `state: "failed"` and keeps the
+saved data. The same pass runs inside the service every day at `REFRESH_DAILY_AT` (e.g. `07:00`) when that is set.
+If the laptop isn't always serving, schedule it with Windows Task Scheduler instead (from the repo root path):
+
+```bat
+schtasks /Create /SC DAILY /ST 07:00 /TN "DonorDesk context refresh" /TR "cmd /c cd /d \"C:\path\to\repo\" && .venv\Scripts\python.exe -m service.refresh --daily"
+```
+
 ## Smoke
 
 ```bash
