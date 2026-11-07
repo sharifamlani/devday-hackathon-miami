@@ -11,6 +11,11 @@ POST /icp/run                ICP agent: ideal donor profile + matching org prosp
 POST /prospects/{id}/outreach  first-touch draft for a prospect organization, always status 'draft'
      (ICP read routes)       GET /icp, /prospects, /prospects/{id}, POST /prospects/{id}/dismiss: routes_data.py
 POST /context/run            onboarding screen 2: context agent reads the website (social URLs saved, not fetched)
+POST /chat                   chat agent (tab-aware tools); drafts land as a batch pending approval, never sent
+POST /send/{batch_id}        a human approves a chat batch (orgs/star/big need per-item ids) and it goes out
+                             through outbound.deliver: dry run unless EMAIL_SEND=on / SMS_PROVIDER is set
+POST /events/refresh, GET /events/{id}/drafts   events agent (86), 503 until it lands
+     (campaign routes)       service/routes_campaigns.py: /campaigns, /outbox (the single send log)
 POST /agent/ping             one tiny Agents SDK call with structured output (proves key + SDK)
      (ingest routes)         service/ingest/router.py, mounted when Carlos's lane is present
 """
@@ -30,7 +35,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 from service import db
 from service.routes_data import router as data_router
@@ -48,27 +55,31 @@ app.include_router(data_router)
 from service.routes_campaigns import router as campaigns_router  # noqa: E402  (#38: simulated outbox only)
 app.include_router(campaigns_router)
 
-def ingest_present() -> bool:
+def module_present(name: str) -> bool:
     try:
-        return importlib.util.find_spec("service.ingest.router") is not None
-    except ModuleNotFoundError:  # no service/ingest package yet
+        return importlib.util.find_spec(name) is not None
+    except ModuleNotFoundError:  # parent package not there yet
         return False
 
 
-# Carlos owns ingest; mount it only once his router exists
-if ingest_present():
-    from service.ingest.router import router as ingest_router
-    app.include_router(ingest_router)
-    INGEST_MOUNTED = True
-else:
-    INGEST_MOUNTED = False
-    log.warning("service/ingest/router.py not found; /ingest is not mounted")
+def mount_optional(module: str) -> bool:
+    """Mount module.router once that lane has landed; until then its routes simply don't exist."""
+    if not module_present(module):
+        log.warning("%s not found; its routes are not mounted", module)
+        return False
+    app.include_router(importlib.import_module(module).router)
+    return True
+
+
+# Ingest (Carlos's router, or the ingest adapter PR #51), gift alerts (PR #48)
+INGEST_MOUNTED = mount_optional("service.ingest.router") or mount_optional("service.ingest_router")
+ALERTS_MOUNTED = mount_optional("service.gift_alerts")
 
 
 @app.get("/health")
 def health() -> dict:
     return {"ok": True, "model": config.MODEL_DEFAULT, "openai_key": config.HAS_OPENAI_KEY,
-            "score_as_of": config.SCORE_AS_OF, "db": str(db.db_path()), "ingest": INGEST_MOUNTED}
+            "score_as_of": config.SCORE_AS_OF, "db": str(db.db_path()), "ingest": INGEST_MOUNTED, "alerts": ALERTS_MOUNTED}
 
 
 def load_donor_row(donor_id: int) -> dict:
@@ -418,6 +429,140 @@ async def context_run(req: ContextRun) -> dict:
             "saved": saved}
 
 
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=8000)
+
+
+class ChatScreen(BaseModel):
+    screen: Literal["giver", "neighbor", "community", "calendar", "home"] = "giver"
+    person_id: int | None = None
+    event_id: int | None = None
+
+
+class ChatRequest(BaseModel):
+    """The UI's body ({message, history, context}); tab/selection are accepted too."""
+    message: str = Field(min_length=1, max_length=2000)
+    history: list[ChatTurn] = Field(default_factory=list, max_length=50)
+    context: ChatScreen | None = None
+    tab: Literal["givers", "neighbors", "community", "calendar", "home"] | None = None
+    selection: list[int] = Field(default_factory=list, max_length=200)
+
+
+async def capped(what: str, seconds: float, fn, *args, **kwargs):
+    """A blocking agent call off the event loop with its own wall-clock cap (504 on timeout)."""
+    try:
+        return await asyncio.wait_for(run_in_threadpool(fn, *args, **kwargs), seconds)
+    except asyncio.TimeoutError:
+        raise AgentTimeout(what, f"{what} took longer than {seconds:.0f} s", {})
+    except openai.APITimeoutError:
+        raise AgentTimeout(what, timeout_reason(what), {})
+
+
+@app.post("/chat")
+async def chat(req: ChatRequest) -> dict:
+    """{reply, tab, steps: [{tool, args, summary, status}], pending_batch: {id, title, items} | null}.
+
+    The model can draft a batch; it cannot send. A human sends with POST /send.
+    """
+    from service.chat_agent import SCREEN_TAB, run_chat
+
+    if not config.HAS_OPENAI_KEY:
+        raise HTTPException(503, "OPENAI_API_KEY is not set in .env")
+    screen = req.context or ChatScreen()
+    tab = req.tab or SCREEN_TAB[screen.screen]
+    selection = req.selection or ([screen.person_id] if screen.person_id is not None else [])
+    return await capped("chat", config.CHAT_DEADLINE_S, run_chat, req.message, tab, selection,
+                        [t.model_dump() for t in req.history], screen.event_id)
+
+
+class SendChoice(BaseModel):
+    id: int
+    approve: bool
+
+
+class SendRequest(BaseModel):
+    """items null: send only items that need no individual approval and have no flags.
+    Listed items: approve true sends that one (orgs / star / big donors go only this way); false skips it."""
+    batch_id: int | None = None
+    approved_by: str = Field(min_length=1, max_length=120, description="The staff member approving the batch")
+    items: list[SendChoice] | None = None
+    approve_message_ids: list[int] = Field(default_factory=list, description="Same as items with approve: true")
+
+
+def send_batch(batch_id: int, req: SendRequest) -> dict:
+    from service import routes_campaigns as rc
+
+    who = req.approved_by.strip()
+    if not who:
+        raise HTTPException(422, "approved_by must name a person")
+    choices = list(req.items or []) + [SendChoice(id=i, approve=True) for i in req.approve_message_ids]
+    blocked, skipped = [], 0
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        rc.campaign_detail(conn, batch_id)                        # 404 for an unknown batch
+        if not choices:
+            rc.approve_small(batch_id, who, conn)                 # only items that need no individual approval
+        for c in choices:                                         # the user named each of these
+            try:
+                status = "approved" if c.approve else "skipped"
+                rc.patch_message(batch_id, c.id, rc.PatchMessage(status=status, approved_by=who), conn)
+                skipped += not c.approve
+            except HTTPException as e:                            # flagged, already sent, not in this batch
+                blocked.append({"id": c.id, "reason": e.detail})
+        result = rc.send_campaign(batch_id, conn)
+        outbox = rc.list_outbox(batch_id, None, conn)
+    finally:
+        conn.close()
+    for m in result["campaign"]["messages"]:
+        if m["status"] == "draft" and m["needs_individual_approval"]:
+            blocked.append({"id": m["id"], "reason": f"needs individual approval ({m['approval_reason']})"})
+        elif m["status"] == "draft" and m["flags"]:
+            blocked.append({"id": m["id"], "reason": "flagged: " + "; ".join(m["flags"])})
+    blocked += [{"id": f["message_id"], "reason": f["reason"]} for f in result["failed"] + result["no_address"]]
+    blocked = list({b["id"]: b for b in reversed(blocked)}.values())[::-1]     # one entry per item, first reason
+    return {"batch_id": batch_id, "approved_by": who, "sent": result["sent"], "skipped": skipped,
+            "blocked": blocked, "simulated": result["simulated"], "outbox": outbox}
+
+
+@app.post("/send")
+async def send(req: SendRequest) -> dict:
+    """The only way a chat batch is sent: a named human approves it here."""
+    if req.batch_id is None:
+        raise HTTPException(422, "batch_id is required")
+    return await run_in_threadpool(send_batch, req.batch_id, req)
+
+
+@app.post("/send/{batch_id}")
+async def send_path(batch_id: int, req: SendRequest) -> dict:
+    return await run_in_threadpool(send_batch, batch_id, req)
+
+
+def events_agent():
+    try:
+        from service import events_agent as ea
+    except ImportError:
+        raise not_landed("service.events_agent")
+    return ea
+
+
+@app.post("/events/refresh")
+async def events_refresh() -> dict:
+    ea = events_agent()
+    if not hasattr(ea, "refresh_events"):
+        raise not_landed("service.events_agent.refresh_events")
+    return await capped("events", config.CHAT_DEADLINE_S, ea.refresh_events)
+
+
+@app.get("/events/{event_id}/drafts")
+async def event_drafts(event_id: int) -> dict:
+    ea = events_agent()
+    if not hasattr(ea, "drafts_for_event"):
+        raise not_landed("service.events_agent.drafts_for_event")
+    return await capped("events", config.CHAT_DEADLINE_S, ea.drafts_for_event, event_id)
+
+
 class Ping(BaseModel):
     ok: bool
     echo: str
@@ -438,3 +583,24 @@ async def agent_ping(text: str = "hello") -> dict:
     except openai.APITimeoutError:
         raise AgentTimeout("ping", timeout_reason("ping"), {})
     return {"model": config.MODEL_FAST, **result.final_output.model_dump()}
+
+
+# ----------------------------------------------------------------------------------------------
+# Stubs for routes the UI already calls (plan.md §17): a clear 503 until the owning lane lands.
+# Registered last, so the real route (routes_data.router, gift alerts) wins as soon as it exists.
+# ----------------------------------------------------------------------------------------------
+
+STUBS = {"/people": "the people list", "/events": "the event calendar", "/community/stats": "community analysis",
+         "/context/status": "the context refresh status", "/alerts": "gift alerts"}
+
+
+def stub(feature: str):
+    def handler():
+        raise HTTPException(503, f"{feature} isn't available yet")
+    return handler
+
+
+for path, feature in STUBS.items():
+    if not any(getattr(r, "path", None) == path for r in app.routes):
+        app.add_api_route(path, stub(feature), methods=["GET"], include_in_schema=False)
+

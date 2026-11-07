@@ -23,6 +23,8 @@ OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "2"))
 AGENT_DEADLINE_S = float(os.getenv("AGENT_DEADLINE_S", "120"))
 # Onboarding screen 2 waits on this one; past it /context/run serves the cached context
 CONTEXT_DEADLINE_S = float(os.getenv("CONTEXT_DEADLINE_S", "30"))
+# The chat panel and event drafting (plan.md §17): 90 s, then 504
+CHAT_DEADLINE_S = float(os.getenv("CHAT_DEADLINE_S", "90"))
 if os.getenv("OPENAI_API_KEY"):
     set_default_openai_client(AsyncOpenAI(timeout=OPENAI_TIMEOUT_S, max_retries=OPENAI_MAX_RETRIES))
 
