@@ -7,6 +7,7 @@ import {
   parseEvent,
   parseEventDetail,
   parsePeople,
+  parseSendBatch,
   toTab,
 } from "./crmParse";
 import type {
@@ -24,9 +25,10 @@ import { loadSnapshot } from "./snapshotClient";
 
 /** Phase 5E keys, added to snapshot.json alongside the donor keys. */
 type CrmSnapshot = ApiSnapshot & {
-  // {giver: [...], neighbor: [...], community: [...]} or one list with contact_type
-  people?: Record<string, ApiPerson[]> | ApiPerson[];
-  events?: ApiEventDetail[]; // each with recipients + drafts
+  // PR #60: {counts, giver: [...], neighbor: [...], community: [...]}; or one list
+  people?: Record<string, ApiPerson[] | Record<string, number>> | ApiPerson[];
+  events?: ApiEventDetail[]; // GET /events (PR #60: without recipients/drafts)
+  event_details?: Record<string, ApiEventDetail>; // GET /events/{id}
   community_stats?: ApiCommunityStats | null;
   chat_demo?: ApiChatResponse | null; // a recorded run, if exported
   context_status?: ApiContextStatus | null;
@@ -41,8 +43,8 @@ const peopleOf = (snapshot: CrmSnapshot, tab: Tab): ApiPerson[] => {
   if (Array.isArray(people)) return people.filter((p) => toTab(p.contact_type) === tab);
   if (people) {
     return Object.entries(people)
-      .filter(([key]) => toTab(key) === tab)
-      .flatMap(([, list]) => list);
+      .filter(([key, list]) => toTab(key) === tab && Array.isArray(list))
+      .flatMap(([, list]) => list as ApiPerson[]);
   }
   if (tab !== "giver") return [];
   return snapshot.donors.map((d) => ({
@@ -60,10 +62,14 @@ const peopleOf = (snapshot: CrmSnapshot, tab: Tab): ApiPerson[] => {
   }));
 };
 
-const countsOf = (snapshot: CrmSnapshot) =>
-  Object.fromEntries(
+const countsOf = (snapshot: CrmSnapshot): Record<string, number> => {
+  const reported =
+    snapshot.people && !Array.isArray(snapshot.people) ? snapshot.people.counts : undefined;
+  if (reported && !Array.isArray(reported)) return reported as Record<string, number>;
+  return Object.fromEntries(
     (["giver", "neighbor", "community"] as Tab[]).map((t) => [t, peopleOf(snapshot, t).length]),
   );
+};
 
 /**
  * The canned chat run: a recorded chat_demo if the snapshot has one,
@@ -119,14 +125,37 @@ export const crmSnapshotMethods: CrmMethods = {
   setTab: async () => {
     throw new Error(READ_ONLY);
   },
-  getEvents: async () =>
-    (((await loadSnapshot()) as CrmSnapshot).events ?? [])
-      .map(parseEvent)
-      .sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+  // Kept in the exported order (upcoming soonest first, then past).
+  getEvents: async () => (((await loadSnapshot()) as CrmSnapshot).events ?? []).map(parseEvent),
   getEvent: async (id) => {
-    const event = (((await loadSnapshot()) as CrmSnapshot).events ?? []).find((e) => e.id === id);
+    const snapshot = (await loadSnapshot()) as CrmSnapshot;
+    const event =
+      snapshot.event_details?.[String(id)] ?? (snapshot.events ?? []).find((e) => e.id === id);
     if (!event) throw new Error(`Event ${id} is not in the snapshot`);
     return parseEventDetail(structuredClone(event));
+  },
+  // A demo batch from the event's pre-drafted invites; nothing is sent.
+  planEventOutreach: async (eventId) => {
+    const snapshot = (await loadSnapshot()) as CrmSnapshot;
+    const event = snapshot.event_details?.[String(eventId)];
+    const drafts = (event?.drafts ?? []).filter((d) => (d.status ?? "draft") !== "sent");
+    if (!drafts.length) throw new Error("This event has no drafts in the snapshot.");
+    demoBatch = parseSendBatch({
+      id: `demo-event-${eventId}`,
+      title: event?.title ?? "Event invites",
+      items: drafts.map((d) => ({ ...d, status: "draft" })),
+    });
+    return {
+      batch_id: demoBatch.id,
+      bulk_approvable: demoBatch.bulk_approvable,
+      needs_individual_approval: demoBatch.needs_individual_approval,
+      flagged: demoBatch.flagged,
+      total: demoBatch.items.length,
+    };
+  },
+  getSendBatch: async (batchId) => {
+    if (demoBatch?.id === batchId) return demoBatch;
+    throw new Error(`Batch ${batchId} is not in this demo session`);
   },
   getCommunityStats: async () => {
     const stats = ((await loadSnapshot()) as CrmSnapshot).community_stats;
