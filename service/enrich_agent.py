@@ -165,7 +165,8 @@ def save_facts(donor_id: int, facts: list[Fact], agent_run_id: str) -> int:
     """Write facts as research_facts rows (donor_id, fact, source_url, retrieved_at, agent_run_id).
 
     Writes to data/donors.db (via service.db) when that db exists; otherwise falls back to
-    data/research_facts.json. Returns rows written.
+    data/research_facts.json. Idempotent: a (donor_id, source_url, fact) already saved is skipped,
+    so repeated runs never duplicate a fact. Returns rows actually written.
     """
     try:
         from service import db
@@ -173,20 +174,31 @@ def save_facts(donor_id: int, facts: list[Fact], agent_run_id: str) -> int:
         db = None
     if db is not None and db.db_path().exists():
         conn = db.connect()
+        written = 0
         with conn:
-            conn.executemany(
-                "INSERT INTO research_facts (donor_id, fact, source_url, retrieved_at, agent_run_id) "
-                "VALUES (?, ?, ?, ?, ?)",
-                [(donor_id, f.fact, f.source_url, f.retrieved_at, agent_run_id) for f in facts],
-            )
+            for f in facts:
+                written += conn.execute(
+                    "INSERT INTO research_facts (donor_id, fact, source_url, retrieved_at, agent_run_id) "
+                    "SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM research_facts "
+                    "WHERE donor_id = ? AND source_url = ? AND fact = ?)",
+                    (donor_id, f.fact, f.source_url, f.retrieved_at, agent_run_id,
+                     donor_id, f.source_url, f.fact),
+                ).rowcount
         conn.close()
-        return len(facts)
+        return written
 
     rows = json.loads(FACTS_JSON.read_text(encoding="utf-8")) if FACTS_JSON.exists() else []
-    rows.extend({"donor_id": donor_id, **f.model_dump(), "agent_run_id": agent_run_id} for f in facts)
+    seen = {(r["donor_id"], r["source_url"], r["fact"]) for r in rows}
+    new_rows = []
+    for f in facts:
+        key = (donor_id, f.source_url, f.fact)
+        if key not in seen:
+            seen.add(key)
+            new_rows.append({"donor_id": donor_id, **f.model_dump(), "agent_run_id": agent_run_id})
+    rows.extend(new_rows)
     FACTS_JSON.parent.mkdir(parents=True, exist_ok=True)
     FACTS_JSON.write_text(json.dumps(rows, indent=2), encoding="utf-8")
-    return len(facts)
+    return len(new_rows)
 
 
 def main() -> int:
