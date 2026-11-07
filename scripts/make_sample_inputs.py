@@ -269,12 +269,12 @@ for ex in EXTRA_ROWS:
 # Hye-jin Park: monthly $40 on the 10th, Jun-Oct 2026; the Nov 10 charge was DECLINED (row exists, not a gift).
 # Rafael Quintero: monthly $50 on the 3rd, Mar-Nov 2026, but SKIPPED September; resumed in October (late, then resumed).
 _next_id = len(GIFTS)
-for _dk, _day, _amt, _months in (("park", 10, 40, range(6, 11)), ("quintero", 3, 50, [3, 4, 5, 6, 7, 8, 10, 11])):
+for _dk, _day, _amt, _months in (("park", 10, 40, range(6, 10)), ("quintero", 3, 50, [3, 4, 5, 6, 7, 8, 10, 11])):
     for _m in _months:
         _g = gift(_dk, dt(2026, _m, _day), _amt, "online", "Unrestricted", "online", fund_stated=False, note="monthly")
         _next_id += 1
         _g["id"] = f"G{_next_id:03d}"
-FAILED_GIFTS = [dict(donor="park", date=dt(2026, 11, 10), amount=40, name="Hye-jin Park", note="monthly - card declined", loc=None)]
+FAILED_GIFTS = [dict(donor="park", date=dt(2026, 10, 10), amount=40, name="Hye-jin Park", note="monthly - card declined", loc=None)]
 
 
 SRC = defaultdict(list)  # donor key -> source row dicts
@@ -926,15 +926,19 @@ def build_key():
         ],
         gift_alerts_expected=[
             dict(donor_id=D["park"]["id"], donor="Hye-jin Park", kind="failed",
-                 reason=f"Monthly $40 donor (10th of each month, 2026-06 .. 2026-10). The 2026-11-10 charge is in the Online sheet ({FAILED_GIFTS[0]['loc']}) marked 'card declined' and no later good gift exists. The declined $40 is NOT a gift and is not in any total."),
+                 reason=f"Monthly $40 donor (10th of each month): good gifts 2026-06 .. 2026-09. The 2026-10-10 charge is in the Online sheet ({FAILED_GIFTS[0]['loc']}) marked card declined, status declined, and no later good gift exists. The declined $40 is NOT a gift and is not in any total."),
             dict(donor_id=D["salinas"]["id"], donor="Teodoro Salinas", kind="late",
                  reason="Quarterly $300 donor (15th of Jan/Apr/Jul/Oct); last gift 2026-04-15, missed 2026-07-15 and 2026-10-15."),
+            dict(donor_id=D["brandt"]["id"], donor="Walter Brandt", kind="late",
+                 reason="Yearly donor (March: 2024-03-12, 2025-03-18); the 2026 gift was due about 2026-03-18 and has not arrived."),
+            dict(donor_id=D["veloria"]["id"], donor="Veloria Bay Foundation", kind="late",
+                 reason="Yearly grantor (April: last 2025-04-15); the 2026 grant was due about 2026-04-15 and has not arrived."),
             dict(donor_id=D["quintero"]["id"], donor="Rafael Quintero", kind="failed",
                  reason="Missed Sep 2026 monthly gift. Monthly $50 donor (3rd of each month, 2026-03 .. 2026-11) with no September gift; resumed in October."),
         ],
         failed_gifts_not_counted=[dict(donor_id=D[f["donor"]]["id"], donor=f["name"], amount=f["amount"], date=f["date"].isoformat(),
                                        source=dict(file=F_XLSX, location=f["loc"]), note=f["note"],
-                                       rule="A declined charge is not a gift: excluded from gifts, totals, gift_source_rows and lifetime giving.")
+                                       status="declined", rule="A declined charge is not a gift: excluded from gifts, totals, gift_source_rows and lifetime giving.")
                                   for f in FAILED_GIFTS],
         tab_counts=tab_counts, ambiguous_count=sum(1 for p in people if p["ambiguous"]),
         ambiguous_people=[p for p in people if p["ambiguous"]],
@@ -1006,8 +1010,11 @@ def verify_tabs(key, check, md, wb_sign):
         p["source_rows"] and p["source_rows"][-1]["file"] == F_MD for p in amb if p["person_id"] != "C06") and all(
         p["source_rows"] for p in amb))
     al = key["gift_alerts_expected"]
-    check("gift alerts: 1 failed + late (Salinas, Quintero)", sorted((a["donor"], a["kind"]) for a in al) ==
-          [("Hye-jin Park", "failed"), ("Rafael Quintero", "failed"), ("Teodoro Salinas", "late")])
+    check("gift alerts: 2 failed + 3 late", sorted((a["donor"], a["kind"]) for a in al) ==
+          [("Hye-jin Park", "failed"), ("Rafael Quintero", "failed"), ("Teodoro Salinas", "late"),
+           ("Veloria Bay Foundation", "late"), ("Walter Brandt", "late")])
+    check("declined charge is on/before as_of", all(f["date"] <= AS_OF.isoformat() for f in key["failed_gifts_not_counted"])
+          and all(f["status"] == "declined" for f in key["failed_gifts_not_counted"]))
     fg = key["failed_gifts_not_counted"][0]
     sheet = load_workbook(OUT / F_XLSX)["Online"]
     row = int(fg["source"]["location"].rsplit(" ", 1)[1])
