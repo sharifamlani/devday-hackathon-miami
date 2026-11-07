@@ -30,12 +30,29 @@ const notLanded = (error: unknown) =>
     (error.status === 404 &&
       (error.body as { detail?: unknown } | null)?.detail === "Not Found"));
 
+const detailOf = (error: ApiError) => {
+  const detail = (error.body as { detail?: unknown } | null)?.detail;
+  return typeof detail === "string" && detail !== "Not Found" ? detail : null;
+};
+
 const guard = async <T>(feature: string, call: () => Promise<T>): Promise<T> => {
   try {
     return await call();
   } catch (error) {
     if (notLanded(error)) {
-      throw new Error(`${feature} isn't available yet: that part of the service is not running.`);
+      // A 503 says why (a stub's "<feature> isn't available yet", or
+      // "OPENAI_API_KEY is not set in .env"); the bare 404 doesn't.
+      throw new Error(
+        detailOf(error as ApiError) ??
+          `${feature} isn't available yet: that part of the service is not running.`,
+      );
+    }
+    if (
+      error instanceof ApiError &&
+      error.status === 504 &&
+      (error.body as { error?: string } | null)?.error === "agent_timeout"
+    ) {
+      throw new Error(`${feature} took too long. Try again, or ask something narrower.`);
     }
     throw error;
   }
@@ -109,7 +126,12 @@ export const crmHttpMethods: CrmMethods = {
       parseSendResult(
         await request<ApiSendResult>("/send", {
           method: "POST",
-          body: { batch_id: batchId, approved_by: who, items: perItem ?? null },
+          // The service's batch ids are integers; keep non-numeric ids as sent.
+          body: {
+            batch_id: /^\d+$/.test(batchId) ? Number(batchId) : batchId,
+            approved_by: who,
+            items: perItem ?? null,
+          },
         }),
       ),
     );

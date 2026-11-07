@@ -124,6 +124,7 @@ export interface ApiCommunityStats {
 export interface ApiChatStep {
   tool?: string;
   name?: string;
+  args?: unknown; // the tool's arguments (PR #58); not shown
   label?: string | null;
   input?: unknown;
   summary?: string | null;
@@ -136,6 +137,14 @@ export interface ApiSendBatch {
   batch_id?: number | string;
   title?: string | null;
   channel?: string | null;
+  /** Server-computed (PR #58); preferred over counting items. */
+  counts?: {
+    total?: number;
+    draft?: number;
+    needs_individual_approval?: number;
+    flagged?: number;
+    bulk_approvable?: number;
+  } | null;
   items: ApiSendItem[];
 }
 

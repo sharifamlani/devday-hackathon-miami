@@ -130,6 +130,48 @@ describe("crmHttpMethods", () => {
     await expect(crmHttpMethods.getCommunityStats()).rejects.toThrow("Community stats isn't available yet");
   });
 
+  it("shows the service's own 503 reason, and explains a chat timeout", async () => {
+    vi.stubGlobal("fetch", respond(503, { detail: "OPENAI_API_KEY is not set in .env" }));
+    await expect(crmHttpMethods.chat([], "hi", { screen: "giver" })).rejects.toThrow(
+      "OPENAI_API_KEY is not set in .env",
+    );
+    vi.stubGlobal("fetch", respond(504, { error: "agent_timeout", detail: "chat took longer than 60 s" }));
+    await expect(crmHttpMethods.chat([], "hi", { screen: "giver" })).rejects.toThrow(
+      "The chat agent took too long",
+    );
+  });
+
+  it("parses PR #58's exact /chat response and prefers the server's counts", async () => {
+    vi.stubGlobal(
+      "fetch",
+      respond(200, {
+        reply: "I drafted 2 emails.",
+        tab: "giver",
+        steps: [{ tool: "find_people", args: { status: "lapsing" }, summary: "2 lapsing", status: "done" }],
+        pending_batch: {
+          id: 12,
+          title: "Re-engage lapsing givers",
+          channel: "email",
+          counts: { total: 2, draft: 2, needs_individual_approval: 1, flagged: 0, bulk_approvable: 1 },
+          items: [
+            { id: 31, person_id: 1, full_name: "Maria Delgado", contact_type: "giver", channel: "email",
+              to: "m***@example.com", subject: "s", body: "b",
+              facts_used: [{ fact: "f", url: "https://example.org/f", date: "2026-10-01" }],
+              needs_individual_approval: false, approval_reason: null, flags: [], status: "draft" },
+            { id: 32, person_id: 4, full_name: "Biscayne Harbor FF", contact_type: "giver", channel: "email",
+              to: "g***@example.org", subject: "s", body: "b", facts_used: [],
+              needs_individual_approval: true, approval_reason: "organization donor", flags: [], status: "draft" },
+          ],
+        },
+        batches: [],
+      }),
+    );
+    const msg = await crmHttpMethods.chat([], "re-engage lapsing givers", { screen: "giver" });
+    expect(msg.steps).toEqual([{ tool: "find_people", label: "Found people", summary: "2 lapsing", status: "done" }]);
+    expect(msg.batch).toMatchObject({ id: "12", bulk_approvable: 1, needs_individual_approval: 1, flagged: 0 });
+    expect(msg.batch?.items[0]).toMatchObject({ to: "m***@example.com", tab: "giver", facts_used: [{ fact: "f", source_url: "https://example.org/f" }] });
+  });
+
   it("keeps a real not-found message", async () => {
     vi.stubGlobal("fetch", respond(404, { detail: "event 9 not found" }));
     await expect(crmHttpMethods.getEvent(9)).rejects.toThrow("event 9 not found");
@@ -160,7 +202,7 @@ describe("crmHttpMethods", () => {
     ]);
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({
-      batch_id: "7",
+      batch_id: 7, // the service's ids are integers
       approved_by: "Philanthropy team (demo)",
       items: [{ id: 2, approve: true }],
     });

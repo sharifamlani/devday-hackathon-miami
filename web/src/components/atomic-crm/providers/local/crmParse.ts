@@ -230,13 +230,18 @@ const parseStep = (raw: ApiChatStep): ChatStep => {
 export const parseSendBatch = (raw: ApiSendBatch): SendBatch => {
   const items = raw.items.map(parseSendItem);
   const open = items.filter((i) => i.status === "draft");
+  const counts = raw.counts ?? {};
+  // The server's counts apply its own rules; count the items only as a fallback.
   return {
     id: String(raw.batch_id ?? raw.id),
     title: raw.title ?? null,
     items,
-    bulk_approvable: open.filter((i) => !i.needs_individual_approval && !i.flags.length).length,
-    needs_individual_approval: open.filter((i) => i.needs_individual_approval).length,
-    flagged: open.filter((i) => i.flags.length).length,
+    bulk_approvable:
+      counts.bulk_approvable ??
+      open.filter((i) => !i.needs_individual_approval && !i.flags.length).length,
+    needs_individual_approval:
+      counts.needs_individual_approval ?? open.filter((i) => i.needs_individual_approval).length,
+    flagged: counts.flagged ?? open.filter((i) => i.flags.length).length,
   };
 };
 
