@@ -12,13 +12,16 @@ POST /agent/ping             one tiny Agents SDK call with structured output (pr
 """
 from service import config  # noqa: F401  (loads .env and pins SCORE_AS_OF before the lanes import)
 
+import asyncio
 import importlib.util
 import logging
 import uuid
 
+import openai
 from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from service import db
@@ -69,13 +72,52 @@ def load_donor_row(donor_id: int) -> dict:
     return dict(row)
 
 
+class AgentTimeout(Exception):
+    def __init__(self, what: str, donor_id: int | None, reason: str):
+        self.what, self.donor_id, self.reason = what, donor_id, reason
+
+
+@app.exception_handler(AgentTimeout)
+def agent_timeout_response(request, exc: AgentTimeout) -> JSONResponse:
+    log.warning("504 %s donor=%s: %s", exc.what, exc.donor_id, exc.reason)
+    """504 with the newest saved draft (if any) so the UI can say 'took too long, showing cached draft'."""
+    cached = None
+    if exc.donor_id is not None and exc.what == "outreach":
+        conn = db.connect()
+        try:
+            row = conn.execute("SELECT * FROM outreach_drafts WHERE donor_id = ? ORDER BY id DESC LIMIT 1",
+                               (exc.donor_id,)).fetchone()
+        finally:
+            conn.close()
+        cached = dict(row) if row else None
+    return JSONResponse(status_code=504, content={
+        "error": "agent_timeout", "what": exc.what, "donor_id": exc.donor_id,
+        "detail": exc.reason,
+        "cached_draft": cached})
+
+
+def timeout_reason(what: str) -> str:
+    return (f"{what}: the model did not answer within {config.OPENAI_TIMEOUT_S:g} s "
+            f"(after {config.OPENAI_MAX_RETRIES} retries)")
+
+
+async def run_agent(what: str, donor_id: int | None, fn, *args, **kwargs):
+    """Run a blocking agent call off the event loop, capped at AGENT_DEADLINE_S."""
+    try:
+        return await asyncio.wait_for(run_in_threadpool(fn, *args, **kwargs), config.AGENT_DEADLINE_S)
+    except asyncio.TimeoutError:
+        raise AgentTimeout(what, donor_id, f"{what} took longer than {config.AGENT_DEADLINE_S:.0f} s")
+    except openai.APITimeoutError:
+        raise AgentTimeout(what, donor_id, timeout_reason(what))
+
+
 @app.post("/enrich/{donor_id}")
 async def enrich(donor_id: int, refresh: bool = False) -> dict:
     from service.enrich_agent import enrich_donor, save_facts
 
     donor = load_donor_row(donor_id)
-    facts = await run_in_threadpool(enrich_donor, donor["full_name"], donor.get("org_name"), donor.get("city"),
-                                    refresh=refresh, donor_type=donor.get("donor_type"))
+    facts = await run_agent("enrich", donor_id, enrich_donor, donor["full_name"], donor.get("org_name"),
+                            donor.get("city"), refresh=refresh, donor_type=donor.get("donor_type"))
     run_id = f"enrich-{uuid.uuid4().hex[:12]}"
     saved = await run_in_threadpool(save_facts, donor_id, facts, run_id)
     return {"donor_id": donor_id, "full_name": donor["full_name"], "agent_run_id": run_id, "saved": saved,
@@ -88,7 +130,7 @@ async def outreach(donor_id: int) -> dict:
 
     load_donor_row(donor_id)
     try:
-        draft, where_saved = await run_in_threadpool(draft_for_donor, donor_id)
+        draft, where_saved = await run_agent("outreach", donor_id, draft_for_donor, donor_id)
     except KeyError as e:
         raise HTTPException(404, str(e))
     # save_draft reports "donors.db:outreach_drafts#<id>" when it wrote to the db
@@ -109,5 +151,10 @@ async def agent_ping(text: str = "hello") -> dict:
         raise HTTPException(503, "OPENAI_API_KEY is not set in .env")
     agent = Agent(name="Ping", instructions="Set ok to true and echo the user's text back exactly.",
                   model=config.MODEL_FAST, output_type=Ping)
-    result = await Runner.run(agent, text)
+    try:
+        result = await asyncio.wait_for(Runner.run(agent, text), config.AGENT_DEADLINE_S)
+    except asyncio.TimeoutError:
+        raise AgentTimeout("ping", None, f"ping took longer than {config.AGENT_DEADLINE_S:.0f} s")
+    except openai.APITimeoutError:
+        raise AgentTimeout("ping", None, timeout_reason("ping"))
     return {"model": config.MODEL_FAST, **result.final_output.model_dump()}
