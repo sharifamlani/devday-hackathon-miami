@@ -457,6 +457,13 @@ def build_context(urls: dict, refresh: bool = False, progress=None, write_cache:
     for k, u in socials.items():
         progress(k, "saved, not connected" if u else "not provided")
 
+    if not resolves(host):                            # no such site: say so, don't search
+        err = f"error: DNS: {host} not found"
+        for source in ("website", "news"):
+            progress(source, err)
+        return context_result(urls, website, socials, None, [], [],
+                              {s: err for s in ("website", "news")}, {}, started, "")
+
     known = list(PRIORITIES) if host == "miamifoundation.org" else []   # the Foundation's five tags
     results, _ = asyncio.run(run_context_searches(host, today, known, progress))
 
@@ -465,44 +472,74 @@ def build_context(urls: dict, refresh: bool = False, progress=None, write_cache:
     priorities = known or (prof.priorities if prof else [])
     captured_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    facts, sources, notes, dropped = [], {}, {}, {}
+    facts, sources, dropped = [], {}, {}
     for source in ("website", "news"):
         r, err = results[source]
         if err:
-            sources[source], notes[source] = "error", err
-            progress(source, err)
-            continue
-        cited = search_sources(r)
-        kept, why_dropped = [], []
-        for f in r.final_output.facts:
-            url = norm_url(f.url)
-            if site_host(url) != host:
-                why_dropped.append(f"off-site url {url}")
-            elif url not in cited:
-                why_dropped.append(f"url not returned by search {url}")
-            elif not re.fullmatch(r"\d{4}-\d{2}-\d{2}", f.posted_at or ""):
-                why_dropped.append(f"undated {url}")
-            elif "press forward" in f.fact.lower() and re.search(r"760,000|\$760K|nearly \$1", f.fact, re.I):
-                why_dropped.append("Press Forward total (sources disagree)")
-            else:
-                kept.append({"source": source, "url": url, "posted_at": f.posted_at, "fact": strip_links(f.fact),
-                             "quote": strip_links(f.quote), "priority": match_priority(f.priority, priorities),
-                             "captured_at": captured_at, "verification": "search-cited"})
-        facts += kept
-        dropped[source] = why_dropped
-        sources[source], notes[source] = "ok", f"done {len(kept)} facts"
-        progress(source, notes[source])
+            sources[source] = err
+        else:
+            kept, dropped[source], sources[source] = validate_source(
+                source, r.final_output.facts, search_sources(r), host, priorities, captured_at)
+            facts += kept
+        progress(source, sources[source] if sources[source].startswith("error") else f"done {sum(f['source'] == source for f in facts)} facts")
 
+    out = context_result(urls, website, socials, prof, priorities, facts, sources, dropped, started, captured_at)
+    if facts:                                         # store only a good run
+        save_run(host, out, write_cache)
+    return out
+
+
+def resolves(host: str) -> bool:
+    import socket
+    try:
+        socket.getaddrinfo(host, 443)
+        return True
+    except OSError:
+        return False
+
+
+def validate_source(source: str, found: list, cited: set[str], host: str, priorities: list[str],
+                    captured_at: str) -> tuple[list[dict], list[str], str]:
+    """Keep a fact only if its URL is on the org's site, among the URLs the search returned, and
+    dated. Status is 'ok' only when something survives; otherwise an 'error: ...' that says why."""
+    kept, why_dropped = [], []
+    for f in found:
+        url = norm_url(f.url)
+        if site_host(url) != host:
+            why_dropped.append(f"off-site url {url}")
+        elif url not in cited:
+            why_dropped.append(f"url not returned by search {url}")
+        elif not re.fullmatch(r"\d{4}-\d{2}-\d{2}", f.posted_at or ""):
+            why_dropped.append(f"undated {url}")
+        elif "press forward" in f.fact.lower() and re.search(r"760,000|\$760K|nearly \$1", f.fact, re.I):
+            why_dropped.append("Press Forward total (sources disagree)")
+        else:
+            kept.append({"source": source, "url": url, "posted_at": f.posted_at, "fact": strip_links(f.fact),
+                         "quote": strip_links(f.quote), "priority": match_priority(f.priority, priorities),
+                         "captured_at": captured_at, "verification": "search-cited"})
+    if kept:
+        status = "ok"
+    elif not any(site_host(u) == host for u in cited):
+        status = f"error: search found no pages on {host}"
+    else:
+        status = f"error: no usable facts ({len(why_dropped)} dropped)"
+    return kept, why_dropped, status
+
+
+def context_result(urls, website, socials, prof, priorities, facts, sources, dropped, started, captured_at) -> dict:
+    import time
+    host = site_host(website)
+    notes = {s: (f"done {sum(f['source'] == s for f in facts)} facts" if st == "ok" else st)
+             for s, st in sources.items()}
     for k, u in socials.items():
         sources[k] = "skipped"
         notes[k] = "saved, not connected" if u else "not provided"
-
     facts.sort(key=lambda f: f["posted_at"], reverse=True)
     voice_urls = [norm_url(u) for u in (prof.voice_urls if prof else []) if site_host(u) == host]
-    out = {
+    return {
         "profile": {"name": urls.get("name") or (prof.name if prof else host), "website": website,
                     "x_url": socials["x"], "linkedin_url": socials["linkedin"], "instagram_url": socials["instagram"],
-                    "priorities": [p for p in priorities if any(f["priority"] == p for f in facts)] or priorities,
+                    "priorities": [p for p in priorities if any(f["priority"] == p for f in facts)] or list(priorities),
                     "voice": {"phrases": [strip_links(v) for v in (prof.voice if prof else [])][:5], "urls": voice_urls}},
         "facts": facts,
         "sources": sources,
@@ -511,9 +548,6 @@ def build_context(urls: dict, refresh: bool = False, progress=None, write_cache:
         "run_seconds": round(time.monotonic() - started, 1),
         "captured_at": captured_at,
     }
-    if facts:                                         # store only a good run
-        save_run(host, out, write_cache)
-    return out
 
 
 def context_as_org_facts() -> list[dict]:

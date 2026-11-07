@@ -130,3 +130,27 @@ def test_live_runs_never_rewrite_the_committed_cache(tmp_path, monkeypatch):
 
     org_context.save_run("miamifoundation.org", run, write_cache=True)    # the pipeline's --write-cache
     assert '"new"' in committed.read_text(encoding="utf-8")
+
+
+def test_unreachable_site_is_an_error_not_done(tmp_path, monkeypatch):
+    import org_context
+    monkeypatch.setattr(org_context, "CONTEXT_LIVE", tmp_path / "live.json")
+    seen = []
+    res = org_context.build_context({"website": "https://no-such-org-qa.invalid"}, refresh=True,
+                                    progress=lambda s, st: seen.append((s, st)))
+    assert res["facts"] == []
+    assert res["sources"]["website"].startswith("error") and res["sources"]["news"].startswith("error")
+    assert res["source_notes"]["website"].startswith("error")
+    assert ("website", res["sources"]["website"]) in seen
+    assert not (tmp_path / "live.json").exists()                          # a failed run is never cached
+
+
+def test_zero_surviving_facts_is_an_error():
+    from types import SimpleNamespace as F
+    from org_context import validate_source
+    found = [F(url="https://miamifoundation.org/x/", posted_at="", fact="undated", quote="q", priority="Civic")]
+    kept, dropped, status = validate_source("website", found, {"https://miamifoundation.org/x/"},
+                                            "miamifoundation.org", ["Civic"], "now")
+    assert kept == [] and status == "error: no usable facts (1 dropped)"
+    kept, dropped, status = validate_source("website", [], set(), "miamifoundation.org", ["Civic"], "now")
+    assert status == "error: search found no pages on miamifoundation.org"
