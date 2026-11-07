@@ -3,6 +3,7 @@ import type {
   ApiChatResponse,
   ApiChatStep,
   ApiCommunityStats,
+  ApiContextStatus,
   ApiEvent,
   ApiEventDetail,
   ApiEventRecipient,
@@ -15,6 +16,7 @@ import type {
   ChatMessage,
   ChatStep,
   CommunityStats,
+  ContextStatus,
   CrmEvent,
   CrmEventDetail,
   EventRecipient,
@@ -257,3 +259,51 @@ export const parseSendResult = (raw: ApiSendResult): SendResult => ({
     : Array.from({ length: raw.blocked ?? 0 }, (_, i) => ({ id: -1 - i, reason: "blocked" })),
   simulated: raw.simulated ?? true,
 });
+
+const plural = (n: number, word: string) => `${n} new ${word}${n === 1 ? "" : "s"}`;
+
+/** "today 7:00 AM", "yesterday 6:30 PM", "Nov 5 7:00 AM", in the viewer's timezone. */
+export const relativeDay = (iso: string, now: Date = new Date()): string => {
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return iso;
+  const time = when.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const dayKey = (d: Date) => d.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (dayKey(when) === dayKey(now)) return `today ${time}`;
+  if (dayKey(when) === dayKey(yesterday)) return `yesterday ${time}`;
+  return `${when.toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${time}`;
+};
+
+export const parseContextStatus = (raw: ApiContextStatus, now: Date = new Date()): ContextStatus => {
+  const last = raw.last_refreshed_at ?? raw.refreshed_at ?? null;
+  const change = raw.last_change ?? {};
+  const newEvents = change.new_events ?? raw.new_events ?? null;
+  const newFacts = change.new_facts ?? raw.new_facts ?? null;
+  const counts = [
+    newEvents ? plural(newEvents, "event") : null,
+    newFacts ? plural(newFacts, "fact") : null,
+  ].filter(Boolean) as string[];
+  const summary =
+    change.summary ??
+    raw.summary ??
+    (counts.length
+      ? counts.join(", ")
+      : newEvents === 0 || newFacts === 0
+        ? "no changes"
+        : null);
+  const refreshing = !!raw.refreshing;
+  const label = refreshing
+    ? "Updating context…"
+    : last
+      ? [`Context updated ${relativeDay(last, now)}`, summary].filter(Boolean).join(" · ")
+      : "Context not updated yet";
+  return {
+    last_refreshed_at: last,
+    new_events: newEvents,
+    new_facts: newFacts,
+    change_summary: summary,
+    refreshing,
+    label,
+  };
+};

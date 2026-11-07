@@ -286,6 +286,31 @@ export interface SendResult {
 /** Per-item decisions; items needing individual approval must be listed. */
 export type PerItemApproval = { id: number; approve: boolean }[];
 
+/** GET /context/status (proposed). */
+export interface ApiContextStatus {
+  last_refreshed_at?: string | null; // ISO datetime of the last refresh
+  refreshed_at?: string | null;
+  last_change?: {
+    summary?: string | null; // "2 new events"
+    new_events?: number | null;
+    new_facts?: number | null;
+  } | null;
+  summary?: string | null;
+  new_events?: number | null;
+  new_facts?: number | null;
+  refreshing?: boolean | null; // a refresh is running now
+}
+
+export interface ContextStatus {
+  last_refreshed_at: string | null;
+  new_events: number | null;
+  new_facts: number | null;
+  change_summary: string | null; // "2 new events", "no changes"
+  refreshing: boolean;
+  /** Ready to show: "Context updated today 7:00 AM · 2 new events". */
+  label: string;
+}
+
 export interface CrmMethods {
   getPeople(tab: Tab): Promise<PeoplePage>;
   setTab(personId: number, tab: Tab): Promise<void>;
@@ -298,4 +323,7 @@ export interface CrmMethods {
     approvedBy: string,
     perItem?: PerItemApproval,
   ): Promise<SendResult>;
+  getContextStatus(): Promise<ContextStatus>;
+  /** POST /context/refresh: re-read the Foundation's sources now. */
+  refreshContext(): Promise<ContextStatus>;
 }

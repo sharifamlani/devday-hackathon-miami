@@ -16,6 +16,7 @@ const crmKeys = {
   events: [...donorDeskKeys.all, "events"] as const,
   event: (id: number) => [...donorDeskKeys.all, "event", id] as const,
   communityStats: [...donorDeskKeys.all, "community-stats"] as const,
+  contextStatus: [...donorDeskKeys.all, "context-status"] as const,
 };
 
 const useInvalidateAll = () => {
@@ -145,5 +146,28 @@ export const useApproveSendBatch = () => {
       perItem?: PerItemApproval;
     }) => dataProvider.approveSendBatch(batchId, approvedBy, perItem),
     onSuccess: invalidateAll,
+  });
+};
+
+/** "Context updated today 7:00 AM · 2 new events": show data.label. */
+export const useContextStatus = () => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: crmKeys.contextStatus,
+    queryFn: () => dataProvider.getContextStatus(),
+  });
+};
+
+/**
+ * Re-read the Foundation's sources now. Can take as long as a live context
+ * run (~16 s); use isPending for the busy state. Afterwards the context,
+ * events and status all refetch.
+ */
+export const useRefreshContext = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: () => dataProvider.refreshContext(),
+    onSettled: invalidateAll,
   });
 };

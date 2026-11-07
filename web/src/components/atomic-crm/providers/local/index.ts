@@ -29,7 +29,7 @@ export const dataProvider: DonorDeskDataProvider = {
 
 export const useDonorDesk = () => useDataProvider<DonorDeskDataProvider>();
 
-export { DATA_MODE } from "./config";
+export { DATA_MODE, SOCIAL_POSTING } from "./config";
 export type * from "./types";
 export type * from "./crmTypes";
 export { TABS, TAB_LABELS } from "./crmTypes";

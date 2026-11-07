@@ -251,6 +251,8 @@ approve.mutate({ batchId: chat.pendingBatch!.id, approvedBy: "Philanthropy team 
 | `useCommunityStats()` | `CommunityStats` | `breakdowns: [{ dimension, buckets: [{ label, count }] }]`, `trends`, `total` |
 | `useChat(context)` | `{ messages, send, isPending, error, pendingBatch, resolveBatch, reset }` | Conversation lives in component state |
 | `useApproveSendBatch()` | mutation `{ batchId, approvedBy, perItem? }` → `SendResult` | `{ sent, skipped, blocked: [{ id, reason }], simulated }` |
+| `useContextStatus()` | `ContextStatus` | Show `data.label`: "Context updated today 7:00 AM · 2 new events" (also "Updating context…", "Context not updated yet") |
+| `useRefreshContext()` | mutation → `ContextStatus` | "Refresh now". Can take ~16 s like a live context run; use `isPending`. Context, events and status refetch after |
 
 **Types (`crmTypes.ts`):**
 - `Person`: `id`, `name`, `org_name`, `tab`, `email`/`phone` (masked by the API), `city`, `tags`, `demographics: [{ label, value }]`, Givers' `score`/`tier`/`is_star`/`status`, `last_touch`, `next_step`, `needs_review` + `review_reason` (an unclear sort or a cross-file duplicate: show it for one-click review).
@@ -271,7 +273,18 @@ approve.mutate({ batchId: chat.pendingBatch!.id, approvedBy: "Philanthropy team 
 3. **Missing demographics read "not recorded".** Use `NOT_RECORDED`; never leave a blank, guess, or infer.
    Stats already merge null, empty and "unknown" into one "not recorded" bucket, kept last.
 
-**Snapshot mode:** reads `people` (by tab), `events` and `community_stats`. Until `people` exists, Givers
+**Social posting is "Coming soon":** `SOCIAL_POSTING` (from `config.ts`, re-exported by the package) is
+`"coming_soon"`. Render "Post to Instagram / LinkedIn / X" as a **disabled** action labeled "Coming soon".
+Nothing in the data layer posts to any social network, and no hook exists for it yet.
+
+```tsx
+import { SOCIAL_POSTING } from "@/components/atomic-crm/providers/local";
+<Button disabled={SOCIAL_POSTING === "coming_soon"}>Post to Instagram · Coming soon</Button>
+```
+
+**Snapshot mode:** reads `people` (by tab), `events` and `community_stats`; the context status is the
+snapshot's own `context_status` key or its export time labeled "Cached sample" (never a live refresh), and
+"Refresh now" is refused (read-only). Until `people` exists, Givers
 falls back to the snapshot's donors and the other tabs are empty; a missing `events` key means an empty
 calendar, never invented events. Chat returns a **canned run labeled "Demo run (cached sample)"** built
 from the snapshot's real drafts (or a recorded `chat_demo` key). Approving it applies the same rules in
@@ -308,7 +321,8 @@ without these keys give `null` / `[]`.
 
 ## 9. Open items
 
-- Phase 5E routes (`/people`, `/events`, `/community/stats`, `/chat`, `/send`) aren't built yet; this
+- Phase 5E routes (`/people`, `/events`, `/community/stats`, `/chat`, `/send`, `/context/status`,
+  `/context/refresh`) aren't built yet; this
   layer follows a proposed contract (sent to 8b and 90) and adjusts when they land.
 
 - ICP + prospects: walked on 8b's populated snapshot (5 traits, 7 prospects). Prospect first-touch

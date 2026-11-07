@@ -1,8 +1,10 @@
 import type { ApiSnapshot } from "./apiTypes";
 import { crmHttpMethods } from "./crmHttp";
+import { SOCIAL_POSTING } from "./config";
 import {
   NOT_RECORDED,
   parseChatResponse,
+  parseContextStatus,
   parseCommunityStats,
   parseEventDetail,
   parsePeople,
@@ -179,7 +181,7 @@ describe("crmHttpMethods", () => {
 
 describe("crmSnapshotMethods", () => {
   const snapshot: ApiSnapshot = {
-    meta: { as_of: "2026-11-08", generated_at: "x", label: "Cached sample", donor_count: 2, source: "test" },
+    meta: { as_of: "2026-11-08", generated_at: "2026-11-07T12:00:00Z", label: "Cached sample", donor_count: 2, source: "test" },
     donors: [
       { id: 1, full_name: "Maria Delgado", first_name: null, last_name: null, org_name: null, donor_type: "individual",
         email: null, emails_all: [], phone: null, city: "Miami", state: "FL", fund_type: null, notes: null,
@@ -244,5 +246,67 @@ describe("crmSnapshotMethods", () => {
 
   it("refuses tab moves in a read-only snapshot", async () => {
     await expect(crmSnapshotMethods.setTab(1, "neighbor")).rejects.toThrow("read-only snapshot");
+  });
+
+  it("reports the snapshot's export time as its context status, and refuses refresh", async () => {
+    const status = await crmSnapshotMethods.getContextStatus();
+    expect(status.change_summary).toBe("Cached sample");
+    await expect(crmSnapshotMethods.refreshContext()).rejects.toThrow("read-only snapshot");
+  });
+});
+
+describe("context status (plan.md §17 amendment)", () => {
+  // Local-time dates, so the label doesn't depend on the machine's timezone.
+  const now = new Date(2026, 10, 7, 15, 0);
+  const at = (day: number, hour: number, minute = 0) => new Date(2026, 10, day, hour, minute).toISOString();
+
+  it("builds the label from the time and the change counts", () => {
+    expect(parseContextStatus({ last_refreshed_at: at(7, 7), last_change: { new_events: 2 } }, now).label).toBe(
+      "Context updated today 7:00 AM · 2 new events",
+    );
+    expect(parseContextStatus({ refreshed_at: at(6, 18, 30), new_events: 1, new_facts: 3 }, now).label).toBe(
+      "Context updated yesterday 6:30 PM · 1 new event, 3 new facts",
+    );
+    expect(parseContextStatus({ last_refreshed_at: at(5, 7), new_events: 0 }, now).label).toBe(
+      "Context updated Nov 5 7:00 AM · no changes",
+    );
+  });
+
+  it("prefers the API's own summary, and covers never-run and running states", () => {
+    expect(
+      parseContextStatus({ last_refreshed_at: at(7, 7), last_change: { summary: "2 new events", new_events: 9 } }, now)
+        .label,
+    ).toBe("Context updated today 7:00 AM · 2 new events");
+    expect(parseContextStatus({}, now).label).toBe("Context not updated yet");
+    expect(parseContextStatus({ last_refreshed_at: at(7, 7), refreshing: true }, now).label).toBe(
+      "Updating context…",
+    );
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("refresh reads the status afterwards when the POST doesn't return it", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ last_refreshed_at: at(7, 7), last_change: { new_events: 2 } })),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const status = await crmHttpMethods.refreshContext();
+    expect(fetchMock.mock.calls.map((c) => [String(c[0]).replace(/^.*:\d+/, ""), c[1]?.method ?? "GET"])).toEqual([
+      ["/context/refresh", "POST"],
+      ["/context/status", "GET"],
+    ]);
+    expect(status.new_events).toBe(2);
+  });
+
+  it("explains a status route that hasn't landed", async () => {
+    vi.stubGlobal("fetch", respond(404, { detail: "Not Found" }));
+    await expect(crmHttpMethods.getContextStatus()).rejects.toThrow("Context status isn't available yet");
+  });
+
+  it("keeps social posting behind a coming-soon flag", () => {
+    expect(SOCIAL_POSTING).toBe("coming_soon");
   });
 });

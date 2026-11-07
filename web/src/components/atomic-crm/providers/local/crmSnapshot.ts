@@ -2,6 +2,7 @@ import type { ApiSnapshot } from "./apiTypes";
 import { requireApprover } from "./crmHttp";
 import {
   parseChatResponse,
+  parseContextStatus,
   parseCommunityStats,
   parseEvent,
   parseEventDetail,
@@ -11,6 +12,7 @@ import {
 import type {
   ApiChatResponse,
   ApiCommunityStats,
+  ApiContextStatus,
   ApiEventDetail,
   ApiPerson,
   ApiSendItem,
@@ -27,6 +29,7 @@ type CrmSnapshot = ApiSnapshot & {
   events?: ApiEventDetail[]; // each with recipients + drafts
   community_stats?: ApiCommunityStats | null;
   chat_demo?: ApiChatResponse | null; // a recorded run, if exported
+  context_status?: ApiContextStatus | null;
 };
 
 const READ_ONLY =
@@ -133,6 +136,19 @@ export const crmSnapshotMethods: CrmMethods = {
     const message = parseChatResponse(cannedRun((await loadSnapshot()) as CrmSnapshot));
     demoBatch = message.batch;
     return message;
+  },
+  // The snapshot's own status, or its export time; never claims a live refresh.
+  getContextStatus: async () => {
+    const snapshot = (await loadSnapshot()) as CrmSnapshot;
+    return parseContextStatus(
+      snapshot.context_status ?? {
+        last_refreshed_at: snapshot.meta.generated_at,
+        summary: snapshot.meta.label, // "Cached sample"
+      },
+    );
+  },
+  refreshContext: async () => {
+    throw new Error(READ_ONLY);
   },
   // Same rules as live: a named approver; star/big/org items and flagged
   // items only go when approved one by one. Nothing leaves the browser.

@@ -1,5 +1,6 @@
 import {
   parseChatResponse,
+  parseContextStatus,
   parseCommunityStats,
   parseEvent,
   parseEventDetail,
@@ -9,6 +10,7 @@ import {
 import type {
   ApiChatResponse,
   ApiCommunityStats,
+  ApiContextStatus,
   ApiEvent,
   ApiEventDetail,
   ApiPeopleResponse,
@@ -85,6 +87,21 @@ export const crmHttpMethods: CrmMethods = {
         }),
       ),
     ),
+  getContextStatus: () =>
+    guard("Context status", async () =>
+      parseContextStatus(await request<ApiContextStatus>("/context/status")),
+    ),
+  // The response may be the new status or anything else; read the status after.
+  refreshContext: () =>
+    guard("Refreshing context", async () => {
+      const response = await request<ApiContextStatus | null>("/context/refresh", {
+        method: "POST",
+      });
+      if (response && (response.last_refreshed_at || response.refreshed_at)) {
+        return parseContextStatus(response);
+      }
+      return parseContextStatus(await request<ApiContextStatus>("/context/status"));
+    }),
   // async, so a missing approver rejects the promise instead of throwing.
   approveSendBatch: async (batchId, approvedBy, perItem) => {
     const who = requireApprover(approvedBy);
