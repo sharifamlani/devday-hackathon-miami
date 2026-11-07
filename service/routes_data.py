@@ -327,14 +327,25 @@ FROM events e
 """
 
 
+def event_batches(conn: sqlite3.Connection) -> dict[int, int]:
+    """{event_id: latest campaign id} once campaigns.event_id exists (90's #58 hook); empty until then."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(campaigns)")}
+    if "event_id" not in cols:
+        return {}
+    return {r[0]: r[1] for r in conn.execute(
+        "SELECT event_id, MAX(id) FROM campaigns WHERE event_id IS NOT NULL GROUP BY event_id")}
+
+
 def list_events(conn: sqlite3.Connection, today: date | None = None) -> list[dict]:
-    """Upcoming first (soonest first), then past events (most recent first)."""
+    """Upcoming first (soonest first), then past events (most recent first). batch_id is the event's
+    outreach campaign, or null."""
     today_s = (today or score.default_as_of()).isoformat()
     rows = conn.execute(
         EVENT_WITH_COUNTS + " ORDER BY substr(e.starts_at, 1, 10) < ?, "
         "CASE WHEN substr(e.starts_at, 1, 10) >= ? THEN e.starts_at END ASC, e.starts_at DESC, e.id",
         (today_s, today_s))
-    return [dict(r) for r in rows]
+    batches = event_batches(conn)
+    return [{**dict(r), "batch_id": batches.get(r["id"])} for r in rows]
 
 
 @router.get("/events")
@@ -347,6 +358,7 @@ def event_detail(conn: sqlite3.Connection, event_id: int) -> dict | None:
     if row is None:
         return None
     event = dict(row)
+    event["batch_id"] = event_batches(conn).get(event_id)
     event["recipients"] = [
         {"person_id": r["person_id"], "full_name": r["full_name"], "contact_type": r["contact_type"],
          "donor_type": r["donor_type"], "has_dog": None if r["has_dog"] is None else bool(r["has_dog"]),

@@ -294,3 +294,20 @@ def test_declined_and_failed_gifts_are_shown_but_never_scored(db_file):
 def test_existing_gifts_default_to_ok(conn):
     db.seed(conn)
     assert {r[0] for r in conn.execute("SELECT DISTINCT status FROM gifts")} == {"ok"}
+
+
+def test_event_batch_id_is_null_until_campaigns_link_events(db_file):
+    conn = db.connect(db_file)
+    (gmd, fivek) = db.save_events(conn, EVENTS[:2])["ids"]
+    conn.close()
+    c = client()
+    assert all(e["batch_id"] is None for e in c.get("/events").json())     # no campaigns.event_id yet
+    conn = db.connect(db_file)                                              # 90's hook adds the column
+    conn.executescript("""CREATE TABLE IF NOT EXISTS campaigns (id INTEGER PRIMARY KEY, name TEXT);
+                          ALTER TABLE campaigns ADD COLUMN event_id INTEGER;""")
+    conn.executemany("INSERT INTO campaigns (name, event_id) VALUES (?, ?)", [("old", gmd), ("new", gmd), ("x", None)])
+    conn.commit()
+    latest = conn.execute("SELECT MAX(id) FROM campaigns WHERE event_id = ?", (gmd,)).fetchone()[0]
+    conn.close()
+    assert c.get(f"/events/{gmd}").json()["batch_id"] == latest
+    assert {e["id"]: e["batch_id"] for e in c.get("/events").json()} == {gmd: latest, fivek: None}
