@@ -63,9 +63,6 @@ uv venv .venv && uv pip install --python .venv/Scripts/python.exe openai-agents 
 # Prove key, all four model tiers, and an Agents SDK tool call + structured output (expect 7/7, exit 0)
 .venv/Scripts/python.exe scripts/smoke-openai.py
 
-# Codex CLI: the required coding tool (login is a human step)
-codex login status
-
 # Production walk after every deploy (see tech-notes.md "Adapting verify-e2e.py")
 python scripts/verify-e2e.py <voice-dir> https://<app>.vercel.app --shots <scratch>/shots
 
@@ -88,9 +85,14 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
 7. **Lift working code, don't rewrite it** (`docs/hackathon-kit/tech-notes.md`).
 8. **Verify against the real system.** HTTP 200 isn't success. Walk production after every deploy.
 9. **Name the limits.** Never present a mock as live.
-10. **Product code is written in Codex** until a host answers `event-brief.md` Q9. Sibling DevDay
-    events banned Claude Code by name. Claude Code does research, docs, planning and verification.
-    Keep the Codex session(s) where the core was built.
+10. **Codex is not used (Sharif, Sat Nov 7).** Claude Code writes product code. The organizers' email set
+    no coding-tool restriction; the Luma page still lists Codex under "Acceptance Criteria", a risk the
+    team accepted. The OpenAI API and Agents SDK remain required and must be visibly used.
+11. **Never push to `main` directly.** Another coder shares the repo: work on a branch, open a PR.
+12. **The repo goes public with an MIT license by Sun 4:45 PM** (organizer rule). Nothing private in history.
+13. **🔒 Carlos owns ingest.** Never edit `service/ingest/` or the `/ingest` route body. Build against the
+    data contract in `plan.md` §13; contract changes need Carlos + Sharif.
+14. **No Supabase.** Data is local SQLite (`data/donors.db`, gitignored) behind the local Python API.
 
 ## How we work fast
 

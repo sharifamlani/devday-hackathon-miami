@@ -17,3 +17,11 @@ TEAM_CONTACTS.md
 
 # Judge research: kept local, not part of the submission
 docs/judges.md
+
+# Vercel / web build output
+.vercel
+web/node_modules
+web/dist
+
+# Local MVP database (rebuilt from data/sample_donors.csv)
+data/*.db
