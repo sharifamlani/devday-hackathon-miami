@@ -41,8 +41,11 @@ const detailOf = (snapshot: ApiSnapshot, id: number) => {
   return detail;
 };
 
+/** prospect_details[id] carries the drafts; the list row is the fallback. */
 const prospectOf = (snapshot: ApiSnapshot, id: number) => {
-  const prospect = snapshot.prospects?.find((p) => p.id === id);
+  const prospect =
+    snapshot.prospect_details?.[String(id)] ??
+    snapshot.prospects?.find((p) => p.id === id);
   if (!prospect) throw new Error(`Prospect ${id} is not in the snapshot`);
   return prospect;
 };
@@ -95,7 +98,7 @@ export const snapshotMethods: DonorDeskMethods = {
     const snapshot = await loadSnapshot();
     const draft = [
       ...Object.values(snapshot.donor_details),
-      ...(snapshot.prospects ?? []),
+      ...Object.values(snapshot.prospect_details ?? {}),
     ]
       .flatMap((owner) => owner.outreach_drafts ?? [])
       .find((d) => d.id === draftId);
@@ -116,8 +119,10 @@ export const snapshotMethods: DonorDeskMethods = {
   runIcp: async () => {
     throw new Error(READ_ONLY);
   },
+  // Like GET /prospects: dismissed rows drop out of the list.
   getProspects: async () =>
     ((await loadSnapshot()).prospects ?? [])
+      .filter((p) => p.status !== "dismissed")
       .map(parseProspect)
       .sort((a, b) => b.fit_score - a.fit_score),
   getProspect: async (id) =>
@@ -126,6 +131,9 @@ export const snapshotMethods: DonorDeskMethods = {
     throw new Error(READ_ONLY);
   },
   dismissProspect: async (id) => {
-    prospectOf(await loadSnapshot(), id).status = "dismissed";
+    const snapshot = await loadSnapshot();
+    prospectOf(snapshot, id).status = "dismissed";
+    const row = snapshot.prospects?.find((p) => p.id === id);
+    if (row) row.status = "dismissed";
   },
 };

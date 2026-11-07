@@ -140,6 +140,29 @@ describe("parseIcp", () => {
     ]);
   });
 
+  it("reads 42's confirmed shape: {trait, value, evidence: [{donor, donor_id, fact, url}]}", () => {
+    const icp = parseIcp({
+      id: 3,
+      created_at: "2026-11-07T23:00:00Z",
+      traits: [
+        {
+          trait: "Geography",
+          value: "Miami-Dade, South Dade",
+          evidence: [{ donor: "Amazon", donor_id: 10, fact: "South Dade grants", url: "https://example.org/sd" }],
+        },
+      ],
+      stats: { org_donors: 6 },
+      evidence: [],
+    });
+    expect(icp.traits).toEqual([
+      {
+        label: "Geography",
+        value: "Miami-Dade, South Dade",
+        evidence: [{ donor: "Amazon", fact: "South Dade grants", source_url: "https://example.org/sd" }],
+      },
+    ]);
+  });
+
   it("accepts traits as a JSON-text map of name to value", () => {
     const icp = parseIcp({
       id: 2,

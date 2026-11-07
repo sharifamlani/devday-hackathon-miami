@@ -134,9 +134,10 @@ export interface ApiSnapshot {
   donors: ApiDonorRow[];
   donor_details: Record<string, ApiDonorDetail>;
   duplicates: ApiDuplicate[];
-  // Added with ICP + prospects; older snapshots omit them.
+  // Added with ICP + prospects (PR #15); older snapshots omit them.
   icp?: ApiIcpProfile | null;
-  prospects?: ApiProspect[];
+  prospects?: ApiProspect[]; // == GET /prospects (no drafts, dismissed excluded)
+  prospect_details?: Record<string, ApiProspect>; // == GET /prospects/{id}
 }
 
 /*
@@ -156,7 +157,8 @@ export interface ApiEvidence {
   source_url?: string;
 }
 
-/** GET /icp (icp_profile row) */
+/** GET /icp (icp_profile row). 42's trait shape:
+ *  {trait, value, evidence: [{donor, donor_id?, fact, url}]} */
 export interface ApiIcpProfile {
   id: number;
   traits: ApiJson<unknown>;

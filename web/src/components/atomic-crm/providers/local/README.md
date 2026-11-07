@@ -136,6 +136,7 @@ once approved; `"approved"`; `"sent"`), `approved_by`, `approved_at`.
 
 **`IcpProfile`**: `id`, `created_at`, `traits: IcpTrait[]`, `stats: IcpStat[]`, `evidence: IcpEvidence[]`.
 - `IcpTrait`: `{ label, value, evidence }`, e.g. `{ label: "Causes funded", value: "youth, climate", evidence: [...] }`
+  (the API sends `{trait, value, evidence}`; `label` is the API's `trait`, and `matched_traits` on a prospect uses the same labels)
 - `IcpStat`: `{ label, value }`, already formatted as text, e.g. `{ label: "Median gift", value: "50,000" }`
 - `IcpEvidence`: `{ donor, fact, source_url }`: which current donor shows the trait, and where it's sourced
 
@@ -181,11 +182,17 @@ Reference screens built on this layer (replace freely): `dashboard/CallToday.tsx
 `contacts/DonorDrawer.tsx` (+ `ScoreWhyPanel`, `ResearchPanel`, `OutreachPanel`),
 `contacts/DuplicateMerge.tsx`.
 
-## 8. Open items
+## 8. Snapshot keys
 
-- The JSON inside the ICP's `traits`, `stats` and `evidence` and the prospects' `matched_traits` isn't
-  fixed yet. The parser accepts a list or a name→value map, as text or parsed, so the screen fields above
-  stay the same whichever shape the service settles on.
-- ICP and prospect routes are not live yet; until they are, `useIcp()` returns `null` on a 404 and
-  `useProspects()` errors. Snapshot mode returns `null` / `[]` while `snapshot.json` lacks the keys.
+`snapshot.json` mirrors the GET routes: `meta`, `donors` (GET /donors), `donor_details` (`{"<id>": GET
+/donors/{id}}`), `duplicates`, and since PR #15 `icp` (GET /icp, or null), `prospects` (GET /prospects,
+no drafts, dismissed excluded) and `prospect_details` (`{"<id>": GET /prospects/{id}}`, with drafts).
+Older snapshots without the ICP keys give `null` / `[]`.
+
+## 9. Open items
+
+- ICP and prospect routes are in PR #15 (feat/icp-schema) with no data yet: `useIcp()` returns `null`
+  (404) and `useProspects()` returns `[]` until the ICP stage runs. 42 confirmed the trait shape
+  `{trait, value, evidence: [{donor, fact, url}]}`; `stats` is a flat name→number map. The parser also
+  accepts other reasonable shapes, so the screen fields above won't change.
 - Run the tests: `npx vitest run --config vitest.config.ts --project app src/components/atomic-crm/providers/local`.
