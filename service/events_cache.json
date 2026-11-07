@@ -1,0 +1,40 @@
+{
+  "miamifoundation.org": [
+    {
+      "title": "Give Miami Day — Early Giving",
+      "starts_at": "2026-11-14",
+      "ends_at": null,
+      "place": null,
+      "audience_hint": "giving",
+      "source_url": "https://www.givemiamiday.org/",
+      "source": "website",
+      "quote": "Join the party on November 19, 2026. Early Giving opens on November 14.",
+      "verification": "search-cited",
+      "captured_at": "2026-11-07T23:00:22+00:00"
+    },
+    {
+      "title": "The Give Miami 5K: Race + Festival",
+      "starts_at": "2026-11-15",
+      "ends_at": null,
+      "place": "Maurice A. Ferré Park",
+      "audience_hint": "community",
+      "source_url": "https://miamifoundation.org/featured/registration-for-the-give-miami-5k-race-festival-is-now-open/",
+      "source": "website",
+      "quote": "Make your miles matter on November 15, 2026 at Maurice A. Ferré Park.",
+      "verification": "search-cited",
+      "captured_at": "2026-11-07T23:00:22+00:00"
+    },
+    {
+      "title": "Give Miami Day",
+      "starts_at": "2026-11-19",
+      "ends_at": null,
+      "place": null,
+      "audience_hint": "giving",
+      "source_url": "https://www.givemiamiday.org/p/new/",
+      "source": "website",
+      "quote": "On November 19, 2026, Miami will rally together to raise funds for over 1,000 local nonprofits.",
+      "verification": "search-cited",
+      "captured_at": "2026-11-07T23:00:22+00:00"
+    }
+  ]
+}
