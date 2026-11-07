@@ -6,6 +6,7 @@ import json
 import csv
 import re
 from dataclasses import dataclass
+from decimal import Decimal
 from io import BytesIO
 from pathlib import PurePosixPath
 from typing import Any
