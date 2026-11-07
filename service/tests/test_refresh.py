@@ -93,3 +93,26 @@ def test_same_event_with_new_punctuation_or_citing_page_is_not_a_change():
     after = [dict(GMD, title="Give Miami Day Early Giving", starts_at="2026-11-14", source_url="https://www.givemiamiday.org/p/new/")]
     d = r.diff_events(before, after, True, "2026-11-08")
     assert d == {"new": [], "changed": [], "removed": []}
+
+
+def test_reworded_titles_on_the_same_date_are_the_same_event():
+    before = [dict(GMD, title="Give Miami Day — 15th anniversary"), dict(GMD, title="Give Miami Day — Early Giving opens", starts_at="2026-11-14")]
+    after = [dict(GMD, title="Give Miami Day"), dict(GMD, title="Give Miami Day — Early Giving", starts_at="2026-11-14")]
+    assert r.diff_events(before, after, True, "2026-11-08") == {"new": [], "changed": [], "removed": []}
+    assert not r.same_event(GMD, FIVE_K)
+
+
+def test_declined_gifts_are_not_loaded(tmp_path, monkeypatch):
+    import outreach_agent
+    db = tmp_path / "d.db"
+    c = sqlite3.connect(db)
+    c.executescript("""CREATE TABLE donors (id INTEGER PRIMARY KEY, full_name TEXT);
+        CREATE TABLE donor_scores (donor_id INTEGER, tier TEXT, is_star INTEGER, why TEXT);
+        CREATE TABLE gifts (donor_id INTEGER, amount REAL, gift_date TEXT, channel TEXT, status TEXT);
+        CREATE TABLE research_facts (donor_id INTEGER, fact TEXT, source_url TEXT);
+        INSERT INTO donors VALUES (1, 'Maria');
+        INSERT INTO gifts VALUES (1, 250, '2025-11-20', 'Give Miami Day', 'ok'), (1, 999, '2026-01-02', 'online', 'declined');""")
+    c.commit(); c.close()
+    monkeypatch.setenv("DONORS_DB", str(db))
+    _, gifts, _, _ = outreach_agent.load_donor(1)
+    assert [g["amount"] for g in gifts] == [250]

@@ -1,9 +1,10 @@
 """Daily refresh: keep the org's context and calendar current, and pre-draft invites for what changed.
 
-refresh(conn, urls, as_of) runs, in order:
-  1. build_context (website + news, live)       -> diff facts against org_context
-  2. extract_events (seeded with the new facts)  -> diff events: new / changed / removed
-  3. for each new or changed event: suggest_audience + draft_event_invite (drafts only, never sent)
+refresh(conn, urls, as_of) runs:
+  1. build_context (website + news, live)  } in parallel -> diff facts against org_context
+  2. extract_events (stored facts as hints) }             -> diff events: new / changed / removed
+  3. for each new or changed event only: suggest_audience + draft_event_invite, invites drafted
+     in parallel (drafts only, never sent)
 and returns a change summary for data's context_refresh_log.
 
 A failed source never wipes good data: facts are compared only for sources that read ok, and if
@@ -32,6 +33,7 @@ from events_agent import (EVENTS_CACHE, EVENTS_LIVE, draft_event_invite, extract
 from org_context import FOUNDATION_URLS, build_context, site_host  # noqa: E402
 
 MAX_DRAFTS_PER_EVENT = 50
+INVITE_WORKERS = 16                                   # concurrent invite model calls
 EVENT_FIELDS = ("starts_at", "ends_at", "place")      # what makes an event "changed"; a new citing page doesn't
 
 
@@ -78,15 +80,41 @@ def diff_facts(before: list[dict], result: dict) -> dict:
                                      if str(st).startswith(("error", "blocked")))}
 
 
+def same_event(a: dict, b: dict, by_date: bool = True) -> bool:
+    """Search words the same event differently run to run ("Give Miami Day" vs "Give Miami Day -
+    15th anniversary"). Same event = one title contains the other, or most title words overlap;
+    with by_date, also the same start date."""
+    if by_date and (a.get("starts_at") or "")[:10] != (b.get("starts_at") or "")[:10]:
+        return False
+    ka, kb = event_key(a), event_key(b)
+    if not ka or not kb:
+        return False
+    if ka in kb or kb in ka:
+        return True
+    wa, wb = set(ka.split()), set(kb.split())
+    return len(wa & wb) / len(wa | wb) >= 0.6
+
+
+def match(e: dict, pool: list[dict]) -> dict | None:
+    """The stored event this one is: same date first, else the same title on another date (a move)."""
+    return (next((p for p in pool if same_event(e, p)), None)
+            or next((p for p in pool if event_key(p) == event_key(e)), None))
+
+
 def diff_events(before: list[dict], after: list[dict], extraction_ok: bool, as_of: str) -> dict:
-    was = {event_key(e): e for e in before}
-    now = {event_key(e): e for e in after}
-    new = [now[k] for k in now if k not in was]
-    changed = [{"event": now[k], "before": {f: was[k].get(f) for f in EVENT_FIELDS},
-                "after": {f: now[k].get(f) for f in EVENT_FIELDS}}
-               for k in now if k in was and any((was[k].get(f) or None) != (now[k].get(f) or None) for f in EVENT_FIELDS)]
+    new, changed, matched = [], [], []
+    for e in after:
+        old = match(e, [b for b in before if not any(b is m for m in matched)])
+        if old is None:
+            new.append(e)
+            continue
+        matched.append(old)
+        if any((old.get(f) or None) != (e.get(f) or None) for f in EVENT_FIELDS):
+            changed.append({"event": e, "before": {f: old.get(f) for f in EVENT_FIELDS},
+                            "after": {f: e.get(f) for f in EVENT_FIELDS}})
     # removed only when this run actually read events, and only upcoming ones (past events just age out)
-    removed = [was[k] for k in was if k not in now and (was[k].get("starts_at") or "")[:10] >= as_of] if extraction_ok else []
+    removed = [b for b in before if not any(b is m for m in matched)
+               and (b.get("starts_at") or "")[:10] >= as_of] if extraction_ok else []
     return {"new": new, "changed": changed, "removed": removed}
 
 
@@ -141,13 +169,29 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
     as_of = as_of or os.environ.get("SCORE_AS_OF") or date.today().isoformat()
     errors = []
 
-    # 1. context
+    # 1 + 2 in parallel: the context run (website + news searches) and the event search are
+    # independent. Events get the stored facts as hints, so they needn't wait for the new ones.
+    from concurrent.futures import ThreadPoolExecutor
+
     before_facts = stored_facts(conn)
-    try:
-        result = build(urls, refresh=True)
-    except Exception as e:                            # the whole context run failed: keep everything
-        result = {"facts": [], "sources": {"website": f"error: {type(e).__name__}", "news": f"error: {type(e).__name__}"}}
-        errors.append(f"context: {type(e).__name__}: {e}")
+    before_events = stored_events(conn, host)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        ctx_job = pool.submit(build, urls, refresh=True)
+        ev_job = pool.submit(extract, before_facts, refresh=True, website=urls.get("website"))
+        try:
+            result = ctx_job.result()
+        except Exception as e:                        # the whole context run failed: keep everything
+            result = {"facts": [], "sources": {"website": f"error: {type(e).__name__}", "news": f"error: {type(e).__name__}"}}
+            errors.append(f"context: {type(e).__name__}: {e}")
+        try:
+            after_events = ev_job.result()
+            extraction_ok = bool(after_events)
+            if not extraction_ok:
+                errors.append("events: none found this run; calendar left as it was")
+                after_events = before_events
+        except Exception as e:
+            errors.append(f"events: {type(e).__name__}: {e}")
+            after_events, extraction_ok = before_events, False
     facts = diff_facts(before_facts, result)
     if conn is not None and result.get("facts"):
         try:
@@ -157,17 +201,6 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
         except (ImportError, sqlite3.Error) as e:
             errors.append(f"save_context: {e}")
 
-    # 2. calendar
-    before_events = stored_events(conn, host)
-    try:
-        after_events = extract(result.get("facts") or [], refresh=True, website=urls.get("website"))
-        extraction_ok = bool(after_events)
-        if not extraction_ok:
-            errors.append("events: none found this run; calendar left as it was")
-            after_events = before_events
-    except Exception as e:
-        errors.append(f"events: {type(e).__name__}: {e}")
-        after_events, extraction_ok = before_events, False
     events = diff_events(before_events, after_events, extraction_ok, as_of)
 
     # data's writers (feat/three-tabs) when they exist; complete=True only after a good read,
@@ -185,7 +218,7 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
     # 3. audience + invites for what's new or changed (drafts only)
     people = people if people is not None else (w["list_people"](conn) if w.get("list_people") else load_people(conn))
     by_id = {p["id"]: p for p in people}
-    drafts = {}
+    drafts, work = {}, []
     for e in events["new"] + [c["event"] for c in events["changed"]]:
         eid = event_ids.get(event_key(e))
         try:
@@ -195,18 +228,22 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
         except Exception as ex:
             errors.append(f"audience {e.get('title')}: {type(ex).__name__}")
             continue
-        n = 0
-        for pid in chosen["person_ids"][:MAX_DRAFTS_PER_EVENT]:
-            try:
-                inv = invite(e, by_id[pid])
-                if eid and w.get("save_event_draft"):
-                    w["save_event_draft"](conn, eid, pid, inv)
-                else:
-                    save(e, by_id[pid], inv)
-                n += 1
-            except Exception as ex:
-                errors.append(f"invite {e.get('title')} -> {pid}: {type(ex).__name__}")
-        drafts[e["title"]] = n
+        drafts[e["title"]] = 0
+        work += [(e, eid, pid) for pid in chosen["person_ids"][:MAX_DRAFTS_PER_EVENT] if pid in by_id]
+
+    # every invite for every event in one pool of model calls; writes stay on this thread
+    with ThreadPoolExecutor(max_workers=INVITE_WORKERS) as pool:
+        jobs = [(e, eid, pid, pool.submit(invite, e, by_id[pid])) for e, eid, pid in work]
+    for e, eid, pid, job in jobs:
+        try:
+            inv = job.result()
+            if eid and w.get("save_event_draft"):
+                w["save_event_draft"](conn, eid, pid, inv)
+            else:
+                save(e, by_id[pid], inv)
+            drafts[e["title"]] += 1
+        except Exception as ex:
+            errors.append(f"invite {e.get('title')} -> {pid}: {type(ex).__name__}")
     if conn is not None:
         conn.commit()
 
