@@ -6,6 +6,12 @@ sentence here, no feature. Every change to the click order updates this file in 
 **Demo length:** ___ s (from `event-brief.md` Q1). If unknown, plan for 60 s; extra time goes to
 the moment, not to more features.
 
+## Landing entry in the React app
+
+Open the bare app URL to show “Less time on tasks. More time for people.” with “Your mission deserves more of your time.” underneath. “Try sample data” opens the existing donor workspace at `#/`. Existing workspace deep links continue to open directly.
+
+“Upload donor data” opens a dialog. In the hosted snapshot build it explains that uploads need the local donor service and offers the sample workspace. With `VITE_DATA_MODE=local`, the CSV form uses the existing `uploadFiles` client and offers the workspace after a successful import. Live ingest remains dependent on the team's ingest service; this design change adds no backend ingestion behavior.
+
 ## Budget (60 s version)
 
 | Seconds | Beat | What is said | What is on screen |
