@@ -123,6 +123,21 @@ WHEN NEW.status = 'sent' AND NEW.approved_by IS NULL
 BEGIN
     SELECT RAISE(ABORT, 'star donors need a human approver before send');
 END;
+
+-- A ★ draft is never 'ready' (the auto-send state): it stays 'draft' until a human approves it.
+CREATE TRIGGER IF NOT EXISTS star_never_ready_insert
+BEFORE INSERT ON outreach_drafts
+WHEN NEW.status = 'ready' AND (SELECT is_star FROM donor_scores WHERE donor_id = NEW.donor_id) = 1
+BEGIN
+    SELECT RAISE(ABORT, 'star donor drafts cannot be ready; use draft until a human approves');
+END;
+
+CREATE TRIGGER IF NOT EXISTS star_never_ready_update
+BEFORE UPDATE OF status ON outreach_drafts
+WHEN NEW.status = 'ready' AND (SELECT is_star FROM donor_scores WHERE donor_id = NEW.donor_id) = 1
+BEGIN
+    SELECT RAISE(ABORT, 'star donor drafts cannot be ready; use draft until a human approves');
+END;
 """
 
 TABLES = ["outreach_drafts", "research_facts", "duplicate_suggestions", "donor_scores", "gifts", "donors"]

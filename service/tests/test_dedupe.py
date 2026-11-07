@@ -109,3 +109,15 @@ def test_ready_status_allowed_for_non_star_and_draft_for_star(conn):
     conn.execute("UPDATE outreach_drafts SET status = 'sent' WHERE donor_id = ?", (small,))   # small path may send
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'hi', 'queued')", (small,))
+
+
+def test_star_draft_can_never_be_ready(conn):
+    db.seed(conn)
+    score.run(conn, AS_OF)
+    star_id = conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 1").fetchone()[0]
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'hi', 'ready')", (star_id,))
+    draft = conn.execute("INSERT INTO outreach_drafts (donor_id, body) VALUES (?, 'hi')", (star_id,)).lastrowid
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("UPDATE outreach_drafts SET status = 'ready' WHERE id = ?", (draft,))
+    conn.execute("UPDATE outreach_drafts SET status = 'approved', approved_by = 'staff' WHERE id = ?", (draft,))
