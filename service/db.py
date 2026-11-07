@@ -244,9 +244,51 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
 
 
 # Nullable columns added after a table first shipped; create_schema adds any that are missing.
+# 5E: three tabs (Givers / Neighbors / Community) and the event calendar. Kept in its own block so
+# other branches editing db.py merge cleanly. People stay in `donors`; contact_type picks the tab.
+EVENTS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS events (
+    id            INTEGER PRIMARY KEY,
+    title         TEXT NOT NULL,
+    starts_at     TEXT NOT NULL,          -- YYYY-MM-DD or YYYY-MM-DDTHH:MM
+    ends_at       TEXT,
+    place         TEXT,
+    audience_hint TEXT,                   -- giving | community | pet (events_agent)
+    audience      TEXT NOT NULL DEFAULT '{}',   -- JSON: suggest_audience output {event_kind, person_ids, why, rationale}
+    source_url    TEXT NOT NULL CHECK (source_url <> ''),   -- every event has a source
+    source        TEXT,                   -- website | news | search
+    verification  TEXT,
+    captured_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (title, starts_at)
+);
+CREATE INDEX IF NOT EXISTS idx_events_starts ON events(starts_at);
+
+-- An event invite is an ordinary outreach_drafts row (so the star/approval triggers apply), linked here.
+CREATE TABLE IF NOT EXISTS event_drafts (
+    event_id  INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    draft_id  INTEGER NOT NULL REFERENCES outreach_drafts(id) ON DELETE CASCADE,
+    PRIMARY KEY (event_id, draft_id)
+);
+CREATE INDEX IF NOT EXISTS idx_event_drafts_draft ON event_drafts(draft_id);
+"""
+SCHEMA += EVENTS_SCHEMA
+TABLES = ["event_drafts", "events"] + TABLES
+
+CONTACT_TYPES = ("giver", "neighbor", "community")
+# Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
+DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
+
 ADDED_COLUMNS = {
     "icp_profile": {"recent_context": "TEXT"},
     "prospects": {"fit_breakdown": "TEXT", "matched_context": "TEXT"},
+    "donors": {
+        "contact_type": "TEXT NOT NULL DEFAULT 'giver' CHECK (contact_type IN ('giver', 'neighbor', 'community'))",
+        "interests": "TEXT",            # JSON list of tags, e.g. ["dogs", "arts"]
+        "has_dog": "INTEGER CHECK (has_dog IN (0, 1))",   # null = not recorded
+        "demographics": "TEXT",         # JSON {field: {value, source_row}}, DEMOGRAPHIC_FIELDS only
+        "tab_review": "TEXT",           # null, or why the agent couldn't place this person
+    },
+    "outreach_drafts": {"sms": "TEXT"},  # text-message version of an invite (events_agent)
 }
 
 
@@ -383,6 +425,54 @@ def save_context(conn: sqlite3.Connection, result: dict) -> dict:
     return {"org_profile_id": 1, "context_ids": ids, "replaced_sources": replaced, "skipped_facts": skipped}
 
 
+
+# 5E writers: events_agent (86) stays pure; these are the only writers of events and event_drafts.
+def save_events(conn: sqlite3.Connection, events: list[dict]) -> list[int]:
+    """Upsert by (title, starts_at); a saved audience survives reruns. Events without a source URL
+    are dropped (every event has a source)."""
+    ids = []
+    for e in events:
+        if not e.get("title") or not e.get("starts_at") or not (e.get("source_url") or "").strip():
+            continue
+        values = (e.get("ends_at"), e.get("place"), e.get("audience_hint"), e["source_url"], e.get("source"),
+                  e.get("verification"))
+        row = conn.execute("SELECT id FROM events WHERE title = ? AND starts_at = ?", (e["title"], e["starts_at"])).fetchone()
+        if row:
+            conn.execute("UPDATE events SET ends_at = ?, place = ?, audience_hint = ?, source_url = ?, source = ?, "
+                         "verification = ?, captured_at = datetime('now') WHERE id = ?", (*values, row[0]))
+            ids.append(row[0])
+        else:
+            ids.append(conn.execute(
+                "INSERT INTO events (title, starts_at, ends_at, place, audience_hint, source_url, source, verification) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (e["title"], e["starts_at"], *values)).lastrowid)
+    conn.commit()
+    return ids
+
+
+def save_event_audience(conn: sqlite3.Connection, event_id: int, audience: dict) -> None:
+    """Store suggest_audience output ({event_kind, person_ids, why, rationale})."""
+    if conn.execute("UPDATE events SET audience = ? WHERE id = ?", (json.dumps(audience or {}), event_id)).rowcount == 0:
+        raise LookupError(f"no event {event_id}")
+    conn.commit()
+
+
+def save_event_draft(conn: sqlite3.Connection, event_id: int, person_id: int, draft: dict) -> int:
+    """Save one invite (draft_event_invite output) as an outreach_drafts row linked to the event. A rerun
+    replaces that person's earlier invite for the event. The star/approval triggers apply as usual."""
+    for (old,) in conn.execute(
+            "SELECT d.id FROM outreach_drafts d JOIN event_drafts ed ON ed.draft_id = d.id "
+            "WHERE ed.event_id = ? AND d.donor_id = ?", (event_id, person_id)).fetchall():
+        conn.execute("DELETE FROM outreach_drafts WHERE id = ?", (old,))
+    draft_id = conn.execute(
+        "INSERT INTO outreach_drafts (donor_id, channel, subject, body, sms, facts_used, status) "
+        "VALUES (?, 'email', ?, ?, ?, ?, ?)",
+        (person_id, draft.get("subject"), draft.get("email_body") or draft.get("body") or "", draft.get("sms"),
+         json.dumps(draft.get("facts_used") or []), draft.get("status") or "draft")).lastrowid
+    conn.execute("INSERT INTO event_drafts (event_id, draft_id) VALUES (?, ?)", (event_id, draft_id))
+    conn.commit()
+    return draft_id
+
+
 # SAMPLE seed: fictional, hand-built histories so scoring/dedupe/UI aren't blocked on ingest.
 # Give Miami Day dates: Thu Nov 16 2023, Thu Nov 21 2024, Thu Nov 20 2025 (2026 is Thu Nov 19).
 SEED_DONORS = [
@@ -482,6 +572,53 @@ SEED_DONORS = [
         "donor_type": "organization", "city": "Miami", "state": "FL", "fund_type": None,
         "source_row": "SAMPLE", "notes": "SAMPLE gift history (invented); real organization; in-kind support valued in USD",
         "gifts": [(7500, "2024-03-12", "in-kind"), (7500, "2025-03-11", "in-kind")],
+    },    # 5E: fictional Neighbors (met, not yet giving) and Community members (people the nonprofit serves).
+    # Demographics are self-reported intake fields, each citing its source row; nothing is inferred.
+    {
+        "full_name": "Danielle Okafor", "first_name": "Danielle", "last_name": "Okafor", "donor_type": "individual",
+        "contact_type": "neighbor", "email": "danielle.okafor@example.com", "phone": "+13055550211",
+        "city": "Miami", "state": "FL", "interests": ["dogs", "volunteering"], "has_dog": True,
+        "notes": "SAMPLE: met at the Give Miami 5K info table",
+    },
+    {
+        "full_name": "Marco Bellini", "first_name": "Marco", "last_name": "Bellini", "donor_type": "individual",
+        "contact_type": "neighbor", "email": "marco.bellini@example.com", "phone": "+13055550212",
+        "city": "Coral Gables", "state": "FL", "interests": ["arts"], "has_dog": False,
+        "notes": "SAMPLE: signed up at a community arts night",
+    },
+    {
+        "full_name": "Keisha Grant", "first_name": "Keisha", "last_name": "Grant", "donor_type": "individual",
+        "contact_type": "community", "phone": "+13055550221", "city": "Homestead", "state": "FL",
+        "interests": ["youth programs"], "has_dog": True,
+        "demographics": {"age_range": {"value": "25-34", "source_row": "intake_form_01.docx: Age range"},
+                         "household_size": {"value": "4", "source_row": "intake_form_01.docx: Household"},
+                         "zip": {"value": "33030", "source_row": "intake_form_01.docx: ZIP"},
+                         "language": {"value": "English", "source_row": "intake_form_01.docx: Language"},
+                         "programs": {"value": ["After-school tutoring"], "source_row": "intake_form_01.docx: Programs"}},
+        "notes": "SAMPLE: intake record",
+    },
+    {
+        "full_name": "Rosa Jimenez", "first_name": "Rosa", "last_name": "Jimenez", "donor_type": "individual",
+        "contact_type": "community", "phone": "+13055550222", "city": "Miami", "state": "FL",
+        "demographics": {"age_range": {"value": "45-54", "source_row": "intake_form_02.docx: Age range"},
+                         "gender": {"value": "Female", "source_row": "intake_form_02.docx: Gender"},
+                         "zip": {"value": "33125", "source_row": "intake_form_02.docx: ZIP"},
+                         "language": {"value": "Spanish", "source_row": "intake_form_02.docx: Language"},
+                         "programs": {"value": ["Food pantry", "After-school tutoring"],
+                                      "source_row": "intake_form_02.docx: Programs"}},
+        "notes": "SAMPLE: intake record",
+    },
+    {
+        "full_name": "Tomas Reyes", "first_name": "Tomas", "last_name": "Reyes", "donor_type": "individual",
+        "contact_type": "community", "city": "Miami", "state": "FL",
+        "demographics": {"zip": {"value": "33125", "source_row": "signin_sheet_oct.xlsx: row 7"}},
+        "notes": "SAMPLE: event sign-in only",
+    },
+    {
+        "full_name": "Jordan Lee", "first_name": "Jordan", "last_name": "Lee", "donor_type": "individual",
+        "contact_type": "neighbor", "email": "jordan.lee@example.com", "city": "Miami", "state": "FL",
+        "tab_review": "appears on the intake list and the volunteer sign-up sheet; Community or Neighbor?",
+        "notes": "SAMPLE: ambiguous tab, flagged for review",
     },
 ]
 
@@ -489,9 +626,15 @@ SEED_DONORS = [
 def insert_donor(conn: sqlite3.Connection, donor: dict) -> int:
     """Insert one donor dict (§13 fields + optional 'gifts' as (amount, date, channel)) and return its id."""
     fields = ["full_name", "first_name", "last_name", "org_name", "donor_type", "email",
-              "emails_all", "phone", "city", "state", "fund_type", "notes", "source_row"]
+              "emails_all", "phone", "city", "state", "fund_type", "notes", "source_row",
+              "contact_type", "interests", "has_dog", "demographics", "tab_review"]
     values = [donor.get(f) for f in fields]
     values[fields.index("emails_all")] = json.dumps(donor.get("emails_all") or [])
+    values[fields.index("contact_type")] = donor.get("contact_type") or "giver"
+    values[fields.index("interests")] = json.dumps(donor.get("interests") or [])
+    values[fields.index("demographics")] = json.dumps(donor.get("demographics") or {})
+    if donor.get("has_dog") is not None:
+        values[fields.index("has_dog")] = int(bool(donor["has_dog"]))
     if values[fields.index("source_row")] is None:
         values[fields.index("source_row")] = "SAMPLE"   # every seed row is sample data
     cur = conn.execute(
