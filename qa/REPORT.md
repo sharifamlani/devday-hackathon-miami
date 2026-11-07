@@ -128,3 +128,26 @@ Merge clean. `pytest service/tests`: 44 passed. Integration: 47/48. Snapshot (`q
 |---|---|---|
 | Q8 | outreach (86) | **fixed**, verified |
 | Q11 | whoever owns `docs/roadmap-v03` | open: the local branch tracks origin/main |
+
+## Merge gate: Sat 2026-11-07 (QA verdicts; the lead merges only the exact approved SHA)
+
+Each PR was stacked on the then-current origin/main plus the PRs before it. Checks: clean merge, `pytest service/tests`,
+owner-lane files only, no secrets / .env / *.db, plus a live check where the PR has one.
+
+| PR | SHA | Tests at that point | Live check | Verdict |
+|---|---|---|---|---|
+| #4 docs/team-assignments | 72c443e | n/a | .env and donors.db stay ignored | APPROVE |
+| #8 feat/data | af541bc | 31 passed | — | APPROVE |
+| #10 feat/pipeline | f4b3c4f | 40 passed | — | APPROVE |
+| #5 feat/enrich | c2f62a9 | 40 passed | — | APPROVE |
+| #7 feat/outreach | 5b5c658 | 46 passed | — | APPROVE |
+| #12 feat/service | 13874e8 → **39a741f** | 46 passed | uvicorn on :8100: /health 200, /donors 200 in 0.24 s, /icp/run + /prospects/1/outreach → 503 "not landed" | APPROVE (re-done at the new head) |
+| #13 docs/roadmap-v03 | 1babf9b | 46 passed | docs only | APPROVE |
+| #11 feat/ui | 9a291d4 → **dcda650** | 46 passed; parse.test.ts 7/7 | build:demo exit 0; the built demo renders in 1.5 s, SAMPLE chip, drawer WHY/RESEARCH/DRAFT, 0 console errors, 0 4xx/5xx | APPROVE (re-done at the new head) |
+| #14 fix/enrich-idempotent | f9a43e0 | 48 passed | enrich ×2 on DeLuca → 3 rows, no duplicates | APPROVE |
+| #15 feat/icp-schema | 43b9ef4 | 53 passed | XOR CHECK; prospect drafts never ready/unapproved-sent; empty routes 200 [] or 404 (no 500); in-place upgrade keeps drafts + triggers | APPROVE |
+
+Open:
+- Q11 (Sharif): local branch `docs/roadmap-v03` (in the shared devday_hackathon folder) still tracks origin/main.
+  The lead says they lack permission to change it. QA didn't change it on their behalf. It's merged and won't be pushed again.
+- The live :8000 db still has duplicate research rows from before #14. Rebuild before the demo walk.
