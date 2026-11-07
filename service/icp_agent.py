@@ -43,11 +43,15 @@ load_dotenv(REPO_ROOT / ".env")
 
 ICP_CACHE = REPO_ROOT / "data" / "icp_cache.json"
 MIN_FACTS = 2
-# Live runs must fit the spec's 90 s cap: each search, and all page fetches together, get a hard deadline
+# Live runs (POST /icp/run) must fit the spec's 90 s cap; the --cache precompute runs before the demo
+# and gets a longer budget so slow searches still contribute
 SEARCH_TIMEOUT_S = 60
 PAGE_BUDGET_S = 20
+CACHE_SEARCH_TIMEOUT_S = 240
+CACHE_PAGE_BUDGET_S = 45
 PAGE_READ_S = 10
-SEARCH_KINDS = ["companies with corporate giving programs (banks, law firms, utilities, employers)",
+SEARCH_KINDS = ["companies with corporate giving programs (banks, utilities, retailers, large employers)",
+                "law, accounting and other professional-services firms with pro bono or community giving",
                 "private, family and corporate foundations"]
 MAX_PROSPECTS = 10
 
@@ -430,18 +434,19 @@ def fit_score(prospect: dict, icp: dict) -> int:
     return min(100, sum(fit_breakdown(prospect, icp).values()))
 
 
-async def run_searches(briefs: list[str]) -> list:
-    """Run the prospect searches concurrently; a search past SEARCH_TIMEOUT_S is dropped, not waited on."""
+async def run_searches(briefs: list[str], timeout_s: float | None = None) -> list:
+    """Run the prospect searches concurrently; a search past its deadline is dropped, not waited on."""
     async def one(brief):
         try:
-            result = await asyncio.wait_for(Runner.run(prospect_agent, brief), SEARCH_TIMEOUT_S)
+            result = await asyncio.wait_for(Runner.run(prospect_agent, brief), timeout_s or SEARCH_TIMEOUT_S)
             return result.final_output.prospects
         except asyncio.TimeoutError:
             return []
     return [p for batch in await asyncio.gather(*(one(b) for b in briefs)) for p in batch]
 
 
-def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) -> list[dict]:
+def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False,
+                   precompute: bool = False) -> list[dict]:
     """6-10 South Florida organizations matching the ICP, each with 2+ facts whose URLs return 200."""
     if not refresh and ICP_CACHE.exists():
         return read_cache()["prospects"]
@@ -452,7 +457,7 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
              "exclude": sorted(exclude_names)}
     # Two searches in parallel (companies, foundations) for a wider pool: many sources fail the page check
     briefs = [json.dumps({**brief, "search_for": kind}, indent=1) for kind in SEARCH_KINDS]
-    found = asyncio.run(run_searches(briefs))
+    found = asyncio.run(run_searches(briefs, CACHE_SEARCH_TIMEOUT_S if precompute else SEARCH_TIMEOUT_S))
 
     seen, candidates = set(), []
     for p in found:
@@ -464,7 +469,7 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
     urls = sorted({f.url for p in candidates for f in p.facts})
     pool = ThreadPoolExecutor(max_workers=12)
     futures = {pool.submit(page_text, u): u for u in urls}
-    done, _ = wait(futures, timeout=PAGE_BUDGET_S)        # pages still loading after the budget count as failed
+    done, _ = wait(futures, timeout=CACHE_PAGE_BUDGET_S if precompute else PAGE_BUDGET_S)        # pages still loading after the budget count as failed
     pages = {futures[f]: f.result() for f in done}
     pool.shutdown(wait=False, cancel_futures=True)
     retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -510,8 +515,11 @@ def build_profile(refresh: bool = False) -> dict:
         conn.close()
 
 
-def run_icp(refresh: bool = False) -> dict:
-    """{generated_at, icp, prospects}. Cached unless refresh=True; a live run rewrites data/icp_cache.json."""
+def run_icp(refresh: bool = False, precompute: bool = False) -> dict:
+    """{generated_at, icp, prospects}. Cached unless refresh=True; a live run rewrites data/icp_cache.json.
+
+    precompute=True (the --cache CLI, run before the demo) gives the searches a longer deadline.
+    """
     if not refresh and ICP_CACHE.exists():
         return read_cache()
     conn = db.connect()
@@ -522,7 +530,7 @@ def run_icp(refresh: bool = False) -> dict:
     finally:
         conn.close()
     run = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "icp": icp,
-           "prospects": find_prospects(icp, donor_names, refresh=True)}
+           "prospects": find_prospects(icp, donor_names, refresh=True, precompute=precompute)}
     write_cache(run)
     return run
 
@@ -534,7 +542,7 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # ★ and curly quotes on a cp1252 Windows console
 
     start = time.perf_counter()
-    run = run_icp(refresh=args.cache)
+    run = run_icp(refresh=args.cache, precompute=args.cache)
     elapsed = time.perf_counter() - start
 
     print(f"ICP ({run['generated_at']})")
