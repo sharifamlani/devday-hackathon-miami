@@ -105,7 +105,8 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
               for i, f in enumerate(research_facts, 1)}
 
     big = is_big(donor)
-    prompt = build_prompt(donor, gifts, score_why, facts, big, today)
+    hide = hides_gifts(donor)
+    prompt = build_prompt(donor, gifts, score_why, facts, big, today, hide)
 
     agent = Agent(
         name="OutreachAgent",
@@ -117,7 +118,7 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
 
     for attempt in range(2):
         out: ModelDraft = Runner.run_sync(agent, prompt).final_output
-        problems = check_draft(out, facts, gifts, lead_id="O1")
+        problems = check_draft(out, facts, gifts, lead_id="O1", hide_gifts=hide)
         if not problems:
             break
         prompt += "\n\nYour previous draft was rejected:\n- " + "\n- ".join(problems) + "\nRewrite it."
@@ -183,14 +184,16 @@ def as_of_date(why) -> date:
     return date.fromisoformat(raw) if raw else DEMO_AS_OF
 
 
-def describe_why(why) -> str:
+def describe_why(why, hide_gifts: bool = False) -> str:
     """score.py's why JSON -> plain lines for the prompt. Figures the draft may not quote
     (days, ratios, points) stay out; the numeric check would reject them anyway."""
     if not isinstance(why, dict):
-        return str(why or "")
+        return "" if hide_gifts else str(why or "")
     lines = []
     if why.get("status"):
         lines.append(f"Status: {why['status']}")
+    if hide_gifts:
+        return "\n".join(lines)
     if why.get("reasons"):
         lines.append("Reasons: " + ", ".join(r.replace("_", " ") for r in why["reasons"]))
     pat = why.get("pattern") or {}
@@ -216,12 +219,26 @@ def is_big(donor: dict) -> bool:
     return bool(donor.get("is_star")) or donor.get("tier") == "big"
 
 
-def build_prompt(donor, gifts, score_why, facts, big, today) -> str:
+def hides_gifts(donor: dict) -> bool:
+    """A real organization with an invented (SAMPLE) gift history: never quote its gifts
+    (plan.md §3). Fictional individuals keep their sample figures."""
+    # same test as data's is_sample; a merged donor joins its source rows with newlines
+    sample = bool(donor.get("is_sample")) or "SAMPLE" in str(donor.get("source_row") or "").splitlines()
+    return donor.get("donor_type") == "organization" and sample
+
+
+SAMPLE_HISTORY_NOTE = ("on file, but it is SAMPLE data invented for a real organization. Do not mention any "
+                       "gift amount, date, year or number of gifts. Thank them for their partnership and support.")
+
+
+def build_prompt(donor, gifts, score_why, facts, big, today, hide_gifts: bool = False) -> str:
     history = "\n".join(f"- {g['gift_date']}: ${g['amount']:,.0f} via {g.get('channel') or 'unknown'}"
                         for g in sorted(gifts, key=lambda g: g["gift_date"]))
+    if hide_gifts:
+        history = f"- {SAMPLE_HISTORY_NOTE}"
     fact_lines = "\n".join(f"{k}: {v['fact']}" + (f" ({v['date']})" if v.get("date") else "")
                            for k, v in facts.items())
-    why = describe_why(score_why)
+    why = describe_why(score_why, hide_gifts)
     days_early = (EARLY_GIVING_OPENS - today).days
     days_gmd = (GIVE_MIAMI_DAY - today).days
 
@@ -258,8 +275,40 @@ NUM_RE = re.compile(r"\$?\d[\d,]*(?:\.\d+)?\s*(?:million|billion|M|K|%)?", re.I)
 BANNED_FIGURES = re.compile(r"760,000|\$760K|nearly \$1|\$1 ?(?:million|M)\b[^.]*press forward|press forward[^.]*\$1 ?(?:million|M)\b", re.I)
 
 
-def check_draft(out: ModelDraft, facts: dict, gifts: list[dict], lead_id: str | None = None) -> list[str]:
+NUMBER_WORDS = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|several|many)"
+GIFT_COUNT_RE = re.compile(rf"\b{NUMBER_WORDS}\s+(?:consecutive\s+|straight\s+)?(?:gifts?|years?|donations?)\b", re.I)
+MONTHS = ("January February March April May June July August September October November December").split()
+
+
+def gift_mentions(text: str, gifts: list[dict]) -> list[str]:
+    """Gift amounts, dates, years and counts from a donor's history that appear in the text.
+    The Give Miami Day calendar dates in the prompt are not gift dates, so they're removed first."""
+    for d in (EARLY_GIVING_OPENS, GIVE_MIAMI_DAY):
+        text = text.replace(long_date(d), " ").replace(f"{d:%B} {d.day}", " ")
+    found = []
+    nums = {norm_num(m) for m in NUM_RE.findall(text)}
+    for g in gifts:
+        amount = f"{g['amount']:,.0f}"
+        if norm_num(amount) in nums:
+            found.append(f"${amount}")
+        y, m, d = g["gift_date"][:10].split("-")
+        if g["gift_date"][:10] in text or f"{MONTHS[int(m) - 1]} {int(d)}" in text:
+            found.append(g["gift_date"][:10])
+        if re.search(rf"\b{y}\b", text):
+            found.append(y)
+    found += [m.group(0) for m in GIFT_COUNT_RE.finditer(text)]
+    return sorted(set(found))
+
+
+def check_draft(out: ModelDraft, facts: dict, gifts: list[dict], lead_id: str | None = None,
+                hide_gifts: bool = False) -> list[str]:
     problems = []
+    if hide_gifts:
+        allowed_text = " ".join(f["fact"] for f in facts.values())
+        for hit in gift_mentions(out.subject + " " + out.body + " " + out.call_script, gifts):
+            if hit not in allowed_text:
+                problems.append(f"'{hit}' comes from a SAMPLE gift history; thank them for their partnership instead")
+        gifts = []      # and no gift figure counts as allowed below
     if lead_id and (not out.fact_ids or out.fact_ids[0] != lead_id):
         problems.append(f"lead with {lead_id} and list it first in fact_ids")
     if BANNED_FIGURES.search(out.subject + " " + out.body + " " + out.call_script):
