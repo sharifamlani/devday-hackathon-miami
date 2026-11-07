@@ -1,0 +1,1027 @@
+{
+  "_comment": "FIXTURE for UI development, shaped like the local API. Individual donors are fictional; org gift amounts and dates are invented. Replace with the lead's export.",
+  "generated_at": "2026-11-07T15:00:00Z",
+  "donors": [
+    {
+      "id": 1,
+      "full_name": "Elena Marquez-Ruiz",
+      "org_name": null,
+      "donor_type": "individual",
+      "email": "elena.marquez@example.com",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Donor Advised",
+      "tier": "big",
+      "is_star": true,
+      "score": 94,
+      "status": "lapsing",
+      "why_short": "no gift yet in 2026",
+      "last_gift_date": "2025-12-10",
+      "last_gift_amount": 250000,
+      "usual_cadence": "yearly · Dec",
+      "gift_count": 5,
+      "total_given": 1250000,
+      "phone": null,
+      "notes": null,
+      "why": "Gave every December from 2021 to 2025, about $250,000 each time. Nothing yet in 2026, and only 54 days are left in the year. A Shack Society-level fundholder: call first.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "332 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "5 gifts in 5 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$250,000 average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "due by Dec 31: 54 days left"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 1,
+          "donor_id": 1,
+          "amount": 250000,
+          "gift_date": "2021-12-11",
+          "channel": "check",
+          "fund_type": "Donor Advised"
+        },
+        {
+          "id": 2,
+          "donor_id": 1,
+          "amount": 250000,
+          "gift_date": "2022-12-12",
+          "channel": "check",
+          "fund_type": "Donor Advised"
+        },
+        {
+          "id": 3,
+          "donor_id": 1,
+          "amount": 250000,
+          "gift_date": "2023-12-13",
+          "channel": "check",
+          "fund_type": "Donor Advised"
+        },
+        {
+          "id": 4,
+          "donor_id": 1,
+          "amount": 250000,
+          "gift_date": "2024-12-14",
+          "channel": "check",
+          "fund_type": "Donor Advised"
+        },
+        {
+          "id": 5,
+          "donor_id": 1,
+          "amount": 250000,
+          "gift_date": "2025-12-10",
+          "channel": "check",
+          "fund_type": "Donor Advised"
+        }
+      ],
+      "research": [],
+      "draft": {
+        "id": 1,
+        "donor_id": 1,
+        "channel": "email",
+        "subject": "What your fund made possible this year",
+        "body": "Dear Elena,\n\nThank you for five Decembers of generosity. Last year Miami showed up in a big way: Give Miami Day raised a record ~$43.8M for more than 1,400 local nonprofits.\n\nThis year our South Dade study found that only 4% of the funding there is flexible. Your fund can change that. Could we find 20 minutes before the holidays to talk about where your giving can do the most in 2026?\n\nWith gratitude,\n[Your name]\nThe Miami Foundation",
+        "facts_used": [
+          {
+            "fact": "Give Miami Day 2025 raised a record ~$43.8M for 1,400+ nonprofits.",
+            "source_url": "https://www.wlrn.org/south-florida/2025-11-21/give-miami-day-reports-raising-record-breaking-43-million-for-more-than-1-400-non-profits"
+          },
+          {
+            "fact": "South Dade funding study (Aug 31, 2026): $94M across 1,400+ grants, only 4% flexible.",
+            "source_url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"
+          }
+        ],
+        "status": "draft",
+        "approved_by": null,
+        "approved_at": null
+      }
+    },
+    {
+      "id": 2,
+      "full_name": "Marcus Bell",
+      "org_name": null,
+      "donor_type": "individual",
+      "email": "marcus.bell@example.com",
+      "city": "Coral Gables",
+      "state": "FL",
+      "fund_type": null,
+      "tier": "mid",
+      "is_star": false,
+      "score": 88,
+      "status": "lapsing",
+      "why_short": "gave on Give Miami Day 2023–2025; not yet in 2026",
+      "last_gift_date": "2025-11-20",
+      "last_gift_amount": 2500,
+      "usual_cadence": "yearly · Give Miami Day",
+      "gift_count": 3,
+      "total_given": 5500,
+      "phone": null,
+      "notes": null,
+      "why": "Gave on Give Miami Day three years running, from $1,000 up to $2,500. Early giving opens Saturday, Nov 14: a reminder this week lands before he decides.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "352 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "3 gifts in 3 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$1,833 average, rising"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "Give Miami Day is in 12 days"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 6,
+          "donor_id": 2,
+          "amount": 1000,
+          "gift_date": "2023-11-16",
+          "channel": "Give Miami Day",
+          "fund_type": null
+        },
+        {
+          "id": 7,
+          "donor_id": 2,
+          "amount": 2000,
+          "gift_date": "2024-11-21",
+          "channel": "Give Miami Day",
+          "fund_type": null
+        },
+        {
+          "id": 8,
+          "donor_id": 2,
+          "amount": 2500,
+          "gift_date": "2025-11-20",
+          "channel": "Give Miami Day",
+          "fund_type": null
+        }
+      ],
+      "research": [],
+      "draft": {
+        "id": 2,
+        "donor_id": 2,
+        "channel": "email",
+        "subject": "Give Miami Day is back on Nov 19",
+        "body": "Hi Marcus,\n\nYou've been part of Give Miami Day three years running. Thank you! Last year Miami raised a record ~$43.8M for 1,400+ nonprofits.\n\nThis year's Give Miami Day is Thursday, Nov 19, and early giving opens Saturday, Nov 14. Miami, this is your celebration.\n\nSee you there,\n[Your name]\nThe Miami Foundation",
+        "facts_used": [
+          {
+            "fact": "Give Miami Day 2025 raised a record ~$43.8M for 1,400+ nonprofits.",
+            "source_url": "https://www.wlrn.org/south-florida/2025-11-21/give-miami-day-reports-raising-record-breaking-43-million-for-more-than-1-400-non-profits"
+          },
+          {
+            "fact": "Give Miami Day 2026 is Thursday, Nov 19; early giving opens Saturday, Nov 14.",
+            "source_url": "https://www.givemiamiday.org/"
+          }
+        ],
+        "status": "draft",
+        "approved_by": null,
+        "approved_at": null
+      }
+    },
+    {
+      "id": 3,
+      "full_name": "Ana Torres",
+      "org_name": null,
+      "donor_type": "individual",
+      "email": "ana.torres@example.com",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Unrestricted",
+      "tier": "small",
+      "is_star": false,
+      "score": 81,
+      "status": "overdue",
+      "why_short": "quarterly giver, 2 quarters missed",
+      "last_gift_date": "2026-03-15",
+      "last_gift_amount": 150,
+      "usual_cadence": "quarterly",
+      "gift_count": 8,
+      "total_given": 1200,
+      "phone": null,
+      "notes": null,
+      "why": "Gave $150 every quarter for two years, then stopped after March 2026. Two quarters missed: a friendly thank-you note may bring her back.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "222 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "8 gifts in 2 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$150 average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "2 quarters overdue"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 9,
+          "donor_id": 3,
+          "amount": 150,
+          "gift_date": "2024-06-15",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 10,
+          "donor_id": 3,
+          "amount": 150,
+          "gift_date": "2024-09-15",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 11,
+          "donor_id": 3,
+          "amount": 150,
+          "gift_date": "2024-12-15",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 12,
+          "donor_id": 3,
+          "amount": 150,
+          "gift_date": "2025-03-15",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 13,
+          "donor_id": 3,
+          "amount": 150,
+          "gift_date": "2025-06-15",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 14,
+          "donor_id": 3,
+          "amount": 150,
+          "gift_date": "2025-09-15",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 15,
+          "donor_id": 3,
+          "amount": 150,
+          "gift_date": "2025-12-15",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 16,
+          "donor_id": 3,
+          "amount": 150,
+          "gift_date": "2026-03-15",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        }
+      ],
+      "research": [],
+      "draft": null
+    },
+    {
+      "id": 4,
+      "full_name": "Rafael and Carmen Ortiz",
+      "org_name": null,
+      "donor_type": "individual",
+      "email": "ortiz.family@example.com",
+      "city": "Miami Beach",
+      "state": "FL",
+      "fund_type": "Designated",
+      "tier": "mid",
+      "is_star": false,
+      "score": 66,
+      "status": "overdue",
+      "why_short": "usually gives in June; 5 months late",
+      "last_gift_date": "2025-06-20",
+      "last_gift_amount": 10000,
+      "usual_cadence": "yearly · Jun",
+      "gift_count": 4,
+      "total_given": 40000,
+      "phone": null,
+      "notes": null,
+      "why": "Gave $10,000 to their designated fund every June from 2022 to 2025. This June passed with no gift.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "500 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "4 gifts in 4 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$10,000 average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "5 months past usual month"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 17,
+          "donor_id": 4,
+          "amount": 10000,
+          "gift_date": "2022-06-20",
+          "channel": "check",
+          "fund_type": "Designated"
+        },
+        {
+          "id": 18,
+          "donor_id": 4,
+          "amount": 10000,
+          "gift_date": "2023-06-20",
+          "channel": "check",
+          "fund_type": "Designated"
+        },
+        {
+          "id": 19,
+          "donor_id": 4,
+          "amount": 10000,
+          "gift_date": "2024-06-20",
+          "channel": "check",
+          "fund_type": "Designated"
+        },
+        {
+          "id": 20,
+          "donor_id": 4,
+          "amount": 10000,
+          "gift_date": "2025-06-20",
+          "channel": "check",
+          "fund_type": "Designated"
+        }
+      ],
+      "research": [],
+      "draft": null
+    },
+    {
+      "id": 5,
+      "full_name": "Frederick A. DeLuca Foundation",
+      "org_name": "Frederick A. DeLuca Foundation",
+      "donor_type": "organization",
+      "email": null,
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Field of Interest",
+      "tier": "big",
+      "is_star": true,
+      "score": 52,
+      "status": "due soon",
+      "why_short": "yearly gift usually in January",
+      "last_gift_date": "2026-01-22",
+      "last_gift_amount": 500000,
+      "usual_cadence": "yearly · Jan",
+      "gift_count": 3,
+      "total_given": 1500000,
+      "phone": null,
+      "notes": null,
+      "why": "Gives every January. On track; the next gift is due in about two months.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "290 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "3 gifts in 3 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$500,000 average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "due in ~2 months"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 21,
+          "donor_id": 5,
+          "amount": 500000,
+          "gift_date": "2024-01-22",
+          "channel": "check",
+          "fund_type": "Field of Interest"
+        },
+        {
+          "id": 22,
+          "donor_id": 5,
+          "amount": 500000,
+          "gift_date": "2025-01-22",
+          "channel": "check",
+          "fund_type": "Field of Interest"
+        },
+        {
+          "id": 23,
+          "donor_id": 5,
+          "amount": 500000,
+          "gift_date": "2026-01-22",
+          "channel": "check",
+          "fund_type": "Field of Interest"
+        }
+      ],
+      "research": [],
+      "draft": null
+    },
+    {
+      "id": 6,
+      "full_name": "John S. and James L. Knight Foundation",
+      "org_name": "John S. and James L. Knight Foundation",
+      "donor_type": "organization",
+      "email": null,
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Organization Endowment",
+      "tier": "big",
+      "is_star": true,
+      "score": 45,
+      "status": "on track",
+      "why_short": "gave in Sep 2026",
+      "last_gift_date": "2026-09-10",
+      "last_gift_amount": 50000,
+      "usual_cadence": "yearly · Sep",
+      "gift_count": 3,
+      "total_given": 150000,
+      "phone": null,
+      "notes": null,
+      "why": "Gave this September, as it does each fall. On track; no call needed now.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "60 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "3 gifts in 3 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$50,000 average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "on schedule"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 24,
+          "donor_id": 6,
+          "amount": 50000,
+          "gift_date": "2024-09-10",
+          "channel": "check",
+          "fund_type": "Organization Endowment"
+        },
+        {
+          "id": 25,
+          "donor_id": 6,
+          "amount": 50000,
+          "gift_date": "2025-09-10",
+          "channel": "check",
+          "fund_type": "Organization Endowment"
+        },
+        {
+          "id": 26,
+          "donor_id": 6,
+          "amount": 50000,
+          "gift_date": "2026-09-10",
+          "channel": "check",
+          "fund_type": "Organization Endowment"
+        }
+      ],
+      "research": [
+        {
+          "id": 1,
+          "fact": "Gave $50,000 to Press Forward South Florida alongside the Foundation's $100,000 (Sep 2026).",
+          "source_url": "https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/",
+          "retrieved_at": "2026-11-07T15:00:00Z"
+        }
+      ],
+      "draft": null
+    },
+    {
+      "id": 7,
+      "full_name": "Amazon",
+      "org_name": "Amazon",
+      "donor_type": "organization",
+      "email": null,
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Designated",
+      "tier": "big",
+      "is_star": true,
+      "score": 38,
+      "status": "on track",
+      "why_short": "gave in Aug 2026",
+      "last_gift_date": "2026-08-31",
+      "last_gift_amount": 1000000,
+      "usual_cadence": "yearly · Aug",
+      "gift_count": 2,
+      "total_given": 2000000,
+      "phone": null,
+      "notes": null,
+      "why": "Gave in August 2026 with its South Dade commitment. On track.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "68 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "2 gifts in 2 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$1,000,000 average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "on schedule"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 27,
+          "donor_id": 7,
+          "amount": 1000000,
+          "gift_date": "2025-08-30",
+          "channel": "check",
+          "fund_type": "Designated"
+        },
+        {
+          "id": 28,
+          "donor_id": 7,
+          "amount": 1000000,
+          "gift_date": "2026-08-31",
+          "channel": "check",
+          "fund_type": "Designated"
+        }
+      ],
+      "research": [
+        {
+          "id": 2,
+          "fact": "Committed $1 million to 13 South Dade nonprofits (Aug 31, 2026).",
+          "source_url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
+          "retrieved_at": "2026-11-07T15:00:00Z"
+        }
+      ],
+      "draft": null
+    },
+    {
+      "id": 8,
+      "full_name": "McDermott Will & Schulte",
+      "org_name": "McDermott Will & Schulte",
+      "donor_type": "organization",
+      "email": null,
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": null,
+      "tier": "mid",
+      "is_star": false,
+      "score": 30,
+      "status": "on track",
+      "why_short": "in-kind partner, active in 2026",
+      "last_gift_date": "2026-09-13",
+      "last_gift_amount": 250000,
+      "usual_cadence": "yearly · Sep",
+      "gift_count": 2,
+      "total_given": 500000,
+      "phone": null,
+      "notes": null,
+      "why": "In-kind partner: pro bono legal hours each fall. On track.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "55 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "2 gifts in 2 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$250,000 in-kind average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "on schedule"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 29,
+          "donor_id": 8,
+          "amount": 250000,
+          "gift_date": "2025-09-20",
+          "channel": "event",
+          "fund_type": null
+        },
+        {
+          "id": 30,
+          "donor_id": 8,
+          "amount": 250000,
+          "gift_date": "2026-09-13",
+          "channel": "event",
+          "fund_type": null
+        }
+      ],
+      "research": [
+        {
+          "id": 3,
+          "fact": "Gave 398 pro bono hours ($500K+ in value) to 17 nonprofits at the SET Summits (Sep 2026).",
+          "source_url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/",
+          "retrieved_at": "2026-11-07T15:00:00Z"
+        }
+      ],
+      "draft": null
+    },
+    {
+      "id": 9,
+      "full_name": "Sofia Delgado",
+      "org_name": null,
+      "donor_type": "individual",
+      "email": "sofia.delgado@example.com",
+      "city": "Hialeah",
+      "state": "FL",
+      "fund_type": "Unrestricted",
+      "tier": "small",
+      "is_star": false,
+      "score": 25,
+      "status": "on track",
+      "why_short": "monthly giver, current",
+      "last_gift_date": "2026-11-01",
+      "last_gift_amount": 25,
+      "usual_cadence": "monthly",
+      "gift_count": 12,
+      "total_given": 300,
+      "phone": null,
+      "notes": null,
+      "why": "Gives $25 every month, most recently this week. On track.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "6 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "12 gifts in 12 months"
+        },
+        {
+          "label": "Amount",
+          "value": "$25 average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "on schedule"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 31,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-01-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 32,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-02-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 33,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-03-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 34,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-04-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 35,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-05-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 36,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-06-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 37,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-07-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 38,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-08-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 39,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-09-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 40,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-10-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 41,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2026-11-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        },
+        {
+          "id": 42,
+          "donor_id": 9,
+          "amount": 25,
+          "gift_date": "2025-12-01",
+          "channel": "online",
+          "fund_type": "Unrestricted"
+        }
+      ],
+      "research": [],
+      "draft": null
+    },
+    {
+      "id": 10,
+      "full_name": "A. Torres",
+      "org_name": null,
+      "donor_type": "individual",
+      "email": "ana.torres@example.com",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": null,
+      "tier": "small",
+      "is_star": false,
+      "score": 20,
+      "status": "on track",
+      "why_short": "one gift (possible duplicate)",
+      "last_gift_date": "2026-05-30",
+      "last_gift_amount": 150,
+      "usual_cadence": null,
+      "gift_count": 1,
+      "total_given": 150,
+      "phone": null,
+      "notes": null,
+      "why": "One online gift in May 2026. Same email as Ana Torres: likely the same person.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "175 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "1 gift"
+        },
+        {
+          "label": "Amount",
+          "value": "$150"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "not enough history"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 43,
+          "donor_id": 10,
+          "amount": 150,
+          "gift_date": "2026-05-30",
+          "channel": "online",
+          "fund_type": null
+        }
+      ],
+      "research": [],
+      "draft": null
+    },
+    {
+      "id": 11,
+      "full_name": "Daniel Okafor",
+      "org_name": null,
+      "donor_type": "individual",
+      "email": "dokafor@example.com",
+      "city": "Doral",
+      "state": "FL",
+      "fund_type": null,
+      "tier": "small",
+      "is_star": false,
+      "score": 58,
+      "status": "due soon",
+      "why_short": "yearly gift usually in December",
+      "last_gift_date": "2025-12-12",
+      "last_gift_amount": 500,
+      "usual_cadence": "yearly · Dec",
+      "gift_count": 3,
+      "total_given": 1500,
+      "phone": null,
+      "notes": null,
+      "why": "Gave $500 every December for three years. Due again next month.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "330 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "3 gifts in 3 years"
+        },
+        {
+          "label": "Amount",
+          "value": "$500 average"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "due in ~1 month"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 44,
+          "donor_id": 11,
+          "amount": 500,
+          "gift_date": "2023-12-12",
+          "channel": "online",
+          "fund_type": null
+        },
+        {
+          "id": 45,
+          "donor_id": 11,
+          "amount": 500,
+          "gift_date": "2024-12-12",
+          "channel": "online",
+          "fund_type": null
+        },
+        {
+          "id": 46,
+          "donor_id": 11,
+          "amount": 500,
+          "gift_date": "2025-12-12",
+          "channel": "online",
+          "fund_type": null
+        }
+      ],
+      "research": [],
+      "draft": null
+    },
+    {
+      "id": 12,
+      "full_name": "Dan Okafor",
+      "org_name": null,
+      "donor_type": "individual",
+      "email": "dan.okafor@example.com",
+      "city": "Doral",
+      "state": "FL",
+      "fund_type": null,
+      "tier": "small",
+      "is_star": false,
+      "score": 15,
+      "status": "on track",
+      "why_short": "one gift (possible duplicate)",
+      "last_gift_date": "2025-10-03",
+      "last_gift_amount": 100,
+      "usual_cadence": null,
+      "gift_count": 1,
+      "total_given": 100,
+      "phone": null,
+      "notes": null,
+      "why": "One event gift in 2025. Similar name and same city as Daniel Okafor.",
+      "score_factors": [
+        {
+          "label": "Recency",
+          "value": "400 days since last gift"
+        },
+        {
+          "label": "Frequency",
+          "value": "1 gift"
+        },
+        {
+          "label": "Amount",
+          "value": "$100"
+        },
+        {
+          "label": "Gap vs. usual cadence",
+          "value": "not enough history"
+        }
+      ],
+      "gifts": [
+        {
+          "id": 47,
+          "donor_id": 12,
+          "amount": 100,
+          "gift_date": "2025-10-03",
+          "channel": "event",
+          "fund_type": null
+        }
+      ],
+      "research": [],
+      "draft": null
+    }
+  ],
+  "duplicates": [
+    {
+      "id": 1,
+      "reason": "same email",
+      "donors": [
+        {
+          "id": 3,
+          "full_name": "Ana Torres",
+          "email": "ana.torres@example.com",
+          "city": "Miami",
+          "gift_count": 8,
+          "total_given": 1200
+        },
+        {
+          "id": 10,
+          "full_name": "A. Torres",
+          "email": "ana.torres@example.com",
+          "city": "Miami",
+          "gift_count": 1,
+          "total_given": 150
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "reason": "similar name + same city",
+      "donors": [
+        {
+          "id": 11,
+          "full_name": "Daniel Okafor",
+          "email": "dokafor@example.com",
+          "city": "Doral",
+          "gift_count": 3,
+          "total_given": 1500
+        },
+        {
+          "id": 12,
+          "full_name": "Dan Okafor",
+          "email": "dan.okafor@example.com",
+          "city": "Doral",
+          "gift_count": 1,
+          "total_given": 100
+        }
+      ]
+    }
+  ]
+}
