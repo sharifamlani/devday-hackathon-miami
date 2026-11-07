@@ -466,14 +466,30 @@ Ingest writes rows into these SQLite tables. Scoring, enrichment, outreach and t
 order and merge readiness. It writes no feature code; it dispatches, reviews, verifies and integrates.
 Builders report to the lead and never merge their own PRs.
 
-| Agent (session) | Lane | Owns (and only these paths) | Reads | First deliverable |
+**Locked Sat Nov 7 (Sharif).** Demo runs on **Sharif's laptop**; it is also pushed to Vercel (see "Vercel"
+below). Carlos confirms the §13 fields.
+
+| Agent (session name) | Lane | Owns (and only these paths) | Branch / worktree | First deliverable |
 |---|---|---|---|---|
-| **CRM UI** | Front end | `web/` | §7 wireframes, §13 contract | Call-today list + donor drawer on the local API |
-| **Local database** | Data layer | `service/db.py`, `service/main.py` (all routes except the `/ingest` body), `data/answer_key.json` | §13 contract | `donors.db` created from §13; REST routes the UI and agents use |
-| **Enrich agent** | Research | `service/enrich_agent.py` | `donors` | Sourced `research_facts` for a real Miami org |
-| **Outreach agent** | Drafts | `service/outreach_agent.py`, `service/org_context.py` | `donors`, `donor_scores`, `research_facts`, §11 | A draft citing a real miamifoundation.org fact |
-| 🔒 **Carlos** (human) | Ingest | `service/ingest/`, `/ingest` route body | §13 contract | Messy CSV → `donors` + `gifts` |
-| ⚠ **Unassigned** | Scoring + dedupe | `service/score.py`, `service/tests/test_score.py`, `duplicate_suggestions` | `gifts` | **Most important feature: needs an owner** |
+| **Agent Phone** | Agent service frame | `service/main.py` app shell, `service/config.py`, `service/requirements.txt`, Agents SDK wiring | `feat/service` · `../dd-service` | Service starts; `/health` OK; one SDK call returns structured output |
+| **devday-hackathon-8b** | Local database **+ scoring + dedupe** | `service/db.py`, `service/routes_data.py`, `service/score.py`, `service/dedupe.py`, `service/tests/` | `feat/data` · `../dd-data` | `donors.db` from §13; data routes; score tests pass |
+| **devday-hackathon-42** | Enrich agent | `service/enrich_agent.py` | `feat/enrich` · `../dd-enrich` | ≥2 sourced facts for a real Miami org |
+| **devday-hackathon-86** | Outreach agent | `service/outreach_agent.py`, `service/org_context.py` | `feat/outreach` · `../dd-outreach` | Draft citing a dated miamifoundation.org fact |
+| **devday-hackathon-80** | CRM UI | `web/` | `feat/ui` · `../dd-ui` | Call-today list + donor drawer |
+| 🔒 **Carlos** (human) | Ingest | `service/ingest/`, `/ingest` route body | his own | Messy CSV → `donors` + `gifts` |
+| **Ideas** (this session) | Lead | `plan.md`, `ROADMAP.md`, `docs/` | `docs/*` | Assignments, demo script, reviews, merge order |
+
+**Scoring owner (decided):** the local database agent (8b). Scoring is plain logic over `gifts`, it sits
+next to the schema it reads, and it needs no AI. Split it out to its own session only if 8b falls behind.
+
+**Route split (to avoid two owners of one file):** Agent Phone owns `main.py` and mounts routers.
+8b writes `routes_data.py` as a FastAPI `APIRouter`. Carlos's `/ingest` lives in `service/ingest/router.py`.
+Enrich and outreach expose plain functions that Agent Phone wires to routes.
+
+**Vercel:** data is local SQLite on Sharif's laptop, which Vercel can't reach. So the Vercel build ships a
+**read-only snapshot**: the lead exports the finished database (donors, scores, research, drafts) to JSON,
+and the UI loads it when `VITE_DATA_MODE=snapshot`, with a "Cached sample" label. The live demo runs
+against the laptop (`VITE_DATA_MODE=local`). This also covers "precompute slow AI" for the stage.
 
 **Working rules for every agent**
 1. **One branch per agent, in its own git worktree** (`git worktree add ../dd-<lane> -b feat/<lane>`).
