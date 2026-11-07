@@ -147,7 +147,7 @@ def main() -> int:
         scratch = Path(tempfile.mkdtemp()) / "qa.db"
         db.rebuild(scratch)
         before = conn.execute("SELECT count(*) FROM outreach_drafts").fetchone()[0]
-        ids = [str(r["donor_id"]) for r in (star, third) if r is not None]
+        ids = [str(r["donor_id"]) for r in (top, star, third) if r is not None]
         p = subprocess.run([sys.executable, "-m", "service.outreach_agent", *ids], cwd=REPO,
                            env=os.environ | {"DONORS_DB": str(scratch)}, capture_output=True, text=True, timeout=600)
         sc = sqlite3.connect(scratch)
@@ -158,8 +158,12 @@ def main() -> int:
         check("smoke 5: `python -m service.outreach_agent <id>...` writes to $DONORS_DB only",
               p.returncode == 0 and len(got) == len(ids) and after == before,
               f"exit {p.returncode}; scratch drafts {got}; default db {before}->{after}; {p.stderr.strip()[-160:]}")
-        check("CLI status follows donor_scores.is_star (★ -> draft, else ready)",
-              all(st == ("draft" if stars.get(d) else "ready") for d, st in got.items()),
+        sc = sqlite3.connect(scratch)
+        orgs = {d for (d,) in sc.execute("SELECT id FROM donors WHERE donor_type='organization'")}
+        sc.close()
+        # Lead decision: ★ donors and every organization get 'draft' (a human sends); individuals 'ready'
+        check("CLI status: ★ or organization -> draft, individual -> ready",
+              all(st == ("draft" if stars.get(d) or d in orgs else "ready") for d, st in got.items()),
               f"{ {d: (st, stars.get(d)) for d, st in got.items()} }")
 
     # --- guardrails ---------------------------------------------------------------------------
@@ -191,8 +195,14 @@ def main() -> int:
     urls |= {f["url"] for f in org_facts}
     for d, _, _ in drafts.values():
         urls |= {f.url for f in d.facts_used}
-    dead = {u: s for u in sorted(urls) if (s := url_status(u)) != 200}
-    check("every source_url returns 200", not dead, f"{len(urls)} checked; non-200: {dead}")
+    # Judged the way §9 judges it: a real browser loads each [src] (miamifoundation.org answers scripts with 202)
+    import subprocess
+    lc = subprocess.run([sys.executable, str(Path(__file__).parent / "link_check.py"), "--from-db", str(db_file),
+                         "--from-json", str(REPO / "service" / "org_facts.json")],
+                        capture_output=True, text=True, encoding="utf-8", timeout=900)
+    bad_links = [l for l in lc.stdout.splitlines() if l.startswith("FAIL")]
+    check("every source link loads in a real browser", lc.returncode == 0,
+          f"{lc.stdout.count(chr(10) + 'PASS') + lc.stdout.startswith('PASS')} pass; fails: {bad_links}")
 
     for donor_id, (d, gifts, rf) in drafts.items():
         text = f"{d.subject}\n{d.body}\n{d.call_script}"
