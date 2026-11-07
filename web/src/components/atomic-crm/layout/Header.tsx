@@ -1,14 +1,12 @@
-import { FileText, Import, Settings, User, Users } from "lucide-react";
-import { CanAccess, useTranslate, useUserMenu } from "ra-core";
+import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
 import { RefreshButton } from "@/components/admin/refresh-button";
 import { ThemeModeToggle } from "@/components/admin/theme-mode-toggle";
 import { UserMenu } from "@/components/admin/user-menu";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { useConfigurationContext } from "../root/ConfigurationContext";
-import { ImportPage } from "../misc/ImportPage";
-import { ChangelogPage } from "../misc/ChangelogPage";
+import { API_URL, DATA_MODE } from "../providers/local/config";
+import { useSourceLabel } from "../providers/local/hooks";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
 
 const Header = () => {
@@ -21,10 +19,6 @@ const Header = () => {
     currentPath = "/";
   } else if (matchPath("/contacts/*", location.pathname)) {
     currentPath = "/contacts";
-  } else if (matchPath("/companies/*", location.pathname)) {
-    currentPath = "/companies";
-  } else if (matchPath("/deals/*", location.pathname)) {
-    currentPath = "/deals";
   } else {
     currentPath = false;
   }
@@ -35,26 +29,40 @@ const Header = () => {
         <header className="bg-secondary">
           <div className="px-4">
             <div className="flex justify-between items-center flex-1">
-              <Link
-                to="/"
-                className="flex items-center gap-2 text-secondary-foreground no-underline"
-              >
-                <img
-                  className="[.light_&]:hidden h-6"
-                  src={darkModeLogo}
-                  alt={title}
-                />
-                <img
-                  className="[.dark_&]:hidden h-6"
-                  src={lightModeLogo}
-                  alt={title}
-                />
-                <h1 className="text-xl font-semibold">{title}</h1>
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/"
+                  className="flex items-center gap-2 text-secondary-foreground no-underline"
+                >
+                  <img
+                    className="[.light_&]:hidden h-6"
+                    src={darkModeLogo}
+                    alt={title}
+                  />
+                  <img
+                    className="[.dark_&]:hidden h-6"
+                    src={lightModeLogo}
+                    alt={title}
+                  />
+                  <h1 className="text-xl font-semibold">{title}</h1>
+                </Link>
+                <span className="text-sm text-secondary-foreground/80">
+                  The Miami Foundation
+                </span>
+                <span
+                  className="rounded bg-amber-400 px-2 py-0.5 text-xs font-bold tracking-wide text-amber-950"
+                  title="Individual donors are fictional; gift amounts and dates are invented."
+                >
+                  SAMPLE DATA
+                </span>
+                <DataModeChip />
+              </div>
               <div>
                 <nav className="flex">
                   <NavigationTab
-                    label={translate("ra.page.dashboard")}
+                    label={translate("crm.call_today.title", {
+                      _: "Call today",
+                    })}
                     to="/"
                     isActive={currentPath === "/"}
                   />
@@ -65,43 +73,38 @@ const Header = () => {
                     to="/contacts"
                     isActive={currentPath === "/contacts"}
                   />
-                  <NavigationTab
-                    label={translate("resources.companies.name", {
-                      smart_count: 2,
-                    })}
-                    to="/companies"
-                    isActive={currentPath === "/companies"}
-                  />
-                  <NavigationTab
-                    label={translate("resources.deals.name", {
-                      smart_count: 2,
-                    })}
-                    to="/deals"
-                    isActive={currentPath === "/deals"}
-                  />
                 </nav>
               </div>
               <div className="flex items-center">
                 <GlobalSearchButton />
                 <ThemeModeToggle />
                 <RefreshButton />
-                <UserMenu>
-                  <ProfileMenu />
-                  <CanAccess resource="sales" action="list">
-                    <UsersMenu />
-                  </CanAccess>
-                  <CanAccess resource="configuration" action="edit">
-                    <SettingsMenu />
-                  </CanAccess>
-                  <ImportFromJsonMenuItem />
-                  <ChangelogMenuItem />
-                </UserMenu>
+                <UserMenu />
               </div>
             </div>
           </div>
         </header>
       </nav>
     </>
+  );
+};
+
+const DataModeChip = () => {
+  const { data: sourceLabel } = useSourceLabel();
+  return DATA_MODE === "local" ? (
+    <span
+      className="rounded border border-emerald-600 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+      title={`Live: reading the local API at ${API_URL}`}
+    >
+      LIVE · local API
+    </span>
+  ) : (
+    <span
+      className="rounded border border-secondary-foreground/40 px-2 py-0.5 text-xs font-medium text-secondary-foreground/80"
+      title="Static snapshot of the local API. Merges, research and drafts are not saved."
+    >
+      {sourceLabel ?? "Snapshot"} · read-only
+    </span>
   );
 };
 
@@ -126,90 +129,4 @@ const NavigationTab = ({
   </Link>
 );
 
-const UsersMenu = () => {
-  const translate = useTranslate();
-  const userMenuContext = useUserMenu();
-  if (!userMenuContext) {
-    throw new Error("<UsersMenu> must be used inside <UserMenu?");
-  }
-  return (
-    <DropdownMenuItem
-      onClick={userMenuContext.onClose}
-      render={<Link to="/sales" className="flex items-center gap-2" />}
-    >
-      <Users />
-      {translate("resources.sales.name", { smart_count: 2 })}
-    </DropdownMenuItem>
-  );
-};
-
-const ProfileMenu = () => {
-  const translate = useTranslate();
-  const userMenuContext = useUserMenu();
-  if (!userMenuContext) {
-    throw new Error("<ProfileMenu> must be used inside <UserMenu?");
-  }
-  return (
-    <DropdownMenuItem
-      onClick={userMenuContext.onClose}
-      render={<Link to="/profile" className="flex items-center gap-2" />}
-    >
-      <User />
-      {translate("crm.profile.title")}
-    </DropdownMenuItem>
-  );
-};
-
-const SettingsMenu = () => {
-  const translate = useTranslate();
-  const userMenuContext = useUserMenu();
-  if (!userMenuContext) {
-    throw new Error("<SettingsMenu> must be used inside <UserMenu>");
-  }
-  return (
-    <DropdownMenuItem
-      onClick={userMenuContext.onClose}
-      render={<Link to="/settings" className="flex items-center gap-2" />}
-    >
-      <Settings />
-      {translate("crm.settings.title")}
-    </DropdownMenuItem>
-  );
-};
-
-const ImportFromJsonMenuItem = () => {
-  const translate = useTranslate();
-  const userMenuContext = useUserMenu();
-  if (!userMenuContext) {
-    throw new Error("<ImportFromJsonMenuItem> must be used inside <UserMenu>");
-  }
-  return (
-    <DropdownMenuItem
-      onClick={userMenuContext.onClose}
-      render={<Link to={ImportPage.path} className="flex items-center gap-2" />}
-    >
-      <Import />
-      {translate("crm.header.import_data")}
-    </DropdownMenuItem>
-  );
-};
-
-const ChangelogMenuItem = () => {
-  const translate = useTranslate();
-  const userMenuContext = useUserMenu();
-  if (!userMenuContext) {
-    throw new Error("<ChangelogMenuItem> must be used inside <UserMenu>");
-  }
-  return (
-    <DropdownMenuItem
-      onClick={userMenuContext.onClose}
-      render={
-        <Link to={ChangelogPage.path} className="flex items-center gap-2" />
-      }
-    >
-      <FileText />
-      {translate("crm.changelog.title")}
-    </DropdownMenuItem>
-  );
-};
 export default Header;
