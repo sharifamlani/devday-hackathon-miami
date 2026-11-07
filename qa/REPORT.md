@@ -167,3 +167,12 @@ Each verdict also runs:
 1. **Overlap map:** every file touched by more than one open PR, with both owners. Overlaps get a joint check or an agreed order.
 2. **All-open integration:** merge every open PR together into one throwaway tree on current main; run `pytest service/tests`,
    and `npm run build:demo` when web/ is touched. A PR that passes alone but breaks with another is REJECTed until the owners reconcile.
+
+### Gate round: #18, #19, #20 on main adbd458 (all-open overlap + combined tree)
+No shared files; all three merge together; pytest 70 passed; no secrets.
+
+| PR | SHA | Checks | Verdict |
+|---|---|---|---|
+| #20 feat/org-outreach | 39f6906 | 31 org facts, all on miamifoundation.org; 12/12 distinct URLs load in a browser; 2 live prospect drafts are 'draft', no money ask, no relationship claim | APPROVE |
+| #18 feat/icp | 49a000b | 7 prospects, all organizations, none an existing donor, 3 facts each; 9/10 URLs pass outright | APPROVE + follow-ups Q12 (Peacock: 2 facts cited to a homepage that doesn't show them) and Q13 (no "via web search" provenance on prospect facts) |
+| #19 feat/social-context | 02ced45 | not imported anywhere in service/; tests pass | APPROVE (no-harm, post-demo) |
