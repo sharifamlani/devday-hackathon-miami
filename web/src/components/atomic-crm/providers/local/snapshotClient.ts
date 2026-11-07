@@ -1,17 +1,15 @@
+import type { ApiSnapshot } from "./apiTypes";
 import { SNAPSHOT_URL } from "./config";
-import type {
-  DonorDeskMethods,
-  DonorDetail,
-  DonorSummary,
-  Snapshot,
-} from "./types";
+import { parseDonorDetail, parseDonorRow, parseDuplicate } from "./parse";
+import type { DonorDeskMethods } from "./types";
 
 /**
- * Serves a static export of the local API (VITE_DATA_MODE=snapshot).
- * Reads come from the file; writes change only this tab's in-memory copy, and
- * the header chip tells the audience the page is a read-only snapshot.
+ * Serves `python -m service.export_snapshot` output (VITE_DATA_MODE=snapshot).
+ * Same shapes and same parser as the live API. Writes change only this tab's
+ * in-memory copy (scores are not recomputed), and nothing new is generated:
+ * research and drafts need the local API.
  */
-let snapshotPromise: Promise<Snapshot> | null = null;
+let snapshotPromise: Promise<ApiSnapshot> | null = null;
 
 const loadSnapshot = () => {
   if (!snapshotPromise) {
@@ -21,7 +19,7 @@ const loadSnapshot = () => {
           `Snapshot ${SNAPSHOT_URL} failed to load: ${response.status}`,
         );
       }
-      return (await response.json()) as Snapshot;
+      return (await response.json()) as ApiSnapshot;
     });
     snapshotPromise.catch(() => {
       snapshotPromise = null; // let the next call retry
@@ -30,73 +28,67 @@ const loadSnapshot = () => {
   return snapshotPromise;
 };
 
-const toSummary = ({
-  phone: _phone,
-  notes: _notes,
-  why: _why,
-  score_factors: _factors,
-  gifts: _gifts,
-  research: _research,
-  draft: _draft,
-  ...summary
-}: DonorDetail): DonorSummary => summary;
-
-const findDonor = (snapshot: Snapshot, id: number) => {
-  const donor = snapshot.donors.find((d) => d.id === id);
-  if (!donor) throw new Error(`Donor ${id} is not in the snapshot`);
-  return donor;
+const detailOf = (snapshot: ApiSnapshot, id: number) => {
+  const detail = snapshot.donor_details[String(id)];
+  if (!detail) throw new Error(`Donor ${id} is not in the snapshot`);
+  return detail;
 };
 
+const READ_ONLY =
+  "This is a read-only snapshot. Running the agents needs the local API.";
+
 export const snapshotMethods: DonorDeskMethods = {
-  getDonors: async () =>
-    (await loadSnapshot()).donors
-      .map(toSummary)
-      .sort((a, b) => b.score - a.score),
-  getDonor: async (id) => structuredClone(findDonor(await loadSnapshot(), id)),
-  getDuplicates: async () => structuredClone((await loadSnapshot()).duplicates),
+  getDonors: async () => (await loadSnapshot()).donors.map(parseDonorRow),
+  getDonor: async (id) =>
+    parseDonorDetail(structuredClone(detailOf(await loadSnapshot(), id))),
+  getDuplicates: async () =>
+    (await loadSnapshot()).duplicates.map(parseDuplicate),
   mergeDuplicate: async (pairId, keepId) => {
     const snapshot = await loadSnapshot();
     const pair = snapshot.duplicates.find((p) => p.id === pairId);
     if (!pair) {
       throw new Error(`Duplicate pair ${pairId} is not in the snapshot`);
     }
-    const merged = pair.donors.find((d) => d.id !== keepId);
-    if (!merged) throw new Error(`Donor ${keepId} is not in pair ${pairId}`);
-    const kept = findDonor(snapshot, keepId);
-    const loser = snapshot.donors.find((d) => d.id === merged.id);
-    if (loser) {
-      kept.gifts = [...kept.gifts, ...loser.gifts].sort((a, b) =>
-        a.gift_date.localeCompare(b.gift_date),
+    if (keepId !== pair.donor_a_id && keepId !== pair.donor_b_id) {
+      throw new Error(`Donor ${keepId} is not in pair ${pairId}`);
+    }
+    const mergedId =
+      keepId === pair.donor_a_id ? pair.donor_b_id : pair.donor_a_id;
+    const kept = detailOf(snapshot, keepId);
+    const merged = snapshot.donor_details[String(mergedId)];
+    if (merged) {
+      kept.gifts = [...kept.gifts, ...merged.gifts].sort((a, b) =>
+        b.gift_date.localeCompare(a.gift_date),
       );
-      kept.gift_count = kept.gifts.length;
-      kept.total_given = kept.gifts.reduce((sum, g) => sum + g.amount, 0);
     }
-    snapshot.donors = snapshot.donors.filter((d) => d.id !== merged.id);
+    snapshot.donors = snapshot.donors.filter((d) => d.id !== mergedId);
+    delete snapshot.donor_details[String(mergedId)];
     snapshot.duplicates = snapshot.duplicates.filter(
-      (p) => !p.donors.some((d) => d.id === merged.id),
+      (p) => p.donor_a_id !== mergedId && p.donor_b_id !== mergedId,
     );
-    return { kept_id: keepId, merged_id: merged.id };
+    return { kept_id: keepId, merged_id: mergedId };
   },
-  // The snapshot holds whatever research and drafts were exported; nothing
-  // new is generated without the API.
-  enrichDonor: async (id) => findDonor(await loadSnapshot(), id).research,
-  draftOutreach: async (id) => {
-    const draft = findDonor(await loadSnapshot(), id).draft;
-    if (!draft) {
-      throw new Error("No draft in this snapshot. Drafting needs the local API.");
-    }
-    return draft;
+  dismissDuplicate: async (pairId) => {
+    const snapshot = await loadSnapshot();
+    snapshot.duplicates = snapshot.duplicates.filter((p) => p.id !== pairId);
   },
-  approveDraft: async (id, body) => {
-    const donor = findDonor(await loadSnapshot(), id);
-    if (!donor.draft) throw new Error(`Donor ${id} has no draft`);
-    donor.draft = {
-      ...donor.draft,
+  enrichDonor: async () => {
+    throw new Error(READ_ONLY);
+  },
+  draftOutreach: async () => {
+    throw new Error(READ_ONLY);
+  },
+  approveDraft: async (id, draftId, body) => {
+    const draft = detailOf(await loadSnapshot(), id).outreach_drafts.find(
+      (d) => d.id === draftId,
+    );
+    if (!draft) throw new Error(`Draft ${draftId} is not in the snapshot`);
+    Object.assign(draft, {
       body,
       status: "approved",
       approved_by: "Demo user",
       approved_at: new Date().toISOString(),
-    };
-    return donor.draft;
+    });
   },
+  getSourceLabel: async () => (await loadSnapshot()).meta.label,
 };

@@ -6,6 +6,7 @@ import { UserMenu } from "@/components/admin/user-menu";
 
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { API_URL, DATA_MODE } from "../providers/local/config";
+import { useSourceLabel } from "../providers/local/hooks";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
 
 const Header = () => {
@@ -88,8 +89,9 @@ const Header = () => {
   );
 };
 
-const DataModeChip = () =>
-  DATA_MODE === "local" ? (
+const DataModeChip = () => {
+  const { data: sourceLabel } = useSourceLabel();
+  return DATA_MODE === "local" ? (
     <span
       className="rounded border border-emerald-600 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
       title={`Live: reading the local API at ${API_URL}`}
@@ -101,9 +103,10 @@ const DataModeChip = () =>
       className="rounded border border-secondary-foreground/40 px-2 py-0.5 text-xs font-medium text-secondary-foreground/80"
       title="Static snapshot of the local API. Merges, research and drafts are not saved."
     >
-      SNAPSHOT · read-only
+      {sourceLabel ?? "Snapshot"} · read-only
     </span>
   );
+};
 
 const NavigationTab = ({
   label,

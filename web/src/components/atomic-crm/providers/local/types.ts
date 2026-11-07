@@ -1,25 +1,22 @@
 /**
- * Response shapes of the local Python API (service/main.py), as the UI reads
- * them. Donor and gift fields follow the plan.md §13 contract; the rest
- * (score, why, research, drafts) come from score.py, enrich_agent.py and
- * outreach_agent.py. A snapshot file is the same data in one JSON document.
+ * The view model the Donor Desk screens render. parse.ts builds it from the
+ * API shapes in apiTypes.ts. Every number here comes from score.py; the UI
+ * never computes a score.
  */
 
 export type DonorType = "individual" | "organization";
 export type Tier = "big" | "mid" | "small";
-/** Written by score.py. The UI only displays it. */
-export type DonorStatus = "lapsing" | "overdue" | "due soon" | "on track";
+/** donor_scores.status, written by score.py */
+export type DonorStatus = "lapsing" | "due" | "on_track" | "lapsed" | "no_gifts";
 
 export interface Gift {
   id: number;
-  donor_id: number;
   amount: number;
   gift_date: string; // ISO YYYY-MM-DD
   channel: string | null;
   fund_type: string | null;
 }
 
-/** One row of GET /donors: a §13 donor plus its donor_scores row. */
 export interface DonorSummary {
   id: number;
   full_name: string;
@@ -27,31 +24,33 @@ export interface DonorSummary {
   donor_type: DonorType;
   email: string | null;
   city: string | null;
-  state: string | null;
   fund_type: string | null;
   tier: Tier;
   is_star: boolean;
-  score: number; // 0-100, computed in Python, never by the model
+  score: number;
   status: DonorStatus;
-  why_short: string; // e.g. "no gift yet in 2026"
+  why_short: string;
   last_gift_date: string | null;
   last_gift_amount: number | null;
-  usual_cadence: string | null; // e.g. "yearly · Dec"
+  usual_cadence: string | null; // "yearly · Nov", "quarterly", ...
   gift_count: number;
   total_given: number;
+  give_miami_day_days_away: number | null;
 }
 
-/** The deterministic inputs behind the score, shown next to the explanation. */
+/** One of score.py's four point buckets (they sum to the score). */
 export interface ScoreFactor {
-  label: string; // "Recency", "Frequency", "Amount", "Gap vs. usual cadence"
-  value: string; // "312 days", "5 gifts in 5 yrs", ...
+  label: string;
+  points: number;
+  max: number;
+  detail: string;
 }
 
 export interface ResearchFact {
   id: number;
   fact: string;
   source_url: string;
-  retrieved_at: string; // ISO timestamp
+  retrieved_at: string;
 }
 
 export interface FactUsed {
@@ -59,29 +58,26 @@ export interface FactUsed {
   source_url: string;
 }
 
-export type DraftStatus = "draft" | "approved" | "sent";
-
 export interface OutreachDraft {
   id: number;
-  donor_id: number;
-  channel: "email";
-  subject: string;
+  channel: string | null;
+  subject: string | null;
   body: string;
+  call_script: string | null;
   facts_used: FactUsed[];
-  status: DraftStatus;
+  status: string; // draft | ready | approved | sent
   approved_by: string | null;
   approved_at: string | null;
 }
 
-/** GET /donors/{id} */
 export interface DonorDetail extends DonorSummary {
   phone: string | null;
   notes: string | null;
-  why: string; // plain-words explanation the model writes from the factors
+  why: string; // sentence built from score.py's why JSON
   score_factors: ScoreFactor[];
   gifts: Gift[];
   research: ResearchFact[];
-  draft: OutreachDraft | null;
+  draft: OutreachDraft | null; // newest outreach_drafts row
 }
 
 export interface DuplicateDonor {
@@ -93,10 +89,10 @@ export interface DuplicateDonor {
   total_given: number;
 }
 
-/** One row of GET /duplicates (from duplicate_suggestions). */
 export interface DuplicatePair {
   id: number;
-  reason: string; // e.g. "same email", "similar name + same city"
+  reasons: string[];
+  confidence: number;
   donors: [DuplicateDonor, DuplicateDonor];
 }
 
@@ -105,20 +101,20 @@ export interface MergeResult {
   merged_id: number;
 }
 
-/** The static export used when VITE_DATA_MODE=snapshot. */
-export interface Snapshot {
-  generated_at: string;
-  donors: DonorDetail[];
-  duplicates: DuplicatePair[];
-}
-
-/** Donor Desk methods, added to the ra-core data provider as custom methods. */
+/**
+ * Donor Desk methods, added to the ra-core data provider as custom methods.
+ * Writes resolve when the server is done; screens then refetch GET
+ * /donors/{id}, so they never depend on a POST's response body.
+ */
 export interface DonorDeskMethods {
   getDonors(): Promise<DonorSummary[]>;
   getDonor(id: number): Promise<DonorDetail>;
   getDuplicates(): Promise<DuplicatePair[]>;
   mergeDuplicate(pairId: number, keepId: number): Promise<MergeResult>;
-  enrichDonor(id: number): Promise<ResearchFact[]>;
-  draftOutreach(id: number): Promise<OutreachDraft>;
-  approveDraft(id: number, body: string): Promise<OutreachDraft>;
+  dismissDuplicate(pairId: number): Promise<void>;
+  enrichDonor(id: number): Promise<void>;
+  draftOutreach(id: number): Promise<void>;
+  approveDraft(id: number, draftId: number, body: string): Promise<void>;
+  /** "Cached sample" in snapshot mode; null when live. */
+  getSourceLabel(): Promise<string | null>;
 }

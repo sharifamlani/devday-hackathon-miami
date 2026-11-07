@@ -1,13 +1,12 @@
-import { API_URL } from "./config";
 import type {
-  DonorDeskMethods,
-  DonorDetail,
-  DonorSummary,
-  DuplicatePair,
-  MergeResult,
-  OutreachDraft,
-  ResearchFact,
-} from "./types";
+  ApiDonorDetail,
+  ApiDonorRow,
+  ApiDuplicate,
+  ApiMergeResult,
+} from "./apiTypes";
+import { API_URL } from "./config";
+import { parseDonorDetail, parseDonorRow, parseDuplicate } from "./parse";
+import type { DonorDeskMethods } from "./types";
 
 const request = async <T>(
   path: string,
@@ -33,31 +32,34 @@ const request = async <T>(
 
 /** Talks to the Python API on the demo laptop (VITE_DATA_MODE=local). */
 export const localApiMethods: DonorDeskMethods = {
-  getDonors: () => request<DonorSummary[]>("/donors"),
-  getDonor: (id) => request<DonorDetail>(`/donors/${id}`),
-  getDuplicates: () => request<DuplicatePair[]>("/duplicates"),
-  mergeDuplicate: (pairId, keepId) =>
-    request<MergeResult>(`/duplicates/${pairId}/merge`, {
+  getDonors: async () =>
+    (await request<ApiDonorRow[]>("/donors")).map(parseDonorRow),
+  getDonor: async (id) =>
+    parseDonorDetail(await request<ApiDonorDetail>(`/donors/${id}`)),
+  getDuplicates: async () =>
+    (await request<ApiDuplicate[]>("/duplicates")).map(parseDuplicate),
+  mergeDuplicate: async (pairId, keepId) => {
+    const result = await request<ApiMergeResult>(
+      `/duplicates/${pairId}/merge`,
+      { method: "POST", body: { keep_id: keepId } },
+    );
+    return { kept_id: result.kept_donor_id, merged_id: result.removed_donor_id };
+  },
+  dismissDuplicate: async (pairId) => {
+    await request(`/duplicates/${pairId}/dismiss`, { method: "POST" });
+  },
+  enrichDonor: async (id) => {
+    await request(`/enrich/${id}`, { method: "POST" });
+  },
+  draftOutreach: async (id) => {
+    await request(`/outreach/${id}`, { method: "POST" });
+  },
+  // Not in the API contract yet: requested from the lead.
+  approveDraft: async (id, draftId, body) => {
+    await request(`/outreach/${id}/approve`, {
       method: "POST",
-      body: { keep_id: keepId },
-    }),
-  enrichDonor: async (id) =>
-    (
-      await request<{ research: ResearchFact[] }>(`/enrich/${id}`, {
-        method: "POST",
-      })
-    ).research,
-  draftOutreach: async (id) =>
-    (
-      await request<{ draft: OutreachDraft }>(`/outreach/${id}`, {
-        method: "POST",
-      })
-    ).draft,
-  approveDraft: async (id, body) =>
-    (
-      await request<{ draft: OutreachDraft }>(`/outreach/${id}/approve`, {
-        method: "POST",
-        body: { body },
-      })
-    ).draft,
+      body: { draft_id: draftId, body },
+    });
+  },
+  getSourceLabel: async () => null,
 };

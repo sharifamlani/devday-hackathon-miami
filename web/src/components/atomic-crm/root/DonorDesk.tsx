@@ -1,6 +1,8 @@
 import { memoryStore } from "ra-core";
 
-import { authProvider, dataProvider } from "../providers/fakerest";
+import { CallToday } from "../dashboard/CallToday";
+import { authProvider } from "../providers/fakerest";
+import { dataProvider } from "../providers/local";
 import { CRM } from "./CRM";
 
 /**
@@ -16,6 +18,7 @@ export const DonorDesk = () => (
     dataProvider={dataProvider}
     authProvider={authProvider}
     store={memoryStore()}
+    dashboard={CallToday}
     disableTelemetry
   />
 );
