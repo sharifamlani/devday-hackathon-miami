@@ -4,7 +4,9 @@ import {
   PhoneCall,
   Send,
   Sparkles,
+  Upload,
   Users,
+  UsersRound,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useTranslate } from "ra-core";
@@ -21,7 +23,6 @@ export const Rail = () => {
   const onCampaigns =
     !!matchPath("/campaigns/*", location.pathname) ||
     !!matchPath("/outbox", location.pathname);
-  const onCalendar = !!matchPath("/calendar", location.pathname);
 
   return (
     <nav
@@ -60,11 +61,24 @@ export const Rail = () => {
           icon={Send}
           active={onCampaigns}
         />
+        {/* Three tabs, calendar and onboarding (plan.md §17) */}
+        <RailButton
+          to="/people"
+          label="People"
+          icon={UsersRound}
+          active={!!matchPath("/people", location.pathname)}
+        />
         <RailButton
           to="/calendar"
           label="Calendar"
           icon={CalendarDays}
-          active={onCalendar}
+          active={!!matchPath("/calendar/*", location.pathname)}
+        />
+        <RailButton
+          to="/onboarding"
+          label="Get started"
+          icon={Upload}
+          active={!!matchPath("/onboarding", location.pathname)}
         />
       </ul>
     </nav>
