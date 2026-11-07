@@ -7,6 +7,9 @@ GET  /health                 ok, the model tier in use, whether the key is loade
      (data routes)           see service/routes_data.py: /donors, /duplicates, /score/run, /drafts/{id}/approve
 POST /enrich/{donor_id}      research agent: sourced public facts for an organization, saved to research_facts
 POST /outreach/{donor_id}    outreach agent: email + call script, saved to outreach_drafts
+POST /icp/run                ICP agent: ideal donor profile + matching org prospects (cached unless ?refresh=true)
+POST /prospects/{id}/outreach  first-touch draft for a prospect organization, always status 'draft'
+     (ICP read routes)       GET /icp, /prospects, /prospects/{id}, POST /prospects/{id}/dismiss: routes_data.py
 POST /agent/ping             one tiny Agents SDK call with structured output (proves key + SDK)
      (ingest routes)         service/ingest/router.py, mounted when Carlos's lane is present
 """
@@ -14,7 +17,9 @@ from service import config  # noqa: F401  (loads .env and pins SCORE_AS_OF befor
 
 import asyncio
 import importlib.util
+import json
 import logging
+import sqlite3
 import uuid
 
 import openai
@@ -73,27 +78,44 @@ def load_donor_row(donor_id: int) -> dict:
 
 
 class AgentTimeout(Exception):
-    def __init__(self, what: str, donor_id: int | None, reason: str):
-        self.what, self.donor_id, self.reason = what, donor_id, reason
+    def __init__(self, what: str, reason: str, extra: dict):
+        self.what, self.reason, self.extra = what, reason, extra
 
 
 @app.exception_handler(AgentTimeout)
 def agent_timeout_response(request, exc: AgentTimeout) -> JSONResponse:
-    log.warning("504 %s donor=%s: %s", exc.what, exc.donor_id, exc.reason)
-    """504 with the newest saved draft (if any) so the UI can say 'took too long, showing cached draft'."""
-    cached = None
-    if exc.donor_id is not None and exc.what == "outreach":
-        conn = db.connect()
-        try:
-            row = conn.execute("SELECT * FROM outreach_drafts WHERE donor_id = ? ORDER BY id DESC LIMIT 1",
-                               (exc.donor_id,)).fetchone()
-        finally:
-            conn.close()
-        cached = dict(row) if row else None
-    return JSONResponse(status_code=504, content={
-        "error": "agent_timeout", "what": exc.what, "donor_id": exc.donor_id,
-        "detail": exc.reason,
-        "cached_draft": cached})
+    """504 plus cached data so the UI can say 'took too long, showing cached draft'."""
+    log.warning("504 %s %s: %s", exc.what, exc.extra, exc.reason)
+    return JSONResponse(status_code=504, content={"error": "agent_timeout", "what": exc.what,
+                                                  "detail": exc.reason, **exc.extra})
+
+
+def newest_draft(column: str, ref_id: int) -> dict | None:
+    """Newest outreach_drafts row for a donor_id or prospect_id; None if none (or no such column yet)."""
+    conn = db.connect()
+    try:
+        row = conn.execute(f"SELECT * FROM outreach_drafts WHERE {column} = ? ORDER BY id DESC LIMIT 1",
+                           (ref_id,)).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def cached_icp() -> dict | None:
+    """data/icp_cache.json has the same shape run_icp returns."""
+    path = config.REPO_ROOT / "data" / "icp_cache.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def draft_id_of(where_saved: str) -> int | None:
+    # save_draft reports "donors.db:outreach_drafts#<id>" when it wrote to the db, a JSON path otherwise
+    return int(where_saved.rsplit("#", 1)[1]) if "#" in where_saved else None
+
+
+def not_landed(module: str) -> HTTPException:
+    return HTTPException(503, f"{module} has not landed on this build yet")
 
 
 def timeout_reason(what: str) -> str:
@@ -101,14 +123,17 @@ def timeout_reason(what: str) -> str:
             f"(after {config.OPENAI_MAX_RETRIES} retries)")
 
 
-async def run_agent(what: str, donor_id: int | None, fn, *args, **kwargs):
-    """Run a blocking agent call off the event loop, capped at AGENT_DEADLINE_S."""
+async def run_agent(what: str, fn, *args, fallback=dict, **kwargs):
+    """Run a blocking agent call off the event loop, capped at AGENT_DEADLINE_S.
+
+    On timeout, fallback() supplies the ids + cached data that go into the 504 body.
+    """
     try:
         return await asyncio.wait_for(run_in_threadpool(fn, *args, **kwargs), config.AGENT_DEADLINE_S)
     except asyncio.TimeoutError:
-        raise AgentTimeout(what, donor_id, f"{what} took longer than {config.AGENT_DEADLINE_S:.0f} s")
+        raise AgentTimeout(what, f"{what} took longer than {config.AGENT_DEADLINE_S:.0f} s", fallback())
     except openai.APITimeoutError:
-        raise AgentTimeout(what, donor_id, timeout_reason(what))
+        raise AgentTimeout(what, timeout_reason(what), fallback())
 
 
 @app.post("/enrich/{donor_id}")
@@ -116,8 +141,9 @@ async def enrich(donor_id: int, refresh: bool = False) -> dict:
     from service.enrich_agent import enrich_donor, save_facts
 
     donor = load_donor_row(donor_id)
-    facts = await run_agent("enrich", donor_id, enrich_donor, donor["full_name"], donor.get("org_name"),
-                            donor.get("city"), refresh=refresh, donor_type=donor.get("donor_type"))
+    facts = await run_agent("enrich", enrich_donor, donor["full_name"], donor.get("org_name"), donor.get("city"),
+                            refresh=refresh, donor_type=donor.get("donor_type"),
+                            fallback=lambda: {"donor_id": donor_id})
     run_id = f"enrich-{uuid.uuid4().hex[:12]}"
     saved = await run_in_threadpool(save_facts, donor_id, facts, run_id)
     return {"donor_id": donor_id, "full_name": donor["full_name"], "agent_run_id": run_id, "saved": saved,
@@ -130,12 +156,58 @@ async def outreach(donor_id: int) -> dict:
 
     load_donor_row(donor_id)
     try:
-        draft, where_saved = await run_agent("outreach", donor_id, draft_for_donor, donor_id)
+        draft, where_saved = await run_agent(
+            "outreach", draft_for_donor, donor_id,
+            fallback=lambda: {"donor_id": donor_id, "cached_draft": newest_draft("donor_id", donor_id)})
     except KeyError as e:
         raise HTTPException(404, str(e))
-    # save_draft reports "donors.db:outreach_drafts#<id>" when it wrote to the db
-    draft_id = int(where_saved.rsplit("#", 1)[1]) if "#" in where_saved else None
-    return {"donor_id": donor_id, "draft_id": draft_id, "saved_to": where_saved, **draft.model_dump()}
+    return {"donor_id": donor_id, "draft_id": draft_id_of(where_saved), "saved_to": where_saved,
+            **draft.model_dump()}
+
+
+@app.post("/icp/run")
+async def icp_run(refresh: bool = False) -> dict:
+    try:
+        from service.icp_agent import run_icp
+    except ImportError:
+        raise not_landed("service.icp_agent")
+
+    result = await run_agent("icp", run_icp, refresh=refresh, fallback=lambda: {"cached_icp": cached_icp()})
+    saved = await run_in_threadpool(persist_icp, result)
+    return {**result, "saved": saved}
+
+
+def persist_icp(result: dict) -> dict | None:
+    """run_icp is pure; db.save_icp_run is the only writer of icp_profile + prospects.
+
+    Returns {"icp_id", "prospect_ids"}, or None until save_icp_run lands on this build.
+    """
+    if not hasattr(db, "save_icp_run"):
+        return None
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        return db.save_icp_run(conn, result)
+    finally:
+        conn.close()
+
+
+@app.post("/prospects/{prospect_id}/outreach")
+async def prospect_outreach(prospect_id: int) -> dict:
+    try:
+        from service.outreach_agent import draft_for_prospect
+    except ImportError:
+        raise not_landed("service.outreach_agent.draft_for_prospect")
+
+    try:
+        draft, where_saved = await run_agent(
+            "prospect_outreach", draft_for_prospect, prospect_id,
+            fallback=lambda: {"prospect_id": prospect_id,
+                              "cached_draft": newest_draft("prospect_id", prospect_id)})
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    return {"prospect_id": prospect_id, "draft_id": draft_id_of(where_saved), "saved_to": where_saved,
+            **draft.model_dump()}
 
 
 class Ping(BaseModel):
@@ -154,7 +226,7 @@ async def agent_ping(text: str = "hello") -> dict:
     try:
         result = await asyncio.wait_for(Runner.run(agent, text), config.AGENT_DEADLINE_S)
     except asyncio.TimeoutError:
-        raise AgentTimeout("ping", None, f"ping took longer than {config.AGENT_DEADLINE_S:.0f} s")
+        raise AgentTimeout("ping", f"ping took longer than {config.AGENT_DEADLINE_S:.0f} s", {})
     except openai.APITimeoutError:
-        raise AgentTimeout("ping", None, timeout_reason("ping"))
+        raise AgentTimeout("ping", timeout_reason("ping"), {})
     return {"model": config.MODEL_FAST, **result.final_output.model_dump()}
