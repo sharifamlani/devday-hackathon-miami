@@ -201,3 +201,8 @@ Minor (90): top-level `state` stays "done" when every source failed.
 | #31 fix/context-fallback-rows | fe06538 | combined with #32: 105 passed; X-only, another-org.org, example.org (cached) and unreachable all → failed with 0 Foundation facts; Foundation (incl. www + trailing slash) → done | APPROVE |
 | #32 fix/context-empty-site | 1ab958c | resolvable-but-empty site → failed, name null, clear error detail; agrees with #31 in the merged tree | APPROVE |
 | #33 fix/icp-sources | fd389a1 | combined with #31+#32: 109 passed; provenance on 15/15 facts; per-fact page check: Taft ×2 not on the cited page (even after loading all grantees), White & Case ×2 cited page 403 | REJECT (owner 42) |
+
+## Live :8000 on main 8859b82 (fresh pipeline rebuild, as of 2026-11-08)
+`qa/service_check.py`: 24/24. `qa/snapshot_check.py --live`: 28/28; live /donors matches the snapshot exactly.
+DeLuca research: 3 rows, all distinct (the #14 fix holds live). Prospects 7, all 'drafted'; /icp 200; /org-profile = The Miami Foundation.
+No context probes for other sites were run on :8000: a failed run still overwrites the saved profile there (90's fix is pending).
