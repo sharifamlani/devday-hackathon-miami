@@ -156,8 +156,14 @@ const parseRecipient = (raw: ApiEventRecipient): EventRecipient => ({
   reason: raw.reason ?? null,
 });
 
+/** Prospects are organizations we've never worked with: always one by one. */
+const isProspect = (raw: ApiSendItem) =>
+  raw.prospect_id != null || (raw.contact_type ?? "").toLowerCase() === "prospect";
+
 export const parseSendItem = (raw: ApiSendItem): SendItem => {
   const facts = fromJson(raw.facts_used);
+  // The client enforces the rule even if the server leaves the flag off.
+  const individual = !!raw.needs_individual_approval || isProspect(raw);
   return {
     id: raw.id,
     person_id: raw.person_id ?? null,
@@ -172,8 +178,9 @@ export const parseSendItem = (raw: ApiSendItem): SendItem => {
           .map((f) => ({ fact: String(f?.fact ?? ""), source_url: String(f?.source_url ?? f?.url ?? "") }))
           .filter((f) => f.fact && f.source_url)
       : [],
-    needs_individual_approval: !!raw.needs_individual_approval,
-    approval_reason: raw.approval_reason ?? null,
+    needs_individual_approval: individual,
+    approval_reason:
+      raw.approval_reason ?? (isProspect(raw) ? "Prospect organization" : null),
     flags: stringList(raw.flags),
     status: raw.status ?? "draft",
   };
@@ -367,3 +374,28 @@ export const parsePlanResult = (raw: ApiPlanResult): PlanResult => ({
   flagged: raw.counts?.flagged ?? null,
   total: raw.counts?.total ?? null,
 });
+
+/**
+ * The per-item list for approveSendBatch, built from the plan.md §17 rule:
+ * - ordinary drafts are approved in bulk;
+ * - org / star / big-donor / prospect drafts go only if named in
+ *   `individuallyApproved` (a person ticked each one);
+ * - flagged drafts are never selected, and naming one is refused.
+ * Items left out stay drafts; the server reports them as blocked.
+ */
+export const buildApproval = (
+  batch: SendBatch,
+  individuallyApproved: number[] = [],
+): { id: number; approve: boolean }[] => {
+  const byId = new Map(batch.items.map((i) => [i.id, i]));
+  const flagged = individuallyApproved.filter((id) => byId.get(id)?.flags.length);
+  if (flagged.length) {
+    throw new Error(
+      `Flagged drafts can't be approved until a person edits them (${flagged.join(", ")}).`,
+    );
+  }
+  return batch.items
+    .filter((item) => item.status === "draft" && !item.flags.length)
+    .filter((item) => !item.needs_individual_approval || individuallyApproved.includes(item.id))
+    .map((item) => ({ id: item.id, approve: true }));
+};

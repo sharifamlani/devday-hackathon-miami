@@ -92,6 +92,7 @@ export interface ApiEventRecipient {
 export interface ApiSendItem {
   id: number;
   person_id?: number | null;
+  prospect_id?: number | null; // a first-touch draft to a prospect organization
   full_name?: string | null;
   name?: string | null;
   contact_type?: string | null;

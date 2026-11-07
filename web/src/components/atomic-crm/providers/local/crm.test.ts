@@ -3,7 +3,9 @@ import { crmHttpMethods } from "./crmHttp";
 import { SOCIAL_POSTING } from "./config";
 import {
   NOT_RECORDED,
+  buildApproval,
   parseChatResponse,
+  parseSendBatch,
   parseContextStatus,
   parseCommunityStats,
   parseEventDetail,
@@ -459,5 +461,41 @@ describe("context status (plan.md §17 amendment)", () => {
 
   it("keeps social posting behind a coming-soon flag", () => {
     expect(SOCIAL_POSTING).toBe("coming_soon");
+  });
+});
+
+describe("approval rules (plan.md §17)", () => {
+  // One batch with every kind of item the rule distinguishes.
+  const batch = parseSendBatch({
+    id: 1,
+    items: [
+      { id: 1, body: "ordinary giver", status: "draft" },
+      { id: 2, body: "organization", needs_individual_approval: true, approval_reason: "organization donor", status: "draft" },
+      { id: 3, body: "star donor", needs_individual_approval: true, approval_reason: "Shack Society level", status: "draft" },
+      { id: 4, body: "big donor", needs_individual_approval: true, approval_reason: "big tier", status: "draft" },
+      { id: 5, body: "prospect, server forgot the flag", contact_type: "prospect", status: "draft" },
+      { id: 6, body: "prospect by id", prospect_id: 9, status: "draft" },
+      { id: 7, body: "ordinary but flagged", flags: ["$5,000 not in record"], status: "draft" },
+      { id: 8, body: "org and flagged", needs_individual_approval: true, flags: ["date not in record"], status: "draft" },
+      { id: 9, body: "already sent", status: "sent" },
+    ],
+  });
+
+  it("approval: never bulk-approves org/★/big or prospect items and never selects flagged ones", () => {
+    // Prospects need individual approval even when the server leaves the flag off.
+    expect(batch.items.filter((i) => i.needs_individual_approval).map((i) => i.id)).toEqual([2, 3, 4, 5, 6, 8]);
+    expect(batch.items.find((i) => i.id === 5)?.approval_reason).toBe("Prospect organization");
+    // A bulk approval selects only the ordinary, unflagged draft.
+    expect(batch.bulk_approvable).toBe(1);
+    expect(buildApproval(batch)).toEqual([{ id: 1, approve: true }]);
+    // Restricted items go only when a person names each one.
+    expect(buildApproval(batch, [2, 5])).toEqual([
+      { id: 1, approve: true },
+      { id: 2, approve: true },
+      { id: 5, approve: true },
+    ]);
+    // Naming a flagged item is refused outright.
+    expect(() => buildApproval(batch, [8])).toThrow("Flagged drafts can't be approved");
+    expect(() => buildApproval(batch, [7])).toThrow("Flagged drafts can't be approved");
   });
 });
