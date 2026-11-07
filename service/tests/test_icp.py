@@ -154,3 +154,21 @@ def test_a_search_past_its_deadline_is_dropped(monkeypatch):
     start = time.perf_counter()
     assert asyncio.run(icp_agent.run_searches(["a", "b"])) == ["P"]
     assert time.perf_counter() - start < 2
+
+
+def test_reverify_keeps_only_facts_still_on_their_pages_and_merge_dedupes(monkeypatch):
+    fact = {"fact": "Funds youth programs in Miami-Dade.", "quote": "The Foundation funds youth programs in Miami-Dade",
+            "via": "web search", "retrieved_at": "t"}
+    old = [
+        {"name": "Kept Fund", "city": "Miami", "priority": "Empower Youth & Families", "matched_traits": ["sector"],
+         "facts": [{**fact, "url": "https://k/1"}, {**fact, "url": "https://k/2"}], "status": "new"},
+        {"name": "No Quote Co", "city": "Miami", "priority": "Empower Youth & Families", "matched_traits": [],
+         "facts": [{"fact": "x", "url": "https://n/1"}, {"fact": "y", "url": "https://n/2"}], "status": "new"},
+        {"name": "Amazon", "city": "Miami", "priority": "Empower Youth & Families", "matched_traits": [],
+         "facts": [{**fact, "url": "https://k/1"}, {**fact, "url": "https://k/2"}], "status": "new"},
+    ]
+    monkeypatch.setattr(icp_agent, "page_text", lambda url: "the foundation funds youth programs in miami-dade.")
+    kept = icp_agent.reverify(old, ICP, {"Amazon"})
+    assert [p["name"] for p in kept] == ["Kept Fund"] and kept[0]["fit_score"] > 0
+    new = [{**kept[0], "fit_score": 10}, {"name": "Fresh", "fit_score": 50}]
+    assert [p["name"] for p in icp_agent.merge_prospects(new, kept)] == ["Fresh", "Kept Fund"]

@@ -515,6 +515,41 @@ def build_profile(refresh: bool = False) -> dict:
         conn.close()
 
 
+def reverify(prospects: list[dict], icp: dict, exclude_names: set[str]) -> list[dict]:
+    """Re-check cached prospects against their pages today and rescore them against the new ICP.
+
+    Facts without a quote (older caches) can't be checked and are dropped; so is any prospect left with
+    fewer than MIN_FACTS facts, or one that has since become a donor.
+    """
+    excluded = {normalize(n) for n in exclude_names}
+    urls = sorted({f["url"] for p in prospects for f in p["facts"] if f.get("quote")})
+    pool = ThreadPoolExecutor(max_workers=12)
+    futures = {pool.submit(page_text, u): u for u in urls}
+    done, _ = wait(futures, timeout=CACHE_PAGE_BUDGET_S)
+    pages = {futures[f]: f.result() for f in done}
+    pool.shutdown(wait=False, cancel_futures=True)
+
+    kept = []
+    for p in prospects:
+        facts = [f for f in p["facts"] if f.get("quote") and fact_on_page(f["fact"], f["quote"], pages.get(f["url"]))]
+        if len(facts) < MIN_FACTS or normalize(p["name"]) in excluded:
+            continue
+        p = {**p, "facts": facts}
+        p["matched_context"] = matched_context(p, icp)
+        p["fit_breakdown"] = fit_breakdown(p, icp)
+        p["fit_score"] = fit_score(p, icp)
+        kept.append(p)
+    return kept
+
+
+def merge_prospects(new: list[dict], old: list[dict]) -> list[dict]:
+    """New finds first, then still-verified earlier ones not found again; best fit first, capped."""
+    names = {normalize(p["name"]) for p in new}
+    merged = new + [p for p in old if normalize(p["name"]) not in names]
+    merged.sort(key=lambda p: (-p["fit_score"], p["name"]))
+    return merged[:MAX_PROSPECTS]
+
+
 def run_icp(refresh: bool = False, precompute: bool = False) -> dict:
     """{generated_at, icp, prospects}. Cached unless refresh=True; a live run rewrites data/icp_cache.json.
 
@@ -529,8 +564,11 @@ def run_icp(refresh: bool = False, precompute: bool = False) -> dict:
         icp = {**build_icp(icp_stats(conn), org_facts(conn)), "recent_context": recent_context(conn)}
     finally:
         conn.close()
+    prospects = find_prospects(icp, donor_names, refresh=True, precompute=precompute)
+    if precompute and ICP_CACHE.exists():
+        prospects = merge_prospects(prospects, reverify(read_cache()["prospects"], icp, donor_names))
     run = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "icp": icp,
-           "prospects": find_prospects(icp, donor_names, refresh=True, precompute=precompute)}
+           "prospects": prospects}
     write_cache(run)
     return run
 
