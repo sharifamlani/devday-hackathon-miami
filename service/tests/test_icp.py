@@ -59,8 +59,9 @@ def test_find_prospects_excludes_donors_and_thin_or_dead_sources(tmp_path, monke
              prospect("Peacock Foundation"),                 # duplicate
              prospect("Thin Co", facts=1),                   # fewer than 2 facts
              prospect("Dead Links Fund")]
-    monkeypatch.setattr(icp_agent.Runner, "run_sync",
-                        lambda agent, prompt: SimpleNamespace(final_output=SimpleNamespace(prospects=found)))
+    async def fake_run(agent, prompt):
+        return SimpleNamespace(final_output=SimpleNamespace(prospects=found))
+    monkeypatch.setattr(icp_agent.Runner, "run", fake_run)
     # Every live page states "funds youth programs in miami-dade" except the dead one and one page that
     # loads but doesn't state its fact (the homepage problem)
     page = "about us: the foundation funds youth programs in miami-dade and broward every year."
@@ -139,3 +140,17 @@ def test_numbers_in_a_fact_must_be_on_the_page():
     assert icp_agent.numbers_on_page("Gave 3,582 pro bono hours in 2025.", text)
     assert not icp_agent.numbers_on_page("Gave 5,000 pro bono hours in 2025.", text)
     assert icp_agent.fact_on_page("Gave 3,582 hours in 2025.", "our attorneys gave 3,582 pro bono hours to Miami", text)
+
+
+def test_a_search_past_its_deadline_is_dropped(monkeypatch):
+    import asyncio
+    async def slow(agent, prompt):
+        await asyncio.sleep(5)
+    async def fast(agent, prompt):
+        return SimpleNamespace(final_output=SimpleNamespace(prospects=["P"]))
+    monkeypatch.setattr(icp_agent, "SEARCH_TIMEOUT_S", 0.2)
+    calls = iter([slow, fast])
+    monkeypatch.setattr(icp_agent.Runner, "run", lambda agent, prompt: next(calls)(agent, prompt))
+    start = time.perf_counter()
+    assert asyncio.run(icp_agent.run_searches(["a", "b"])) == ["P"]
+    assert time.perf_counter() - start < 2

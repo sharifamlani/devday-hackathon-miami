@@ -14,12 +14,13 @@ Run from the repo root:
     python -m service.icp_agent --cache    # research live, write data/icp_cache.json
 """
 import argparse
+import asyncio
 import json
 import os
 import re
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
@@ -42,6 +43,10 @@ load_dotenv(REPO_ROOT / ".env")
 
 ICP_CACHE = REPO_ROOT / "data" / "icp_cache.json"
 MIN_FACTS = 2
+# Live runs must fit the spec's 90 s cap: each search, and all page fetches together, get a hard deadline
+SEARCH_TIMEOUT_S = 60
+PAGE_BUDGET_S = 20
+PAGE_READ_S = 10
 SEARCH_KINDS = ["companies with corporate giving programs (banks, law firms, utilities, employers)",
                 "private, family and corporate foundations"]
 MAX_PROSPECTS = 10
@@ -81,7 +86,16 @@ def page_text(url: str) -> str | None:
         with urllib.request.urlopen(url, timeout=8) as response:
             if response.status != 200 or "html" not in response.headers.get("Content-Type", ""):
                 return None
-            html = response.read(3_000_000).decode(response.headers.get_content_charset() or "utf-8", "replace")
+            chunks, size, start = [], 0, time.monotonic()
+            while size < 3_000_000 and time.monotonic() - start < PAGE_READ_S:   # a slow trickle can't stall us
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                size += len(chunk)
+            else:
+                return None
+            html = b"".join(chunks).decode(response.headers.get_content_charset() or "utf-8", "replace")
     except (urllib.error.URLError, TimeoutError, ValueError):
         return None
     html = re.sub(r"(?is)<(script|style|noscript)\b.*?</\1>", " ", html)
@@ -416,6 +430,17 @@ def fit_score(prospect: dict, icp: dict) -> int:
     return min(100, sum(fit_breakdown(prospect, icp).values()))
 
 
+async def run_searches(briefs: list[str]) -> list:
+    """Run the prospect searches concurrently; a search past SEARCH_TIMEOUT_S is dropped, not waited on."""
+    async def one(brief):
+        try:
+            result = await asyncio.wait_for(Runner.run(prospect_agent, brief), SEARCH_TIMEOUT_S)
+            return result.final_output.prospects
+        except asyncio.TimeoutError:
+            return []
+    return [p for batch in await asyncio.gather(*(one(b) for b in briefs)) for p in batch]
+
+
 def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) -> list[dict]:
     """6-10 South Florida organizations matching the ICP, each with 2+ facts whose URLs return 200."""
     if not refresh and ICP_CACHE.exists():
@@ -427,9 +452,7 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
              "exclude": sorted(exclude_names)}
     # Two searches in parallel (companies, foundations) for a wider pool: many sources fail the page check
     briefs = [json.dumps({**brief, "search_for": kind}, indent=1) for kind in SEARCH_KINDS]
-    with ThreadPoolExecutor(max_workers=len(briefs)) as pool:
-        found = [p for result in pool.map(lambda b: Runner.run_sync(prospect_agent, b), briefs)
-                 for p in result.final_output.prospects]
+    found = asyncio.run(run_searches(briefs))
 
     seen, candidates = set(), []
     for p in found:
@@ -439,8 +462,11 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
         seen.add(key)
         candidates.append(p)
     urls = sorted({f.url for p in candidates for f in p.facts})
-    with ThreadPoolExecutor(max_workers=12) as pool:
-        pages = dict(zip(urls, pool.map(page_text, urls)))
+    pool = ThreadPoolExecutor(max_workers=12)
+    futures = {pool.submit(page_text, u): u for u in urls}
+    done, _ = wait(futures, timeout=PAGE_BUDGET_S)        # pages still loading after the budget count as failed
+    pages = {futures[f]: f.result() for f in done}
+    pool.shutdown(wait=False, cancel_futures=True)
     retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     prospects = []
