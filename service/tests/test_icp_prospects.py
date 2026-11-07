@@ -108,7 +108,8 @@ def test_old_db_migrates_in_place(tmp_path):
 
 def test_routes_icp_prospects_dismiss_and_snapshot_parity(db_file):
     c = client()
-    assert c.get("/icp").status_code == 404
+    r = c.get("/icp")
+    assert r.status_code == 200 and r.json() is None              # not built yet: 200 null, no console error
     assert c.get("/prospects").json() == []
 
     conn = db.connect(db_file)

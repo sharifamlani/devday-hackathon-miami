@@ -73,7 +73,8 @@ def test_duplicate_fact_in_one_result_is_stored_once(conn):
 
 def test_routes_and_snapshot_parity(db_file):
     c = client()
-    assert c.get("/org-profile").status_code == 404
+    r = c.get("/org-profile")
+    assert r.status_code == 200 and r.json() is None
     assert c.get("/context").json() == []
 
     conn = db.connect(db_file)

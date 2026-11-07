@@ -10,11 +10,11 @@ POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id
 POST /duplicates/{id}/dismiss    "not a duplicate"
 POST /score/run                  rescore everyone, refresh duplicate suggestions (?as_of=YYYY-MM-DD)
 POST /drafts/{id}/approve        a human approves a draft (optional edited body) → status approved
-GET  /icp                        the latest ideal donor profile (traits, stats, evidence)
+GET  /icp                        the latest ideal donor profile (traits, stats, evidence), or null
 GET  /prospects                  organization prospects, best fit first (?include_dismissed=true)
 GET  /prospects/{id}             one prospect with its first-touch drafts
 POST /prospects/{id}/dismiss     "not a fit"
-GET  /org-profile                the Foundation's profile: URLs, priorities, voice, per-source status
+GET  /org-profile                the Foundation's profile: URLs, priorities, voice, per-source status, or null
 GET  /context                    dated, sourced facts about the Foundation, newest first (?source=x)
 """
 
@@ -184,12 +184,10 @@ def latest_icp(conn: sqlite3.Connection) -> dict | None:
     return _icp_out(row) if row else None
 
 
+# "Not built yet" is 200 null, not 404: browsers log every 404 fetch as a console error.
 @router.get("/icp")
-def get_icp(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    icp = latest_icp(conn)
-    if icp is None:
-        raise HTTPException(404, "no ideal donor profile yet: run the pipeline or POST /icp/run")
-    return icp
+def get_icp(conn: sqlite3.Connection = Depends(get_conn)) -> dict | None:
+    return latest_icp(conn)
 
 
 @router.get("/prospects")
@@ -241,11 +239,8 @@ def list_context(conn: sqlite3.Connection, source: str | None = None) -> list[di
 
 
 @router.get("/org-profile")
-def get_org_profile(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    profile = get_org_profile_or_none(conn)
-    if profile is None:
-        raise HTTPException(404, "no organization profile yet: run onboarding or POST /context/run")
-    return profile
+def get_org_profile(conn: sqlite3.Connection = Depends(get_conn)) -> dict | None:
+    return get_org_profile_or_none(conn)
 
 
 @router.get("/context")
