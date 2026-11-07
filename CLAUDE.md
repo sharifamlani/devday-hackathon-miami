@@ -37,11 +37,14 @@ Anything that serves none of the three is out of scope.
 Names, emails and the pending team email are in `TEAM_CONTACTS.md` at the repo root. It is gitignored:
 never commit it, and never copy its contents into a tracked file.
 
-## Repo map
+## Current project state
 
-There is **no application code yet**: the build starts at T0, after the nonprofit problem statements
-are revealed. The stack is chosen at K5. The kit's proven default is Next.js + TypeScript + pnpm on
-Vercel (`docs/hackathon-kit/tech-notes.md`), with the agent itself on the Python Agents SDK.
+The selected challenge is Project 2: duplicate donor records and donors who quietly stop giving.
+The current implementation is a Python FastMCP service in `stat-mcp/`; it uses Pydantic, pandas,
+the OpenAI Agents SDK, and the OpenAI Python SDK. A Next.js frontend, authentication, persistent
+storage, and cross-source consolidation are not implemented yet. See `README.md`,
+`stat-mcp/AGENT_INTEGRATION.md`, and `stat-mcp/REQUIRED_FIELDS.md` for the current integration
+contract.
 
 | Path | Role |
 |---|---|
@@ -50,6 +53,9 @@ Vercel (`docs/hackathon-kit/tech-notes.md`), with the agent itself on the Python
 | `ROADMAP.md` | Gate-by-gate status (N → K → B → F → A rows); flip a row in the same commit as the work |
 | `research/rules_check.md` | What 9 sibling DevDay events allow (tools, prep, team size) |
 | `docs/hackathon-kit/` | Lessons, runbook, playbooks and templates carried from past events. Edit `lessons-learned.md` after the event, not during |
+| `stat-mcp/src/stat_mcp/` | FastMCP server, ingestion, canonical schemas, deterministic donor analysis, and Agents SDK extraction/scoring |
+| `stat-mcp/examples/` | Synthetic JSON/CSV/text fixtures and a JavaScript MCP client walkthrough |
+| `stat-mcp/TOOLS.md`, `REQUIRED_FIELDS.md`, `AGENT_INTEGRATION.md`, `DEPENDENCIES.md` | Current tool contracts, donor schema, UI-agent integration steps, and dependency ledger |
 | `scripts/` | `smoke-openai.py` (key + tiers + Agents SDK), `verify-e2e.py` + `make-voice.ps1` (Playwright prod walk, adapt `CASES`/selectors per app) |
 | `.claude/agents/` | The 5 sprint subagents (gitignored; masters in `docs/hackathon-kit/agents/`) |
 | `.packages/`, `transcripts/` | Unrelated personal tooling / local notes, gitignored. Not part of the entry |
@@ -57,8 +63,13 @@ Vercel (`docs/hackathon-kit/tech-notes.md`), with the agent itself on the Python
 ## Commands
 
 ```bash
-# Python env (uv); the SDK installs as openai-agents but imports as `agents`
-uv venv .venv && uv pip install --python .venv/Scripts/python.exe openai-agents python-dotenv
+# Python MCP environment (uv); run from repository root
+cd stat-mcp && uv sync
+uv run python -m stat_mcp.server
+
+# In a second terminal, from stat-mcp/, run the sample MCP client
+npm install @modelcontextprotocol/sdk
+STAT_MCP_URL=http://127.0.0.1:8000/mcp node examples/sample-call.mjs
 
 # Prove key, all four model tiers, and an Agents SDK tool call + structured output (expect 7/7, exit 0)
 .venv/Scripts/python.exe scripts/smoke-openai.py
@@ -112,9 +123,9 @@ RETURN:    <the exact shape you want back>
 
 ## Models and keys
 
-`.env` holds the key and the four role-named tiers (`OPENAI_MODEL_DEFAULT` = gpt-6.1-sol, etc.).
-Name the model inside the product in the README. Traps (no `temperature`, reasoning is a setting,
-`agents` import name): `docs/hackathon-kit/playbooks/openai-integration.md`. Smoke:
+`stat-mcp/.env` holds the server-side key and `OPENAI_MODEL` used by the extractor/scorer. The
+Agents SDK package is `openai-agents` and its import is `agents`. Never expose the key to browser
+code. Smoke:
 `.venv/Scripts/python.exe scripts/smoke-openai.py`.
 
 ## Working agreements

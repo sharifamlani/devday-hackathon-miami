@@ -1,205 +1,104 @@
-# plan.md: donor fundraising agent (working name TBD)
+# DonorSignal: current product plan
 
-**The living plan.** Decisions go here, not in chat. Status lives in `ROADMAP.md`; the click order lives in
-`docs/demo-script.md`. Edit with targeted replacements and commit each change.
+**Status:** backend MCP scaffold and synthetic examples exist locally. The frontend, server walkthrough, persistence, authentication, and cross-source donor consolidation are not complete. Delivery status lives in `ROADMAP.md`; the short demo path lives in `docs/demo-script.md`.
 
-**Source:** team brainstorm at The LAB, Sat Nov 7 (`transcripts/brainstorm.md`), plus Sharif's additions.
-**Version:** v0.1 · Sat Nov 7, 2026
+**Requirements source:** [Project 2: Duplicate donor records, and donors who quietly stop giving](research/2.%20Duplicate%20donor%20records%2C%20and%20donors%20who%20quietly%20stop%20giving.md).
 
----
+## 1. Problem and goal
 
-## 1. Problem
+Small nonprofit teams receive donor information from multiple systems and notes. Staff spend time correcting records, checking likely duplicates, understanding gift history, and deciding which donors merit a personal follow-up. The product should make those facts easier to review without taking identity or outreach decisions away from staff.
 
-**Challenge #2** (problem statements): nonprofits' donor lists are messy and full of duplicates. Donors
-quietly stop giving and nobody notices in time. Since last year's public-funding cuts, staff are thin and
-can't track or follow up with every donor.
+**Current goal:** accept unstructured notes, CSV, or JSON; normalize donor records into a consistent schema; summarize stated giving data; suggest possible duplicates; and assess a donor against criteria chosen by the nonprofit.
 
-One-line pitch: *upload a messy donor list, and an agent tells your one fundraiser who to call today and
-why, in your own voice.*
+The equal-weight criterion score is a **rubric-fit / staff-priority aid**, not a calibrated probability that a donor will give. Annie Duke's uncertainty-aware decision practice informs how evidence, unknowns, and eventual outcomes should be shown; it is not a donor-propensity model.
 
-## 2. What it does (consensus + Sharif's additions)
+## 2. Canonical donor record
 
-| # | Capability | Detail | Priority |
-|---|---|---|---|
-| 1 | **Ingest** | Upload a messy CSV/XLSX. The agent maps columns and builds clean donor profiles and a gift history | Core |
-| 2 | **Dedupe** | iPhone-style: "We found this donor twice. Merge?" Answers "see each donor once" | Core |
-| 3 | **Gift tracking + propensity score** (*most important*) | Every gift has a date and amount. The score combines recency, frequency, amount and **gap since last gift vs. that donor's usual cadence**. It flags "lapsing" donors and ranks who to contact first | Core |
-| 4 | **Tiering** | Big vs. small donors; big-name sponsors get a ★ flag | Core |
-| 5 | **Org context** | The agent reads the nonprofit's website/blog (later: Drive/Outlook photos) to know what they did lately | Core |
-| 6 | **Value-based outreach** | Drafts lead with "here's what we did," never just "please give." Big donors: AI drafts, a human sends. Small/lapsed: automated email/text. Written in the org's voice | Core |
-| 7 | **Enrichment research agent** | Researches existing donors from public sources (employer, giving history, board seats, foundation ties) and adds that to the profile. Big-donor briefs go to staff | Core (Sharif) |
-| 8 | **ICP + new-donor finder** | From the enriched current donors, the agent builds an ideal donor profile, then researches **new** prospects who match it, with the reason for each | Stretch (after 1–7 work) |
-| 9 | AI voice calls to small donors | Script + objection handling (needs Twilio) | Cut unless time |
+Every normalized record contains the following required fields:
 
-**How the score works (decided):** Python computes the number deterministically from gift history (the
-LLM never computes it). The LLM only explains it in plain words: "Gave every December for 4 years; nothing
-this year; 23 days left in the year → call first."
-
-## 3. Guardrails
-
-- **Scope:** rows 1–7 are the demo. Row 8 only after the full core path works on production.
-- **No AI-generated images or video of the nonprofit's work.** The AI only assembles real content.
-- **Research only public, professional information** on donors (the standard nonprofit practice called
-  prospect research). No home addresses or family details. Show the source link for every enriched fact.
-- **Demo data:** fictional individual donors plus **real local businesses and foundations**, so the
-  enrichment agent finds real public results on stage without profiling private people. Label the sample
-  as sample data.
-- **Big donors never get an automated message.** A human approves and sends.
-
-## 4. Team and roles
-
-| Who | Owns |
+| Field | Missing value behavior |
 |---|---|
-| Sharif | Agents, scoring logic, enrichment and outreach back end |
-| (name) | UI |
-| (name) | Sample data + demo script |
-| (name) | Pitch + README |
+| `id` | Generate a UUID if absent or marked `NA`. |
+| `first_name` | Empty string. |
+| `last_name` | Empty string. |
+| `email_address` | Empty string. |
+| `donation_amount` | JSON `null`; never substitute zero for unknown. |
+| `phone_number` | Empty string. |
+| `date_of_last_donation` | Empty string. |
 
-Team cap was discussed as 4 or 5 (confirm at the desk). Anni may join as the fifth.
+The complete field list, accepted source aliases, and JSON example are in [stat-mcp/REQUIRED_FIELDS.md](stat-mcp/REQUIRED_FIELDS.md). Recognized optional fields currently include contact preference, organization, employer, giving history, gift count, engagement notes, stated interests, relationship owner, and source.
 
-## 5. File tree (proposed: confirm stack at K5)
+## 3. Current user workflow
 
-```
-devday_hackathon/
-├── plan.md                     this file: the living plan
-├── ROADMAP.md                  status rows, flipped per commit
-├── docs/demo-script.md         the spec: click order, the moment, Q&A
-├── data/
-│   └── sample_donors.csv       messy sample: dupes, mixed date formats, real local orgs
-├── service/                    Python Agents SDK back end (not "agents/": shadows the SDK import)
-│   ├── main.py                 FastAPI: /ingest /donors /enrich /outreach
-│   ├── ingest.py               column mapping + clean profiles (LLM-assisted)
-│   ├── dedupe.py               fuzzy match → merge suggestions
-│   ├── score.py                propensity score: pure Python, unit-tested
-│   ├── org_context.py          reads the nonprofit's site → recent-news facts
-│   ├── enrich_agent.py         Agents SDK + web search tool → sourced donor facts
-│   ├── outreach_agent.py       drafts in the org's voice from org_context + profile
-│   └── tests/test_score.py     score correctness on hand-built histories
-└── web/                        Next.js UI on Vercel
-    └── app/page.tsx            upload → donor table → donor drawer → drafts
-```
+1. The application submits content to FastMCP's `import_donor_data` tool.
+2. CSV/JSON inputs are parsed into the canonical schema. Unstructured prose is extracted by an OpenAI Agents SDK agent; unknown values remain empty or null, and missing IDs are generated.
+3. The backend receives a dataset ID and import summary, then reads normalized rows in pages with `get_donor_records` for the UI.
+4. `summarize_donor_dataset` reports statistics on provided donation amounts. `suggest_duplicate_donors` returns candidate pairs and evidence. Staff review every pair; no merge is performed.
+5. The UI obtains suggested fields and criteria, then calls `score_donor` or bounded `score_donor_dataset` for a staff-defined opportunity.
+6. The agent returns a pass/fail/insufficient-evidence assessment per criterion. Python calculates the equal-weight average and evidence coverage. Staff decide whether to pursue and approve any outreach.
 
-## 6. Flow
+See [stat-mcp/AGENT_INTEGRATION.md](stat-mcp/AGENT_INTEGRATION.md) for MCP transport, tool sequence, result shape, limits, and integration notes.
 
-```
- [Staff uploads CSV] --> +-----------+     +-----------+     +---------------+
-                         | ingest.py | --> | dedupe.py | --> | merge prompt  | --> staff clicks Merge
-                         +-----------+     +-----------+     +---------------+
-                                                 |
-                                                 v
-                                          +-------------+      gift dates + amounts
-                                          |  score.py   | <--- (deterministic)
-                                          +-------------+
-                                                 |
-                       +-------------------------+--------------------------+
-                       v                                                    v
-              +-----------------+                                 +-------------------+
-              | enrich_agent    |  web search, sourced facts      | org_context.py    |
-              | (per donor)     | ------------------+             | (nonprofit site)  |
-              +-----------------+                   |             +-------------------+
-                       |                            v                       |
-                       |                    +---------------+               |
-                       +------------------> | outreach_agent| <-------------+
-                                            +---------------+
-                                                    |
-                         +--------------------------+------------------------+
-                         v                                                   v
-               [Big donor: brief + draft,                       [Small/lapsed: draft queued
-                human approves and sends]                         for automated send]
+## 4. Current service architecture
 
-  Stretch: enriched donors --> ICP profile --> prospect search --> "new donors like your best ones"
+```text
+UI / server-side application agent (not implemented here)
+        │ MCP Streamable HTTP
+        ▼
+FastMCP (`stat-mcp`)
+  ├── Pydantic canonical schemas
+  ├── pandas CSV parsing + descriptive statistics
+  ├── deterministic duplicate candidate ranking
+  ├── OpenAI Agents SDK extraction of unstructured text
+  └── OpenAI Agents SDK per-donor criteria assessment
+        └── deterministic equal-weight score + coverage
 ```
 
-## 7. UI wireframes
+The service is run with `uv run python -m stat_mcp.server` from `stat-mcp/`. Its local MCP URL is `http://127.0.0.1:8000/mcp`; `GET /tools` returns tool metadata for a UI/operator. MCP clients should use normal MCP tool discovery. There is no separate FastAPI service in the current design.
 
-**Main screen** (new surface)
+## 5. Implemented MCP tools
 
+- `import_donor_data`: CSV/JSON normalization or model-assisted unstructured text extraction.
+- `get_donor_records`: paginated canonical records for the UI/backend (contains PII).
+- `get_donor_profile`: fetch one normalized donor record (contains PII).
+- `summarize_donor_dataset`: count, sum, mean, median, minimum, and maximum of recorded donation amounts.
+- `suggest_duplicate_donors`: explainable pair candidates; never merges.
+- `get_suggested_donor_fields` and `get_suggested_scoring_criteria`: metadata for the UI/agent.
+- `score_donor`: one donor assessment.
+- `score_donor_dataset`: at most 25 donor records per call, with one sequential model call per record.
+- `aggregate_donor_criterion_scores`: calculate the score and coverage from provided assessments.
+- `GET /tools`: HTTP JSON catalog of registered MCP tool names/descriptions.
+
+The score tool accepts no more than 12 criteria at once. Each criterion has `id`, `label`, `question`, and optional `evidence_fields`. Results retain the criterion ID, outcome, rationale, evidence snippets, and optional confidence. Insufficient evidence is excluded from the score denominator and reflected in coverage.
+
+## 6. Guardrails
+
+- Keep duplicate detection advisory; a shared email/phone can describe a household.
+- Missing gifts do not prove a failed payment or donor lapse.
+- Never auto-merge records or send outreach.
+- The scoring model sees a minimized profile without donor name/email/phone. The unstructured extractor receives the submitted text, which may contain personal data.
+- Do not infer protected traits, health, religion, political views, family circumstances, wealth from lifestyle proxies, or intent to give.
+- Use synthetic donor data until the nonprofit approves model processing and the service gains authentication, authorization, persistence, retention controls, and audit logging.
+- Keep `OPENAI_API_KEY` on the server and out of browser code, tool output, and logs.
+
+## 7. Not implemented yet
+
+- Frontend upload/review/decision screens.
+- Authentication, tenant isolation, and per-dataset authorization.
+- Persistent dataset storage and retention/deletion policies.
+- Cross-source identity consolidation or staff-approved merge workflow.
+- Gift transaction ledger, personal giving-cadence calculations, and overdue-gift alerts.
+- Lapsed-donor predictions or calibrated giving-probability estimates.
+- Donor outreach drafting/sending.
+
+The original challenge brief discusses lapsed gifts and the larger fundraising workflow; these features remain future work. The present implementation should not be described as already detecting lapsed donors or predicting gift likelihood.
+
+## 8. Local setup
+
+From `stat-mcp/`, run `uv sync`, set `OPENAI_API_KEY` in the ignored `.env`, and start the server:
+
+```sh
+uv run python -m stat_mcp.server
 ```
-+--------------------------------------------------------------------------+
-| [logo] Donor Desk          Sample: "Miami Paws Rescue"   [Upload list ⬆] |
-+--------------------------------------------------------------------------+
-| ⚠ 6 possible duplicates found                         [Review merges →] |
-+--------------------------------------------------------------------------+
-| Call today (ranked by propensity)                                        |
-| # | Donor            | Tier | Last gift   | Usual     | Score | Why      |
-| 1 | ★ Rivera Family Fdn | Big | Dec 2025 | yearly Dec | 92 | lapsing  ▶|
-| 2 | Ana Torres       | Small| Mar 2026    | quarterly | 81    | overdue ▶|
-| 3 | Bayside Dental   | Mid  | Oct 2026    | yearly    | 40    | on track▶|
-+--------------------------------------------------------------------------+
-```
 
-**Duplicate review** (modal)
-
-```
-+------------------------------------------------+
-| We found this donor twice                      |
-|  Ana Torres  ana.t@mail.com   3 gifts          |
-|  A. Torres   ana.t@mail.com   1 gift           |
-|            [Keep separate]   [Merge ✓]         |
-+------------------------------------------------+
-```
-
-**Donor drawer** (opens from ▶): the AI's work is visible here
-
-```
-+----------------------------------------------+
-| ★ Rivera Family Foundation         Score 92  |
-| WHY: gave every Dec 2021–2025 ($5k avg);     |
-|      nothing yet in 2026; 54 days left       |
-|----------------------------------------------|
-| RESEARCH (enrich agent)                      |
-| • Funds animal welfare in Miami-Dade [src]   |
-| • Board: ... [src]                           |
-|----------------------------------------------|
-| DRAFT (your voice)        [Edit] [Approve ✉] |
-| "This year we rescued 212 dogs, including..."|
-|  ↳ facts used: blog post Oct 12 [src]        |
-+----------------------------------------------+
-```
-
-| UI piece | BEFORE | AFTER |
-|---|---|---|
-| Upload | none | header button, CSV/XLSX |
-| Duplicate banner + modal | none | count + merge/keep |
-| Ranked table | none | score, tier, ★, "why" |
-| Donor drawer | none | why · sourced research · draft + approve |
-
-## 8. Derisking (in dependency order: don't start N+1 until N passes)
-
-| # | What it proves | Command | Expected | If it fails → |
-|---|---|---|---|---|
-| 1 | Key + Agents SDK work at the venue | `.venv/Scripts/python.exe scripts/smoke-openai.py` | `7/7` | check `.env` key and redeemed credits |
-| 2 | Scoring is correct on known histories | `pytest service/tests/test_score.py` | all pass; the "Dec giver, no 2026 gift" case ranks first | fix `score.py` before any UI |
-| 3 | Ingest + dedupe on the messy sample | `python -m service.ingest data/sample_donors.csv` | N clean donors, 6 merge suggestions | adjust column mapping prompt |
-| 4 | Enrichment returns sourced facts for a real local org | `python -m service.enrich_agent "<real Miami org>"` | ≥2 facts, each with a URL | narrow the search prompt; fall back to cached results labelled as cached |
-| 5 | Outreach draft uses real org news | `python -m service.outreach_agent <donor_id>` | draft cites ≥1 fact from the org site | check `org_context` output first |
-| 6 | **End to end on production** | upload sample on the Vercel URL → open #1 → Approve | ranked table, drawer with research + draft, 0 console errors | walk each stage back to the failing smoke |
-
-## 9. Evaluation criteria (definition of done; graded by a separate evaluator agent)
-
-| Criterion | Metric + threshold | How measured | Evidence |
-|---|---|---|---|
-| A staffer uploads the messy sample and sees a ranked "call today" list | list renders, ≤ 10 s, on production | Playwright on the prod URL | screenshot + timing log |
-| Duplicates are caught | 6/6 planted duplicates suggested, 0 false merges | compare against the answer key in `data/` | test output |
-| Propensity ranking is right | the planted "lapsing December giver" ranks #1; all score tests pass | `pytest service/tests/test_score.py` | pytest pass line |
-| Enrichment is sourced | 100% of displayed research facts carry a working link | evaluator clicks every `[src]` on 3 donors | link-check log |
-| Drafts use real org news | ≥ 3/3 drafts cite a fact found on the org site | evaluator compares draft against `org_context` output | 3 rows in report |
-| Big donors are never auto-sent | 0 automated sends to ★ donors | inspect the send queue after a full run | queue dump |
-| Live demo has no errors | 0 console errors, 0 network 4xx/5xx on the demo path | Playwright console + network | log file |
-
-## 10. Open decisions
-
-- [ ] Product name
-- [ ] Stack confirm at K5: Python back end + Next.js (the plan above) vs. all-TypeScript (`@openai/agents`) for one deploy
-- [ ] **CRM base: recommend [marmelab/atomic-crm](https://github.com/marmelab/atomic-crm)** (MIT, verified
-      from GitHub metadata; 1.4k stars; pushed Nov 7, 2026). React + Vite + shadcn, on **Supabase**, which we
-      already have. Supabase's auto-generated REST API lets the agent service read and write with no extra
-      back-end code. It already has contacts, companies, notes, tags, tasks and CSV import. **Gaps to add:**
-      a `gifts` table (contact_id, amount, gift_date) for scoring, a tier tag, and a table for research
-      facts and outreach drafts. Its contact-merge SQL function was added and then dropped in Dec 2025, so
-      plan on our own `dedupe.py`. Estimate ~45 min to a hosted Supabase + Vercel deploy. Fallback:
-      krayin/laravel-crm (MIT, 24k stars) but PHP and not Vercel-hostable. **No MIT/Apache nonprofit-specific
-      CRM exists:** CiviCRM, Twenty, EspoCRM, SuiteCRM and Frappe CRM are all AGPL or mixed, so excluded.
-      If adopted, `web/` in §5 becomes the atomic-crm fork and the stack question below is settled.
-- [ ] Which real local businesses/foundations go in the sample list
-- [ ] Team size (4 or 5) and who owns UI, data and pitch
+In a second terminal, the JavaScript MCP example is in `stat-mcp/examples/sample-call.mjs`; its usage and synthetic fixtures are documented in `stat-mcp/examples/README.md`.

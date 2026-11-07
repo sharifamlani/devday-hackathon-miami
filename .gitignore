@@ -2,10 +2,16 @@
 .env.*
 *.env*
 !.env.example
+!sample.env
 node_modules/
 .next/
 .venv/
 __pycache__/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
 .claude/
 .playwright-mcp/
 # unrelated personal tooling (property/Gmail scripts), not part of the entry

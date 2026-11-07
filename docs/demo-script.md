@@ -1,49 +1,29 @@
-# Demo script: <PROJECT NAME>
+# Demo script: DonorSignal
 
-**This file is the spec.** It is written right after the idea locks, **before any code**. No
-sentence here, no feature. Every change to the click order updates this file in the same step.
+**Current demo surface:** the FastMCP HTTP server and JavaScript sample client. A frontend is not in the repository yet. Use synthetic data only. Keep the live path small enough for the available demo time; use cached output only when clearly labeled.
 
-**Demo length:** ___ s (from `event-brief.md` Q1). If unknown, plan for 60 s; extra time goes to
-the moment, not to more features.
+**Demo length:** 60 seconds (event brief Q1 is unanswered).
 
-## Budget (60 s version)
-
-| Seconds | Beat | What is said | What is on screen |
-|---|---|---|---|
-| 0:00–0:10 | **Hook** | One sentence that makes the room want to see it | The thing, already running |
-| 0:10–0:40 | **The moment** | Little. Let it play. Narrate only what they can't see | The one live interaction, end to end |
-| 0:40–0:52 | **The AI, visible** | What the model did that couldn't be faked | **Its output, on screen**: what it heard, saw, quoted or decided |
-| 0:52–1:00 | **Close** | The name, and the line people repeat afterwards | Final frame |
-
-## The script
-
-| Seconds | Say | Do (click / speak / show) |
+| Seconds | Say | Show / do |
 |---|---|---|
-| | | |
+| 0:00–0:10 | “A donor record can arrive as a spreadsheet, JSON export, or a note. We turn those inputs into one consistent shape.” | Show a short synthetic staff note beside the returned canonical fields. |
+| 0:10–0:25 | “Required fields are always present. Missing text stays blank, unknown donation amount stays null, and missing IDs are generated.” | Show `id`, first/last name, email, amount, phone, and last-donation date, including one missing-value example. |
+| 0:25–0:40 | “The server summarizes reported giving and highlights possible duplicate records with its matching evidence.” | Show `summarize_donor_dataset` and one `suggest_duplicate_donors` result. Explain that this is a review suggestion. |
+| 0:40–0:53 | “For a donor, the agent reviews the nonprofit’s criteria and shows its evidence. Unknowns remain unknown.” | Show one `score_donor` result with criterion outcome, rationale, evidence, score, and coverage. Label cached output if not live. |
+| 0:53–1:00 | “This is a staff decision aid. It does not automatically merge records or contact donors.” | Show `GET /tools` or the final structured result. |
 
-**Where the AI is visible:** <the exact screen element a judge can point at>
+**Where the AI is visible:** the unstructured-text extraction output and per-criterion assessment rationale/evidence.
 
-**If asked "where's the AI?":** <one sentence>
+**If asked “where is the AI?”** The OpenAI Agents SDK extracts donor fields from narrative notes and evaluates the selected donor criteria.
 
-**If asked "is that live?":** <one sentence>
+**If asked “is that live?”** State whether each displayed extraction or assessment is live or cached; do not imply a cache is live.
 
-**If asked "how do you know it's right?":** <one sentence>
+**If asked “how do you know it is right?”** Show the source text and evidence; unknown fields and insufficient-evidence criteria are not turned into negative answers.
 
-## Rules
+## Known limits to disclose
 
-- Demo the real thing, live, from the `demo` tag. Nothing merges after freeze.
-- Every input (mic, camera, sensor) tested by a human on the venue setup.
-- Nothing over about 3 s happens live; precompute or mask it.
-- No logins, no empty states, no "loading…" in front of the judges.
-- One path only.
-- Rehearse twice, timed, at freeze + 5 and freeze + 15.
-
-## Fallbacks
-
-| If this breaks | Do this |
-|---|---|
-| Venue Wi-Fi | Phone hotspot → local server → screen recording |
-| Deployed URL | Local server, kept running |
-| AI API errors or rate limits | Precomputed output, labelled as cached |
-| Mic / camera / hardware | The recording captured when it first worked |
-| Laptop | Charger; recording on the phone |
+- There is no UI in the repository yet; the current integration example prints JSON from a JavaScript MCP client.
+- Each import remains a separate in-memory dataset. Cross-source consolidation and merging are not implemented.
+- The dataset scoring tool uses one model call per record. Use one donor for a short live demo; the sample batch mode is slower and costs more.
+- Unstructured notes are sent to the configured OpenAI model. Use the fictional sample files.
+- `/tools` is a tool catalog route, not an authenticated data API.

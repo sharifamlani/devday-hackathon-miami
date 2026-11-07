@@ -1,0 +1,434 @@
+Record reference: NOTE-0001
+Phone: +1-305-555-1005
+Giving amount: not recorded in these notes; check the CRM before discussing a gift.
+Last contact date is missing from this note.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0002
+Name: Gray Garcia
+Email: gray.garcia19@example.org
+Staff observation: Gray Garcia asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0003
+Name: Harper Hayes
+Email: harper.hayes32@example.org
+Staff observation: Harper Hayes asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0004
+Name: Indigo Ibrahim
+Email: indigo.ibrahim45@example.org
+Staff observation: Indigo Ibrahim asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0005
+Name: Jules Jones
+Staff observation: Jules Jones asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0006
+Name: Kai Adams
+Email: kai.adams71@example.org
+Phone: +1-305-555-1070
+Staff observation: Kai Adams asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0007
+Name: Logan Bennett
+Email: logan.bennett84@example.org
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0008
+Name: Avery Carter
+Email: avery.carter97@example.org
+Staff observation: Avery Carter asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Last contact date is missing from this note.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0009
+Name: Blake Diaz
+Staff observation: Blake Diaz asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Gift recollection: staff remembers a contribution around $2135, but this is not verified.
+Source: Program director notes
+
+Record reference: NOTE-0010
+Email: cameron.ellis3@example.org
+Staff observation: Cameron Ellis asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0011
+Name: Dakota Foster
+Email: dakota.foster16@example.org
+Phone: +1-305-555-1015
+Staff observation: Dakota Foster asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Giving amount: not recorded in these notes; check the CRM before discussing a gift.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0012
+Name: Emerson Garcia
+Email: emerson.garcia29@example.org
+Staff observation: Emerson Garcia asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0013
+Name: Finley Hayes
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0014
+Name: Gray Ibrahim
+Email: gray.ibrahim55@example.org
+Staff observation: Gray Ibrahim asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0015
+Name: Harper Jones
+Email: harper.jones68@example.org
+Staff observation: Harper Jones asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Last contact date is missing from this note.
+Source: Program director notes
+
+Record reference: NOTE-0016
+Name: Indigo Adams
+Email: indigo.adams81@example.org
+Phone: +1-305-555-1080
+Staff observation: Indigo Adams asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0017
+Name: Jules Bennett
+Staff observation: Jules Bennett asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Gift recollection: staff remembers a contribution around $1146, but this is not verified.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0018
+Name: Kai Carter
+Email: kai.carter107@example.org
+Staff observation: Kai Carter asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0019
+Email: logan.diaz120@example.org
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0020
+Name: Avery Ellis
+Email: avery.ellis13@example.org
+Staff observation: Avery Ellis asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0021
+Name: Blake Foster
+Phone: +1-305-555-1025
+Staff observation: Blake Foster asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Giving amount: not recorded in these notes; check the CRM before discussing a gift.
+Source: Program director notes
+
+Record reference: NOTE-0022
+Name: Cameron Garcia
+Email: cameron.garcia39@example.org
+Staff observation: Cameron Garcia asked about family learning at the October open house; follow-up preference was email.
+Last contact date is missing from this note.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0023
+Name: Dakota Hayes
+Email: dakota.hayes52@example.org
+Staff observation: Dakota Hayes asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0024
+Name: Emerson Ibrahim
+Email: emerson.ibrahim65@example.org
+Staff observation: Emerson Ibrahim asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0025
+Name: Finley Jones
+Gift recollection: staff remembers a contribution around $438, but this is not verified.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0026
+Name: Gray Adams
+Email: gray.adams91@example.org
+Phone: +1-305-555-1090
+Staff observation: Gray Adams asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0027
+Name: Harper Bennett
+Email: harper.bennett104@example.org
+Staff observation: Harper Bennett asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0028
+Email: indigo.carter117@example.org
+Staff observation: Indigo Carter asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0029
+Name: Jules Diaz
+Staff observation: Jules Diaz asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Last contact date is missing from this note.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0030
+Name: Kai Ellis
+Email: kai.ellis23@example.org
+Staff observation: Kai Ellis asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0031
+Name: Logan Foster
+Email: logan.foster36@example.org
+Phone: +1-305-555-1035
+Giving amount: not recorded in these notes; check the CRM before discussing a gift.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0032
+Name: Avery Garcia
+Email: avery.garcia49@example.org
+Staff observation: Avery Garcia asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0033
+Name: Blake Hayes
+Staff observation: Blake Hayes asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Gift recollection: staff remembers a contribution around $943, but this is not verified.
+Source: Program director notes
+
+Record reference: NOTE-0034
+Name: Cameron Ibrahim
+Email: cameron.ibrahim75@example.org
+Staff observation: Cameron Ibrahim asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0035
+Name: Dakota Jones
+Email: dakota.jones88@example.org
+Staff observation: Dakota Jones asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0036
+Name: Emerson Adams
+Email: emerson.adams101@example.org
+Phone: +1-305-555-1100
+Staff observation: Emerson Adams asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Last contact date is missing from this note.
+Source: Program director notes
+
+Record reference: NOTE-0037
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0038
+Name: Gray Carter
+Email: gray.carter7@example.org
+Staff observation: Gray Carter asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0039
+Name: Harper Diaz
+Email: harper.diaz20@example.org
+Staff observation: Harper Diaz asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0040
+Name: Indigo Ellis
+Email: indigo.ellis33@example.org
+Staff observation: Indigo Ellis asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0041
+Name: Jules Foster
+Phone: +1-305-555-1045
+Staff observation: Jules Foster asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Giving amount: not recorded in these notes; check the CRM before discussing a gift.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0042
+Name: Kai Garcia
+Email: kai.garcia59@example.org
+Staff observation: Kai Garcia asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0043
+Name: Logan Hayes
+Email: logan.hayes72@example.org
+Last contact date is missing from this note.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0044
+Name: Avery Ibrahim
+Email: avery.ibrahim85@example.org
+Staff observation: Avery Ibrahim asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0045
+Name: Blake Jones
+Staff observation: Blake Jones asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0046
+Email: cameron.adams111@example.org
+Phone: +1-305-555-1110
+Staff observation: Cameron Adams asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0047
+Name: Dakota Bennett
+Email: dakota.bennett4@example.org
+Staff observation: Dakota Bennett asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0048
+Name: Emerson Carter
+Email: emerson.carter17@example.org
+Staff observation: Emerson Carter asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0049
+Name: Finley Diaz
+Gift recollection: staff remembers a contribution around $1315, but this is not verified.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0050
+Name: Gray Ellis
+Email: gray.ellis43@example.org
+Staff observation: Gray Ellis asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Last contact date is missing from this note.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0051
+Name: Harper Foster
+Email: harper.foster56@example.org
+Phone: +1-305-555-1055
+Staff observation: Harper Foster asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Giving amount: not recorded in these notes; check the CRM before discussing a gift.
+Source: Program director notes
+
+Record reference: NOTE-0052
+Name: Indigo Garcia
+Email: indigo.garcia69@example.org
+Staff observation: Indigo Garcia asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0053
+Name: Jules Hayes
+Staff observation: Jules Hayes asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0054
+Name: Kai Ibrahim
+Email: kai.ibrahim95@example.org
+Staff observation: Kai Ibrahim asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0055
+Email: logan.jones108@example.org
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0056
+Name: Avery Adams
+Email: avery.adams1@example.org
+Phone: +1-305-555-1000
+Staff observation: Avery Adams asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0057
+Name: Blake Bennett
+Staff observation: Blake Bennett asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Gift recollection: staff remembers a contribution around $490, but this is not verified.
+Last contact date is missing from this note.
+Source: Program director notes
+
+Record reference: NOTE-0058
+Name: Cameron Carter
+Email: cameron.carter27@example.org
+Staff observation: Cameron Carter asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0059
+Name: Dakota Diaz
+Email: dakota.diaz40@example.org
+Staff observation: Dakota Diaz asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0060
+Name: Emerson Ellis
+Email: emerson.ellis53@example.org
+Staff observation: Emerson Ellis asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0061
+Name: Finley Foster
+Phone: +1-305-555-1065
+Giving amount: not recorded in these notes; check the CRM before discussing a gift.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0062
+Name: Gray Garcia
+Email: gray.garcia79@example.org
+Staff observation: Gray Garcia asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0063
+Name: Harper Hayes
+Email: harper.hayes92@example.org
+Staff observation: Harper Hayes asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0064
+Email: indigo.ibrahim105@example.org
+Staff observation: Indigo Ibrahim asked about family learning at the October open house; follow-up preference was email.
+Last contact date is missing from this note.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0065
+Name: Jules Jones
+Staff observation: Jules Jones asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Gift recollection: staff remembers a contribution around $684, but this is not verified.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0066
+Name: Kai Adams
+Email: kai.adams11@example.org
+Phone: +1-305-555-1010
+Staff observation: Kai Adams asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0067
+Name: Logan Bennett
+Email: logan.bennett24@example.org
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0068
+Name: Avery Carter
+Email: avery.carter37@example.org
+Staff observation: Avery Carter asked about youth arts at the spring breakfast; follow-up preference was a mailed impact report.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0069
+Name: Blake Diaz
+Staff observation: Blake Diaz asked about career mentoring at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes
+
+Record reference: NOTE-0070
+Name: Cameron Ellis
+Email: cameron.ellis63@example.org
+Staff observation: Cameron Ellis asked about family learning at the October open house; follow-up preference was email.
+Source: Volunteer coordinator notes
+
+Record reference: NOTE-0071
+Name: Dakota Foster
+Email: dakota.foster76@example.org
+Phone: +1-305-555-1075
+Staff observation: Dakota Foster asked about after-school tutoring at the spring breakfast; follow-up preference was a mailed impact report.
+Giving amount: not recorded in these notes; check the CRM before discussing a gift.
+Last contact date is missing from this note.
+Source: Gala follow-up log notes
+
+Record reference: NOTE-0072
+Name: Emerson Garcia
+Email: emerson.garcia89@example.org
+Staff observation: Emerson Garcia asked about adult literacy at the reading-room tour; follow-up preference was contact after the school term.
+Source: Program director notes

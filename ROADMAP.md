@@ -8,11 +8,11 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 ## §0: You are here
 
-**Phase:** night before → kickoff · **K** = Sat 12:00 PM · **T0** = ~12:30 PM (confirm) · **F** = Sun 3:30 PM · **Submit** = Sun 4:00 PM · **D** = Sun 5–8 PM
+**Phase:** build · **K** = Sat 12:00 PM · **T0** = ~12:30 PM · **F** = Sun 3:30 PM · **Submit** = Sun 4:00 PM · **D** = Sun 5–8 PM
 
 - **Roles:** spine = __ · presenter = __ · visuals = __ · data = __
-- **In flight:** —
-- **Next unblocked:** `codex login` (human); N5 data-prober on idea D (990 grants) if the team leans fundraising; N8 pack; then K1 at opening
+- **In flight:** Project 2 donor-analysis MCP scaffold and synthetic multi-format example
+- **Next unblocked:** launch `stat-mcp`, walk one synthetic import through normalized output and one donor score; add UI integration after the service path is clear
 
 ---
 
@@ -43,7 +43,7 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 | # | Row | Target | Status |
 |---|---|---|---|
-| B1 | Scaffold (lifted where possible) + first commit | T0 + 15 m | ⏸ |
+| B1 | Scaffold (lifted where possible) + first commit | T0 + 15 m | ⏳ source and `uv.lock` present locally; scaffold not committed or server-walked |
 | B2 | Empty scaffold deployed to the real URL | T0 + 30 m | ⏸ |
 | B3 | Thin slice: real input → processing → output, on production | T0 + 1 h 30 | ⏸ |
 | B4 | `submission-scribe` (README) + `screen-builder` dispatched | T0 + 1 h 30 | ⏸ |
@@ -77,3 +77,5 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 - **Nov 7, 2026 (morning)**: idea shortlist filled from Nov 6 brainstorm + Miami Foundation research (Give Miami Day = Thu Nov 19); top shapes A Campaign Kit, B Grant Report Autopilot · unblocked: K3 mapping at kickoff · blocked: D needs a data-prober run on 990 grant data
 - **Nov 7, 2026 (pre-event)**: kit copied from creative-tech-buildathon; event brief + rules check written; OpenAI key + 4 tiers + Agents SDK proven (7/7); Codex CLI installed · unblocked: kickoff · blocked: `codex login`, problem statements (revealed at K)
+- **Nov 7, 2026 (build, local update)**: Project 2 selected as the requirements source; `stat-mcp` FastMCP/Pydantic/pandas skeleton and per-donor Agents SDK criteria evaluator added; no packages installed, app run, or commit made yet · unblocked: dependency setup and first synthetic end-to-end walk
+- **Nov 7, 2026 (integration/docs update)**: `uv sync` recorded in `stat-mcp/DEPENDENCIES.md`; canonical required fields, `/tools` catalog route, extraction/scoring flow, JavaScript MCP example, and agent integration guide documented · server/client walk and commit remain pending
