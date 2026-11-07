@@ -15,7 +15,8 @@ POST /chat                   chat agent (tab-aware tools); drafts land as a batc
 POST /send/{batch_id}        a human approves a chat batch (orgs/star/big need per-item ids) and it goes out
                              through outbound.deliver: dry run unless EMAIL_SEND=on / SMS_PROVIDER is set
 POST /events/refresh, GET /events/{id}/drafts   events agent (86), 503 until it lands
-POST /context/refresh        "Refresh now": context + calendar refresh (86's service.refresh) on org_profile's URLs;
+POST /context/refresh        "Refresh now": starts a background context + calendar pass (86's service.refresh) on
+                             org_profile's URLs and returns {status: "refreshing"}; GET /context/refresh reports it;
                              the same pass runs daily at REFRESH_DAILY_AT (HH:MM) when set
      (campaign routes)       service/routes_campaigns.py: /campaigns, /outbox (the single send log)
 POST /agent/ping             one tiny Agents SDK call with structured output (proves key + SDK)
@@ -568,17 +569,54 @@ def run_refresh() -> dict:
 
 @app.post("/context/refresh")
 async def context_refresh() -> dict:
-    """{state: done | failed, detail, changes}. A failure is 200 with the reason; saved data stays as it was."""
+    """"Refresh now": starts one background pass and returns at once with status "refreshing".
+    Poll GET /context/refresh (or 8b's GET /context/status). A second click while one runs returns that one."""
     if not module_present("service.refresh"):
         raise not_landed("service.refresh")
+    return start_refresh_job()
+
+
+@app.get("/context/refresh")
+def context_refresh_status() -> dict:
+    """{status: idle | refreshing | done | failed, started_at, finished_at, detail, changes}."""
+    return refresh_job_state()
+
+
+REFRESH_JOB = {"status": "idle", "started_at": None, "finished_at": None, "detail": None, "changes": None}
+REFRESH_LOCK = threading.Lock()
+
+
+def refresh_job_state() -> dict:
+    with REFRESH_LOCK:
+        state = dict(REFRESH_JOB)
+    if state["status"] == "refreshing" and state["started_at"]:
+        elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(state["started_at"])).total_seconds()
+        if elapsed > config.REFRESH_DEADLINE_S:   # report it; the pass may still finish and save
+            state["detail"] = f"still running after {config.REFRESH_DEADLINE_S:.0f} s"
+    return state
+
+
+def start_refresh_job() -> dict:
+    with REFRESH_LOCK:
+        if REFRESH_JOB["status"] == "refreshing":
+            return dict(REFRESH_JOB)
+        REFRESH_JOB.update(status="refreshing", started_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                           finished_at=None, detail=None, changes=None)
+        started = dict(REFRESH_JOB)
+    threading.Thread(target=refresh_job, daemon=True, name="context-refresh").start()
+    return started
+
+
+def refresh_job() -> None:
     try:
-        return await asyncio.wait_for(run_in_threadpool(run_refresh), config.REFRESH_DEADLINE_S)
-    except asyncio.TimeoutError:
-        return {"state": "failed", "changes": None,
-                "detail": f"refresh took longer than {config.REFRESH_DEADLINE_S:.0f} s (it keeps running in the background)"}
+        result = run_refresh()
+        status, detail, changes = result["state"], result["detail"], result["changes"]
     except Exception as e:  # a site or model error: report it, keep the saved context and calendar
         log.warning("context refresh failed: %s", e)
-        return {"state": "failed", "detail": f"{type(e).__name__}: {e}", "changes": None}
+        status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
+    with REFRESH_LOCK:
+        REFRESH_JOB.update(status=status, detail=detail, changes=changes,
+                           finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
 
 
 def seconds_until(hh_mm: str, now: datetime | None = None) -> float:
@@ -594,11 +632,7 @@ def seconds_until(hh_mm: str, now: datetime | None = None) -> float:
 def daily_refresh_loop(hh_mm: str) -> None:
     while True:
         time.sleep(seconds_until(hh_mm))
-        try:
-            result = run_refresh()
-            log.info("daily refresh: %s", result["state"])
-        except Exception:
-            log.exception("daily refresh failed; saved context and calendar unchanged")
+        log.info("daily refresh: %s", start_refresh_job()["status"])
 
 
 @app.on_event("startup")

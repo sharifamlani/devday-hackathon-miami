@@ -85,9 +85,11 @@ donors go only when listed with `approve: true`. Delivery goes through `outbound
 
 ## Daily refresh
 
-`POST /context/refresh` ("Refresh now") runs one context + calendar pass (`service.refresh`) on the saved
-organization's URLs and returns the change summary; a failure answers 200 with `state: "failed"` and keeps the
-saved data. The same pass runs inside the service every day at `REFRESH_DAILY_AT` (e.g. `07:00`) when that is set.
+`POST /context/refresh` ("Refresh now") starts one context + calendar pass (`service.refresh`) on the saved
+organization's URLs in the background and returns at once with `status: "refreshing"`; a second click while it runs
+returns the same job. `GET /context/refresh` reports `{status: idle | refreshing | done | failed, started_at,
+finished_at, detail, changes}`; a pass still running after `REFRESH_DEADLINE_S` (150 s) says so in `detail`. A failed
+source never wipes saved data. The same pass runs inside the service every day at `REFRESH_DAILY_AT` (e.g. `07:00`) when that is set.
 If the laptop isn't always serving, schedule it with Windows Task Scheduler instead (from the repo root path):
 
 ```bat

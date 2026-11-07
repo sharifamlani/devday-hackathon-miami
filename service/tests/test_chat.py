@@ -120,3 +120,37 @@ def test_daily_schedule_math():
     from service.main import seconds_until
     assert seconds_until("07:00", datetime(2026, 11, 7, 6, 0)) == 3600
     assert seconds_until("07:00", datetime(2026, 11, 7, 7, 0)) == 24 * 3600
+
+
+def test_refresh_now_runs_in_the_background_and_reports_its_state(db_file, monkeypatch):
+    import importlib.machinery
+    import sys
+    import threading
+    import time
+    import types
+
+    from service import db, main
+
+    conn = db.connect()
+    db.save_context(conn, {"profile": {"name": "Test Org", "website": "https://example.org"}, "facts": [],
+                           "sources": {}})
+    conn.close()
+    gate, seen = threading.Event(), []
+    fake = types.ModuleType("service.refresh")
+    fake.__spec__ = importlib.machinery.ModuleSpec("service.refresh", None)
+    fake.refresh = lambda conn, urls: seen.append(urls["website"]) or gate.wait(5) and {"facts": {"added": [1]}}
+    monkeypatch.setitem(sys.modules, "service.refresh", fake)
+    monkeypatch.setitem(main.REFRESH_JOB, "status", "idle")
+    c = TestClient(app)
+
+    first = c.post("/context/refresh").json()
+    second = c.post("/context/refresh").json()                     # a second click joins the running pass
+
+    assert first["status"] == "refreshing" and second["started_at"] == first["started_at"]
+    gate.set()
+    for _ in range(50):
+        if c.get("/context/refresh").json()["status"] != "refreshing":
+            break
+        time.sleep(0.1)
+    done = c.get("/context/refresh").json()
+    assert done["status"] == "done" and done["changes"] == {"facts": {"added": [1]}} and seen == ["https://example.org"]

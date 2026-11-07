@@ -27,8 +27,8 @@ CONTEXT_DEADLINE_S = float(os.getenv("CONTEXT_DEADLINE_S", "30"))
 CHAT_DEADLINE_S = float(os.getenv("CHAT_DEADLINE_S", "90"))
 # Daily context + calendar refresh, local time "HH:MM" (e.g. 07:00). Unset = off; always off under pytest
 REFRESH_DAILY_AT = (os.getenv("REFRESH_DAILY_AT") or "").strip() or None
-# "Refresh now" waits this long (a live pass took ~120 s on the Foundation; the work finishes in the background)
-REFRESH_DEADLINE_S = float(os.getenv("REFRESH_DEADLINE_S", "90"))
+# A refresh still running after this long is reported as such (a live pass took ~120 s on the Foundation)
+REFRESH_DEADLINE_S = float(os.getenv("REFRESH_DEADLINE_S", "150"))
 if os.getenv("OPENAI_API_KEY"):
     set_default_openai_client(AsyncOpenAI(timeout=OPENAI_TIMEOUT_S, max_retries=OPENAI_MAX_RETRIES))
 
