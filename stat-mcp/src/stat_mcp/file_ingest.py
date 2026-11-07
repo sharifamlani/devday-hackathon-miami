@@ -261,7 +261,7 @@ def rows_to_transactions(rows: list[dict[str, Any]], source_name: str) -> tuple[
     warnings: list[str] = []
     for row_number, raw in enumerate(rows, start=1):
         row = {_clean_key(key): value for key, value in raw.items()}
-        full_name = _value(row, "full_name", "name", "donor_name", "person_name", "constituent_name")
+        full_name = _value(row, "full_name", "name", "donor_name", "donor", "person_name", "constituent_name")
         first = _text(row, "first_name", limit=100) or ""
         last = _text(row, "last_name", limit=100) or ""
         if full_name and not first and not last:
