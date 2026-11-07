@@ -161,9 +161,9 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5C.1 | Screen 1 "Upload your data" (multi-file: .xlsx/.md/.docx) → `POST /ingest` | Christian (screen) · 80 (data layer) · Carlos (ingest) | ⏸ | — | `plan.md` §15 |
 | 5C.2 | Screen 2 "Where you are online" (website, X, LinkedIn, Instagram) → `POST /context/run` | Christian · 80 | ⏸ | — | `plan.md` §15 |
 | 5C.3 | Tables `org_profile` + `org_context`; `GET /context`, `GET /org-profile`; snapshot key `context` | 8b | ⏸ | — | `plan.md` §15 |
-| 5C.4 | Social context module (public posts cached; official APIs when tokens exist) | helper | ⏳ | — | `plan.md` §15 |
-| 5C.5 | Context agent: website + socials → dated, sourced, priority-tagged facts → `org_context` | 86 | ⏸ | — | `plan.md` §15 |
-| 5C.6 | Wire `POST /context/run` (timeouts, cached fallback) | 90 | ⏸ | — | `plan.md` §15 |
+| 5C.4 | Social module: official-API adapters + public cache; findings: direct fetch blocked on X/LinkedIn/IG | helper | ✅ | Nov 7 · `02ced45` (PR #19) | `plan.md` §15 |
+| 5C.5 | Context agent, **live in-app**: OpenAI hosted web search over the website + public social posts → dated, sourced, priority-tagged facts → `org_context`; official account connections optional | 86 | ⏳ | — | `plan.md` §15 amendment |
+| 5C.6 | Wire `POST /context/run` as a job + `GET /context/run/{job_id}` per-source progress; cached fallback | 90 | ⏸ | — | `plan.md` §15 amendment |
 | 5C.7 | ICP/prospect finder reads org priorities + recent focus from `org_context` | 42 | ⏸ | — | `plan.md` §15 |
 | 5C.8 | Outreach reads the newest fitting `org_context` fact from any source | 86 | ⏸ | — | `plan.md` §15 |
 | 5C.9 | Demo: the Miami Foundation's URLs precomputed; context step instant on stage | 8b (pipeline) | ⏸ | — | `plan.md` §15 |

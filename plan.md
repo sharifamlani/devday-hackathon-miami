@@ -545,3 +545,17 @@ instagram_url, priorities JSON, voice JSON, updated_at)` and `org_context(id, so
 read through official APIs when tokens exist (X API, Instagram Graph, LinkedIn Org API); otherwise from a cache of
 public posts. Never by logging in or getting around a bot wall. A blocked platform shows as "blocked," never faked.
 For the demo: the Miami Foundation's URLs, precomputed so the context step is instant on stage.
+
+### §15 amendment: the context agent runs live in the app (Sharif, Sat Nov 7 evening)
+The context agent runs **in real time during onboarding**, not as a manual step:
+1. **Live web research** via the OpenAI Agents SDK hosted web search: the org's website plus its public social
+   profiles and posts as indexed by search (e.g. `site:linkedin.com/company/<org>`, `site:x.com/<handle>`,
+   Instagram). Every fact comes back with its source URL and date and is quote-verified. This is legitimate search:
+   no logins, no bot-wall workarounds. (The direct fetch is blocked: X shows no text, LinkedIn needs a login,
+   Instagram hides captions, and miamifoundation.org serves a CAPTCHA to scripts. Findings in PR #19.)
+2. **"Connect your accounts" (official sign-in, OAuth):** an org can grant access to its own X / Instagram
+   Business / LinkedIn page, and the agent then pulls its own posts via the official APIs. Optional; adapters in
+   `service/social_context.py`.
+3. **Live progress:** `POST /context/run` starts a job; `GET /context/run/{job_id}` returns per-source status
+   (`searching` | `done n facts` | `blocked: reason`) for screen 2 to show live.
+4. **Stage safety:** the last successful run is cached, and the UI falls back to it (labeled cached) on timeout.
