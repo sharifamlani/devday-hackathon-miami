@@ -7,7 +7,9 @@
     "board_retreat_notes.md",
     "check_deposit_log_q3_2026.docx",
     "donor_intake_forms_2026.docx",
-    "stock_and_daf_grants.docx"
+    "stock_and_daf_grants.docx",
+    "community_intake_forms_2026.docx",
+    "event_signin_sheet_nov1.xlsx"
   ],
   "totals": {
     "canonical_donors": 33,
@@ -37,6 +39,7 @@
       "fund_type": "Unrestricted",
       "notes": "Give Miami Day anchor donor.",
       "names_as_written": [
+        "Maria D.",
         "Maria Delgado",
         "María Delgado-Ruiz"
       ],
@@ -82,8 +85,16 @@
           "location": "line 9",
           "name_as_written": "María Delgado-Ruiz",
           "kind": "mention"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 5",
+          "name_as_written": "Maria D.",
+          "kind": "signin_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D02",
@@ -228,7 +239,9 @@
           "name_as_written": "Robert Nguyen",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D03",
@@ -269,7 +282,9 @@
           "name_as_written": "Priscilla Okafor",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D04",
@@ -317,7 +332,9 @@
           "name_as_written": "Liz Fontaine",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D05",
@@ -364,7 +381,9 @@
           "name_as_written": "Harold Whitaker",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D06",
@@ -425,11 +444,13 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "line 32",
+          "location": "line 41",
           "name_as_written": "Teo Salinas",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D07",
@@ -475,7 +496,9 @@
           "name_as_written": "Gloria Pierre-Louis",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D08",
@@ -494,7 +517,8 @@
       "fund_type": "Unrestricted",
       "notes": "Gave early for Give Miami Day 2026.",
       "names_as_written": [
-        "Priya Raman"
+        "Priya Raman",
+        "priya raman"
       ],
       "source_rows": [
         {
@@ -520,8 +544,17 @@
           "location": "line 27",
           "name_as_written": "Priya Raman",
           "kind": "gift_row"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 16",
+          "name_as_written": "priya raman",
+          "kind": "signin_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false,
+      "has_dog": true
     },
     {
       "donor_id": "D09",
@@ -563,11 +596,13 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "line 32",
+          "location": "line 41",
           "name_as_written": "Walter Brandt",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D10",
@@ -621,7 +656,9 @@
           "name_as_written": "S. Achterberg",
           "kind": "gift_row_duplicate_recording"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D11",
@@ -640,6 +677,7 @@
       "fund_type": "Unrestricted",
       "notes": "",
       "names_as_written": [
+        "Lucia F",
         "Lucia Ferrante"
       ],
       "source_rows": [
@@ -666,8 +704,16 @@
           "location": "line 10",
           "name_as_written": "Lucia Ferrante",
           "kind": "mention"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 19",
+          "name_as_written": "Lucia F",
+          "kind": "signin_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D12",
@@ -695,7 +741,9 @@
           "name_as_written": "Marcus Oyelaran",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D13",
@@ -736,7 +784,9 @@
           "name_as_written": "Dana Kowalczyk",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D14",
@@ -776,7 +826,9 @@
           "name_as_written": "Esperanza Villaverde",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D15",
@@ -816,7 +868,9 @@
           "name_as_written": "Tobias Lindqvist",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D16",
@@ -850,7 +904,9 @@
           "name_as_written": "Naomi Castellanos",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D17",
@@ -884,7 +940,9 @@
           "name_as_written": "Jerome Baptiste",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D18",
@@ -924,7 +982,9 @@
           "name_as_written": "Hye-jin Park",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D19",
@@ -958,7 +1018,9 @@
           "name_as_written": "Rafael Quintero",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D20",
@@ -1010,7 +1072,9 @@
           "name_as_written": "Annelise Moreau",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D21",
@@ -1038,7 +1102,9 @@
           "name_as_written": "Desmond Achebe-Wells",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D22",
@@ -1078,7 +1144,9 @@
           "name_as_written": "Carmen Ibarra",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D23",
@@ -1118,7 +1186,9 @@
           "name_as_written": "Victor Szymanski",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D24",
@@ -1152,7 +1222,9 @@
           "name_as_written": "Imani Rutherford",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D25",
@@ -1180,7 +1252,9 @@
           "name_as_written": "Leopold Tran",
           "kind": "intake_form"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D26",
@@ -1208,7 +1282,9 @@
           "name_as_written": "Sofia Marchetti",
           "kind": "intake_form"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D27",
@@ -1262,7 +1338,9 @@
           "name_as_written": "Veloria Bay Foundation",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D28",
@@ -1303,7 +1381,9 @@
           "name_as_written": "Bellweather Pines Family Foundation",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D29",
@@ -1365,7 +1445,9 @@
           "name_as_written": "Tamarind Quay",
           "kind": "mention"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D30",
@@ -1399,7 +1481,9 @@
           "name_as_written": "Halcyon Reef Dental Group",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D31",
@@ -1433,7 +1517,9 @@
           "name_as_written": "Quillfeather Coffee Roasters",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D32",
@@ -1468,7 +1554,9 @@
           "name_as_written": "Bernard Okoye",
           "kind": "intake_form"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     },
     {
       "donor_id": "D33",
@@ -1502,7 +1590,9 @@
           "name_as_written": "Ostrander-Pell Charitable Trust",
           "kind": "gift_row"
         }
-      ]
+      ],
+      "tab": "giver",
+      "ambiguous": false
     }
   ],
   "duplicate_groups": [
@@ -1557,6 +1647,12 @@
           "location": "line 9",
           "name_as_written": "María Delgado-Ruiz",
           "kind": "mention"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 5",
+          "name_as_written": "Maria D.",
+          "kind": "signin_row"
         }
       ]
     },
@@ -3487,6 +3583,1694 @@
       "reason": "Quarterly donor, last gift 2026-04-15; two expected gifts (Jul, Oct) missed, about 207 days since last gift vs a 91-day cadence."
     }
   ],
+  "tab_counts": {
+    "giver": 33,
+    "neighbor": 20,
+    "community": 15
+  },
+  "ambiguous_count": 3,
+  "ambiguous_people": [
+    {
+      "person_id": "C06",
+      "full_name": "Marcus Bell",
+      "tab": "community",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "community",
+        "giver"
+      ],
+      "reason": "Pantry client (intake form) who told staff he wants to give $10 a month once his new job starts. A stated intention, no gift yet; stays community, flag for review.",
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "C15",
+      "full_name": "Dolores Quinones",
+      "tab": "community",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "community",
+        "giver"
+      ],
+      "reason": "Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.",
+      "has_contact": false
+    },
+    {
+      "person_id": "N20",
+      "full_name": "Gabriela Rincon",
+      "tab": "neighbor",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "neighbor",
+        "giver"
+      ],
+      "reason": "Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.",
+      "has_contact": false
+    }
+  ],
+  "people": [
+    {
+      "person_id": "D01",
+      "full_name": "Maria Delgado",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D02",
+      "full_name": "Robert Nguyen",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D03",
+      "full_name": "Priscilla Okafor",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D04",
+      "full_name": "Elizabeth Fontaine",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D05",
+      "full_name": "Harold Whitaker",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D06",
+      "full_name": "Teodoro Salinas",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D07",
+      "full_name": "Gloria Pierre-Louis",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D08",
+      "full_name": "Priya Raman",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "D09",
+      "full_name": "Walter Brandt",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D10",
+      "full_name": "Samuel Achterberg",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D11",
+      "full_name": "Lucia Ferrante",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D12",
+      "full_name": "Marcus Oyelaran",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D13",
+      "full_name": "Dana Kowalczyk",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D14",
+      "full_name": "Esperanza Villaverde",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D15",
+      "full_name": "Tobias Lindqvist",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D16",
+      "full_name": "Naomi Castellanos",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D17",
+      "full_name": "Jerome Baptiste",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D18",
+      "full_name": "Hye-jin Park",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D19",
+      "full_name": "Rafael Quintero",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D20",
+      "full_name": "Annelise Moreau",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D21",
+      "full_name": "Desmond Achebe-Wells",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D22",
+      "full_name": "Carmen Ibarra",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D23",
+      "full_name": "Victor Szymanski",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D24",
+      "full_name": "Imani Rutherford",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D25",
+      "full_name": "Leopold Tran",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D26",
+      "full_name": "Sofia Marchetti",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D27",
+      "full_name": "Veloria Bay Foundation",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D28",
+      "full_name": "Bellweather Pines Family Foundation",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D29",
+      "full_name": "Tamarind Quay Hardware LLC",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D30",
+      "full_name": "Halcyon Reef Dental Group",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D31",
+      "full_name": "Quillfeather Coffee Roasters",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D32",
+      "full_name": "Marrow Lane Print Co.",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "D33",
+      "full_name": "Ostrander-Pell Charitable Trust",
+      "tab": "giver",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "C01",
+      "full_name": "Rosa Elena Martinez",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "C02",
+      "full_name": "Jean-Robert Toussaint",
+      "tab": "community",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "C03",
+      "full_name": "Keisha Williams",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "C04",
+      "full_name": "Dmitri Volkov",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "C05",
+      "full_name": "Altagracia Pena",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "C06",
+      "full_name": "Marcus Bell",
+      "tab": "community",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "community",
+        "giver"
+      ],
+      "reason": "Pantry client (intake form) who told staff he wants to give $10 a month once his new job starts. A stated intention, no gift yet; stays community, flag for review.",
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "C07",
+      "full_name": "Nguyen Thi Lan",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "C08",
+      "full_name": "Yolanda Cruz-Beltran",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "C09",
+      "full_name": "Andre Lafleur",
+      "tab": "community",
+      "ambiguous": false,
+      "has_contact": false
+    },
+    {
+      "person_id": "C10",
+      "full_name": "Mildred Hayes",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "C11",
+      "full_name": "Santiago Ortega",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "C12",
+      "full_name": "Fatima Al-Sayed",
+      "tab": "community",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "C13",
+      "full_name": "Luis Fernando Paz",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "C14",
+      "full_name": "Tamika Brooks",
+      "tab": "community",
+      "ambiguous": false,
+      "has_dog": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "C15",
+      "full_name": "Dolores Quinones",
+      "tab": "community",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "community",
+        "giver"
+      ],
+      "reason": "Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.",
+      "has_contact": false
+    },
+    {
+      "person_id": "N01",
+      "full_name": "Camila Restrepo",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "N02",
+      "full_name": "Jamal Pierce",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N03",
+      "full_name": "Ingrid Solheim",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N04",
+      "full_name": "Tyrone Gaines",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": false
+    },
+    {
+      "person_id": "N05",
+      "full_name": "Beatriz Almeida",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N06",
+      "full_name": "Owen Castellan",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "N07",
+      "full_name": "Nadia Haddad",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N08",
+      "full_name": "Felix Okonkwo",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "N09",
+      "full_name": "Svetlana Petrova",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N10",
+      "full_name": "Darnell Washington",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N11",
+      "full_name": "Lourdes Quesada",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "N12",
+      "full_name": "Mateo Bianchi",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N13",
+      "full_name": "Jocelyn Fairweather",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "N14",
+      "full_name": "Anil Deshmukh",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N15",
+      "full_name": "Renata Silva-Cho",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "N16",
+      "full_name": "Elliot Brandvold",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": true
+    },
+    {
+      "person_id": "N17",
+      "full_name": "Yasmin Farouk",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "N18",
+      "full_name": "Gus Lindemann",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_contact": false
+    },
+    {
+      "person_id": "N19",
+      "full_name": "Pilar Echeverria",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "has_dog": true,
+      "has_contact": true
+    },
+    {
+      "person_id": "N20",
+      "full_name": "Gabriela Rincon",
+      "tab": "neighbor",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "neighbor",
+        "giver"
+      ],
+      "reason": "Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.",
+      "has_contact": false
+    }
+  ],
+  "community_members": [
+    {
+      "person_id": "C01",
+      "full_name": "Rosa Elena Martinez",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Phone call",
+      "email": null,
+      "phone": "305-555-0150",
+      "household_size": "5",
+      "age_as_reported": "born 1984",
+      "gender_as_reported": "Female",
+      "zip": "33135",
+      "neighborhood": "Little Havana",
+      "language": "Spanish",
+      "programs": [
+        "Food pantry",
+        "After-school"
+      ],
+      "has_dog": true,
+      "pet_note": "Dog: Chispa",
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 1'",
+          "name_as_written": "Rosa Elena Martinez",
+          "kind": "intake_form"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 18",
+          "name_as_written": "Rosa E. Martinez",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "C02",
+      "full_name": "Jean-Robert Toussaint",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Phone call",
+      "email": null,
+      "phone": "305-555-0151",
+      "household_size": "1",
+      "age_as_reported": "70-79",
+      "gender_as_reported": "Male",
+      "zip": "33147",
+      "neighborhood": "Liberty City",
+      "language": "Haitian Creole",
+      "programs": [
+        "Senior meals"
+      ],
+      "has_dog": null,
+      "pet_note": null,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 2'",
+          "name_as_written": "Jean-Robert Toussaint",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C03",
+      "full_name": "Keisha Williams",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Email",
+      "email": "keisha.williams@example.com",
+      "phone": null,
+      "household_size": "4",
+      "age_as_reported": "30-39",
+      "gender_as_reported": "Female",
+      "zip": "33142",
+      "neighborhood": "Allapattah",
+      "language": "English",
+      "programs": [
+        "After-school"
+      ],
+      "has_dog": true,
+      "pet_note": "Dog: Duke",
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 3'",
+          "name_as_written": "Keisha Williams",
+          "kind": "intake_form"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 14",
+          "name_as_written": "Keisha W.",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "C04",
+      "full_name": "Dmitri Volkov",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Phone call",
+      "email": null,
+      "phone": "305-555-0153",
+      "household_size": "2",
+      "age_as_reported": "born 1948",
+      "gender_as_reported": "Male",
+      "zip": "33180",
+      "neighborhood": "Aventura",
+      "language": "Russian",
+      "programs": [
+        "Senior meals"
+      ],
+      "has_dog": false,
+      "pet_note": null,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 4'",
+          "name_as_written": "Dmitri Volkov",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C05",
+      "full_name": "Altagracia Pena",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Text message",
+      "email": null,
+      "phone": "305-555-0154",
+      "household_size": "6",
+      "age_as_reported": "prefer not to say",
+      "gender_as_reported": "Female",
+      "zip": "33012",
+      "neighborhood": "Hialeah",
+      "language": "Spanish",
+      "programs": [
+        "Food pantry"
+      ],
+      "has_dog": false,
+      "pet_note": "Has a cat, no dog",
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 5'",
+          "name_as_written": "Altagracia Pena",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C06",
+      "full_name": "Marcus Bell",
+      "tab": "community",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "community",
+        "giver"
+      ],
+      "reason": "Pantry client (intake form) who told staff he wants to give $10 a month once his new job starts. A stated intention, no gift yet; stays community, flag for review.",
+      "contact_preference": "Email",
+      "email": "marcus.bell@example.org",
+      "phone": null,
+      "household_size": "1",
+      "age_as_reported": "18-24",
+      "gender_as_reported": "prefer not to say",
+      "zip": "33127",
+      "neighborhood": "Wynwood",
+      "language": "English",
+      "programs": [
+        "Food pantry"
+      ],
+      "has_dog": true,
+      "pet_note": "Dog: Pixel",
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 6'",
+          "name_as_written": "Marcus Bell",
+          "kind": "intake_form"
+        },
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 33",
+          "name_as_written": "Marcus Bell",
+          "kind": "mention"
+        }
+      ]
+    },
+    {
+      "person_id": "C07",
+      "full_name": "Nguyen Thi Lan",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Phone call",
+      "email": null,
+      "phone": "305-555-0156",
+      "household_size": "2",
+      "age_as_reported": "born 1951",
+      "gender_as_reported": "Female",
+      "zip": "33176",
+      "neighborhood": "Kendall",
+      "language": "Vietnamese / English",
+      "programs": [
+        "Senior meals"
+      ],
+      "has_dog": false,
+      "pet_note": null,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 7'",
+          "name_as_written": "Nguyen Thi Lan",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C08",
+      "full_name": "Yolanda Cruz-Beltran",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Email",
+      "email": "yolanda.cruzbeltran@example.com",
+      "phone": "305-555-0157",
+      "household_size": "4",
+      "age_as_reported": "40-49",
+      "gender_as_reported": "Female",
+      "zip": "33125",
+      "neighborhood": "Little Havana",
+      "language": "Spanish",
+      "programs": [
+        "After-school",
+        "Food pantry"
+      ],
+      "has_dog": true,
+      "pet_note": "Dog: Coco (small, needs shots)",
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 8'",
+          "name_as_written": "Yolanda Cruz-Beltran",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C09",
+      "full_name": "Andre Lafleur",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Message via church",
+      "email": null,
+      "phone": null,
+      "household_size": "3",
+      "age_as_reported": "25-34",
+      "gender_as_reported": "Male",
+      "zip": "33150",
+      "neighborhood": "Little Haiti",
+      "language": "Haitian Creole / French",
+      "programs": [
+        "Food pantry"
+      ],
+      "has_dog": null,
+      "pet_note": null,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 9'",
+          "name_as_written": "Andre Lafleur",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C10",
+      "full_name": "Mildred Hayes",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Phone call",
+      "email": null,
+      "phone": "305-555-0159",
+      "household_size": "1",
+      "age_as_reported": "born 1944",
+      "gender_as_reported": "Female",
+      "zip": "33133",
+      "neighborhood": "Coconut Grove",
+      "language": "English",
+      "programs": [
+        "Senior meals"
+      ],
+      "has_dog": true,
+      "pet_note": "Dog: Biscuit",
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 10'",
+          "name_as_written": "Mildred Hayes",
+          "kind": "intake_form"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 10",
+          "name_as_written": "Millie Hayes",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "C11",
+      "full_name": "Santiago Ortega",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Email",
+      "email": "santiago.ortega@example.org",
+      "phone": null,
+      "household_size": "5",
+      "age_as_reported": "35-44",
+      "gender_as_reported": "Male",
+      "zip": "33174",
+      "neighborhood": "Sweetwater",
+      "language": "Spanish",
+      "programs": [
+        "After-school"
+      ],
+      "has_dog": false,
+      "pet_note": null,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 11'",
+          "name_as_written": "Santiago Ortega",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C12",
+      "full_name": "Fatima Al-Sayed",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Phone call",
+      "email": null,
+      "phone": "305-555-0161",
+      "household_size": "7",
+      "age_as_reported": "30-39",
+      "gender_as_reported": "Female",
+      "zip": "33186",
+      "neighborhood": "Kendall West",
+      "language": "Arabic / English",
+      "programs": [
+        "Food pantry"
+      ],
+      "has_dog": null,
+      "pet_note": null,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 12'",
+          "name_as_written": "Fatima Al-Sayed",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C13",
+      "full_name": "Luis Fernando Paz",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Email",
+      "email": "luis.paz@example.com",
+      "phone": null,
+      "household_size": "2",
+      "age_as_reported": "55-64",
+      "gender_as_reported": "Male",
+      "zip": "33142",
+      "neighborhood": "Allapattah",
+      "language": "Spanish",
+      "programs": [
+        "Food pantry"
+      ],
+      "has_dog": true,
+      "pet_note": "Dog: Rocco",
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 13'",
+          "name_as_written": "Luis Fernando Paz",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C14",
+      "full_name": "Tamika Brooks",
+      "tab": "community",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "contact_preference": "Email",
+      "email": "tamika.brooks@example.com",
+      "phone": "305-555-0164",
+      "household_size": "3",
+      "age_as_reported": "30-39",
+      "gender_as_reported": "Female",
+      "zip": "33169",
+      "neighborhood": "Miami Gardens",
+      "language": "English",
+      "programs": [
+        "After-school"
+      ],
+      "has_dog": false,
+      "pet_note": null,
+      "source_rows": [
+        {
+          "file": "community_intake_forms_2026.docx",
+          "location": "section 'Intake Form 14'",
+          "name_as_written": "Tamika Brooks",
+          "kind": "intake_form"
+        }
+      ]
+    },
+    {
+      "person_id": "C15",
+      "full_name": "Dolores Quinones",
+      "tab": "community",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "community",
+        "giver"
+      ],
+      "reason": "Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.",
+      "contact_preference": null,
+      "email": null,
+      "phone": null,
+      "household_size": null,
+      "age_as_reported": null,
+      "gender_as_reported": null,
+      "zip": null,
+      "neighborhood": null,
+      "language": "Spanish",
+      "programs": [
+        "Food pantry"
+      ],
+      "has_dog": null,
+      "pet_note": null,
+      "source_rows": [
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 31",
+          "name_as_written": "Dolores Quinones",
+          "kind": "mention"
+        }
+      ]
+    }
+  ],
+  "neighbors": [
+    {
+      "person_id": "N01",
+      "full_name": "Camila Restrepo",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "camila.restrepo@example.com",
+      "phone": null,
+      "zip": "33145",
+      "interests": [
+        "volunteering",
+        "newsletter"
+      ],
+      "has_dog": true,
+      "dog_name": "Luna",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 25",
+          "name_as_written": "Camila Restrepo",
+          "kind": "signin_row"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 30",
+          "name_as_written": "camila r.",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N02",
+      "full_name": "Jamal Pierce",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": null,
+      "phone": "305-555-0171",
+      "zip": "33127",
+      "interests": [
+        "giving"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 9",
+          "name_as_written": "Jamal Pierce",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N03",
+      "full_name": "Ingrid Solheim",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "ingrid.solheim@example.org",
+      "phone": null,
+      "zip": "33133",
+      "interests": [
+        "newsletter",
+        "pet_adoption"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 17",
+          "name_as_written": "Ingrid Solheim",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N04",
+      "full_name": "Tyrone Gaines",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": null,
+      "phone": null,
+      "zip": "33142",
+      "interests": [
+        "volunteering"
+      ],
+      "has_dog": true,
+      "dog_name": "Bruno",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 23",
+          "name_as_written": "Tyrone Gaines",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N05",
+      "full_name": "Beatriz Almeida",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "beatriz.almeida@example.com",
+      "phone": null,
+      "zip": "33156",
+      "interests": [
+        "pet_adoption"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 29",
+          "name_as_written": "Beatriz Almeida",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N06",
+      "full_name": "Owen Castellan",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "owen.castellan@example.org",
+      "phone": null,
+      "zip": "33129",
+      "interests": [
+        "volunteering",
+        "giving"
+      ],
+      "has_dog": true,
+      "dog_name": "Pepper",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 26",
+          "name_as_written": "Owen Castellan",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N07",
+      "full_name": "Nadia Haddad",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": null,
+      "phone": "305-555-0177",
+      "zip": "33131",
+      "interests": [
+        "newsletter"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 22",
+          "name_as_written": "Nadia Haddad",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N08",
+      "full_name": "Felix Okonkwo",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "felix.okonkwo@example.com",
+      "phone": null,
+      "zip": "33137",
+      "interests": [
+        "giving",
+        "newsletter"
+      ],
+      "has_dog": true,
+      "dog_name": "Rex",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 7",
+          "name_as_written": "Felix Okonkwo",
+          "kind": "signin_row"
+        },
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 13",
+          "name_as_written": "F. Okonkwo",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N09",
+      "full_name": "Svetlana Petrova",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "svetlana.petrova@example.org",
+      "phone": null,
+      "zip": "33160",
+      "interests": [
+        "volunteering"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 4",
+          "name_as_written": "Svetlana Petrova",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N10",
+      "full_name": "Darnell Washington",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": null,
+      "phone": "305-555-0180",
+      "zip": "33150",
+      "interests": [
+        "pet_adoption"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 6",
+          "name_as_written": "Darnell Washington",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N11",
+      "full_name": "Lourdes Quesada",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "lourdes.quesada@example.com",
+      "phone": null,
+      "zip": "33135",
+      "interests": [
+        "volunteering",
+        "pet_adoption"
+      ],
+      "has_dog": true,
+      "dog_name": "Canela",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 15",
+          "name_as_written": "Lourdes Quesada",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N12",
+      "full_name": "Mateo Bianchi",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "mateo.bianchi@example.org",
+      "phone": null,
+      "zip": "33138",
+      "interests": [
+        "newsletter"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 27",
+          "name_as_written": "Mateo Bianchi",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N13",
+      "full_name": "Jocelyn Fairweather",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "jocelyn.fairweather@example.com",
+      "phone": null,
+      "zip": "33146",
+      "interests": [
+        "giving"
+      ],
+      "has_dog": true,
+      "dog_name": "Waffles",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 12",
+          "name_as_written": "Jocelyn Fairweather",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N14",
+      "full_name": "Anil Deshmukh",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "anil.deshmukh@example.org",
+      "phone": null,
+      "zip": "33143",
+      "interests": [
+        "volunteering",
+        "newsletter"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 28",
+          "name_as_written": "Anil Deshmukh",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N15",
+      "full_name": "Renata Silva-Cho",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": null,
+      "phone": "305-555-0185",
+      "zip": "33173",
+      "interests": [
+        "newsletter"
+      ],
+      "has_dog": true,
+      "dog_name": "Tofu",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 24",
+          "name_as_written": "Renata Silva-Cho",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N16",
+      "full_name": "Elliot Brandvold",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "elliot.brandvold@example.com",
+      "phone": null,
+      "zip": "33155",
+      "interests": [
+        "giving",
+        "volunteering"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 21",
+          "name_as_written": "Elliot Brandvold",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N17",
+      "full_name": "Yasmin Farouk",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "yasmin.farouk@example.org",
+      "phone": null,
+      "zip": "33134",
+      "interests": [
+        "pet_adoption"
+      ],
+      "has_dog": true,
+      "dog_name": "Olive",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 11",
+          "name_as_written": "Yasmin Farouk",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N18",
+      "full_name": "Gus Lindemann",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": null,
+      "phone": null,
+      "zip": "33181",
+      "interests": [
+        "volunteering"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 8",
+          "name_as_written": "Gus Lindemann",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N19",
+      "full_name": "Pilar Echeverria",
+      "tab": "neighbor",
+      "ambiguous": false,
+      "candidate_tabs": null,
+      "reason": null,
+      "email": "pilar.echeverria@example.com",
+      "phone": null,
+      "zip": "33165",
+      "interests": [
+        "newsletter",
+        "giving"
+      ],
+      "has_dog": true,
+      "dog_name": "Rocky",
+      "source_rows": [
+        {
+          "file": "event_signin_sheet_nov1.xlsx",
+          "location": "sheet 'Nov 1 Open House' row 20",
+          "name_as_written": "Pilar Echeverria",
+          "kind": "signin_row"
+        }
+      ]
+    },
+    {
+      "person_id": "N20",
+      "full_name": "Gabriela Rincon",
+      "tab": "neighbor",
+      "ambiguous": true,
+      "candidate_tabs": [
+        "neighbor",
+        "giver"
+      ],
+      "reason": "Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.",
+      "email": null,
+      "phone": null,
+      "zip": null,
+      "interests": [
+        "giving"
+      ],
+      "has_dog": null,
+      "dog_name": null,
+      "source_rows": [
+        {
+          "file": "board_retreat_notes.md",
+          "location": "line 35",
+          "name_as_written": "Gabriela Rincon",
+          "kind": "mention"
+        }
+      ]
+    }
+  ],
+  "cross_file_duplicates": [
+    {
+      "person_id": "D01",
+      "tab": "giver",
+      "canonical": "Maria Delgado",
+      "appears_as": "Maria D.",
+      "files": [
+        "(existing donor files)",
+        "event_signin_sheet_nov1.xlsx"
+      ]
+    },
+    {
+      "person_id": "D08",
+      "tab": "giver",
+      "canonical": "Priya Raman",
+      "appears_as": "priya raman",
+      "files": [
+        "(existing donor files)",
+        "event_signin_sheet_nov1.xlsx"
+      ]
+    },
+    {
+      "person_id": "D11",
+      "tab": "giver",
+      "canonical": "Lucia Ferrante",
+      "appears_as": "Lucia F",
+      "files": [
+        "(existing donor files)",
+        "event_signin_sheet_nov1.xlsx"
+      ]
+    },
+    {
+      "person_id": "C01",
+      "tab": "community",
+      "canonical": "Rosa Elena Martinez",
+      "appears_as": "Rosa E. Martinez",
+      "files": [
+        "community_intake_forms_2026.docx",
+        "event_signin_sheet_nov1.xlsx"
+      ]
+    },
+    {
+      "person_id": "C03",
+      "tab": "community",
+      "canonical": "Keisha Williams",
+      "appears_as": "Keisha W.",
+      "files": [
+        "community_intake_forms_2026.docx",
+        "event_signin_sheet_nov1.xlsx"
+      ]
+    },
+    {
+      "person_id": "C10",
+      "tab": "community",
+      "canonical": "Mildred Hayes",
+      "appears_as": "Millie Hayes",
+      "files": [
+        "community_intake_forms_2026.docx",
+        "event_signin_sheet_nov1.xlsx"
+      ]
+    },
+    {
+      "person_id": "N01",
+      "tab": "neighbor",
+      "canonical": "Camila Restrepo",
+      "appears_as": "camila r.",
+      "files": [
+        "event_signin_sheet_nov1.xlsx"
+      ],
+      "note": "signed in twice on the same sheet"
+    },
+    {
+      "person_id": "N08",
+      "tab": "neighbor",
+      "canonical": "Felix Okonkwo",
+      "appears_as": "F. Okonkwo",
+      "files": [
+        "event_signin_sheet_nov1.xlsx"
+      ],
+      "note": "signed in twice on the same sheet"
+    }
+  ],
+  "puppy_outreach": {
+    "rule": "Target everyone whose has_dog is stated True in any file AND who has an email or phone. A blank or No in 'Brought a dog?' is NOT evidence of no dog. People with a dog but no contact info cannot be reached and are listed separately.",
+    "target_ids": [
+      "D08",
+      "C01",
+      "C03",
+      "C06",
+      "C08",
+      "C10",
+      "C13",
+      "N01",
+      "N06",
+      "N08",
+      "N11",
+      "N13",
+      "N15",
+      "N17",
+      "N19"
+    ],
+    "target_count": 15,
+    "target_by_tab": {
+      "giver": 1,
+      "neighbor": 8,
+      "community": 6
+    },
+    "has_dog_but_no_contact": [
+      "N04"
+    ],
+    "interested_in_pet_adoption_not_necessarily_dog_owners": [
+      "C03",
+      "C10",
+      "D08",
+      "N03",
+      "N05",
+      "N10",
+      "N11",
+      "N17"
+    ],
+    "stated_no_dog": [
+      "C04",
+      "C05",
+      "C07",
+      "C11",
+      "C14"
+    ]
+  },
+  "tab_notes": {
+    "tab_rule": "giver = has given (or is an org donor); community = receives the nonprofit's services; neighbor = met at an event, neither yet. Each canonical person counted once, under the tab in `tab`. Ambiguous people are counted under their default tab and flagged.",
+    "mentioned_gifts_not_counted": [
+      {
+        "person_id": "C15",
+        "amount": 25,
+        "note": "$25 in the donation jar, Oct 18 open house; not entered as a donor gift"
+      }
+    ],
+    "sign_in_rows": 27,
+    "sign_in_unique_new_neighbors": 19
+  },
   "not_lapsing_examples": [
     "Robert Nguyen (monthly, on track)",
     "Priya Raman (gave Nov 2026)",
