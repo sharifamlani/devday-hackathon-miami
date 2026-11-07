@@ -2,7 +2,11 @@ import type {
   ApiDonorDetail,
   ApiDonorRow,
   ApiDuplicate,
+  ApiEvidence,
+  ApiIcpProfile,
+  ApiJson,
   ApiOutreachDraft,
+  ApiProspect,
   ApiWhy,
 } from "./apiTypes";
 import type {
@@ -11,7 +15,14 @@ import type {
   DonorSummary,
   DuplicatePair,
   FactUsed,
+  IcpEvidence,
+  IcpProfile,
+  IcpStat,
+  IcpTrait,
   OutreachDraft,
+  ProspectDetail,
+  ProspectStatus,
+  ProspectSummary,
   ScoreFactor,
 } from "./types";
 
@@ -193,15 +204,20 @@ const scoreFactors = (why: ApiWhy | null): ScoreFactor[] => {
   ];
 };
 
-const parseFactsUsed = (raw: ApiOutreachDraft["facts_used"]): FactUsed[] => {
-  let list: unknown = raw;
-  if (typeof raw === "string") {
-    try {
-      list = JSON.parse(raw);
-    } catch {
-      return [];
-    }
+/** SQLite JSON columns may arrive as text or already parsed. */
+const fromJson = <T>(raw: ApiJson<T>): T | null => {
+  if (raw == null) return null;
+  if (typeof raw !== "string") return raw;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
   }
+};
+
+/** {fact, url} or {fact, source_url}; drops anything without both. */
+const parseFactsUsed = (raw: ApiJson<unknown>): FactUsed[] => {
+  const list = fromJson(raw);
   if (!Array.isArray(list)) return [];
   return list
     .map((f) => ({
@@ -296,3 +312,124 @@ export const parseDuplicate = (raw: ApiDuplicate): DuplicatePair => {
     ],
   };
 };
+
+/* ---------- ICP + prospects ---------- */
+
+/** "giving_style" → "Giving style" */
+const humanize = (key: string) => {
+  const words = key.replace(/[_-]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+const asText = (value: unknown): string => {
+  if (value == null) return "";
+  if (typeof value === "number") return value.toLocaleString("en-US");
+  if (Array.isArray(value)) return value.map(asText).filter(Boolean).join(", ");
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => `${humanize(k)}: ${asText(v)}`)
+      .join(" · ");
+  }
+  return String(value);
+};
+
+const parseEvidence = (raw: ApiJson<unknown>): IcpEvidence[] => {
+  const list = fromJson(raw);
+  if (!Array.isArray(list)) return [];
+  return (list as ApiEvidence[])
+    .map((e) => ({
+      donor: e?.donor ?? e?.donor_name ?? null,
+      fact: String(e?.fact ?? ""),
+      source_url: String(e?.source_url ?? e?.url ?? ""),
+    }))
+    .filter((e) => e.fact && e.source_url);
+};
+
+type TraitLike = {
+  label?: string;
+  name?: string;
+  trait?: string;
+  key?: string;
+  value?: unknown;
+  values?: unknown;
+  description?: string;
+  summary?: string;
+  evidence?: ApiJson<unknown>;
+};
+
+const traitFrom = (fallbackLabel: string, item: unknown): IcpTrait => {
+  if (item && typeof item === "object" && !Array.isArray(item)) {
+    const t = item as TraitLike;
+    return {
+      label: t.label ?? t.name ?? t.trait ?? (t.key ? humanize(t.key) : fallbackLabel),
+      value: asText(t.value ?? t.values ?? t.description ?? t.summary ?? ""),
+      evidence: parseEvidence(t.evidence),
+    };
+  }
+  return { label: fallbackLabel, value: asText(item), evidence: [] };
+};
+
+/** A list of trait objects, or a map of trait name → value or trait object. */
+export const parseTraits = (raw: ApiJson<unknown>): IcpTrait[] => {
+  const traits = fromJson(raw);
+  if (Array.isArray(traits)) {
+    return traits.map((t, i) => traitFrom(`Trait ${i + 1}`, t));
+  }
+  if (traits && typeof traits === "object") {
+    return Object.entries(traits as Record<string, unknown>).map(([k, v]) =>
+      traitFrom(humanize(k), v),
+    );
+  }
+  return [];
+};
+
+/** A map of stat name → number/value, or a list of {label, value}. */
+export const parseStats = (raw: ApiJson<unknown>): IcpStat[] => {
+  const stats = fromJson(raw);
+  if (Array.isArray(stats)) {
+    return stats.map((s, i) => ({
+      label: String(s?.label ?? s?.name ?? `Stat ${i + 1}`),
+      value: asText(s?.value),
+    }));
+  }
+  if (stats && typeof stats === "object") {
+    return Object.entries(stats as Record<string, unknown>).map(([k, v]) => ({
+      label: humanize(k),
+      value: asText(v),
+    }));
+  }
+  return [];
+};
+
+export const parseIcp = (raw: ApiIcpProfile): IcpProfile => ({
+  id: raw.id,
+  created_at: raw.created_at,
+  traits: parseTraits(raw.traits),
+  stats: parseStats(raw.stats),
+  evidence: parseEvidence(raw.evidence),
+});
+
+const PROSPECT_STATUSES: ProspectStatus[] = ["new", "drafted", "dismissed"];
+
+export const parseProspect = (raw: ApiProspect): ProspectSummary => {
+  const matched = fromJson(raw.matched_traits);
+  return {
+    id: raw.id,
+    name: raw.name,
+    org_type: raw.org_type,
+    city: raw.city,
+    fit_score: raw.fit_score ?? 0,
+    matched_traits: Array.isArray(matched) ? matched.map(asText) : [],
+    priority: raw.priority,
+    status: PROSPECT_STATUSES.includes(raw.status as ProspectStatus)
+      ? (raw.status as ProspectStatus)
+      : "new",
+    facts: parseFactsUsed(raw.facts),
+  };
+};
+
+export const parseProspectDetail = (raw: ApiProspect): ProspectDetail => ({
+  ...parseProspect(raw),
+  created_at: raw.created_at,
+  draft: raw.outreach_drafts?.length ? parseDraft(raw.outreach_drafts[0]) : null,
+});

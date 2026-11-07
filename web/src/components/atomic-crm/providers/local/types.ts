@@ -97,6 +97,53 @@ export interface DuplicatePair {
   donors: [DuplicateDonor, DuplicateDonor];
 }
 
+/** A claim behind an ICP trait: which donor, what fact, which page. */
+export interface IcpEvidence {
+  donor: string | null;
+  fact: string;
+  source_url: string;
+}
+
+/** One trait of the ideal donor profile, e.g. "Causes funded". */
+export interface IcpTrait {
+  label: string;
+  value: string;
+  evidence: IcpEvidence[];
+}
+
+/** A deterministic number from Python, e.g. "Median gift" → "$50,000". */
+export interface IcpStat {
+  label: string;
+  value: string;
+}
+
+export interface IcpProfile {
+  id: number;
+  created_at: string;
+  traits: IcpTrait[];
+  stats: IcpStat[];
+  evidence: IcpEvidence[]; // profile-level evidence not tied to one trait
+}
+
+export type ProspectStatus = "new" | "drafted" | "dismissed";
+
+export interface ProspectSummary {
+  id: number;
+  name: string;
+  org_type: string | null; // "company", "foundation", ...
+  city: string | null;
+  fit_score: number; // 0-100, computed in Python from matched traits
+  matched_traits: string[];
+  priority: string | null; // the Foundation priority it fits
+  status: ProspectStatus;
+  facts: FactUsed[]; // sourced facts, every one with a URL
+}
+
+export interface ProspectDetail extends ProspectSummary {
+  created_at: string;
+  draft: OutreachDraft | null; // newest first-touch draft (always "draft")
+}
+
 export interface MergeResult {
   kept_id: number;
   merged_id: number;
@@ -115,8 +162,15 @@ export interface DonorDeskMethods {
   dismissDuplicate(pairId: number): Promise<void>;
   enrichDonor(id: number): Promise<void>;
   draftOutreach(id: number): Promise<void>;
-  /** id: the donor (snapshot lookup); draftId: the outreach_drafts row. */
-  approveDraft(id: number, draftId: number, body: string): Promise<void>;
+  /** Any outreach_drafts row, donor or prospect. */
+  approveDraft(draftId: number, body: string): Promise<void>;
+  /** null until the ICP has been built. */
+  getIcp(): Promise<IcpProfile | null>;
+  runIcp(): Promise<void>;
+  getProspects(): Promise<ProspectSummary[]>; // highest fit first
+  getProspect(id: number): Promise<ProspectDetail>;
+  draftProspectOutreach(id: number): Promise<void>;
+  dismissProspect(id: number): Promise<void>;
   /** "Cached sample" in snapshot mode; null when live. */
   getSourceLabel(): Promise<string | null>;
 }

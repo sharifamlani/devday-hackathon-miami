@@ -2,10 +2,19 @@ import type {
   ApiDonorDetail,
   ApiDonorRow,
   ApiDuplicate,
+  ApiIcpProfile,
   ApiMergeResult,
+  ApiProspect,
 } from "./apiTypes";
 import { API_URL, APPROVER_NAME } from "./config";
-import { parseDonorDetail, parseDonorRow, parseDuplicate } from "./parse";
+import {
+  parseDonorDetail,
+  parseDonorRow,
+  parseDuplicate,
+  parseIcp,
+  parseProspect,
+  parseProspectDetail,
+} from "./parse";
 import type { DonorDeskMethods } from "./types";
 
 /** A non-2xx response, keeping the status and the parsed JSON body. */
@@ -49,6 +58,31 @@ const request = async <T>(
   return (await response.json()) as T;
 };
 
+/**
+ * POST an agent route that may time out. The service answers 504
+ * {"error": "agent_timeout", "cached_draft": {...} | null}; the cached draft
+ * is the newest saved row, so the caller's refetch shows it.
+ */
+const postAgent = async (path: string) => {
+  try {
+    await request(path, { method: "POST" });
+  } catch (error) {
+    const body = error instanceof ApiError ? error.body : null;
+    if (
+      error instanceof ApiError &&
+      error.status === 504 &&
+      (body as { error?: string } | null)?.error === "agent_timeout"
+    ) {
+      throw new Error(
+        (body as { cached_draft?: unknown }).cached_draft
+          ? "Draft took too long, showing the last saved draft."
+          : "Draft took too long and there is no saved draft yet. Try again.",
+      );
+    }
+    throw error;
+  }
+};
+
 /** Talks to the Python API on the demo laptop (VITE_DATA_MODE=local). */
 export const localApiMethods: DonorDeskMethods = {
   getDonors: async () =>
@@ -70,32 +104,34 @@ export const localApiMethods: DonorDeskMethods = {
   enrichDonor: async (id) => {
     await request(`/enrich/${id}`, { method: "POST" });
   },
-  draftOutreach: async (id) => {
-    try {
-      await request(`/outreach/${id}`, { method: "POST" });
-    } catch (error) {
-      // 504 {"error": "agent_timeout", "cached_draft": {...} | null}. The
-      // cached draft is the newest saved row, so the refetch shows it.
-      const body = error instanceof ApiError ? error.body : null;
-      if (
-        error instanceof ApiError &&
-        error.status === 504 &&
-        (body as { error?: string } | null)?.error === "agent_timeout"
-      ) {
-        throw new Error(
-          (body as { cached_draft?: unknown }).cached_draft
-            ? "Draft took too long, showing the last saved draft."
-            : "Draft took too long and there is no saved draft yet. Try again.",
-        );
-      }
-      throw error;
-    }
-  },
-  approveDraft: async (_id, draftId, body) => {
+  draftOutreach: (id) => postAgent(`/outreach/${id}`),
+  approveDraft: async (draftId, body) => {
     await request(`/drafts/${draftId}/approve`, {
       method: "POST",
       body: { body, approved_by: APPROVER_NAME },
     });
   },
   getSourceLabel: async () => null,
+
+  getIcp: async () => {
+    try {
+      return parseIcp(await request<ApiIcpProfile>("/icp"));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
+  },
+  runIcp: async () => {
+    await request("/icp/run", { method: "POST" });
+  },
+  getProspects: async () =>
+    (await request<ApiProspect[]>("/prospects"))
+      .map(parseProspect)
+      .sort((a, b) => b.fit_score - a.fit_score),
+  getProspect: async (id) =>
+    parseProspectDetail(await request<ApiProspect>(`/prospects/${id}`)),
+  draftProspectOutreach: (id) => postAgent(`/prospects/${id}/outreach`),
+  dismissProspect: async (id) => {
+    await request(`/prospects/${id}/dismiss`, { method: "POST" });
+  },
 };
