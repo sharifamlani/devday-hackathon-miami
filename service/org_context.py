@@ -138,7 +138,7 @@ def refresh_cache(n_posts: int = 20) -> list[dict]:
     if len(facts) < MIN_FACTS:
         raise RuntimeError(f"only {len(facts)} grounded facts (need {MIN_FACTS}); cache left unchanged")
     CACHE_PATH.write_text(json.dumps({
-        "source": "https://miamifoundation.org (WordPress feed)",
+        "source": "https://miamifoundation.org/wp-json/wp/v2/posts",    # the feed; each fact's url is its own post
         "retrieved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "facts": facts,
     }, indent=2, ensure_ascii=False), encoding="utf-8")
