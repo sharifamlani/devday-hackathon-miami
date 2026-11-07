@@ -84,18 +84,29 @@ const DuplicateMergeDialog = ({
   const [keepId, setKeepId] = useState(suggestedKeepId);
   useEffect(() => setKeepId(suggestedKeepId), [pair.id, suggestedKeepId]);
 
-  const handleMerge = () =>
-    merge.mutate(
-      { pairId: pair.id, keepId },
-      {
-        onSuccess: () =>
-          notify("Donors merged: one record, full gift history", {
-            type: "success",
-          }),
-        onError: (error) =>
-          notify(`Merge failed: ${error.message}`, { type: "error" }),
-      },
-    );
+  // mutateAsync, not mutate(..., callbacks): merging the last pair closes
+  // this dialog, and react-query drops per-call callbacks on unmount.
+  const handleMerge = async () => {
+    try {
+      await merge.mutateAsync({ pairId: pair.id, keepId });
+      notify("Donors merged: one record, full gift history", {
+        type: "success",
+      });
+    } catch (error) {
+      notify(`Merge failed: ${(error as Error).message}`, { type: "error" });
+    }
+  };
+
+  const handleKeepSeparate = async () => {
+    try {
+      await dismiss.mutateAsync(pair.id);
+      notify("Kept as separate donors", { type: "info" });
+    } catch (error) {
+      notify(`Could not dismiss: ${(error as Error).message}`, {
+        type: "error",
+      });
+    }
+  };
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -135,14 +146,7 @@ const DuplicateMergeDialog = ({
         <DialogFooter>
           <Button
             variant="ghost"
-            onClick={() =>
-              dismiss.mutate(pair.id, {
-                onError: (error) =>
-                  notify(`Could not dismiss: ${error.message}`, {
-                    type: "error",
-                  }),
-              })
-            }
+            onClick={handleKeepSeparate}
             disabled={isBusy}
           >
             <CircleX />

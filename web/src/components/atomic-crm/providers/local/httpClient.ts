@@ -8,6 +8,17 @@ import { API_URL, APPROVER_NAME } from "./config";
 import { parseDonorDetail, parseDonorRow, parseDuplicate } from "./parse";
 import type { DonorDeskMethods } from "./types";
 
+/** A non-2xx response, keeping the status and the parsed JSON body. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly body: unknown,
+  ) {
+    super(message);
+  }
+}
+
 const request = async <T>(
   path: string,
   init?: { method?: "GET" | "POST"; body?: unknown },
@@ -23,8 +34,16 @@ const request = async <T>(
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(
+    let body: unknown = null;
+    try {
+      body = JSON.parse(detail);
+    } catch {
+      // not JSON: keep the text in the message
+    }
+    throw new ApiError(
       `${method} ${path} failed: ${response.status} ${detail}`.trim(),
+      response.status,
+      body,
     );
   }
   return (await response.json()) as T;
@@ -52,7 +71,25 @@ export const localApiMethods: DonorDeskMethods = {
     await request(`/enrich/${id}`, { method: "POST" });
   },
   draftOutreach: async (id) => {
-    await request(`/outreach/${id}`, { method: "POST" });
+    try {
+      await request(`/outreach/${id}`, { method: "POST" });
+    } catch (error) {
+      // 504 {"error": "agent_timeout", "cached_draft": {...} | null}. The
+      // cached draft is the newest saved row, so the refetch shows it.
+      const body = error instanceof ApiError ? error.body : null;
+      if (
+        error instanceof ApiError &&
+        error.status === 504 &&
+        (body as { error?: string } | null)?.error === "agent_timeout"
+      ) {
+        throw new Error(
+          (body as { cached_draft?: unknown }).cached_draft
+            ? "Draft took too long, showing the last saved draft."
+            : "Draft took too long and there is no saved draft yet. Try again.",
+        );
+      }
+      throw error;
+    }
   },
   approveDraft: async (_id, draftId, body) => {
     await request(`/drafts/${draftId}/approve`, {

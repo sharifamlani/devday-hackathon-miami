@@ -83,7 +83,8 @@ export const useDraftOutreach = (id: number) => {
   const invalidateAll = useInvalidateAll();
   return useMutation({
     mutationFn: () => dataProvider.draftOutreach(id),
-    onSuccess: invalidateAll,
+    // Refetch on failure too: a timed-out draft falls back to the saved one.
+    onSettled: invalidateAll,
   });
 };
 
