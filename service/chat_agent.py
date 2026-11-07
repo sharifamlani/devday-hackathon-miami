@@ -40,6 +40,8 @@ Rules:
   until they approve the batch.
 - On the community tab, outreach is about programs and help only: never ask for a donation (intent check_in).
 - If a tool says data is not loaded yet, say so plainly.
+- For event outreach use plan_event_outreach: it makes one batch per event; report each event's drafts and
+  who needs individual approval.
 {first_turn}{selection}"""
 
 FIRST_TURN = """- This is the start of the conversation: before answering, call get_context and get_events. If any event
@@ -64,6 +66,22 @@ def query(sql: str, args: tuple = ()) -> list[dict]:
         conn.close()
 
 
+TAB_CONTACT = {"givers": "giver", "neighbors": "neighbor", "community": "community"}
+
+
+def tab_people(tab: str) -> list[dict] | None:
+    """Everyone on this tab via data's list_people once three-tab people land; None before that."""
+    from service import routes_data
+    if not hasattr(routes_data, "list_people"):
+        return None
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        return routes_data.list_people(conn, TAB_CONTACT.get(tab))
+    finally:
+        conn.close()
+
+
 def not_loaded(ctx: ChatContext) -> dict:
     return {"people": [], "note": f"the {ctx.tab} list is not loaded yet (uploads for this tab are coming)"}
 
@@ -72,6 +90,12 @@ def not_loaded(ctx: ChatContext) -> dict:
 def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, tier: str | None = None,
                 star_only: bool = False, limit: int = 25) -> dict:
     """Find people on the current tab. status: lapsing | lapsed | due | on_track. tier: small | mid | major."""
+    people = tab_people(ctx.context.tab)
+    if people is not None:
+        people = [p for p in people if (not status or p.get("status") == status) and (not tier or p.get("tier") == tier)
+                  and (not star_only or p.get("is_star"))][:min(limit, 50)]
+        keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status")
+        return {"people": [{k: p.get(k) for k in keep} for p in people], "count": len(people)}
     if ctx.context.tab not in ("givers", "home", "calendar"):
         return not_loaded(ctx.context)
     where, args = [], []
@@ -92,6 +116,12 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
 @function_tool
 def segment(ctx: RunContextWrapper[ChatContext], by: Literal["status", "tier", "donor_type"] = "status") -> dict:
     """Count people on the current tab, grouped by status, tier or donor_type."""
+    people = tab_people(ctx.context.tab)
+    if people is not None:
+        groups: dict = {}
+        for p in people:
+            groups[p.get(by)] = groups.get(p.get(by), 0) + 1
+        return {"by": by, "groups": dict(sorted(groups.items(), key=lambda kv: -kv[1]))}
     if ctx.context.tab not in ("givers", "home", "calendar"):
         return not_loaded(ctx.context)
     column = {"status": "s.status", "tier": "s.tier", "donor_type": "d.donor_type"}[by]
@@ -214,13 +244,28 @@ def get_alerts(ctx: RunContextWrapper[ChatContext]) -> dict:
 
 
 @function_tool
+def plan_event_outreach(ctx: RunContextWrapper[ChatContext], event_id: int | None = None) -> dict:
+    """Draft invites for upcoming events: one batch per event (audience picked by rule, invites per person).
+    event_id omitted = every upcoming event. Drafts only; nothing is sent until the user approves."""
+    try:
+        from service.event_outreach import plan_event_outreach as plan
+        result = plan("all_upcoming" if event_id is None else event_id)
+    except ImportError:
+        return {"events": [], "note": "the events agent is not available yet"}
+    except LookupError as e:
+        return {"error": str(e)}
+    ctx.context.batches += [e["batch_id"] for e in result["events"] if e.get("batch_id") is not None]
+    return result
+
+
+@function_tool
 def community_stats(ctx: RunContextWrapper[ChatContext], by: str = "program") -> dict:
     """Counts and breakdowns of the people the Foundation serves, from what it recorded."""
     return {"groups": {}, "note": "community data is not loaded yet (uploads for this tab are coming)"}
 
 
-TOOLS = [find_people, segment, get_context, get_events, get_alerts, draft_email, draft_sms, build_brief,
-         community_stats]
+TOOLS = [find_people, segment, get_context, get_events, get_alerts, draft_email, draft_sms, plan_event_outreach,
+         build_brief, community_stats]
 
 
 def summarize(output) -> str:
@@ -242,6 +287,10 @@ def summarize(output) -> str:
         return data.get("note") or ", ".join(f"{k}: {v}" for k, v in data["groups"].items())
     if "facts" in data and "profile" in data:
         return f"{len(data['facts'])} facts" + (f" for {data['profile']['name']}" if data["profile"] else "")
+    if "events" in data and "givers_only" in data:
+        made = [e for e in data["events"] if e.get("batch_id") is not None]
+        return (f"{len(made)} event batch{'es' if len(made) != 1 else ''}: "
+                + "; ".join(f"{e['title']} ({e['starts_at'][:10]}): {e.get('drafts', 0)} drafts" for e in data["events"]))
     if "events" in data:
         return data.get("note") or f"{len(data['events'])} events"
     if "alerts" in data:

@@ -14,6 +14,7 @@ POST /context/run            onboarding screen 2: context agent reads the websit
 POST /chat                   chat agent (tab-aware tools); drafts land as a batch pending approval, never sent
 POST /send/{batch_id}        a human approves a chat batch (orgs/star/big need per-item ids) and it goes out
                              through outbound.deliver: dry run unless EMAIL_SEND=on / SMS_PROVIDER is set
+POST /events/{id}/plan       create or open an event's outreach batch (one campaign per event); 503 until 86 lands
 POST /events/refresh, GET /events/{id}/drafts   events agent (86), 503 until it lands
 POST /context/refresh        "Refresh now": starts a background context + calendar pass (86's service.refresh) on
                              org_profile's URLs and returns {status: "refreshing"}; GET /context/refresh reports it;
@@ -661,6 +662,30 @@ async def events_refresh() -> dict:
     if not hasattr(ea, "refresh_events"):
         raise not_landed("service.events_agent.refresh_events")
     return await capped("events", config.CHAT_DEADLINE_S, ea.refresh_events)
+
+
+@app.post("/events/{event_id}/plan")
+async def event_plan(event_id: int) -> dict:
+    """The calendar's "Review": create (or open, if it exists) this event's pending outreach batch."""
+    from service.chat_agent import pending_batch
+    from service import routes_campaigns as rc
+
+    if not module_present("service.events_agent"):
+        raise not_landed("service.events_agent")
+    from service.event_outreach import plan_event_outreach
+    try:
+        result = await capped("event plan", config.CHAT_DEADLINE_S, plan_event_outreach, event_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    event = result["events"][0]
+    batch = None
+    if event.get("batch_id") is not None:
+        conn = db.connect()
+        try:
+            batch = pending_batch(rc.campaign_detail(conn, event["batch_id"]))
+        finally:
+            conn.close()
+    return {**event, "givers_only": result["givers_only"], "pending_batch": batch}
 
 
 @app.get("/events/{event_id}/drafts")

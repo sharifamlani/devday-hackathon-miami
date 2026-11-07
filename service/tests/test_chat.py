@@ -27,7 +27,7 @@ def offline(monkeypatch):
 def test_the_model_has_no_tool_that_sends():
     names = {t.name for t in chat_agent.TOOLS}
     assert names == {"find_people", "segment", "get_context", "get_events", "get_alerts", "draft_email",
-                     "draft_sms", "build_brief", "community_stats"}
+                     "draft_sms", "plan_event_outreach", "build_brief", "community_stats"}
     assert not any("send" in n for n in names)
 
 
