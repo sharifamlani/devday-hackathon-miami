@@ -159,7 +159,7 @@ PRESS_FORWARD_TOTAL = re.compile(r"(?:nearly |more than |over )?\$[\d,.]+\s*(?:m
 def scrub(fact: dict) -> dict:
     if "press forward" not in fact["fact"].lower():
         return fact
-    return fact | {"fact": PRESS_FORWARD_TOTAL.sub("", fact["fact"])}
+    return fact | {k: PRESS_FORWARD_TOTAL.sub("", fact[k]) for k in ("fact", "quote") if k in fact}
 
 
 if __name__ == "__main__":

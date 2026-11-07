@@ -8,12 +8,15 @@ that isn't in the facts or the donor's own gift history, and the agent retries o
 
 Channels: email draft plus a call script for a human. Never robocalls (plan.md §11).
 Big donors (is_star or tier == "big") get status "draft": a person must approve and send.
-Everyone else gets "ready": the automated small-donor path may send it.
+Everyone else gets "ready": the automated path may send it. (db.py's trigger also blocks
+'sent' on a star donor without a human approver.)
 
-Drafts are written to the outreach_drafts table in data/donors.db once db.py creates it;
-until then, to data/outreach_drafts.json.
+Drafts go to the outreach_drafts table in data/donors.db (DONORS_DB overrides), with subject,
+call_script and facts_used (JSON list of {fact, url}). If the table is missing or older than
+that schema, the full draft goes to data/outreach_drafts.json instead.
 
-    python service/outreach_agent.py        # run the two hand-built demo donors
+    python -m service.outreach_agent 1 4          # donors 1 and 4 from donors.db (what POST /outreach/{id} runs)
+    python -m service.outreach_agent              # the hand-built demo donors (not in the db)
 """
 
 import json
@@ -28,11 +31,16 @@ from pydantic import BaseModel, Field
 
 SERVICE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SERVICE_DIR.parent
-DB_PATH = REPO_ROOT / "data" / "donors.db"
+DEMO_AS_OF = date(2026, 11, 8)      # same pinned demo date as score.py
 JSON_FALLBACK = REPO_ROOT / "data" / "outreach_drafts.json"
 
 GIVE_MIAMI_DAY = date(2026, 11, 19)
 EARLY_GIVING_OPENS = date(2026, 11, 14)
+
+
+def db_file() -> Path:
+    """DONORS_DB overrides data/donors.db, read at call time like db.db_path()."""
+    return Path(os.environ.get("DONORS_DB", REPO_ROOT / "data" / "donors.db"))
 
 
 # ----------------------------------------------------------------------------------------------
@@ -75,9 +83,7 @@ Hard rules:
 - Gifts are made only at miamifoundation.org or givemiamiday.org. Never mention WhatsApp,
   text-to-give, or automated calls.
 - The call script is for a human staff member to read, in the same voice.
-- Big donors and fundholders: the ask is a personal conversation (a call or coffee with the
-  philanthropy team about their year-end giving), never a dollar amount or a link to give online.
-- Small donors: ask for a Give Miami Day gift at givemiamiday.org, starting with early giving."""
+- Make exactly the ask given on the "Ask:" line of the prompt. Never name a dollar amount to give."""
 
 
 # ----------------------------------------------------------------------------------------------
@@ -90,7 +96,7 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
     from openai.types.shared import Reasoning
 
     load_dotenv(REPO_ROOT / ".env")
-    today = today or date.today()
+    today = today or as_of_date(score_why)
 
     ranked = rank_org_facts(donor, research_facts, org_facts)
     facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
@@ -171,6 +177,41 @@ def rank_org_facts(donor: dict, research_facts: list[dict], org_facts: list[dict
     return sorted(rotated, key=fit, reverse=True)       # stable: ties keep the rotated order
 
 
+def as_of_date(why) -> date:
+    """The demo's 'today', matching the score: SCORE_AS_OF, else the score's own as_of, else DEMO_AS_OF."""
+    raw = os.environ.get("SCORE_AS_OF") or (why.get("as_of") if isinstance(why, dict) else None)
+    return date.fromisoformat(raw) if raw else DEMO_AS_OF
+
+
+def describe_why(why) -> str:
+    """score.py's why JSON -> plain lines for the prompt. Figures the draft may not quote
+    (days, ratios, points) stay out; the numeric check would reject them anyway."""
+    if not isinstance(why, dict):
+        return str(why or "")
+    lines = []
+    if why.get("status"):
+        lines.append(f"Status: {why['status']}")
+    if why.get("reasons"):
+        lines.append("Reasons: " + ", ".join(r.replace("_", " ") for r in why["reasons"]))
+    pat = why.get("pattern") or {}
+    if pat.get("years"):
+        lines.append(f"Pattern: gives in {pat.get('month_name')} via {pat.get('channel')} "
+                     f"({', '.join(map(str, pat['years']))}); gave this year: {'yes' if pat.get('gave_this_year') else 'no'}")
+    if why.get("usual_cadence_days") and why.get("days_since_last_gift") is not None:
+        due = why["days_since_last_gift"] >= why["usual_cadence_days"] * 0.9
+        lines.append("Timing: due for their usual gift now" if due else "Timing: not yet due")
+    return "\n".join(lines)
+
+
+def ask_for(big: bool, today: date) -> str:
+    if big:
+        return ("a personal conversation: a call or coffee with the philanthropy team about their "
+                "year-end giving. No link to give online.")
+    when = (f"when early giving opens {long_date(EARLY_GIVING_OPENS)}" if today < EARLY_GIVING_OPENS
+            else f"by Give Miami Day, {long_date(GIVE_MIAMI_DAY)}")
+    return f"a Give Miami Day gift at givemiamiday.org {when}."
+
+
 def is_big(donor: dict) -> bool:
     return bool(donor.get("is_star")) or donor.get("tier") == "big"
 
@@ -180,7 +221,7 @@ def build_prompt(donor, gifts, score_why, facts, big, today) -> str:
                         for g in sorted(gifts, key=lambda g: g["gift_date"]))
     fact_lines = "\n".join(f"{k}: {v['fact']}" + (f" ({v['date']})" if v.get("date") else "")
                            for k, v in facts.items())
-    why = score_why if isinstance(score_why, str) else json.dumps(score_why)
+    why = describe_why(score_why)
     days_early = (EARLY_GIVING_OPENS - today).days
     days_gmd = (GIVE_MIAMI_DAY - today).days
 
@@ -189,8 +230,10 @@ def build_prompt(donor, gifts, score_why, facts, big, today) -> str:
 
 Donor: {donor.get('full_name')}{' (organization: ' + donor['org_name'] + ')' if donor.get('org_name') else ''}
 Fund type: {donor.get('fund_type') or 'none on file'}
-Tier: {'big donor / sponsor: a staff member will personally review and send this' if big else 'small donor: this may be sent automatically'}
-Why they're on today's list: {why}
+Tier: {'big donor / sponsor: a staff member will personally review and send this' if big else 'individual donor: this may be sent automatically'}
+Ask: {ask_for(big, today)}
+Why they're on today's list:
+{why}
 
 Gift history:
 {history or '- none on file'}
@@ -253,7 +296,7 @@ def norm_num(s: str) -> str:
 def save_draft(donor_id: int, draft: Draft) -> str:
     row = {
         "donor_id": donor_id,
-        "contact_id": donor_id,
+        "channel": "email",
         "subject": draft.subject,
         "body": draft.body,
         "call_script": draft.call_script,
@@ -262,20 +305,49 @@ def save_draft(donor_id: int, draft: Draft) -> str:
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
-    if DB_PATH.exists():
-        with sqlite3.connect(DB_PATH) as con:
-            cols = [r[1] for r in con.execute("PRAGMA table_info(outreach_drafts)")]
-            if cols:
+    path = db_file()
+    if path.exists():
+        with sqlite3.connect(path) as con:
+            cols = {r[1] for r in con.execute("PRAGMA table_info(outreach_drafts)")}
+            if {"subject", "call_script", "facts_used"} <= cols:
                 keep = {k: v for k, v in row.items() if k in cols}
-                con.execute(f"INSERT INTO outreach_drafts ({', '.join(keep)}) VALUES ({', '.join('?' * len(keep))})",
-                            list(keep.values()))
-                return f"{DB_PATH.name}:outreach_drafts"
+                cur = con.execute(f"INSERT INTO outreach_drafts ({', '.join(keep)}) VALUES ({', '.join('?' * len(keep))})",
+                                  list(keep.values()))
+                return f"{path.name}:outreach_drafts#{cur.lastrowid}"
 
     existing = json.loads(JSON_FALLBACK.read_text(encoding="utf-8")) if JSON_FALLBACK.exists() else []
     existing.append(row | {"facts_used": json.loads(row["facts_used"])})
     JSON_FALLBACK.parent.mkdir(exist_ok=True)
     JSON_FALLBACK.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
     return str(JSON_FALLBACK.relative_to(REPO_ROOT))
+
+
+def load_donor(donor_id: int) -> tuple[dict, list[dict], dict, list[dict]]:
+    """donor (with tier/is_star), gifts, why, research_facts from donors.db."""
+    with sqlite3.connect(db_file()) as con:
+        con.row_factory = sqlite3.Row
+        d = con.execute("""SELECT d.*, s.tier, s.is_star, s.why FROM donors d
+                           LEFT JOIN donor_scores s ON s.donor_id = d.id WHERE d.id = ?""", (donor_id,)).fetchone()
+        if d is None:
+            raise KeyError(f"no donor {donor_id} in {db_file()}")
+        gifts = [dict(r) for r in con.execute(
+            "SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? ORDER BY gift_date", (donor_id,))]
+        research = [dict(r) for r in con.execute(
+            "SELECT fact, source_url FROM research_facts WHERE donor_id = ?", (donor_id,))]
+    donor = dict(d)
+    why = json.loads(donor.pop("why") or "{}")
+    return donor, gifts, why, research
+
+
+def draft_for_donor(donor_id: int) -> tuple[Draft, str]:
+    """What POST /outreach/{donor_id} runs: load from donors.db, draft, save."""
+    import sys
+    sys.path.insert(0, str(SERVICE_DIR))
+    from org_context import load_org_facts
+
+    donor, gifts, why, research = load_donor(donor_id)
+    draft = draft_outreach(donor, gifts, why, research, load_org_facts())
+    return draft, save_draft(donor_id, draft)
 
 
 # ----------------------------------------------------------------------------------------------
@@ -319,16 +391,29 @@ DEMO_CASES = [
 ]
 
 
+def print_draft(name: str, d: Draft, where: str) -> None:
+    print(f"\n=== {name}  status={d.status}  saved to {where}")
+    print(f"Subject: {d.subject}\n\n{d.body}\n\n--- Call script ---\n{d.call_script}\n\n--- facts_used ---")
+    for f in d.facts_used:
+        print(f"- {f.fact}\n  {f.url}")
+
+
 if __name__ == "__main__":
+    import argparse
     import sys
     sys.path.insert(0, str(SERVICE_DIR))
     from org_context import load_org_facts
 
-    org_facts = load_org_facts()
-    for case in DEMO_CASES:
-        d = draft_outreach(case["donor"], case["gifts"], case["score_why"], case["research_facts"], org_facts)
-        where = save_draft(case["donor"]["id"], d)
-        print(f"\n=== {case['donor']['full_name']}  status={d.status}  saved to {where}")
-        print(f"Subject: {d.subject}\n\n{d.body}\n\n--- Call script ---\n{d.call_script}\n\n--- facts_used ---")
-        for f in d.facts_used:
-            print(f"- {f.fact}\n  {f.url}")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("donor_ids", type=int, nargs="*", help="donor ids in donors.db; none = hand-built demo donors")
+    args = ap.parse_args()
+
+    if args.donor_ids:
+        for donor_id in args.donor_ids:
+            d, where = draft_for_donor(donor_id)
+            print_draft(load_donor(donor_id)[0]["full_name"], d, where)
+    else:
+        org_facts = load_org_facts()
+        for case in DEMO_CASES:
+            d = draft_outreach(case["donor"], case["gifts"], case["score_why"], case["research_facts"], org_facts)
+            print_draft(case["donor"]["full_name"], d, save_draft(case["donor"]["id"], d))
