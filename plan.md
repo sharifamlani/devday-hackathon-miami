@@ -515,3 +515,6 @@ enrich + outreach (in parallel) → UI wires to all → end-to-end smoke on the 
   histories, so drafts to them never cite gift amounts, dates or counts; they thank "your partnership" and
   lead with a real Foundation fact. Donor rows expose `is_sample`; the UI shows a "Sample history" badge.
   Fictional individuals may keep their sample figures.
+- **For Carlos's ingest:** `is_sample` is true only when `source_row` is literally `SAMPLE`. If the sample
+  CSV you ingest should display as sample data, write `source_row = 'SAMPLE'` (or agree another marker with
+  the lead).
