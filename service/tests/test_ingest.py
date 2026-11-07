@@ -1,5 +1,6 @@
 """POST /ingest through stat-mcp's structured readers (CSV/JSON: no model call)."""
 import json
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -82,3 +83,33 @@ def test_web_contract_fields_present(db_file):
     for key in ("donors", "gifts", "duplicates", "message"):  # what web parseIngestResult reads
         assert key in body
     assert isinstance(body["duplicates"], int)
+
+
+def test_signin_sheet_email_or_phone_column(db_file):
+    """Real sample input: title row, blank row, then an 'Email or phone' header."""
+    path = Path(__file__).resolve().parents[2] / "data" / "sample_inputs" / "event_signin_sheet_nov1.xlsx"
+    body = post([(path.name, path.read_bytes(), "application/octet-stream")]).json()
+    assert body["files"][0]["events"] > 0 and body["gifts"] == 0
+
+
+def test_narrative_rows_with_unset_fields_map_cleanly(db_file, monkeypatch):
+    """Extractor rows leave phone/email unset and may give only 'name'; neither may crash or drop the person."""
+    from stat_mcp import agent
+    from stat_mcp.schemas import ExtractedTransaction, TransactionExtraction
+
+    async def fake_extract(text):
+        return TransactionExtraction(transactions=[
+            ExtractedTransaction(name="Rosa Mendez Vega", transaction_type="gift", contact_type="donor",
+                                 amount=500, transaction_date="2026-06-01", person_group_key="p1"),
+            ExtractedTransaction(name="Rosa Mendez Vega", transaction_type="gift", contact_type="donor",
+                                 amount=750, transaction_date="2026-09-01", person_group_key="p1")])
+
+    monkeypatch.setattr(agent, "extract_unstructured_transactions", fake_extract)
+    body = post([("notes.txt", b"Rosa gave twice.", "text/plain")]).json()
+    assert (body["donors"], body["gifts"]) == (1, 2), body
+    conn = db.connect(db_file)
+    try:
+        row = conn.execute("SELECT first_name, last_name FROM donors WHERE full_name = 'Rosa Mendez Vega'").fetchone()
+        assert tuple(row) == ("Rosa", "Mendez Vega")
+    finally:
+        conn.close()
