@@ -90,6 +90,9 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
     team accepted. The OpenAI API and Agents SDK remain required and must be visibly used.
 11. **Never push to `main` directly.** Another coder shares the repo: work on a branch, open a PR.
 12. **The repo goes public with an MIT license by Sun 4:45 PM** (organizer rule). Nothing private in history.
+13. **🔒 Carlos owns ingest.** Never edit `service/ingest/` or the `/ingest` route body. Build against the
+    data contract in `plan.md` §13; contract changes need Carlos + Sharif.
+14. **No Supabase.** Data is local SQLite (`data/donors.db`, gitignored) behind the local Python API.
 
 ## How we work fast
 

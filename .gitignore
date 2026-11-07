@@ -22,3 +22,6 @@ docs/judges.md
 .vercel
 web/node_modules
 web/dist
+
+# Local MVP database (rebuilt from data/sample_donors.csv)
+data/*.db
