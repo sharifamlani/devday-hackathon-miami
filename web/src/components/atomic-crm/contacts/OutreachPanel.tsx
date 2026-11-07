@@ -31,7 +31,10 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
   const isApproved = draft?.status === "approved" || draft?.status === "sent";
 
   return (
-    <section aria-label="Draft" className="space-y-3">
+    <section
+      aria-label="Draft"
+      className="space-y-3 rounded-[22px] bg-surface p-5"
+    >
       <PanelHeading
         title="Draft"
         caption="Outreach agent · written in the Foundation's voice"
@@ -39,7 +42,7 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
         {!draft && (
           <Button
             size="sm"
-            variant="outline"
+            className="rounded-full bg-brand px-4 font-semibold text-brand-foreground hover:bg-brand/85 focus-visible:outline-2 focus-visible:outline-ring"
             onClick={() => draftOutreach.mutate()}
             disabled={draftOutreach.isPending}
           >
@@ -59,28 +62,33 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
 
       {draft ? (
         <div className="space-y-3">
-          {draft.subject && (
-            <p className="text-sm">
-              <span className="text-muted-foreground">Subject: </span>
-              <span className="font-medium">{draft.subject}</span>
+          <div className="space-y-2 rounded-[20px] rounded-br-md bg-brand-soft p-4 text-brand-soft-foreground">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em]">
+              Draft
             </p>
-          )}
-          {isEditing ? (
-            <Textarea
-              aria-label="Draft body"
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              className="min-h-56 text-sm"
-            />
-          ) : (
-            <p className="whitespace-pre-line rounded-md border bg-background p-3 text-sm leading-relaxed">
-              {body}
-            </p>
-          )}
+            {draft.subject && (
+              <p className="text-sm">
+                <span>Subject: </span>
+                <span className="font-bold">{draft.subject}</span>
+              </p>
+            )}
+            {isEditing ? (
+              <Textarea
+                aria-label="Draft body"
+                value={body}
+                onChange={(event) => setBody(event.target.value)}
+                className="min-h-56 rounded-[14px] border-border bg-card text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring dark:bg-card"
+              />
+            ) : (
+              <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {body}
+              </p>
+            )}
+          </div>
           {draft.facts_used.length > 0 && (
-            <div className="text-xs">
+            <div className="rounded-[18px] bg-card p-3.5 text-xs">
               <p className="text-muted-foreground">↳ facts used:</p>
-              <ul className="ml-3 space-y-1">
+              <ul className="ml-3 mt-1 space-y-1">
                 {draft.facts_used.map((fact) => (
                   <li key={fact.source_url + fact.fact}>
                     {fact.fact} <SourceLink href={fact.source_url} />
@@ -90,15 +98,17 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
             </div>
           )}
           {draft.call_script && (
-            <details className="text-xs">
-              <summary className="cursor-pointer text-muted-foreground">
+            <details className="rounded-[20px] bg-primary p-4 text-xs text-primary-foreground">
+              <summary className="cursor-pointer rounded-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                 Call script
               </summary>
-              <p className="mt-1 whitespace-pre-line">{draft.call_script}</p>
+              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">
+                {draft.call_script}
+              </p>
             </details>
           )}
           {isApproved ? (
-            <p className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            <p className="flex flex-wrap items-center gap-1.5 rounded-full bg-good px-4 py-2 text-sm font-semibold text-good-foreground">
               <Check className="h-4 w-4" />
               Approved{draft.approved_by ? ` by ${draft.approved_by}` : ""}
               {draft.approved_at ? ` · ${formatDay(draft.approved_at)}` : ""}
@@ -113,6 +123,7 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
               <Button
                 size="sm"
                 variant="outline"
+                className="rounded-full border-border bg-card px-4 font-semibold hover:bg-olive focus-visible:outline-2 focus-visible:outline-ring"
                 onClick={() => setIsEditing((editing) => !editing)}
                 disabled={approve.isPending}
               >
@@ -121,6 +132,7 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
               </Button>
               <Button
                 size="sm"
+                className="rounded-full bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/85 focus-visible:outline-2 focus-visible:outline-ring"
                 onClick={() => approve.mutate({ draftId: draft.id, body })}
                 disabled={approve.isPending || !body.trim()}
               >
@@ -147,7 +159,7 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
 
 export const SampleHistoryBadge = () => (
   <span
-    className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+    className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-soft-foreground"
     title="This donor's gifts are invented sample data, not the Foundation's records."
   >
     Sample history
@@ -156,7 +168,7 @@ export const SampleHistoryBadge = () => (
 
 const SendPolicy = ({ isStar }: { isStar: boolean }) =>
   isStar ? (
-    <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+    <p className="rounded-[18px] bg-brand-soft px-4 py-2.5 text-xs font-medium text-brand-soft-foreground">
       ★ Big donor: never sent automatically. A person reviews, approves and
       sends.
     </p>

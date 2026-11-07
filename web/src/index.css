@@ -6,7 +6,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Kindred renders in Avenir Next on Apple devices; bundled Inter covers the rest. */
+  --font-sans: "Avenir Next", Avenir, "Inter Variable", -apple-system, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -231,7 +232,8 @@ input[type="time"] {
 }
 
 body {
-  font-family: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 14px;
 }
 
 /* The mobile pull-to-refresh (see layout/PullToRefresh.tsx) owns the overscroll

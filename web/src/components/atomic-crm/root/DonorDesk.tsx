@@ -12,12 +12,14 @@ import { CRM } from "./CRM";
  *
  * memoryStore: the configuration (title, logos) is re-seeded on every load,
  * so a stale "Atomic CRM" config in localStorage can't leak onto the stage.
+ * The theme starts light to match the Kindred design reference; the header
+ * toggle still switches to dark or system for the session.
  */
 export const DonorDesk = () => (
   <CRM
     dataProvider={dataProvider}
     authProvider={authProvider}
-    store={memoryStore()}
+    store={memoryStore({ theme: "light" })}
     dashboard={CallToday}
     disableTelemetry
   />
