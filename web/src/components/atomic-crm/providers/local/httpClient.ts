@@ -7,7 +7,10 @@ import type {
   ApiIcpProfile,
   ApiMergeResult,
   ApiOrgProfile,
+  ApiUndoMergeResult,
   ApiProspect,
+  ApiTarget,
+  ApiTargets,
 } from "./apiTypes";
 import { API_URL, APPROVER_NAME } from "./config";
 import { requireWebsite } from "./validate";
@@ -19,11 +22,14 @@ import {
   parseDuplicate,
   parseIcp,
   parseIngestResult,
+  parseMergeResult,
+  parseUndoMergeResult,
   parseOrgProfile,
   parseProspect,
   parseProspectDetail,
+  parseTargets,
 } from "./parse";
-import type { DonorDeskMethods } from "./types";
+import type { DonorDeskMethods, ImportMapping } from "./types";
 
 /** A non-2xx response, keeping the status and the parsed JSON body. */
 export class ApiError extends Error {
@@ -98,6 +104,29 @@ const postAgent = async (path: string) => {
   }
 };
 
+/** Multipart POST /ingest: every file under "files", plus an optional column mapping. */
+const postIngest = async (files: File[], mapping?: ImportMapping) => {
+  const form = new FormData();
+  for (const file of files) form.append("files", file, file.name);
+  if (mapping) form.append("mapping", JSON.stringify(mapping));
+  try {
+    return parseIngestResult(
+      await request<unknown>("/ingest", { method: "POST", body: form }),
+    );
+  } catch (error) {
+    // /ingest is mounted only once Carlos's router exists.
+    if (
+      error instanceof ApiError &&
+      (error.status === 404 || error.status === 503)
+    ) {
+      throw new Error(
+        "Upload isn't available yet: the ingest service is not running.",
+      );
+    }
+    throw error;
+  }
+};
+
 /** Talks to the Python API on the demo laptop (VITE_DATA_MODE=local). */
 export const localApiMethods: DonorDeskMethods = {
   getDonors: async () =>
@@ -109,9 +138,31 @@ export const localApiMethods: DonorDeskMethods = {
   mergeDuplicate: async (pairId, keepId) => {
     const result = await request<ApiMergeResult>(
       `/duplicates/${pairId}/merge`,
-      { method: "POST", body: { keep_id: keepId } },
+      { method: "POST", body: { keep_id: keepId, approved_by: APPROVER_NAME } },
     );
-    return { kept_id: result.kept_donor_id, merged_id: result.removed_donor_id };
+    return parseMergeResult(result);
+  },
+  undoMerge: async (mergeId) => {
+    try {
+      return parseUndoMergeResult(
+        await request<ApiUndoMergeResult>(`/merges/${mergeId}/undo`, {
+          method: "POST",
+        }),
+      );
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        throw new Error("This merge no longer exists, so it can't be undone.");
+      }
+      if (error instanceof ApiError && error.status === 409) {
+        const detail = (error.body as { detail?: unknown } | null)?.detail;
+        throw new Error(
+          `This merge can't be undone: ${
+            typeof detail === "string" && detail ? detail : "it is no longer the newest merge"
+          }`,
+        );
+      }
+      throw error;
+    }
   },
   dismissDuplicate: async (pairId) => {
     await request(`/duplicates/${pairId}/dismiss`, { method: "POST" });
@@ -127,6 +178,12 @@ export const localApiMethods: DonorDeskMethods = {
     });
   },
   getSourceLabel: async () => null,
+  getTargets: async (period) =>
+    parseTargets(
+      await request<ApiTargets | ApiTarget>(
+        period ? `/targets?period=${period}` : "/targets",
+      ),
+    ),
 
   // "Not built yet" may come as 200 null (preferred: no console error) or
   // as 404 (PR #15 today, which Chromium logs as a console error).
@@ -166,26 +223,9 @@ export const localApiMethods: DonorDeskMethods = {
     await request(`/prospects/${id}/dismiss`, { method: "POST" });
   },
 
-  uploadFiles: async (files) => {
-    const form = new FormData();
-    for (const file of files) form.append("files", file, file.name);
-    try {
-      return parseIngestResult(
-        await request<unknown>("/ingest", { method: "POST", body: form }),
-      );
-    } catch (error) {
-      // /ingest is mounted only once Carlos's router exists.
-      if (
-        error instanceof ApiError &&
-        (error.status === 404 || error.status === 503)
-      ) {
-        throw new Error(
-          "Upload isn't available yet: the ingest service is not running.",
-        );
-      }
-      throw error;
-    }
-  },
+  uploadFiles: (files) => postIngest(files),
+  // Carlos's /ingest maps columns itself and may ignore "mapping".
+  importDonors: (input) => postIngest(input.files, input.mapping),
   runContext: async (input) => {
     const website = requireWebsite(input);
     try {
