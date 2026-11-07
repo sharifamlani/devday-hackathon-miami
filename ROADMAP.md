@@ -4,7 +4,7 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.6 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.7 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
@@ -52,7 +52,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | D9 | No invented gift figures in drafts to real organizations (`is_sample`) | `plan.md` §13 amendments |
 | D10 | Demo date `SCORE_AS_OF=2026-11-08`; day counts computed, never typed | `plan.md` §13 amendments |
 | D11 | Vercel shows a read-only `snapshot.json`; nothing slow runs live on stage | `plan.md` §14 |
-| D12 | No robocalls or voice outreach (the Foundation states it never solicits that way) | `plan.md` §2 row 9 |
+| D12 | No AI-placed phone calls (cut by Sharif); human call scripts only. Texting allowed: value-first, approval for orgs/star | `plan.md` §16 |
 | D13 | Codex is not used; the OpenAI API + Agents SDK must be visibly used | `CLAUDE.md` rule 10 |
 | D14 | Never push to `main`; branch → PR → lead review → Sharif merges | `CLAUDE.md` rule 11 |
 | D15 | 🔒 Carlos owns ingest (`service/ingest/`); everyone builds against the `plan.md` §13 contract | `CLAUDE.md` rule 13 |
@@ -168,6 +168,22 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5C.8 | Outreach reads the newest fitting `org_context` fact from any source | 86 | ⏸ | — | `plan.md` §15 |
 | 5C.9 | Demo: the Miami Foundation's URLs precomputed; context step instant on stage | 8b (pipeline) | ⏸ | — | `plan.md` §15 |
 
+### Phase 5D — Three classes, donor briefs, beneficiary demographics
+**Goal:** people tagged donor / beneficiary / contact from unstructured uploads; donor briefs; self-reported demographics. **Entry gate:** §13 contract change agreed (Carlos + Sharif). **Exit gate:** `plan.md` §16 criteria pass. **Status:** ⏸ (awaiting Sharif's go)
+
+| # | Action | Owner | Status | Date · Commit | Source |
+|---|---|---|---|---|---|
+| 5D.1 | Contract: `contact_type` + self-reported demographics fields in §13 | Carlos + Sharif | ⏸ | — | `plan.md` §16 |
+| 5D.2 | Schema + `GET /people?type=` + `PATCH /people/{id}` | 8b | ⏸ | — | `plan.md` §16 |
+| 5D.3 | Sample inputs: + client intake forms, event sign-in sheet; answer key per class | helper | ⏸ | — | `plan.md` §16 |
+| 5D.4 | Ingest emits `contact_type` + demographics | Carlos | ⏸ | — | `plan.md` §16 |
+| 5D.5 | Demographics agent (extract self-reported; never infer) | 42 | ⏸ | — | `plan.md` §16 |
+| 5D.6 | Brief agent: selected facts -> call script + talking points | 86 | ⏸ | — | `plan.md` §16 |
+| 5D.7 | SMS drafts per class (no ask to beneficiaries) + send route (provider TBD) | 86, 90 | ⏸ | — | `plan.md` §16 |
+| 5D.8 | Routes: brief, demographics, texts | 90 | ⏸ | — | `plan.md` §16 |
+| 5D.9 | Data-layer hooks; Christian's screens (tabs, tag chip, brief builder) | 80, Christian | ⏸ | — | `plan.md` §16 |
+| 5D.10 | QA against §16 criteria | 98 | ⏸ | — | `plan.md` §16 |
+
 ### Phase 6 — Data and ingest
 **Goal:** the demo's donor data matches the challenge, and upload works. **Entry gate:** 1.6. **Exit gate:** upload → ranked list, 6/6 duplicates. **Status:** ⏸
 
@@ -247,6 +263,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 ## §6 Changelog
 
+- **v0.7 · Sat Nov 7, 2026 (late evening):** Phase 5D added: three classes (donor / beneficiary / contact), donor briefs, beneficiary demographics (self-reported only); AI calls cut (`plan.md` §16). Merged on QA: #14, #15, #16, #17, #18, #19, #20, #21, #23, #24, #26, #27.
 - **v0.6 · Sat Nov 7, 2026 (evening):** PRs #12, #13, #11 merged on QA approval; fallback tag `fallback-pre-ui`; Vercel ship in progress. New Phase 5C: two-screen onboarding (upload data; enter URLs) → context agent → local context dataset used by ICP + outreach (`plan.md` §15).
 - **v0.5 · Sat Nov 7, 2026 (evening):** merged on QA approval: #4, #8, #10, #5, #7 (main `2b2a921`, 46 tests green). SQLite concurrency fix (7.2) in. Fictional unstructured donor inputs being generated (6.1 decided: fictional).
 - **v0.4 · Sat Nov 7, 2026 (evening):** 5.1 decided (atomic-crm + Christian's design, Christian integrates). New Phase 5B: intelligent ICP, prospect finder, organization outreach, deeper context (spec `docs/briefs/icp-and-prospects.md`). Merges now QA-gated, then merged on approval (Sharif).
