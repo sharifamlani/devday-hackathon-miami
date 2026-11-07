@@ -14,12 +14,12 @@ Run from the repo root:
     python -m service.icp_agent --cache    # research live, write data/icp_cache.json
 """
 import argparse
+import asyncio
 import json
 import os
 import re
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
@@ -31,8 +31,6 @@ from openai.types.shared import Reasoning
 from pydantic import BaseModel, Field
 
 from service import db
-import urllib.error
-import urllib.request
 
 from service.enrich_agent import clean_fact, read_cache as read_research_cache
 
@@ -41,6 +39,16 @@ load_dotenv(REPO_ROOT / ".env")
 
 ICP_CACHE = REPO_ROOT / "data" / "icp_cache.json"
 MIN_FACTS = 2
+# Live runs (POST /icp/run) must fit the spec's 90 s cap; the --cache precompute runs before the demo
+# and gets a longer budget so slow searches and page renders still contribute
+SEARCH_TIMEOUT_S = 50
+PAGE_BUDGET_S = 25
+CACHE_SEARCH_TIMEOUT_S = 240
+CACHE_PAGE_BUDGET_S = 120
+PAGE_LOAD_MS = 15000
+SEARCH_KINDS = ["companies with corporate giving programs (banks, utilities, retailers, large employers)",
+                "law, accounting and other professional-services firms with pro bono or community giving",
+                "private, family and corporate foundations"]
 MAX_PROSPECTS = 10
 
 # The Miami Foundation's five priorities (plan §11), matched to research text by keyword in Python
@@ -65,19 +73,87 @@ def normalize(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
 
-def url_loads(url: str) -> bool:
-    """True only for a final HTTP 200 to a plain script request (Python's own User-Agent, no disguise).
+def fetch_pages(urls: list[str], budget_s: float) -> dict[str, str | None]:
+    """Each URL's text as a visitor sees it, or None. The source of truth is a real browser render.
 
-    Stricter than a browser: a site that turns scripts away is dropped rather than worked around,
-    so every kept URL also loads for curl and for QA's checks.
+    Headless Chromium with its default User-Agent (no spoofing). A page counts only if the browser gets
+    HTTP 200 and an HTML document; its text is body.innerText, which leaves out hidden elements, so a
+    fact buried in a collapsed table or filtered list doesn't count. Pages unfinished at the budget are None.
     """
-    if not url.startswith(("http://", "https://")):
-        return False
+    urls = [u for u in urls if u.startswith(("http://", "https://"))]
+    if not urls:
+        return {}
     try:
-        with urllib.request.urlopen(url, timeout=8) as response:
-            return response.status == 200
-    except (urllib.error.URLError, TimeoutError, ValueError):
+        return asyncio.run(asyncio.wait_for(_render_all(urls), budget_s))
+    except asyncio.TimeoutError:
+        return dict(_partial)
+
+
+_partial: dict[str, str | None] = {}
+
+
+async def _render_all(urls: list[str]) -> dict[str, str | None]:
+    from playwright.async_api import async_playwright
+    _partial.clear()
+    gate = asyncio.Semaphore(6)
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        try:
+            async def one(url):
+                async with gate:
+                    page = await browser.new_page()
+                    try:
+                        response = await page.goto(url, wait_until="domcontentloaded", timeout=PAGE_LOAD_MS)
+                        ok = bool(response) and response.status == 200 and \
+                            "html" in (response.headers.get("content-type") or "")
+                        if ok:
+                            try:
+                                await page.wait_for_load_state("networkidle", timeout=4000)
+                            except Exception:
+                                pass    # busy pages: use what has rendered so far
+                        _partial[url] = normalize_text(await page.inner_text("body")) if ok else None
+                    except Exception:
+                        _partial[url] = None
+                    finally:
+                        await page.close()
+            await asyncio.gather(*(one(u) for u in urls))
+        finally:
+            await browser.close()
+    return dict(_partial)
+
+
+def normalize_text(text: str) -> str:
+    """Lower-case, straight quotes, plain dashes, single spaces: so a quote matches however it was typed."""
+    text = text.translate(str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+                                         "\u2013": "-", "\u2014": "-", "\u00a0": " "}))
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def key_words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9][a-z0-9'-]+", normalize_text(text)) if len(w) >= 4}
+
+
+def quote_on_page(quote: str, text: str | None) -> bool:
+    """True when the quote (6+ words) is on the page verbatim, or 80%+ of its key words are on it."""
+    q = normalize_text(quote).strip(" .\"'")
+    if not text or len(q.split()) < 6:
         return False
+    if q in text:
+        return True
+    words = key_words(q)
+    return bool(words) and len(words & key_words(text)) / len(words) >= 0.8
+
+
+def numbers_on_page(fact: str, text: str | None) -> bool:
+    """Every number in the fact ($25,000, 3,582 hours, 2024) must appear on the page too."""
+    page = re.sub(r"(?<=\d),(?=\d)", "", text or "")
+    numbers = {n.replace(",", "").rstrip(".") for n in re.findall(r"\d[\d,.]*", fact)}
+    return all(n in page for n in numbers if n)
+
+
+def fact_on_page(fact: str, quote: str, text: str | None) -> bool:
+    """The cited page states the fact: its quote and every number in it are on the page."""
+    return quote_on_page(quote, text) and numbers_on_page(fact, text)
 
 
 def priority_hits(text: str) -> list[str]:
@@ -271,7 +347,8 @@ def build_icp(stats: dict, facts: list[dict]) -> dict:
 
 class ProspectFact(BaseModel):
     fact: str = Field(description="One short, specific, verifiable sentence")
-    url: str = Field(description="The exact page the fact came from")
+    url: str = Field(description="The exact page that states the fact")
+    quote: str = Field(description="6-30 words copied EXACTLY from that page that state the fact")
 
 
 class Prospect(BaseModel):
@@ -295,11 +372,12 @@ individual, never a government body, never one of the excluded current donors, a
 fundraiser that competes for the same donors (other community foundations, United Ways, federated campaigns).
 Favor organizations headquartered or with a major office in Miami-Dade, and organizations that fund what
 the Foundation has been doing RECENTLY (recent_focus: its own newest work, newest first).
-For each prospect give 2-3 facts about its public giving, community investment or causes, each with the
-exact URL of the page it came from. matched_traits lists which ICP traits it shares (sector, causes,
+For each prospect give 2-3 facts about its public giving, community investment or causes. Each fact cites
+the exact URL of the page that STATES it (a grants, news or community page, not a homepage that only
+links there) and a quote of 6-30 words copied exactly from that page; facts are checked against the page. matched_traits lists which ICP traits it shares (sector, causes,
 geography, foundation_priorities); priority is the Foundation priority it fits best.
 Never invent facts or URLs. Prefer sources that are plain public pages (news releases, grant pages, annual reports) over pages
-that block automated access. Return 12-14 prospects, best fit first.""",
+that block automated access. Search only for the kind of organization named in search_for. Return 8-10 prospects, best fit first.""",
     model=os.getenv("OPENAI_MODEL_DEFAULT"),
     tools=[WebSearchTool(search_context_size="low")],
     output_type=Prospects,
@@ -372,7 +450,19 @@ def fit_score(prospect: dict, icp: dict) -> int:
     return min(100, sum(fit_breakdown(prospect, icp).values()))
 
 
-def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) -> list[dict]:
+async def run_searches(briefs: list[str], timeout_s: float | None = None) -> list:
+    """Run the prospect searches concurrently; a search past its deadline is dropped, not waited on."""
+    async def one(brief):
+        try:
+            result = await asyncio.wait_for(Runner.run(prospect_agent, brief), timeout_s or SEARCH_TIMEOUT_S)
+            return result.final_output.prospects
+        except asyncio.TimeoutError:
+            return []
+    return [p for batch in await asyncio.gather(*(one(b) for b in briefs)) for p in batch]
+
+
+def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False,
+                   precompute: bool = False) -> list[dict]:
     """6-10 South Florida organizations matching the ICP, each with 2+ facts whose URLs return 200."""
     if not refresh and ICP_CACHE.exists():
         return read_cache()["prospects"]
@@ -381,7 +471,9 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
              "recent_focus": [{"fact": c["fact"], "priority": c["priority"], "posted_at": c.get("posted_at")}
                               for c in icp.get("recent_context", [])],
              "exclude": sorted(exclude_names)}
-    found = Runner.run_sync(prospect_agent, json.dumps(brief, indent=1)).final_output.prospects
+    # Two searches in parallel (companies, foundations) for a wider pool: many sources fail the page check
+    briefs = [json.dumps({**brief, "search_for": kind}, indent=1) for kind in SEARCH_KINDS]
+    found = asyncio.run(run_searches(briefs, CACHE_SEARCH_TIMEOUT_S if precompute else SEARCH_TIMEOUT_S))
 
     seen, candidates = set(), []
     for p in found:
@@ -391,12 +483,15 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
         seen.add(key)
         candidates.append(p)
     urls = sorted({f.url for p in candidates for f in p.facts})
-    with ThreadPoolExecutor(max_workers=12) as pool:
-        alive = dict(zip(urls, pool.map(url_loads, urls)))
+    pages = fetch_pages(urls, CACHE_PAGE_BUDGET_S if precompute else PAGE_BUDGET_S)
+    retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     prospects = []
     for p in candidates:
-        facts = [{"fact": clean_fact(f.fact), "url": f.url} for f in p.facts if alive.get(f.url)]
+        # A fact stays only if its page loads AND states it: the quote must appear on that page
+        facts = [{"fact": clean_fact(f.fact), "url": f.url, "quote": f.quote, "via": "web search",
+                  "retrieved_at": retrieved_at}
+                 for f in p.facts if fact_on_page(f.fact, f.quote, pages.get(f.url))]
         if len(facts) < MIN_FACTS:
             continue
         prospect = {"name": p.name, "org_type": p.org_type, "city": p.city,
@@ -432,8 +527,42 @@ def build_profile(refresh: bool = False) -> dict:
         conn.close()
 
 
-def run_icp(refresh: bool = False) -> dict:
-    """{generated_at, icp, prospects}. Cached unless refresh=True; a live run rewrites data/icp_cache.json."""
+def reverify(prospects: list[dict], icp: dict, exclude_names: set[str]) -> list[dict]:
+    """Re-check cached prospects against their pages today and rescore them against the new ICP.
+
+    Facts without a quote (older caches) can't be checked and are dropped; so is any prospect left with
+    fewer than MIN_FACTS facts, or one that has since become a donor.
+    """
+    excluded = {normalize(n) for n in exclude_names}
+    urls = sorted({f["url"] for p in prospects for f in p["facts"] if f.get("quote")})
+    pages = fetch_pages(urls, CACHE_PAGE_BUDGET_S)
+
+    kept = []
+    for p in prospects:
+        facts = [f for f in p["facts"] if f.get("quote") and fact_on_page(f["fact"], f["quote"], pages.get(f["url"]))]
+        if len(facts) < MIN_FACTS or normalize(p["name"]) in excluded:
+            continue
+        p = {**p, "facts": facts}
+        p["matched_context"] = matched_context(p, icp)
+        p["fit_breakdown"] = fit_breakdown(p, icp)
+        p["fit_score"] = fit_score(p, icp)
+        kept.append(p)
+    return kept
+
+
+def merge_prospects(new: list[dict], old: list[dict]) -> list[dict]:
+    """New finds first, then still-verified earlier ones not found again; best fit first, capped."""
+    names = {normalize(p["name"]) for p in new}
+    merged = new + [p for p in old if normalize(p["name"]) not in names]
+    merged.sort(key=lambda p: (-p["fit_score"], p["name"]))
+    return merged[:MAX_PROSPECTS]
+
+
+def run_icp(refresh: bool = False, precompute: bool = False) -> dict:
+    """{generated_at, icp, prospects}. Cached unless refresh=True; a live run rewrites data/icp_cache.json.
+
+    precompute=True (the --cache CLI, run before the demo) gives the searches a longer deadline.
+    """
     if not refresh and ICP_CACHE.exists():
         return read_cache()
     conn = db.connect()
@@ -443,8 +572,11 @@ def run_icp(refresh: bool = False) -> dict:
         icp = {**build_icp(icp_stats(conn), org_facts(conn)), "recent_context": recent_context(conn)}
     finally:
         conn.close()
+    prospects = find_prospects(icp, donor_names, refresh=True, precompute=precompute)
+    if precompute and ICP_CACHE.exists():
+        prospects = merge_prospects(prospects, reverify(read_cache()["prospects"], icp, donor_names))
     run = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "icp": icp,
-           "prospects": find_prospects(icp, donor_names, refresh=True)}
+           "prospects": prospects}
     write_cache(run)
     return run
 
@@ -456,7 +588,7 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # ★ and curly quotes on a cp1252 Windows console
 
     start = time.perf_counter()
-    run = run_icp(refresh=args.cache)
+    run = run_icp(refresh=args.cache, precompute=args.cache)
     elapsed = time.perf_counter() - start
 
     print(f"ICP ({run['generated_at']})")

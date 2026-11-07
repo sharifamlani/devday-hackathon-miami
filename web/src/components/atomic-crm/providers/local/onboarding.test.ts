@@ -1,5 +1,6 @@
 import type { ApiContextRun } from "./apiTypes";
 import { localApiMethods } from "./httpClient";
+import { snapshotMethods } from "./snapshotClient";
 import { parseContext, parseContextRun, parseOrgProfile } from "./parse";
 
 // 90's POST /context/run response (PR #21), trimmed.
@@ -131,6 +132,18 @@ describe("localApiMethods onboarding calls", () => {
     );
   });
 
+  it("rejects a missing or blank website before any request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      localApiMethods.runContext({ website: null, x_url: "https://x.com/a" }),
+    ).rejects.toThrow("Add your website to continue");
+    await expect(localApiMethods.runContext({ website: "   " })).rejects.toThrow(
+      "Add your website to continue",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("sends empty social fields as null", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(run), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -148,5 +161,13 @@ describe("localApiMethods onboarding calls", () => {
   it("treats a 404 org profile as not set up yet", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
     expect(await localApiMethods.getOrgProfile()).toBeNull();
+  });
+});
+
+describe("snapshotMethods.runContext", () => {
+  it("applies the same website rule as live", async () => {
+    await expect(snapshotMethods.runContext({ website: "" })).rejects.toThrow(
+      "Add your website to continue",
+    );
   });
 });
