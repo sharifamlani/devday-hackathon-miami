@@ -1,0 +1,13 @@
+/* Light theming of react-big-calendar onto the Kindred tokens. Christian restyles from here. */
+.donor-calendar .rbc-calendar { font-size: 13px; }
+.donor-calendar .rbc-toolbar button { border-radius: 9999px; border-color: var(--border); color: inherit; }
+.donor-calendar .rbc-toolbar button.rbc-active,
+.donor-calendar .rbc-toolbar button:hover { background: var(--brand-soft); color: var(--brand-soft-foreground); box-shadow: none; }
+.donor-calendar .rbc-today { background: var(--brand-soft); }
+.donor-calendar .rbc-off-range-bg { background: transparent; opacity: .5; }
+.donor-calendar .rbc-event { background: var(--brand); color: var(--brand-foreground); border-radius: 8px; }
+.donor-calendar .rbc-event:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.donor-calendar .rbc-month-view,
+.donor-calendar .rbc-month-row,
+.donor-calendar .rbc-day-bg + .rbc-day-bg,
+.donor-calendar .rbc-header { border-color: var(--border); }
