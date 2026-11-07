@@ -15,7 +15,13 @@ Drafts go to the outreach_drafts table in data/donors.db (DONORS_DB overrides), 
 call_script and facts_used (JSON list of {fact, url}). If the table is missing or older than
 that schema, the full draft goes to data/outreach_drafts.json instead.
 
-    python -m service.outreach_agent 1 11         # donors 1 and 11 from donors.db (what POST /outreach/{id} runs)
+    python -m service.outreach_agent 1 11             # donors 1 and 11 (what POST /outreach/{id} runs)
+    python -m service.outreach_agent --prospect 3     # prospect 3's first touch (POST /prospects/{id}/outreach)
+
+Prospects (organizations that have never given) get a first-touch draft: it leads with the
+Foundation fact that best fits the prospect's priority and matched traits, uses only the
+prospect's sourced facts, makes no money ask and claims no relationship, and always has status
+'draft'. draft_prospect() is pure (the pipeline saves); draft_for_prospect() loads and saves.
 """
 
 import json
@@ -147,6 +153,7 @@ TOPICS = {
     "legal":      ("legal", "law firm", "pro bono", "attorney"),
     "resilience": ("resilience", "disaster", "climate", "hurricane", "preparedness"),
     "civic":      ("vote", "candidate", "election", "civic"),
+    "business":   ("small business", "small-business", "lending", "bank", "workforce", "jobs", "living wage", "wells fargo"),
 }
 
 
@@ -159,9 +166,11 @@ def topics_in(text: str) -> set[str]:
     return {t for t, words in TOPICS.items() if any(w in text for w in words)}
 
 
-def rank_org_facts(donor: dict, research_facts: list[dict], org_facts: list[dict]) -> list[dict]:
-    """Best fit first: shared topics count 2, shared distinctive words count 1. Facts are first
-    rotated by donor id, so equally good facts lead in a different order for different donors."""
+def rank_org_facts(donor: dict, research_facts: list[dict], org_facts: list[dict],
+                   priority: str | None = None) -> list[dict]:
+    """Best fit first: same Foundation priority counts 3, shared topics 2, shared distinctive
+    words 1. Facts are first rotated by id, so equally good facts lead in a different order for
+    different donors or prospects."""
     if not org_facts:
         return []
     text = donor_text(donor, research_facts)
@@ -173,7 +182,8 @@ def rank_org_facts(donor: dict, research_facts: list[dict], org_facts: list[dict
 
     def fit(f):
         ft = f["fact"].lower()
-        return 2 * len(want & topics_in(ft)) + sum(w in ft for w in words)
+        same_priority = 3 if priority and f.get("priority") == priority else 0
+        return same_priority + 2 * len(want & topics_in(ft)) + sum(w in ft for w in words)
     return sorted(rotated, key=fit, reverse=True)       # stable: ties keep the rotated order
 
 
@@ -355,9 +365,11 @@ def norm_num(s: str) -> str:
 # Persist: outreach_drafts table when db.py has made it, JSON file until then
 # ----------------------------------------------------------------------------------------------
 
-def save_draft(donor_id: int, draft: Draft) -> str:
+def save_draft(donor_id: int | None, draft: Draft, prospect_id: int | None = None) -> str:
+    """A draft belongs to exactly one donor or one prospect (db.py's CHECK)."""
     row = {
         "donor_id": donor_id,
+        "prospect_id": prospect_id,
         "channel": "email",
         "subject": draft.subject,
         "body": draft.body,
@@ -371,7 +383,8 @@ def save_draft(donor_id: int, draft: Draft) -> str:
     if path.exists():
         with sqlite3.connect(path) as con:
             cols = {r[1] for r in con.execute("PRAGMA table_info(outreach_drafts)")}
-            if {"subject", "call_script", "facts_used"} <= cols:
+            needed = {"subject", "call_script", "facts_used"} | ({"prospect_id"} if prospect_id else set())
+            if needed <= cols:
                 keep = {k: v for k, v in row.items() if k in cols}
                 cur = con.execute(f"INSERT INTO outreach_drafts ({', '.join(keep)}) VALUES ({', '.join('?' * len(keep))})",
                                   list(keep.values()))
@@ -412,6 +425,133 @@ def draft_for_donor(donor_id: int) -> tuple[Draft, str]:
     return draft, save_draft(donor_id, draft)
 
 
+# ----------------------------------------------------------------------------------------------
+# Prospects: a first touch to an organization that has never given
+# ----------------------------------------------------------------------------------------------
+
+PROSPECT_INSTRUCTIONS = """You write a first-touch introduction from The Miami Foundation's
+philanthropy team to an organization that has NEVER given to the Foundation.
+
+Voice: upbeat, civic, plain, proudly local. Warm and brief, never salesy.
+
+Structure: introduce the Foundation in one line, then lead with O1 (the Foundation's own work that
+fits this organization), then one sentence on why you're reaching out to them, drawn only from
+their R-facts. End by asking for a short conversation (a call or coffee) about Miami's priorities.
+
+Hard rules:
+- This organization is not a donor. Never thank them for support, gifts or partnership, never
+  say "continue", "renew" or "again", and never imply any existing relationship.
+- No money ask: no dollar amount, no "donate", "give", "gift", "contribute" or "pledge" request,
+  no link to give.
+- Use ONLY the numbered facts. Never invent a number, name, program, date or outcome. Copy figures
+  exactly. Lead with O1 and list it first in fact_ids; list every fact id you used.
+- Write about the organization only from its R-facts; if an R-fact isn't needed, leave it out.
+- The call script is for a human staff member, same rules."""
+
+RELATIONSHIP_RE = re.compile(
+    r"thank(?:s| you) for (?:your )?(?:continued |ongoing |past |generous )?(?:support|gifts?|giving|partnership|generosity)"
+    r"|\b(?:renew|continue your|again this year|once again)\b|valued (?:donor|partner|supporter)"
+    r"|your (?:past|previous|recent) (?:gift|giving|support)", re.I)
+MONEY_ASK_RE = re.compile(
+    r"\b(?:donat\w*|pledg\w*|contribut(?:e|ion)s?|make a (?:gift|donation)|give (?:at|to|online|today)"
+    r"|givemiamiday\.org)\b|\$\s?\d[\d,]*\s*(?:gift|donation|contribution)", re.I)
+
+
+def check_prospect_draft(out: ModelDraft, facts: dict, lead_id: str = "O1") -> list[str]:
+    problems = check_draft(out, facts, [], lead_id=lead_id)
+    text = " ".join((out.subject, out.body, out.call_script))
+    if m := RELATIONSHIP_RE.search(text):
+        problems.append(f"'{m.group(0)}' implies a relationship this prospect doesn't have")
+    if m := MONEY_ASK_RE.search(text):
+        problems.append(f"'{m.group(0)}' is a money ask; ask only for a conversation")
+    return sorted(set(problems))
+
+
+def prospect_as_donor(prospect: dict) -> dict:
+    """The fields rank_org_facts reads, built from a prospect."""
+    return {"id": prospect.get("id"), "full_name": prospect.get("name"), "org_name": prospect.get("name"),
+            "fund_type": None, "notes": " ".join([prospect.get("org_type") or "", prospect.get("priority") or ""]
+                                                 + list(prospect.get("matched_traits") or []))}
+
+
+def draft_prospect(prospect: dict, profile: dict, org_facts: list[dict], today: date | None = None) -> Draft:
+    """First-touch draft for an ICP prospect. Pure: the caller saves it. Status is always 'draft'."""
+    from agents import Agent, ModelSettings, Runner
+    from openai.types.shared import Reasoning
+
+    load_dotenv(REPO_ROOT / ".env")
+    today = today or as_of_date(None)
+    research = [{"fact": f["fact"], "source_url": f.get("url") or f.get("source_url", "")}
+                for f in (prospect.get("facts") or [])]
+    ranked = rank_org_facts(prospect_as_donor(prospect), research, org_facts, prospect.get("priority"))
+    facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
+             for i, f in enumerate(ranked[:MAX_ORG_FACTS], 1)}
+    facts |= {f"R{i}": {"fact": f["fact"], "url": f["source_url"]} for i, f in enumerate(research, 1)}
+
+    fact_lines = "\n".join(f"{k}: {v['fact']}" + (f" ({v['date']})" if v.get("date") else "")
+                           for k, v in facts.items())
+    traits = ", ".join(prospect.get("matched_traits") or []) or "none listed"
+    prompt = f"""Today is {long_date(today)}.
+
+Organization: {prospect.get('name')} ({prospect.get('org_type') or 'organization'}, {prospect.get('city') or 'South Florida'})
+Foundation priority it fits: {prospect.get('priority') or 'not set'}
+Why it matches our current donors (internal, don't quote as fact): {traits}
+
+Numbered facts you may use (O = the Foundation's own work from miamifoundation.org, R = sourced facts about this organization).
+O1 was chosen to fit this organization: lead with O1, and list it first in fact_ids.
+{fact_lines}"""
+
+    agent = Agent(
+        name="ProspectOutreachAgent",
+        instructions=PROSPECT_INSTRUCTIONS,
+        model=bounded_model(),
+        output_type=ModelDraft,
+        model_settings=ModelSettings(reasoning=Reasoning(effort="medium")),
+    )
+    for attempt in range(2):
+        out: ModelDraft = Runner.run_sync(agent, prompt).final_output
+        problems = check_prospect_draft(out, facts)
+        if not problems:
+            break
+        prompt += "\n\nYour previous draft was rejected:\n- " + "\n- ".join(problems) + "\nRewrite it."
+    else:
+        raise ValueError(f"prospect draft failed checks twice: {problems}")
+
+    return Draft(
+        subject=out.subject,
+        body=out.body,
+        call_script=out.call_script,
+        facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"]) for i in dict.fromkeys(out.fact_ids)],
+        status="draft",
+    )
+
+
+def load_prospect(prospect_id: int) -> tuple[dict, dict]:
+    """prospect (JSON columns decoded) and the latest icp_profile from donors.db."""
+    with sqlite3.connect(db_file()) as con:
+        con.row_factory = sqlite3.Row
+        row = con.execute("SELECT * FROM prospects WHERE id = ?", (prospect_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"no prospect {prospect_id} in {db_file()}")
+        icp = con.execute("SELECT traits, stats, evidence FROM icp_profile ORDER BY id DESC LIMIT 1").fetchone()
+    prospect = dict(row)
+    for k in ("matched_traits", "facts"):
+        prospect[k] = json.loads(prospect.get(k) or "[]")
+    profile = {k: json.loads(icp[k]) for k in ("traits", "stats", "evidence")} if icp else {}
+    return prospect, profile
+
+
+def draft_for_prospect(prospect_id: int) -> tuple[Draft, str]:
+    """What POST /prospects/{id}/outreach runs: load from donors.db, draft, save with prospect_id."""
+    import sys
+    sys.path.insert(0, str(SERVICE_DIR))
+    from org_context import load_org_facts
+
+    prospect, profile = load_prospect(prospect_id)
+    draft = draft_prospect(prospect, profile, load_org_facts())
+    return draft, save_draft(None, draft, prospect_id=prospect_id)
+
+
 def print_draft(name: str, d: Draft, where: str) -> None:
     print(f"\n=== {name}  status={d.status}  saved to {where}")
     print(f"Subject: {d.subject}\n\n{d.body}\n\n--- Call script ---\n{d.call_script}\n\n--- facts_used ---")
@@ -426,9 +566,14 @@ if __name__ == "__main__":
     from org_context import load_org_facts
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("donor_ids", type=int, nargs="+", help="donor ids in donors.db")
+    ap.add_argument("ids", type=int, nargs="+", help="donor ids (or prospect ids with --prospect) in donors.db")
+    ap.add_argument("--prospect", action="store_true", help="the ids are prospects: write first-touch drafts")
     args = ap.parse_args()
 
-    for donor_id in args.donor_ids:
-        d, where = draft_for_donor(donor_id)
-        print_draft(load_donor(donor_id)[0]["full_name"], d, where)
+    for i in args.ids:
+        if args.prospect:
+            d, where = draft_for_prospect(i)
+            print_draft(load_prospect(i)[0]["name"], d, where)
+        else:
+            d, where = draft_for_donor(i)
+            print_draft(load_donor(i)[0]["full_name"], d, where)

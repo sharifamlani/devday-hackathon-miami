@@ -64,3 +64,31 @@ def test_organizations_always_need_a_human():
     assert is_big(mcdermott)                                                   # status 'draft', conversation ask
     assert is_big(FICTIONAL_PERSON | {"is_star": 1})
     assert not is_big(FICTIONAL_PERSON)                                        # individuals: 'ready'
+
+
+# ---- prospects ------------------------------------------------------------------------------------
+
+def intro(body: str) -> ModelDraft:
+    return ModelDraft(subject="Hello from The Miami Foundation", body=body,
+                      call_script="Hi, I'm calling from The Miami Foundation.", fact_ids=["O1"])
+
+
+def test_prospect_draft_rejects_relationship_claims_and_money_asks():
+    from outreach_agent import check_prospect_draft
+    ok = "We awarded scholarships totaling $3.45 million to 969 students this year. Could we find 20 minutes for a call?"
+    assert check_prospect_draft(intro(ok), FACTS) == []
+    for bad in ["Thank you for your continued support.", "We hope you'll renew your commitment.",
+                "Would you make a gift this year?", "Please donate at givemiamiday.org.",
+                "Could you consider a $5,000 contribution?"]:
+        assert check_prospect_draft(intro(ok + " " + bad), FACTS), bad
+
+
+def test_prospect_ranking_prefers_its_priority():
+    from outreach_agent import prospect_as_donor, rank_org_facts
+    org_facts = [{"fact": "Vote Miami hosted candidate forums.", "priority": "Civic", "url": "u1"},
+                 {"fact": "The Disaster Resilience Fund supports preparedness.", "priority": "Climate & Resilience", "url": "u2"},
+                 {"fact": "Miami Open for Business helped small businesses own assets.", "priority": "Prosperity", "url": "u3"}]
+    p = {"id": 1, "name": "Sample Insurer", "org_type": "company", "priority": "Climate & Resilience", "matched_traits": []}
+    assert rank_org_facts(prospect_as_donor(p), [], org_facts, p["priority"])[0]["url"] == "u2"
+    p = p | {"priority": "Prosperity"}
+    assert rank_org_facts(prospect_as_donor(p), [], org_facts, p["priority"])[0]["url"] == "u3"
