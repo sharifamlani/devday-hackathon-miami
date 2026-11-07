@@ -174,3 +174,32 @@ def test_cached_strings_are_clean_utf8():
         assert all(p == clean_phrase(p) for p in run["profile"]["voice"]["phrases"])   # no wrapping quotes
     good = "\u201cWe invest in leaders.\u201d"
     assert clean_text(good.encode("utf-8").decode("latin-1")) == good
+
+
+def test_resolvable_but_empty_site_is_an_error_with_no_name(tmp_path, monkeypatch):
+    """A site that exists but where search finds nothing: errors, no invented name or voice, nothing cached."""
+    from types import SimpleNamespace as NS
+    import org_context
+
+    monkeypatch.setattr(org_context, "CONTEXT_LIVE", tmp_path / "live.json")
+    monkeypatch.setattr(org_context, "resolves", lambda host: True)
+    explain = NS(name="Unable to verify: another-org.org could not be retrieved, and site-restricted searches returned no results.",
+                 priorities=["Unknown"], voice=["could not confirm"], voice_urls=[])
+    empty = NS(final_output=NS(facts=[]), new_items=[])
+
+    async def fake_searches(host, today, priorities, progress):
+        return {"profile": (NS(final_output=explain, new_items=[]), None),
+                "website": (empty, None), "news": (empty, None)}, {}
+    monkeypatch.setattr(org_context, "run_context_searches", fake_searches)
+
+    res = org_context.build_context({"website": "https://another-org.org"}, refresh=False)
+    assert res["facts"] == []
+    assert res["sources"]["website"].startswith("error") and res["sources"]["news"].startswith("error")
+    assert res["profile"]["name"] is None and res["profile"]["voice"]["phrases"] == []
+    assert not (tmp_path / "live.json").exists()
+
+
+def test_org_name_rejects_prose():
+    from org_context import org_name
+    assert org_name("The Miami Foundation") == "The Miami Foundation"
+    assert org_name("Unable to verify: x.org could not be retrieved.") is None
