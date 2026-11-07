@@ -36,3 +36,5 @@ data/*.db
 data/research_facts.json
 data/outreach_drafts.json
 data/context_live.json
+data/events_live.json
+data/event_drafts.json
