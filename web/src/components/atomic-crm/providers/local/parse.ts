@@ -499,6 +499,17 @@ const asStringList = (raw: ApiJson<unknown>): string[] => {
   return value ? [asText(value)] : [];
 };
 
+/** build_context writes voice as {phrases: [...], urls: [...]}; only the
+ *  phrases are tone notes (the urls are their sources). */
+const parseVoice = (raw: ApiJson<unknown>): string[] => {
+  const value = fromJson(raw);
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const phrases = (value as { phrases?: unknown }).phrases;
+    if (Array.isArray(phrases)) return phrases.map(asText).filter(Boolean);
+  }
+  return asStringList(value as ApiJson<unknown>);
+};
+
 export const parseOrgProfile = (raw: ApiOrgProfile): OrgProfile => ({
   name: raw.name ?? null,
   website: raw.website ?? null,
@@ -519,7 +530,7 @@ export const parseOrgProfile = (raw: ApiOrgProfile): OrgProfile => ({
     ];
   }),
   priorities: asStringList(raw.priorities),
-  voice: asStringList(raw.voice),
+  voice: parseVoice(raw.voice),
   updated_at: raw.updated_at ?? null,
 });
 

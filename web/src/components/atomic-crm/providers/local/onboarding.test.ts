@@ -68,6 +68,14 @@ describe("parseContextRun", () => {
     ]);
   });
 
+  it("reads voice phrases from build_context's {phrases, urls}", () => {
+    const profile = parseOrgProfile({
+      ...run.profile!,
+      voice: { phrases: ["All of us, together."], urls: ["https://miamifoundation.org/"] },
+    });
+    expect(profile.voice).toEqual(["All of us, together."]);
+  });
+
   it("parses GET /context as a bare list or as {profile, facts}", () => {
     expect(parseContext(run.facts!).facts).toHaveLength(2);
     expect(parseContext({ org_profile: run.profile, org_context: run.facts }).profile?.name).toBe(
