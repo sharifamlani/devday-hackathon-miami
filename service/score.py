@@ -11,7 +11,7 @@ The score answers "who do we contact first, today?" It combines four parts of a 
 `why` is structured JSON so the UI and the outreach agent can phrase it; the LLM explains the number,
 it never computes it.
 
-    python -m service.score              # rescore every donor in data/donors.db as of today
+    python -m service.score              # rescore every donor as of $SCORE_AS_OF or the demo date
     python -m service.score --as-of 2026-11-07
 """
 
@@ -40,10 +40,13 @@ MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "
                "September", "October", "November", "December"]
 
 
+DEMO_AS_OF = date(2026, 11, 8)  # demo day (Sun); Give Miami Day is then 11 days away
+
+
 def default_as_of() -> date:
-    """SCORE_AS_OF pins the demo date; otherwise today."""
+    """SCORE_AS_OF overrides; otherwise the pinned demo date, so the stage numbers never drift."""
     pinned = os.environ.get("SCORE_AS_OF")
-    return date.fromisoformat(pinned) if pinned else date.today()
+    return date.fromisoformat(pinned) if pinned else DEMO_AS_OF
 
 
 def _ramp(x: float, x0: float, x1: float, y0: float, y1: float) -> float:
@@ -214,7 +217,7 @@ def main() -> None:
     from service.db import connect
 
     parser = argparse.ArgumentParser(description="Rescore every donor")
-    parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: $SCORE_AS_OF or today)")
+    parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: $SCORE_AS_OF or 2026-11-08)")
     args = parser.parse_args()
     conn = connect()
     n = run(conn, date.fromisoformat(args.as_of) if args.as_of else None)

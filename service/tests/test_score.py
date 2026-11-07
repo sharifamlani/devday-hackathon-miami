@@ -98,5 +98,13 @@ def test_points_add_up_to_score():
 
 
 def test_default_as_of_respects_env(monkeypatch):
-    monkeypatch.setenv("SCORE_AS_OF", "2026-11-08")
+    monkeypatch.setenv("SCORE_AS_OF", "2026-11-09")
+    assert score.default_as_of() == date(2026, 11, 9)
+
+
+def test_default_as_of_is_demo_day_and_give_miami_day_is_computed(monkeypatch):
+    monkeypatch.delenv("SCORE_AS_OF", raising=False)
     assert score.default_as_of() == date(2026, 11, 8)
+    r = score.score_donor(gifts(*[(2500, d) for d in GMD_YEARS]), score.default_as_of())
+    assert r["why"]["give_miami_day"] == {"date": "2026-11-19", "days_away": 11}
+    assert r["status"] == "lapsing"
