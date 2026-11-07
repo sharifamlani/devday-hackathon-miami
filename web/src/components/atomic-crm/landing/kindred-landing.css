@@ -61,12 +61,12 @@
 }
 
 .kindred-dropzone {
-  inline-size: min(100%, 420px);
+  inline-size: min(100%, 432px);
   margin-block-start: 36px;
-  padding: 22px 24px 20px;
-  border: 1px solid #cbd0bf;
+  padding: 42px 24px 32px;
+  border: 1px solid rgb(105 123 85 / 25%);
   border-radius: 18px;
-  background: rgb(255 255 255 / 60%);
+  background: transparent;
   transition:
     border-color 150ms ease,
     background-color 150ms ease;
@@ -81,10 +81,20 @@
 .kindred-dropzone .kindred-upload {
   margin-block-start: 0;
   max-inline-size: 100%;
+  min-block-size: 44px;
+  padding-inline: 32px;
+  gap: 10px;
+  font-size: 16px;
+  box-shadow: none;
+}
+
+.kindred-dropzone .kindred-upload svg {
+  inline-size: 18px;
+  block-size: 18px;
 }
 
 .kindred-dropzone .kindred-file-hint {
-  margin-block-start: 16px;
+  margin-block-start: 20px;
   font-size: 14px;
 }
 
@@ -230,7 +240,7 @@
 
   .kindred-dropzone {
     margin-block-start: 30px;
-    padding: 20px 16px 18px;
+    padding: 30px 16px 26px;
   }
 
   .kindred-dropzone .kindred-file-hint {
