@@ -4,17 +4,17 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.4 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.5 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
 ## §0 You are here
 
 - **Current phase:** Phase 4 (Integrate, QA-gated merges) · Phase 5B (ICP + prospects + org outreach) · Christian integrating his design (5)
-- **Current step:** 4.1, merge the reviewed PRs into `main` in dependency order (Sharif)
-- **Blocking decisions (Sharif):** 6.1 fictional donor list or not · 6.6 Amazon fact
+- **Current step:** 4.5, PR #12 (service) re-check by QA at its new head, then #11 and #13; QA-gated, the lead merges on approval
+- **Blocking decisions (Sharif):** 6.6 Amazon fact
 - **In flight:** 7.2 SQLite per-request connection fix (8b) · 7.3 service-wide model timeout (90) · QA round 4 (98)
-- **Next unblocked action:** merge PR #4, then #8
+- **Next unblocked action:** merge PR #12 on QA approval
 - **Clock:** freeze **Sun Nov 8, 4:15 PM** · team in person at The LAB **4:30 PM** · submissions close **4:45 PM ET**
 - **Last update:** Sat Nov 7, 2026 · lead session ("Ideas")
 
@@ -117,10 +117,10 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
-| 4.1 | Merge PR #4 (plan, team, briefs) | Sharif | ⏸ | — | D14 |
-| 4.2 | Merge PR #8 (data + scoring) | Sharif | ⏸ | — | 3.1–3.5 |
-| 4.3 | Retarget PR #10 to `main`, then merge (pipeline, approve, snapshot) | Sharif | ⏸ | — | 3.9–3.10 |
-| 4.4 | Merge PR #5 (enrich) and PR #7 (outreach) | Sharif | ⏸ | — | 3.6–3.8 |
+| 4.1 | Merge PR #4 (plan, team, briefs) | Sharif | ✅ | Nov 7 · PR #4 `f190e22` | D14 |
+| 4.2 | Merge PR #8 (data + scoring) | Sharif | ✅ | Nov 7 · PR #8 `8ce6f95` | 3.1–3.5 |
+| 4.3 | Retarget PR #10 to `main`, then merge (pipeline, approve, snapshot) | Sharif | ✅ | Nov 7 · PR #10 `a6ca649` | 3.9–3.10 |
+| 4.4 | Merge PR #5 (enrich) and PR #7 (outreach) | Sharif | ✅ | Nov 7 · PR #5 `38eaea0` · PR #7 `2b2a921` | 3.6–3.8 |
 | 4.5 | Merge PR #12 (service frame); it imports the above, so merge it last | Sharif | ⏸ | — | 3.11 |
 | 4.6 | Post-merge check on `main`: `pytest service/tests` green, `python -m service.pipeline` runs | 98 | ⏸ | — | `plan.md` §8 |
 
@@ -158,9 +158,9 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
-| 6.1 | **Decide:** switch the donor list to fully fictional (challenge requires synthetic details) | Sharif | ⏸ | — | `docs/event-brief.md` Q3 |
+| 6.1 | **Decided (Sharif):** fully fictional donor list as unstructured files (.xlsx, .md, .docx) + answer key | Sharif | ✅ | Nov 7 | `docs/event-brief.md` Q3 |
 | 6.2 | Align the schema/seed/score inputs to Carlos's confirmed fields | 8b | ⏸ | — | 1.6 |
-| 6.3 | Messy sample CSV (dupes, mixed dates) + `data/answer_key.json` (6 planted dupes, expected #1) | Carlos | ⏸ | — | `plan.md` §9 |
+| 6.3 | Messy fictional inputs in `data/sample_inputs/` (.xlsx, .md, .docx) + `answer_key.json` (6 dupe groups, planted cases) | lead (subagent) | ⏳ | — | `plan.md` §9 |
 | 6.4 | Ingest: unstructured → §13 fields → `donors.db`; `service/ingest/router.py` auto-mounts | Carlos | ⏸ | — | D15 |
 | 6.5 | Re-run the pipeline on the final data; regenerate the snapshot | 8b | ⏸ | — | D11 |
 | 6.6 | Amazon research: curated Foundation page, or accept 1 fact | Sharif → 42 | ⏸ | — | lead recommendation: curated |
@@ -171,7 +171,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
 | 7.1 | First live UI ↔ service test (list < 2 s, drawer, ~11 s draft, approve saved) | 80 | ✅ | Nov 7 · screenshots ui-05..07 | `plan.md` §9 |
-| 7.2 | Fix the SQLite cross-thread 500s (a connection per request + concurrency test) | 8b | ⏳ | — | 7.1 finding |
+| 7.2 | Fix the SQLite cross-thread 500s (a connection per request + concurrency test) | 8b | ✅ | Nov 7 · `f4b3c4f` (PR #10) | 7.1 finding |
 | 7.3 | Service-wide OpenAI client timeout (90 s, 2 retries, 504 → cached draft) | 90 | ✅ | Nov 7 · `13874e8` (PR #12) | 8b stall finding |
 | 7.4 | QA round 4 on the regenerated snapshot | 98 | ⏳ | — | `qa/REPORT.md` |
 | 7.5 | Real-browser walk on localhost: 0 console errors, 0 4xx/5xx, merge + dismiss on a db copy | 98 | ⏸ | — | `plan.md` §9 |
@@ -232,6 +232,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 ## §6 Changelog
 
+- **v0.5 · Sat Nov 7, 2026 (evening):** merged on QA approval: #4, #8, #10, #5, #7 (main `2b2a921`, 46 tests green). SQLite concurrency fix (7.2) in. Fictional unstructured donor inputs being generated (6.1 decided: fictional).
 - **v0.4 · Sat Nov 7, 2026 (evening):** 5.1 decided (atomic-crm + Christian's design, Christian integrates). New Phase 5B: intelligent ICP, prospect finder, organization outreach, deeper context (spec `docs/briefs/icp-and-prospects.md`). Merges now QA-gated, then merged on approval (Sharif).
 - **v0.3 · Sat Nov 7, 2026 (evening):** restructured into the living build plan (Phases 0–10, an owner per
   row). Records everything shipped on branches today (data, scoring, dedupe, enrich, outreach, pipeline,
