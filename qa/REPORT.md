@@ -187,3 +187,11 @@ No shared files; all three merge together; pytest 70 passed; no secrets.
 | #26 feat/icp-schema | 7a9eef1 | 83 passed alone; empty-db /icp and /org-profile 200 null; 7 prospects × 1 'draft', donor_id null, no money ask; 0 mojibake; profile matches org_config | APPROVE |
 
 The combined tree caught 1 failure (87/1); isolation showed it was #23's own test, not a clash.
+
+| PR | SHA | Checks | Verdict |
+|---|---|---|---|
+| #23 feat/org-outreach | **782e830** | combined with #27: 93 passed; X-only cached run keeps X, no Instagram, saved to /org-profile; unreachable site → failed; live run 18 facts / 17 s, git status clean; 0 mojibake | APPROVE |
+| #27 feat/service-onboarding | 6ed1860 | dismissed prospect → 409 in 0.01 s with no model call or draft; unknown → 404; a fact-less prospect's draft makes no claims about the org | APPROVE |
+
+Logic overlap (no file overlap): #23 and #27 both make user URLs win. They agree; nothing double-applies.
+Minor (90): top-level `state` stays "done" when every source failed.
