@@ -1,4 +1,4 @@
-﻿"""Ingest adapter: messy donor files -> people + gifts in donors.db.
+"""Ingest adapter: messy donor files -> people + gifts in donors.db.
 
 Pipeline: file -> text (convert_file) -> LLM structured extraction (people + gift rows, one call per
 chunk) -> deterministic cleanup (dates, amounts, emails, phones; Carlos's stat_mcp canonicalizer)
@@ -19,7 +19,7 @@ import sqlite3
 import sys
 import time
 import unicodedata
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -49,13 +49,16 @@ def _cell(v) -> str:
     return str(v).strip()
 
 
-def xlsx_to_text(data: bytes) -> str:
-    """Every sheet; each row becomes 'row N: Header=value | ...' (header = first text-only row of 3+ cells)."""
+def xlsx_to_text(data: bytes, skip_sheets: set[str] | frozenset = frozenset()) -> str:
+    """Every sheet; each row becomes 'row N: Header=value | ...' (header = first text-only row of 3+ cells).
+    Sheets in skip_sheets were already parsed deterministically and are left out."""
     import openpyxl
 
     wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
     out: list[str] = []
     for ws in wb.worksheets:
+        if ws.title in skip_sheets:
+            continue
         out.append(f"## SHEET '{ws.title}'")
         header: list[str] | None = None
         for i, row in enumerate(ws.iter_rows(values_only=True), start=1):
@@ -75,9 +78,10 @@ def xlsx_to_text(data: bytes) -> str:
     return "\n".join(out)
 
 
-def docx_to_text(data: bytes) -> str:
+def docx_to_text(data: bytes, skip_tables: set[int] | frozenset = frozenset()) -> str:
     """Paragraphs and tables in document order. Multi-column tables become
-    'table N row M: Header=value | ...'; key/value form tables become 'table N: a | b'."""
+    'table N row M: Header=value | ...'; key/value form tables become 'table N: a | b'.
+    Tables in skip_tables were already parsed deterministically and are left out."""
     import docx
     from docx.table import Table
     from docx.text.paragraph import Paragraph
@@ -95,6 +99,8 @@ def docx_to_text(data: bytes) -> str:
             out.append(("## " if style.lower().startswith(("heading", "title")) else "") + p.text.strip())
         elif tag == "tbl":
             tcount += 1
+            if tcount in skip_tables:
+                continue
             t = Table(child, d)
             rows = [[c.text.strip().replace("\n", " / ") for c in r.cells] for r in t.rows]
             if not rows:
@@ -111,13 +117,129 @@ def docx_to_text(data: bytes) -> str:
     return "\n".join(out)
 
 
-def convert_file(name: str, data: bytes) -> str:
+_SYN = {   # header synonyms, matched on the lower-cased header text
+    "amount": ("amt", "amount", "value at receipt", "gift value"),
+    "date": ("date", "received"),
+    "email": ("e-mail", "email"),
+    "phone": ("phone",),
+    "check": ("check #", "check no", "check number", "check#"),
+    "channel": ("type", "channel", "method", "payment"),
+    "fund": ("fund",),
+    "city": ("city",),
+    "notes": ("notes", "comments", "details", "memo"),
+    "name": ("donor", "name", "payer", "source", "organization", "constituent"),
+}
+_ORG_RE = re.compile(r"\b(llc|l\.l\.c|inc|co\.?|corp|foundation|fdn|fund|trust|group|company|bank|church|roasters|hardware|associates|ltd)\b", re.I)
+_FAIL_RE = re.compile(r"declin|\bfailed\b|\bnsf\b|bounced|insufficient funds", re.I)
+
+
+def _map_header(cells: list[str]) -> dict[str, int] | None:
+    """Map field -> column index if this row is a gift-table header (needs name, amount and date)."""
+    m: dict[str, int] = {}
+    for j, h in enumerate(cells):
+        h = (h or "").strip().lower()
+        if not h:
+            continue
+        for field in ("amount", "date", "email", "phone", "check", "city", "fund", "channel", "notes", "name"):
+            if field not in m and any(s in h for s in _SYN[field]):
+                m[field] = j
+                break
+    return m if {"name", "amount", "date"} <= m.keys() else None
+
+
+def _excel_date(v) -> str | None:
+    if isinstance(v, datetime):
+        return v.date().isoformat()
+    if isinstance(v, date):
+        return v.isoformat()
+    if isinstance(v, (int, float)) and 20000 < v < 80000:   # Excel serial
+        return (datetime(1899, 12, 30) + timedelta(days=float(v))).date().isoformat()
+    return norm_date(str(v)) if v is not None else None
+
+
+def _rows_to_extraction(fname: str, rows: list[tuple[str, list, dict[str, int]]], warnings: list[str]) -> "Extraction":
+    """rows = [(location, raw cells, header map)] -> one person + one gift per row (deterministic)."""
+    people: list[PersonOut] = []
+    gifts: list[GiftOut] = []
+    for n, (loc, cells, m) in enumerate(rows):
+        def get(field):
+            j = m.get(field)
+            return cells[j] if j is not None and j < len(cells) else None
+        name = _cell(get("name"))
+        if not name or re.search(r"\b(sub)?totals?\b", name, re.I):
+            continue
+        amt = norm_amount(get("amount"))
+        dt = _excel_date(get("date"))
+        if amt is None or dt is None:
+            if _cell(get("amount")) or _cell(get("date")):
+                warnings.append(f"{fname}: table row not a gift ({loc}): amount={_cell(get('amount'))!r} date={_cell(get('date'))!r}")
+            continue
+        text_all = " ".join(_cell(c) for c in cells)
+        status = "declined" if _FAIL_RE.search(text_all) else "ok"
+        channel = _cell(get("channel")) or ("check" if "check" in m else "")
+        notes = _cell(get("notes"))
+        fund = _cell(get("fund")) or None
+        em = _cell(get("email"))
+        key = f"r{n}"
+        people.append(PersonOut(
+            key=key, full_name=name, donor_type="organization" if _ORG_RE.search(name) else "individual", emails=[em] if em else [],
+            phone=_cell(get("phone")) or None, city=_cell(get("city")) or None, fund_type=fund,
+            notes=(notes or None), contact_type="giver", contact_type_reason="has a gift row in a gift table",
+            source_location=loc))
+        gifts.append(GiftOut(person_key=key, amount=str(amt), date=dt, channel=channel or None, fund_type=fund,
+                             status=status, location=loc))
+    return Extraction(people=people, gifts=gifts)
+
+
+def parse_gift_tables(name: str, data: bytes, warnings: list[str]) -> tuple["Extraction | None", dict]:
+    """Deterministic pass over .xlsx sheets and .docx tables that look like gift tables (header has a name,
+    an amount and a date column). Returns (Extraction of their rows, what to leave out of the LLM text)."""
+    ext = Path(name).suffix.lower()
+    rows: list[tuple[str, list, dict[str, int]]] = []
+    skip: dict = {"sheets": set(), "tables": set()}
+    if ext in (".xlsx", ".xlsm"):
+        import openpyxl
+
+        wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
+        for ws in wb.worksheets:
+            m = None
+            for i, row in enumerate(ws.iter_rows(values_only=True), start=1):
+                cells = list(row)
+                hm = _map_header([_cell(c) for c in cells])
+                if hm:
+                    m = hm
+                    skip["sheets"].add(ws.title)
+                elif m and any(c is not None and str(c).strip() for c in cells):
+                    rows.append((f"sheet '{ws.title}' row {i}", cells, m))
+    elif ext == ".docx":
+        import docx
+        from docx.table import Table
+
+        d = docx.Document(io.BytesIO(data))
+        tcount = 0
+        for child in d.element.body.iterchildren():
+            if child.tag.rsplit("}", 1)[-1] != "tbl":
+                continue
+            tcount += 1
+            t = Table(child, d)
+            trs = [[c.text.strip() for c in r.cells] for r in t.rows]
+            m = _map_header(trs[0]) if trs else None
+            if m:
+                skip["tables"].add(tcount)
+                rows += [(f"table {tcount} row {n}", r, m) for n, r in enumerate(trs[1:], start=1)]
+    else:
+        return None, skip
+    return (_rows_to_extraction(name, rows, warnings) if rows else None), skip
+
+
+def convert_file(name: str, data: bytes, skip: dict | None = None) -> str:
     """Return the text of an uploaded file. Raises ValueError for unsupported types."""
     ext = Path(name).suffix.lower()
+    skip = skip or {}
     if ext in (".xlsx", ".xlsm"):
-        return xlsx_to_text(data)
+        return xlsx_to_text(data, skip.get("sheets", frozenset()))
     if ext == ".docx":
-        return docx_to_text(data)
+        return docx_to_text(data, skip.get("tables", frozenset()))
     if ext in (".md", ".txt", ".csv", ".tsv"):
         text = data.decode("utf-8-sig", errors="replace")
         label = "row" if ext in (".csv", ".tsv") else "line"   # numbered so the model can cite locations
@@ -170,6 +292,8 @@ class Extraction(BaseModel):
 INSTRUCTIONS = """You extract nonprofit CRM data from one chunk of an uploaded file.
 Return every distinct person or organization (people) and every actual money gift received (gifts).
 Rules:
+- Gift tables (spreadsheet sheets and Word tables with name/amount/date columns) were already extracted by code
+  and removed from the text. Only emit gifts that are stated in prose or notes, and only people who appear here.
 - A gift is money or stock actually given, with an amount and a date. Pledges/promises, asks, budget lines,
   totals/subtotal rows, header/title rows, and cash mentioned in passing (e.g. "put $25 in the jar") are NOT gifts.
   A recurring charge that was declined or failed IS emitted, with status declined or failed (it is excluded
@@ -180,7 +304,7 @@ Rules:
 - Organizations (companies, foundations, DAF sponsors, churches) get donor_type organization and org_name = full_name;
   individuals get donor_type individual. A DAF grant made through a sponsor is attributed to the named advised-fund
   holder/person if stated, otherwise to the sponsor organization.
-- Dates: ISO YYYY-MM-DD (US month/day order unless the day >12 proves otherwise). Amounts as written.
+- Dates: ISO YYYY-MM-DD (US month/day order unless the day >12 proves otherwise). If a date has no year, use the year of the\n  document date in its title. Amounts as written.
 - contact_type: giver if the person has any gift or pledge in the data; community if they appear on an intake/service/
   client record as someone being helped; neighbor otherwise (met, mentioned, no gift). Give a one-line reason.
 - Set ambiguous=true only when the text itself raises the doubt (e.g. a pantry client who says they will start
@@ -266,11 +390,13 @@ def norm_amount(a) -> float | None:
 
 
 _DATE_FORMATS = ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%B %d, %Y", "%b %d, %Y", "%b %d %Y", "%B %d %Y",
-                 "%d-%b-%Y", "%d %B %Y", "%Y/%m/%d", "%m-%d-%Y", "%Y-%m-%d %H:%M:%S")
+                 "%d-%b-%Y", "%b %d, %Y", "%B %d, %Y", "%d %B %Y", "%Y/%m/%d", "%m-%d-%Y", "%Y-%m-%d %H:%M:%S")
 
 
-def norm_date(d: str | None) -> str | None:
-    s = re.sub(r"(?<=\d)(st|nd|rd|th)\b", "", (d or "").strip().replace("Sept", "Sep"))
+def norm_date(d: str | None, default_year: int | None = None) -> str | None:
+    s = re.sub(r"(?<=\d)(st|nd|rd|th)\b", "", re.sub(r"\bSept\b", "Sep", (d or "").strip()))
+    if default_year and not re.search(r"\b(19|20)\d\d\b", s) and re.search(r"[A-Za-z]{3}", s):
+        s = f"{s}, {default_year}"
     for f in _DATE_FORMATS:
         try:
             return datetime.strptime(s, f).date().isoformat()
@@ -414,7 +540,8 @@ def ingest_texts(texts: dict[str, str], target: str = "auto", conn: sqlite3.Conn
     seen_rows: set[tuple] = set()
     for f, g in gifts_raw:
         gi = key_to_group.get(g.person_key)
-        amt, dt = norm_amount(g.amount), norm_date(g.date)
+        yr = re.search(r"\b(20\d\d)\b", texts.get(f, ""))
+        amt, dt = norm_amount(g.amount), norm_date(g.date, int(yr.group(1)) if yr else None)
         if gi is None or amt is None or dt is None:
             warnings.append(f"{f}: skipped gift '{g.amount}' '{g.date}' ({g.location}): "
                             f"{'unknown person' if gi is None else 'unparseable amount/date'}")
@@ -445,7 +572,7 @@ def ingest_texts(texts: dict[str, str], target: str = "auto", conn: sqlite3.Conn
         votes = [p.contact_type for _, p in plist]
         guess = "giver" if "giver" in votes else ("community" if "community" in votes else "neighbor")
         reason = next((p.contact_type_reason for _, p in plist if p.contact_type == guess), rep.contact_type_reason)
-        tab, review = decide_tab(target, bool(gifts), guess, reason)
+        tab, review = decide_tab(target, any(x.get("status", "ok") == "ok" for x in gifts), guess, reason)
         if target == "auto" and not review:
             amb = next((p.contact_type_reason for _, p in plist if p.ambiguous), None)
             if amb:
@@ -498,12 +625,18 @@ def ingest_files(files: list[tuple[str, bytes]], target: str = "auto", conn: sql
     """files = [(filename, bytes)]. Converts each to text then runs ingest_texts."""
     warnings: list[str] = []
     texts: dict[str, str] = {}
+    results: dict[tuple[str, int], Extraction] = {}
     for name, data in files:
         try:
-            texts[name] = convert_file(name, data)
+            ex, skip = parse_gift_tables(name, data, warnings)   # tables: deterministic, no LLM
+            if ex is not None:
+                results[(name, -1)] = ex
+            text = convert_file(name, data, skip)                # prose, forms, sign-ins: LLM
+            if text.strip():
+                texts[name] = text
         except Exception as exc:   # one bad file must not sink the batch
             warnings.append(f"{name}: could not read ({exc})")
-    res = ingest_texts(texts, target, conn)
+    res = ingest_texts(texts, target, conn, extractions=results)
     res["warnings"] = warnings + res["warnings"]
     return res
 
