@@ -175,17 +175,18 @@ def default_name(intent: str, channel: str, n: int) -> str:
 
 
 def insert_campaign(conn: sqlite3.Connection, name: str, intent: str, channel: str, created_by: str,
-                    rows: list[dict]) -> int:
+                    rows: list[dict], event_id: int | None = None) -> int:
+    """rows: {donor, draft}; a row may carry its own "channel" (a 'mixed' event batch)."""
     with conn:
-        cid = conn.execute("INSERT INTO campaigns (name, intent, channel, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
-                           (name, intent, channel, created_by, now())).lastrowid
+        cid = conn.execute("INSERT INTO campaigns (name, intent, channel, created_by, created_at, event_id) "
+                           "VALUES (?, ?, ?, ?, ?, ?)", (name, intent, channel, created_by, now(), event_id)).lastrowid
         for r in rows:
             d = r["draft"]
             conn.execute(
                 "INSERT INTO campaign_messages (campaign_id, donor_id, channel, subject, body, facts_used, flags, "
                 "drafted_by, draft_note, needs_individual_approval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (cid, r["donor"]["id"], channel, d.subject, d.body, json.dumps(d.facts_used), json.dumps(d.flags),
-                 d.drafted_by, d.note, int(ca.needs_individual_approval(r["donor"]))))
+                (cid, r["donor"]["id"], r.get("channel", channel), d.subject, d.body, json.dumps(d.facts_used),
+                 json.dumps(d.flags), d.drafted_by, d.note, int(ca.needs_individual_approval(r["donor"]))))
     return cid
 
 

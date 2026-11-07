@@ -232,8 +232,9 @@ CAMPAIGN_SCHEMA = """
 CREATE TABLE IF NOT EXISTS campaigns (
     id          INTEGER PRIMARY KEY,
     name        TEXT NOT NULL,
-    intent      TEXT NOT NULL CHECK (intent IN ('thank_you', 're_engage', 'check_in')),
-    channel     TEXT NOT NULL CHECK (channel IN ('email', 'text')),
+    intent      TEXT NOT NULL CHECK (intent IN ('thank_you', 're_engage', 'check_in', 'event_invite')),
+    channel     TEXT NOT NULL CHECK (channel IN ('email', 'text', 'mixed')),   -- mixed: each message has its own
+    event_id    INTEGER,                    -- the event an 'event_invite' batch is for (one batch per event)
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     created_by  TEXT,
     status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent'))
