@@ -1,0 +1,264 @@
+"""Outreach agent: value-first drafts in The Miami Foundation's voice.
+
+Every draft leads with what the Foundation did recently ("here's what we did"), then the ask.
+Facts come only from org_facts (miamifoundation.org, via org_context) and the donor's
+research_facts. The model cites facts by id; facts_used is rebuilt from those ids, so every
+cited fact carries its exact text and URL. A numeric check rejects any figure in the draft
+that isn't in the facts or the donor's own gift history, and the agent retries once.
+
+Channels: email draft plus a call script for a human. Never robocalls (plan.md §11).
+Big donors (is_star or tier == "big") get status "draft": a person must approve and send.
+Everyone else gets "ready": the automated small-donor path may send it.
+
+Drafts are written to the outreach_drafts table in data/donors.db once db.py creates it;
+until then, to data/outreach_drafts.json.
+
+    python service/outreach_agent.py        # run the two hand-built demo donors
+"""
+
+import json
+import os
+import re
+import sqlite3
+from datetime import date, datetime, timezone
+from pathlib import Path
+
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+
+SERVICE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SERVICE_DIR.parent
+DB_PATH = REPO_ROOT / "data" / "donors.db"
+JSON_FALLBACK = REPO_ROOT / "data" / "outreach_drafts.json"
+
+GIVE_MIAMI_DAY = date(2026, 11, 19)
+EARLY_GIVING_OPENS = date(2026, 11, 14)
+
+
+# ----------------------------------------------------------------------------------------------
+# Output shapes
+# ----------------------------------------------------------------------------------------------
+
+class FactUsed(BaseModel):
+    fact: str
+    url: str
+
+
+class Draft(BaseModel):
+    subject: str
+    body: str
+    call_script: str
+    facts_used: list[FactUsed]
+    status: str                       # "draft" (human must approve) | "ready" (may auto-send)
+
+
+class ModelDraft(BaseModel):
+    subject: str = Field(description="Email subject line, under 70 characters")
+    body: str = Field(description="Email body, 120-200 words, signed by the Foundation's philanthropy team")
+    call_script: str = Field(description="What a staff member says on a phone call: opener, the update, the ask, and one line for 'not this year'")
+    fact_ids: list[str] = Field(description="Ids (O1, R2, ...) of every fact used in the body or call script")
+
+
+INSTRUCTIONS = """You write donor outreach for The Miami Foundation's philanthropy team.
+
+Voice: upbeat, civic, plain, proudly local. The Foundation's own phrases include "Everyone has a
+role to play." and "Miami, this is your celebration." Warm, never pushy, no guilt.
+
+Structure: open by thanking the donor for their specific past giving, then lead with what the
+Foundation did recently ("here's what we did"), drawn from the numbered facts. Only then make one
+clear, specific ask tied to Give Miami Day. Never open with the ask.
+
+Hard rules:
+- Use ONLY the numbered facts and the donor's own gift history. Never invent a number, name,
+  program, date or outcome. Copy figures exactly as the fact states them.
+- Cite at least one O-fact (a Foundation accomplishment). List every fact id you used in fact_ids.
+- Gifts are made only at miamifoundation.org or givemiamiday.org. Never mention WhatsApp,
+  text-to-give, or automated calls.
+- The call script is for a human staff member to read, in the same voice.
+- Big donors and fundholders: the ask is a personal conversation (a call or coffee with the
+  philanthropy team about their year-end giving), never a dollar amount or a link to give online.
+- Small donors: ask for a Give Miami Day gift at givemiamiday.org, starting with early giving."""
+
+
+# ----------------------------------------------------------------------------------------------
+# Draft
+# ----------------------------------------------------------------------------------------------
+
+def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: list[dict],
+                   org_facts: list[dict], today: date | None = None) -> Draft:
+    from agents import Agent, ModelSettings, Runner
+    from openai.types.shared import Reasoning
+
+    load_dotenv(REPO_ROOT / ".env")
+    today = today or date.today()
+
+    facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
+             for i, f in enumerate(org_facts[:10], 1)}
+    facts |= {f"R{i}": {"fact": f["fact"], "url": f.get("source_url") or f.get("url", "")}
+              for i, f in enumerate(research_facts, 1)}
+
+    big = is_big(donor)
+    prompt = build_prompt(donor, gifts, score_why, facts, big, today)
+
+    agent = Agent(
+        name="OutreachAgent",
+        instructions=INSTRUCTIONS,
+        model=os.getenv("OPENAI_MODEL_DEFAULT"),
+        output_type=ModelDraft,
+        model_settings=ModelSettings(reasoning=Reasoning(effort="medium")),
+    )
+
+    for attempt in range(2):
+        out: ModelDraft = Runner.run_sync(agent, prompt).final_output
+        problems = check_draft(out, facts, gifts)
+        if not problems:
+            break
+        prompt += "\n\nYour previous draft was rejected:\n- " + "\n- ".join(problems) + "\nRewrite it."
+    else:
+        raise ValueError(f"draft failed checks twice: {problems}")
+
+    return Draft(
+        subject=out.subject,
+        body=out.body,
+        call_script=out.call_script,
+        facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"]) for i in dict.fromkeys(out.fact_ids)],
+        status="draft" if big else "ready",
+    )
+
+
+def is_big(donor: dict) -> bool:
+    return bool(donor.get("is_star")) or donor.get("tier") == "big"
+
+
+def build_prompt(donor, gifts, score_why, facts, big, today) -> str:
+    history = "\n".join(f"- {g['gift_date']}: ${g['amount']:,.0f} via {g.get('channel') or 'unknown'}"
+                        for g in sorted(gifts, key=lambda g: g["gift_date"]))
+    fact_lines = "\n".join(f"{k}: {v['fact']}" + (f" ({v['date']})" if v.get("date") else "")
+                           for k, v in facts.items())
+    why = score_why if isinstance(score_why, str) else json.dumps(score_why)
+    days_early = (EARLY_GIVING_OPENS - today).days
+    days_gmd = (GIVE_MIAMI_DAY - today).days
+
+    return f"""Today is {long_date(today)}. Early giving for Give Miami Day opens {long_date(EARLY_GIVING_OPENS)} \
+({days_early} days away); Give Miami Day is {long_date(GIVE_MIAMI_DAY)} ({days_gmd} days away).
+
+Donor: {donor.get('full_name')}{' (organization: ' + donor['org_name'] + ')' if donor.get('org_name') else ''}
+Fund type: {donor.get('fund_type') or 'none on file'}
+Tier: {'big donor / sponsor: a staff member will personally review and send this' if big else 'small donor: this may be sent automatically'}
+Why they're on today's list: {why}
+
+Gift history:
+{history or '- none on file'}
+
+Numbered facts you may use (O = Foundation accomplishment from miamifoundation.org, R = research on this donor):
+{fact_lines}"""
+
+
+def long_date(d: date) -> str:
+    return f"{d:%A, %B} {d.day}, {d.year}"      # no %-d: it isn't portable to Windows
+
+
+# ----------------------------------------------------------------------------------------------
+# Checks: every figure in the draft must come from a fact or the donor's gifts
+# ----------------------------------------------------------------------------------------------
+
+NUM_RE = re.compile(r"\$?\d[\d,]*(?:\.\d+)?\s*(?:million|billion|M|K|%)?", re.I)
+
+
+def check_draft(out: ModelDraft, facts: dict, gifts: list[dict]) -> list[str]:
+    problems = []
+    unknown = [i for i in out.fact_ids if i not in facts]
+    if unknown:
+        problems.append(f"fact_ids not in the list: {unknown}")
+    if not any(i.startswith("O") and i in facts for i in out.fact_ids):
+        problems.append("cite at least one O-fact (a Foundation accomplishment)")
+
+    allowed_text = " ".join(f["fact"] for f in facts.values())
+    allowed = {norm_num(m) for m in NUM_RE.findall(allowed_text)}
+    for g in gifts:
+        allowed |= {norm_num(f"{g['amount']:,.0f}"), norm_num(str(g["gift_date"][:4]))}
+    allowed |= {"2026", "14", "19", "15"}         # the Give Miami Day calendar in the prompt
+
+    for m in NUM_RE.findall(out.body + " " + out.call_script):
+        n = norm_num(m)
+        if not n or (n.isdigit() and len(n) <= 2):    # small counts and days of the month
+            continue
+        if n not in allowed:
+            problems.append(f"figure '{m.strip()}' is not in any fact or the gift history")
+    return sorted(set(problems))
+
+
+def norm_num(s: str) -> str:
+    return re.sub(r"[^\d.]", "", s.split()[0] if s.split() else s).rstrip(".")
+
+
+# ----------------------------------------------------------------------------------------------
+# Persist: outreach_drafts table when db.py has made it, JSON file until then
+# ----------------------------------------------------------------------------------------------
+
+def save_draft(donor_id: int, draft: Draft) -> str:
+    row = {
+        "donor_id": donor_id,
+        "contact_id": donor_id,
+        "subject": draft.subject,
+        "body": draft.body,
+        "call_script": draft.call_script,
+        "facts_used": json.dumps([f.model_dump() for f in draft.facts_used]),
+        "status": draft.status,
+        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+    if DB_PATH.exists():
+        with sqlite3.connect(DB_PATH) as con:
+            cols = [r[1] for r in con.execute("PRAGMA table_info(outreach_drafts)")]
+            if cols:
+                keep = {k: v for k, v in row.items() if k in cols}
+                con.execute(f"INSERT INTO outreach_drafts ({', '.join(keep)}) VALUES ({', '.join('?' * len(keep))})",
+                            list(keep.values()))
+                return f"{DB_PATH.name}:outreach_drafts"
+
+    existing = json.loads(JSON_FALLBACK.read_text(encoding="utf-8")) if JSON_FALLBACK.exists() else []
+    existing.append(row | {"facts_used": json.loads(row["facts_used"])})
+    JSON_FALLBACK.parent.mkdir(exist_ok=True)
+    JSON_FALLBACK.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+    return str(JSON_FALLBACK.relative_to(REPO_ROOT))
+
+
+# ----------------------------------------------------------------------------------------------
+# Demo: two hand-built donors (fictional names; histories labelled sample)
+# ----------------------------------------------------------------------------------------------
+
+DEMO_CASES = [
+    {
+        "donor": {"id": 9001, "full_name": "Elena Marquez", "first_name": "Elena", "donor_type": "individual",
+                  "fund_type": None, "tier": "small", "is_star": False},
+        "gifts": [{"amount": 150, "gift_date": "2023-11-16", "channel": "Give Miami Day"},
+                  {"amount": 200, "gift_date": "2024-11-21", "channel": "Give Miami Day"},
+                  {"amount": 250, "gift_date": "2025-11-20", "channel": "Give Miami Day"}],
+        "score_why": "Gave on Give Miami Day three years running (2023-2025), each gift larger than the last; nothing yet in 2026.",
+        "research_facts": [],
+    },
+    {
+        "donor": {"id": 9002, "full_name": "Ricardo and Ana Villanueva", "donor_type": "individual",
+                  "fund_type": "Donor Advised", "tier": "big", "is_star": True},
+        "gifts": [{"amount": 250000, "gift_date": "2024-12-10", "channel": "check"},
+                  {"amount": 300000, "gift_date": "2025-12-12", "channel": "check"}],
+        "score_why": "Shack Society-level fundholder; gives every December, larger each year; no 2026 gift yet.",
+        "research_facts": [],
+    },
+]
+
+
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(SERVICE_DIR))
+    from org_context import load_org_facts
+
+    org_facts = load_org_facts()
+    for case in DEMO_CASES:
+        d = draft_outreach(case["donor"], case["gifts"], case["score_why"], case["research_facts"], org_facts)
+        where = save_draft(case["donor"]["id"], d)
+        print(f"\n=== {case['donor']['full_name']}  status={d.status}  saved to {where}")
+        print(f"Subject: {d.subject}\n\n{d.body}\n\n--- Call script ---\n{d.call_script}\n\n--- facts_used ---")
+        for f in d.facts_used:
+            print(f"- {f.fact}\n  {f.url}")
