@@ -45,6 +45,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(data_router)
+from service.routes_campaigns import router as campaigns_router  # noqa: E402  (#38: simulated outbox only)
+app.include_router(campaigns_router)
 
 def ingest_present() -> bool:
     try:
