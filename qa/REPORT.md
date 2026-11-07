@@ -76,7 +76,8 @@ Smoke 5 PASS: `python -m service.outreach_agent 11 12` with DONORS_DB=scratch wr
 | Q2 | data (8b) + outreach (86) | **fixed** 8c3bce3 / 6ba5f17 |
 | Q3 | outreach (86) | **fixed** 6ba5f17: DONORS_DB honoured (CLI wrote only to scratch) |
 | Q4 | outreach (86) | **fixed** 6ba5f17: today = as_of 2026-11-08 |
-| Q5 | enrich (42) | **fixed** in code (url_loads == 200); miamifoundation 202s still need a browser check |
+| Q5 | enrich (42) | **fixed** (url_loads == 200; all 9 research_cache URLs are 200) |
+| Q9 | outreach (86) | open: the 5 miamifoundation.org URLs in service/org_facts.json return 202 (bot challenge) to scripts; needs a real-browser check. Round 3 wrongly listed this under enrich |
 | Q6 | data (8b) | **fixed** 222dbfa |
 | Q7 | lead (Ideas) | open: local branch `qa/integration` (the lead's one-off QA worktree) tracks origin/main |
 | Q8 | outreach (86) | low: DEMO_CASES still hard-code Amazon and Knight as ★; real runs use donor_scores, but delete the demo cases or relabel them so reports don't disagree with the seed |
