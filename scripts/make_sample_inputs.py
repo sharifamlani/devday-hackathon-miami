@@ -265,6 +265,18 @@ for n, g in enumerate(sorted(GIFTS, key=lambda g: (g["date"], g["donor"], g["amo
 for ex in EXTRA_ROWS:
     ex["gift_id"] = ex["of"]["id"]
 
+# --- Gift-alert cases (added after the stable ids above so earlier gift ids never move)
+# Hye-jin Park: monthly $40 on the 10th, Jun-Oct 2026; the Nov 10 charge was DECLINED (row exists, not a gift).
+# Rafael Quintero: monthly $50 on the 3rd, Mar-Nov 2026, but SKIPPED September; resumed in October (late, then resumed).
+_next_id = len(GIFTS)
+for _dk, _day, _amt, _months in (("park", 10, 40, range(6, 11)), ("quintero", 3, 50, [3, 4, 5, 6, 7, 8, 10, 11])):
+    for _m in _months:
+        _g = gift(_dk, dt(2026, _m, _day), _amt, "online", "Unrestricted", "online", fund_stated=False, note="monthly")
+        _next_id += 1
+        _g["id"] = f"G{_next_id:03d}"
+FAILED_GIFTS = [dict(donor="park", date=dt(2026, 11, 10), amount=40, name="Hye-jin Park", note="monthly - card declined", loc=None)]
+
+
 SRC = defaultdict(list)  # donor key -> source row dicts
 
 
@@ -350,6 +362,11 @@ def write_xlsx():
             g["loc"] = loc
             src(g["donor"], F_XLSX, loc, nm, "gift_row")
         tot += amt
+    for fg in FAILED_GIFTS:  # declined charge: listed in the sheet, never counted in the total
+        d = D[fg["donor"]]
+        ws.append([fg["name"], fmt_email(d), fmt_amt(fg["amount"]), fmt_date(fg["date"]), None, None, None, fg["note"]])
+        fg["loc"] = f"sheet 'Online' row {ws.max_row}"
+        src(fg["donor"], F_XLSX, fg["loc"], fg["name"], "failed_gift_row")
     ws.append([])
     ws.append(["Grand total", None, tot])
 
@@ -731,7 +748,10 @@ def attach_notes_people():
     lines = (OUT / F_MD).read_text(encoding="utf-8").splitlines()
     for pid, tag in (("C15", "Dolores Quinones"), ("C06", "Marcus Bell"), ("N20", "Gabriela Rincon")):
         ln = next(i for i, l in enumerate(lines, 1) if tag in l)
-        rec = dict(file=F_MD, location=f"line {ln}", name_as_written=tag, kind="mention")
+        end = ln
+        while end < len(lines) and lines[end].startswith("  "):  # wrapped continuation lines of the bullet
+            end += 1
+        rec = dict(file=F_MD, location=f"line {ln}" if end == ln else f"lines {ln}-{end}", name_as_written=tag, kind="mention")
         (COMM if pid.startswith("C") else NB)[pid]["rows"].append(rec)
 
 
@@ -746,6 +766,7 @@ def people_index():
         if d.get("dog") is not None:
             e["has_dog"] = d["dog"]
         e["has_contact"] = True
+        e["source_rows"] = SRC[d["key"]]
         out.append(e)
     for p in list(COMM.values()) + list(NB.values()):
         e = dict(person_id=p["id"], full_name=p["name"], tab=p["tab"], ambiguous=p["ambiguous"])
@@ -755,6 +776,7 @@ def people_index():
         if p["dog"] is not None:
             e["has_dog"] = bool(p["dog"])
         e["has_contact"] = contact_of(p)
+        e["source_rows"] = p["rows"]
         out.append(e)
     return out
 
@@ -902,6 +924,18 @@ def build_key():
             dict(rank=3, donor_id=D["salinas"]["id"], donor="Teodoro Salinas",
                  reason="Quarterly donor, last gift 2026-04-15; two expected gifts (Jul, Oct) missed, about 207 days since last gift vs a 91-day cadence."),
         ],
+        gift_alerts_expected=[
+            dict(donor_id=D["park"]["id"], donor="Hye-jin Park", kind="failed",
+                 reason=f"Monthly $40 donor (10th of each month, 2026-06 .. 2026-10). The 2026-11-10 charge is in the Online sheet ({FAILED_GIFTS[0]['loc']}) marked 'card declined' and no later good gift exists. The declined $40 is NOT a gift and is not in any total."),
+            dict(donor_id=D["salinas"]["id"], donor="Teodoro Salinas", kind="late",
+                 reason="Quarterly $300 donor (15th of Jan/Apr/Jul/Oct); last gift 2026-04-15, missed 2026-07-15 and 2026-10-15."),
+            dict(donor_id=D["quintero"]["id"], donor="Rafael Quintero", kind="late",
+                 reason="Monthly $50 donor (3rd of each month, 2026-03 .. 2026-11) who skipped September 2026 and resumed in October. Late once, now back on track."),
+        ],
+        failed_gifts_not_counted=[dict(donor_id=D[f["donor"]]["id"], donor=f["name"], amount=f["amount"], date=f["date"].isoformat(),
+                                       source=dict(file=F_XLSX, location=f["loc"]), note=f["note"],
+                                       rule="A declined charge is not a gift: excluded from gifts, totals, gift_source_rows and lifetime giving.")
+                                  for f in FAILED_GIFTS],
         tab_counts=tab_counts, ambiguous_count=sum(1 for p in people if p["ambiguous"]),
         ambiguous_people=[p for p in people if p["ambiguous"]],
         people=people, community_members=comm, neighbors=nb, cross_file_duplicates=cross_file_dupes(),
@@ -968,6 +1002,17 @@ def verify_tabs(key, check, md, wb_sign):
     check("sign-in names in key == names on sheet", sheet_names <= names)
     amb = [p for p in ppl if p["ambiguous"]]
     check("3 ambiguous people, each named in the retreat notes", len(amb) == 3 and all(p["full_name"] in md for p in amb))
+    check("every ambiguous person has notes source_rows (index + detail lists)", all(
+        p["source_rows"] and p["source_rows"][-1]["file"] == F_MD for p in amb if p["person_id"] != "C06") and all(
+        p["source_rows"] for p in amb))
+    al = key["gift_alerts_expected"]
+    check("gift alerts: 1 failed + late (Salinas, Quintero)", sorted((a["donor"], a["kind"]) for a in al) ==
+          [("Hye-jin Park", "failed"), ("Rafael Quintero", "late"), ("Teodoro Salinas", "late")])
+    fg = key["failed_gifts_not_counted"][0]
+    sheet = load_workbook(OUT / F_XLSX)["Online"]
+    row = int(fg["source"]["location"].rsplit(" ", 1)[1])
+    check("declined row exists on the sheet and is not a key gift", "declined" in str(sheet.cell(row, 8).value).lower()
+          and not any(g["donor"] == fg["donor"] and g["gift_date"] == fg["date"] for g in key["gifts"]))
     puppy = key["puppy_outreach"]
     dogs = [p for p in ppl if p.get("has_dog") is True and p["has_contact"]]
     check("puppy target_count == recount", puppy["target_count"] == len(dogs) == len(puppy["target_ids"]), f"({len(dogs)})")
@@ -996,6 +1041,8 @@ def verify():
             first = str(r[0] or "")
             if not first or first.upper().startswith(("TOTAL", "GRAND")) or first in ("Donor Name", "Name", "Donor / Organization"):
                 continue
+            if ws.title == "Online" and "declined" in str(r[7] or "").lower():
+                continue  # failed charge: not a gift
             n = _num(r[amt_col[ws.title]])
             if n is not None:
                 xl_rows += 1
