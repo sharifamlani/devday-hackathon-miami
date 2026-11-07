@@ -123,6 +123,21 @@ export interface IcpProfile {
   traits: IcpTrait[];
   stats: IcpStat[];
   evidence: IcpEvidence[]; // profile-level evidence not tied to one trait
+  recent_context: DatedFact[]; // newest org facts the ICP leaned on
+}
+
+/** A sourced, dated fact (org context matched to an ICP or a prospect). */
+export interface DatedFact {
+  source: string | null; // "website", ...
+  fact: string;
+  source_url: string;
+  posted_at: string | null;
+}
+
+/** One component of a prospect's fit score, e.g. Geography 12. */
+export interface FitComponent {
+  label: string;
+  points: number;
 }
 
 export type ProspectStatus = "new" | "drafted" | "dismissed";
@@ -137,11 +152,94 @@ export interface ProspectSummary {
   priority: string | null; // the Foundation priority it fits
   status: ProspectStatus;
   facts: FactUsed[]; // sourced facts, every one with a URL
+  fit_breakdown: FitComponent[]; // biggest first; sums to fit_score
+  matched_context: DatedFact[]; // org facts this prospect lines up with
 }
 
 export interface ProspectDetail extends ProspectSummary {
   created_at: string;
   draft: OutreachDraft | null; // newest first-touch draft (always "draft")
+}
+
+/* ---------- Onboarding (plan.md §15) ---------- */
+
+export type SocialPlatform = "x" | "linkedin" | "instagram";
+
+/** A social URL the org entered. Only the website is researched for now. */
+export interface SocialLink {
+  platform: SocialPlatform;
+  label: string; // "X", "LinkedIn", "Instagram"
+  url: string;
+  connected: boolean; // false today: "saved, not connected"
+  status: string; // "saved, not connected"
+}
+
+export interface OrgProfile {
+  name: string | null;
+  website: string | null;
+  socials: SocialLink[]; // only the ones the org entered
+  priorities: string[];
+  voice: string[]; // tone notes for the outreach agent
+  updated_at: string | null;
+}
+
+export interface ContextFact {
+  id: number;
+  source: string; // "website" (only one researched today), "news", ...
+  source_url: string;
+  posted_at: string | null; // YYYY-MM-DD
+  fact: string;
+  quote: string | null; // the exact words the fact was verified against
+  priority: string | null; // which Foundation priority it supports
+}
+
+export interface OrgContext {
+  profile: OrgProfile | null;
+  facts: ContextFact[]; // newest first
+  cached: boolean; // from the last successful run or the snapshot
+}
+
+export interface ContextRunInput {
+  website: string | null;
+  x_url?: string | null;
+  linkedin_url?: string | null;
+  instagram_url?: string | null;
+  refresh?: boolean; // re-read even if a recent run is saved
+}
+
+export type SourceState =
+  | "done"
+  | "blocked"
+  | "failed"
+  | "not_provided"
+  | "saved_not_connected"; // social URLs: saved, never fetched (scope cut)
+
+export interface ContextRunSource {
+  source: string; // "website", "news", "x", "linkedin", "instagram"
+  label: string; // "Website", "News", "X", "LinkedIn", "Instagram"
+  state: SourceState;
+  status_text: string; // the API's words, e.g. "saved, not connected"
+  fact_count: number;
+  detail: string | null; // block reason, or the saved URL for socials
+}
+
+export interface ContextRun {
+  status: "done" | "failed";
+  cached: boolean; // true: live read timed out/failed, saved context shown
+  detail: string | null; // why, for a tooltip
+  sources: ContextRunSource[]; // website and news first, then socials
+  profile: OrgProfile | null;
+  facts: ContextFact[]; // newest first
+  finished_at: string | null;
+}
+
+/** What POST /ingest reports. Carlos owns the route; fields are optional. */
+export interface IngestResult {
+  donors: number | null;
+  gifts: number | null;
+  duplicates: number | null;
+  message: string | null;
+  raw: unknown; // the full response, for anything not mapped yet
 }
 
 export interface MergeResult {
@@ -171,6 +269,14 @@ export interface DonorDeskMethods {
   getProspect(id: number): Promise<ProspectDetail>;
   draftProspectOutreach(id: number): Promise<void>;
   dismissProspect(id: number): Promise<void>;
+  /** Screen 1: multipart POST /ingest with every file under "files". */
+  uploadFiles(files: File[]): Promise<IngestResult>;
+  /** Screen 2: saves the URLs and researches the website. One call,
+   *  up to 30 s; the result includes the saved profile and facts. */
+  runContext(input: ContextRunInput): Promise<ContextRun>;
+  getContext(): Promise<OrgContext>;
+  /** null until the org has entered its URLs. */
+  getOrgProfile(): Promise<OrgProfile | null>;
   /** "Cached sample" in snapshot mode; null when live. */
   getSourceLabel(): Promise<string | null>;
 }

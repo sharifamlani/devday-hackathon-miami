@@ -134,9 +134,12 @@ export interface ApiSnapshot {
   donors: ApiDonorRow[];
   donor_details: Record<string, ApiDonorDetail>;
   duplicates: ApiDuplicate[];
-  // Added with ICP + prospects; older snapshots omit them.
+  // Added with ICP + prospects (PR #15); older snapshots omit them.
   icp?: ApiIcpProfile | null;
-  prospects?: ApiProspect[];
+  prospects?: ApiProspect[]; // == GET /prospects (no drafts, dismissed excluded)
+  prospect_details?: Record<string, ApiProspect>; // == GET /prospects/{id}
+  context?: ApiContext | null; // == GET /context (§15)
+  org_profile?: ApiOrgProfile | null; // == GET /org-profile, if exported separately
 }
 
 /*
@@ -156,13 +159,24 @@ export interface ApiEvidence {
   source_url?: string;
 }
 
-/** GET /icp (icp_profile row) */
+/** GET /icp (icp_profile row). 42's trait shape:
+ *  {trait, value, evidence: [{donor, donor_id?, fact, url}]} */
 export interface ApiIcpProfile {
   id: number;
   traits: ApiJson<unknown>;
   stats: ApiJson<unknown>;
   evidence: ApiJson<ApiEvidence[]>;
+  /** Newest org context facts the ICP leaned on: {source, url, posted_at, fact} */
+  recent_context?: ApiJson<ApiContextFactLite[]>;
   created_at: string;
+}
+
+export interface ApiContextFactLite {
+  source?: string;
+  url?: string;
+  source_url?: string;
+  posted_at?: string | null;
+  fact?: string;
 }
 
 /** One item of GET /prospects (prospects row) */
@@ -177,6 +191,79 @@ export interface ApiProspect {
   priority: string | null;
   status: string;
   created_at: string;
+  /** Why it scored what it did: {component: points}, summing to fit_score */
+  fit_breakdown?: ApiJson<Record<string, number>>;
+  /** Org context facts this prospect lines up with */
+  matched_context?: ApiJson<ApiContextFactLite[]>;
   /** GET /prospects/{id}: drafts with prospect_id = id, newest first */
   outreach_drafts?: ApiOutreachDraft[];
+}
+
+/*
+ * Onboarding (plan.md §15): upload → POST /ingest (Carlos), and the local
+ * context dataset (org_profile + org_context). Routes are not built yet, so
+ * these shapes follow §15 and parse.ts accepts the reasonable variants.
+ */
+
+export interface ApiOrgProfile {
+  id?: number;
+  name: string | null;
+  website: string | null;
+  x_url: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+  priorities?: ApiJson<unknown>;
+  voice?: ApiJson<unknown>;
+  updated_at?: string | null;
+}
+
+/** One org_context row: a dated, sourced fact about the organization. */
+export interface ApiContextFact {
+  id: number;
+  source: string; // website | x | linkedin | instagram | news
+  url: string;
+  posted_at: string | null;
+  fact: string;
+  quote?: string | null;
+  priority?: string | null;
+  captured_at?: string | null;
+}
+
+/** GET /context, and the snapshot's "context" key. */
+export type ApiContext =
+  | ApiContextFact[]
+  | {
+      profile?: ApiOrgProfile | null;
+      org_profile?: ApiOrgProfile | null;
+      facts?: ApiContextFact[];
+      org_context?: ApiContextFact[];
+      items?: ApiContextFact[];
+      cached?: boolean;
+      captured_at?: string | null;
+    };
+
+/** POST /context/run (PR #21): synchronous, at most 30 s, always 200
+ *  (503 until the context module lands). */
+export interface ApiContextRun {
+  state: string; // done | failed
+  cached: boolean; // true: the live read timed out or failed; saved context shown
+  detail: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  // website | news | x | linkedin | instagram
+  sources: Record<string, ApiContextRunSource>;
+  profile?: ApiOrgProfile | null;
+  facts?: ApiContextFact[];
+  saved?: {
+    org_profile_id: number;
+    context_ids: number[];
+    replaced_sources: string[];
+  } | null;
+}
+
+export interface ApiContextRunSource {
+  // done | blocked | failed | not provided | saved, not connected
+  status: string;
+  facts?: number;
+  detail?: string | null; // block reason, or the saved URL for socials
 }

@@ -5,6 +5,11 @@ import type {
   ApiEvidence,
   ApiIcpProfile,
   ApiJson,
+  ApiContext,
+  ApiContextFact,
+  ApiContextFactLite,
+  ApiContextRun,
+  ApiOrgProfile,
   ApiOutreachDraft,
   ApiProspect,
   ApiWhy,
@@ -14,8 +19,19 @@ import type {
   DonorStatus,
   DonorSummary,
   DuplicatePair,
+  ContextFact,
+  ContextRun,
+  ContextRunSource,
+  DatedFact,
   FactUsed,
+  FitComponent,
   IcpEvidence,
+  IngestResult,
+  OrgContext,
+  OrgProfile,
+  SocialLink,
+  SocialPlatform,
+  SourceState,
   IcpProfile,
   IcpStat,
   IcpTrait,
@@ -361,7 +377,10 @@ const traitFrom = (fallbackLabel: string, item: unknown): IcpTrait => {
   if (item && typeof item === "object" && !Array.isArray(item)) {
     const t = item as TraitLike;
     return {
-      label: t.label ?? t.name ?? t.trait ?? (t.key ? humanize(t.key) : fallbackLabel),
+      label:
+        t.label ??
+        t.name ??
+        (t.trait ? humanize(t.trait) : t.key ? humanize(t.key) : fallbackLabel),
       value: asText(t.value ?? t.values ?? t.description ?? t.summary ?? ""),
       evidence: parseEvidence(t.evidence),
     };
@@ -401,12 +420,35 @@ export const parseStats = (raw: ApiJson<unknown>): IcpStat[] => {
   return [];
 };
 
+const parseDatedFacts = (raw: ApiJson<ApiContextFactLite[]>): DatedFact[] => {
+  const list = fromJson(raw);
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((f) => ({
+      source: f?.source ?? null,
+      fact: String(f?.fact ?? ""),
+      source_url: String(f?.source_url ?? f?.url ?? ""),
+      posted_at: f?.posted_at ?? null,
+    }))
+    .filter((f) => f.fact && f.source_url)
+    .sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""));
+};
+
+const parseFitBreakdown = (raw: ApiJson<Record<string, number>>): FitComponent[] => {
+  const map = fromJson(raw);
+  if (!map || typeof map !== "object" || Array.isArray(map)) return [];
+  return Object.entries(map)
+    .map(([key, points]) => ({ label: humanize(key), points: Number(points) || 0 }))
+    .sort((a, b) => b.points - a.points);
+};
+
 export const parseIcp = (raw: ApiIcpProfile): IcpProfile => ({
   id: raw.id,
   created_at: raw.created_at,
   traits: parseTraits(raw.traits),
   stats: parseStats(raw.stats),
   evidence: parseEvidence(raw.evidence),
+  recent_context: parseDatedFacts(raw.recent_context),
 });
 
 const PROSPECT_STATUSES: ProspectStatus[] = ["new", "drafted", "dismissed"];
@@ -419,12 +461,16 @@ export const parseProspect = (raw: ApiProspect): ProspectSummary => {
     org_type: raw.org_type,
     city: raw.city,
     fit_score: raw.fit_score ?? 0,
-    matched_traits: Array.isArray(matched) ? matched.map(asText) : [],
+    matched_traits: Array.isArray(matched)
+      ? matched.map((t) => humanize(asText(t)))
+      : [],
     priority: raw.priority,
     status: PROSPECT_STATUSES.includes(raw.status as ProspectStatus)
       ? (raw.status as ProspectStatus)
       : "new",
     facts: parseFactsUsed(raw.facts),
+    fit_breakdown: parseFitBreakdown(raw.fit_breakdown),
+    matched_context: parseDatedFacts(raw.matched_context),
   };
 };
 
@@ -433,3 +479,156 @@ export const parseProspectDetail = (raw: ApiProspect): ProspectDetail => ({
   created_at: raw.created_at,
   draft: raw.outreach_drafts?.length ? parseDraft(raw.outreach_drafts[0]) : null,
 });
+
+/* ---------- Onboarding (plan.md §15) ---------- */
+
+const SOCIALS: { platform: SocialPlatform; label: string; key: keyof ApiOrgProfile }[] = [
+  { platform: "x", label: "X", key: "x_url" },
+  { platform: "linkedin", label: "LinkedIn", key: "linkedin_url" },
+  { platform: "instagram", label: "Instagram", key: "instagram_url" },
+];
+
+const asStringList = (raw: ApiJson<unknown>): string[] => {
+  const value = fromJson(raw);
+  if (Array.isArray(value)) return value.map(asText).filter(Boolean);
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).map(
+      ([k, v]) => `${humanize(k)}: ${asText(v)}`,
+    );
+  }
+  return value ? [asText(value)] : [];
+};
+
+/** build_context writes voice as {phrases: [...], urls: [...]}; only the
+ *  phrases are tone notes (the urls are their sources). */
+const parseVoice = (raw: ApiJson<unknown>): string[] => {
+  const value = fromJson(raw);
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const phrases = (value as { phrases?: unknown }).phrases;
+    if (Array.isArray(phrases)) return phrases.map(asText).filter(Boolean);
+  }
+  return asStringList(value as ApiJson<unknown>);
+};
+
+export const parseOrgProfile = (raw: ApiOrgProfile): OrgProfile => ({
+  name: raw.name ?? null,
+  website: raw.website ?? null,
+  socials: SOCIALS.flatMap(({ platform, label, key }): SocialLink[] => {
+    const url = raw[key];
+    if (typeof url !== "string" || !url.trim()) return [];
+    // Scope (Sat Nov 7): social URLs are saved, only the website is researched.
+    const connected =
+      (raw as unknown as Record<string, unknown>)[`${platform}_connected`] === true;
+    return [
+      {
+        platform,
+        label,
+        url,
+        connected,
+        status: connected ? "connected" : "saved, not connected",
+      },
+    ];
+  }),
+  priorities: asStringList(raw.priorities),
+  voice: parseVoice(raw.voice),
+  updated_at: raw.updated_at ?? null,
+});
+
+const parseContextFact = (raw: ApiContextFact): ContextFact => ({
+  id: raw.id,
+  source: raw.source,
+  source_url: raw.url,
+  posted_at: raw.posted_at,
+  fact: raw.fact,
+  quote: raw.quote ?? null,
+  priority: raw.priority ?? null,
+});
+
+/** A list of facts, or {profile|org_profile, facts|org_context|items}. */
+export const parseContext = (
+  raw: ApiContext | null | undefined,
+  { cached = false, profile = null as ApiOrgProfile | null } = {},
+): OrgContext => {
+  const facts = Array.isArray(raw)
+    ? raw
+    : (raw?.facts ?? raw?.org_context ?? raw?.items ?? []);
+  const rawProfile = Array.isArray(raw)
+    ? profile
+    : (raw?.profile ?? raw?.org_profile ?? profile);
+  return {
+    profile: rawProfile ? parseOrgProfile(rawProfile) : null,
+    facts: facts
+      .filter((f) => f?.fact && f?.url) // every fact carries its URL
+      .map(parseContextFact)
+      .sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? "")),
+    cached: cached || (!Array.isArray(raw) && !!raw?.cached),
+  };
+};
+
+const SOURCE_ORDER = ["website", "news", "x", "linkedin", "instagram"];
+const SOURCE_LABELS: Record<string, string> = {
+  website: "Website",
+  news: "News",
+  x: "X",
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+};
+
+const sourceState = (status: string): SourceState => {
+  const s = status.trim().toLowerCase();
+  if (s.startsWith("saved")) return "saved_not_connected";
+  if (s.startsWith("not provided")) return "not_provided";
+  if (s.startsWith("blocked")) return "blocked";
+  if (s.startsWith("done")) return "done";
+  return "failed";
+};
+
+export const parseContextRun = (raw: ApiContextRun): ContextRun => {
+  const sources: ContextRunSource[] = Object.entries(raw.sources ?? {})
+    .map(([source, s]) => ({
+      source,
+      label: SOURCE_LABELS[source] ?? humanize(source),
+      state: sourceState(s?.status ?? ""),
+      status_text: s?.status ?? "",
+      fact_count: s?.facts ?? 0,
+      detail: s?.detail ?? null,
+    }))
+    .sort(
+      (a, b) =>
+        (SOURCE_ORDER.indexOf(a.source) + 1 || 99) -
+        (SOURCE_ORDER.indexOf(b.source) + 1 || 99),
+    );
+  const context = parseContext(
+    { profile: raw.profile ?? null, facts: raw.facts ?? [] },
+    { cached: raw.cached },
+  );
+  return {
+    status: raw.state === "done" ? "done" : "failed",
+    cached: !!raw.cached,
+    detail: raw.detail ?? null,
+    sources,
+    profile: context.profile,
+    facts: context.facts,
+    finished_at: raw.finished_at ?? null,
+  };
+};
+
+const pickCount = (raw: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "number") return value;
+    if (Array.isArray(value)) return value.length;
+  }
+  return null;
+};
+
+export const parseIngestResult = (raw: unknown): IngestResult => {
+  const obj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    donors: pickCount(obj, ["donors", "donors_added", "donor_count", "inserted_donors"]),
+    gifts: pickCount(obj, ["gifts", "gifts_added", "gift_count", "inserted_gifts"]),
+    duplicates: pickCount(obj, ["duplicates", "pending_duplicates", "duplicate_suggestions"]),
+    message: typeof obj.message === "string" ? obj.message : null,
+    raw,
+  };
+};

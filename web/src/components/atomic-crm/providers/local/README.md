@@ -66,6 +66,24 @@ const DraftBox = ({ donorId }: { donorId: number }) => {
 After any write the hooks refetch everything, so lists, ranks and drawers update by themselves. Never
 read a POST's response yourself.
 
+Onboarding (plan.md §15): screen 1 uploads files, and screen 2 saves the org's URLs and researches its
+website. Only the website is researched; social URLs are saved and come back "saved, not connected".
+
+```tsx
+import { useUploadFiles, useRunContext } from "@/components/atomic-crm/providers/local/hooks";
+
+const upload = useUploadFiles();
+upload.mutate(Array.from(input.files ?? []));          // multipart POST /ingest
+// upload.data → { donors, gifts, duplicates, message, raw }
+
+const research = useRunContext();                     // one call, up to 30 s
+research.mutate({ website, x_url, linkedin_url, instagram_url });
+// research.isPending → "Reading your website…"
+// research.data.sources → [{ label: "Website", state: "done", fact_count: 12 },
+//                          { label: "X", state: "saved_not_connected", status_text: "saved, not connected" }, …]
+// research.data.cached → true: show "Showing saved context" with research.data.detail as a tooltip
+```
+
 Outside React (a script or test), call the same functions directly:
 `import { donorDeskMethods } from "@/components/atomic-crm/providers/local"`.
 
@@ -88,6 +106,10 @@ Outside React (a script or test), call the same functions directly:
 | `useProspect(id \| null)` | `ProspectDetail` | |
 | `useDraftProspectOutreach(id)` | mutation | First-touch email; the draft appears in `prospect.draft` |
 | `useDismissProspect()` | mutation `id` | |
+| `useUploadFiles()` | mutation `File[]` → `IngestResult` | Screen 1. Everything refetches after |
+| `useRunContext()` | mutation `ContextRunInput` → `ContextRun` | Screen 2. Synchronous, up to 30 s; `isPending` is the progress state |
+| `useOrgContext()` | `OrgContext` | Saved profile + website facts, newest first |
+| `useOrgProfile()` | `OrgProfile \| null` | `null` until the org has entered its URLs |
 
 Mutation callbacks: use `await mutation.mutateAsync(...)` (try/catch) when the component may unmount
 on success, for example a dialog that closes. react-query drops `mutate(..., { onSuccess })`
@@ -136,13 +158,32 @@ once approved; `"approved"`; `"sent"`), `approved_by`, `approved_at`.
 
 **`IcpProfile`**: `id`, `created_at`, `traits: IcpTrait[]`, `stats: IcpStat[]`, `evidence: IcpEvidence[]`.
 - `IcpTrait`: `{ label, value, evidence }`, e.g. `{ label: "Causes funded", value: "youth, climate", evidence: [...] }`
+  (the API sends `{trait, value, evidence}`; `label` is the API's `trait`, and `matched_traits` on a prospect uses the same labels)
 - `IcpStat`: `{ label, value }`, already formatted as text, e.g. `{ label: "Median gift", value: "50,000" }`
 - `IcpEvidence`: `{ donor, fact, source_url }`: which current donor shows the trait, and where it's sourced
+- `recent_context: DatedFact[]`: the newest org facts the ICP leaned on, `{ source, fact, source_url, posted_at }`
 
 **`ProspectSummary`**: `id`, `name`, `org_type` (`"company"`, `"foundation"`, …), `city`, `fit_score`
 (0–100, Python), `matched_traits: string[]` (ICP trait labels), `priority` (the Foundation priority it
-fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_url }[]`.
+fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_url }[]`,
+`fit_breakdown: { label, points }[]` (why it scored what it did; biggest first, sums to `fit_score`, e.g.
+"Priority overlap" 22, "Geography" 12) and `matched_context: DatedFact[]` (org facts it lines up with).
 **`ProspectDetail`** adds `created_at` and `draft: OutreachDraft | null` (always status `"draft"`).
+
+**Onboarding types**
+- `OrgProfile`: `name`, `website`, `socials: SocialLink[]` (only the ones entered), `priorities: string[]`,
+  `voice: string[]`, `updated_at`.
+- `SocialLink`: `{ platform: "x" | "linkedin" | "instagram", label, url, connected, status }`. Today
+  `connected` is `false` and `status` is `"saved, not connected"`.
+- `ContextFact`: `{ id, source, source_url, posted_at, fact, quote, priority }`. `quote` holds the exact words the fact was verified against.
+- `OrgContext`: `{ profile, facts, cached }`.
+- `ContextRunInput`: `{ website, x_url?, linkedin_url?, instagram_url?, refresh? }`. Empty strings are sent as `null`.
+- `ContextRun`: `{ status: "done" | "failed", cached, detail, sources, profile, facts, finished_at }`.
+- `ContextRunSource`: `{ source, label, state, status_text, fact_count, detail }`, where `state` is
+  `"done" | "blocked" | "failed" | "not_provided" | "saved_not_connected"`. Show `status_text` (the API's
+  own words) and put `detail` (block reason, or the saved URL for socials) in a tooltip.
+- `IngestResult`: `{ donors, gifts, duplicates, message, raw }`. Counts are `null` when the ingest service
+  doesn't report them, and `raw` is the full response.
 
 ## 5. Errors and slow calls
 
@@ -153,8 +194,12 @@ fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_ur
 | Approve with a blank name | 422 from the API | The message |
 | Snapshot mode + an agent action | `"This is a read-only snapshot. Running the agents needs the local API."` | The message |
 | Snapshot mode + approve | Succeeds in memory only | "Demo only: not saved (cached sample)" |
+| Upload before ingest is running (404/503) | `"Upload isn't available yet: the ingest service is not running."` | The message |
+| Research before the context service is running (503) | `"Website research isn't available yet: …"` | The message |
+| Research ran but the live read timed out | `ContextRun.cached = true` | "Showing saved context", with `detail` as a tooltip |
+| Snapshot mode + research | Simulated, instantly done, `cached: true` | "Cached sample"; the website shows "no saved context" if the snapshot has none |
 
-Live timings: list < 2 s, research < 1 s (cached), outreach about 11 s. Always show a busy state on agent buttons.
+Live timings: list < 2 s, research < 1 s (cached), outreach about 11 s, website context up to 30 s. Always show a busy state on agent buttons.
 
 ## 6. Rules the screens must keep (plan.md §3)
 
@@ -181,11 +226,22 @@ Reference screens built on this layer (replace freely): `dashboard/CallToday.tsx
 `contacts/DonorDrawer.tsx` (+ `ScoreWhyPanel`, `ResearchPanel`, `OutreachPanel`),
 `contacts/DuplicateMerge.tsx`.
 
-## 8. Open items
+## 8. Snapshot keys
 
-- The JSON inside the ICP's `traits`, `stats` and `evidence` and the prospects' `matched_traits` isn't
-  fixed yet. The parser accepts a list or a name→value map, as text or parsed, so the screen fields above
-  stay the same whichever shape the service settles on.
-- ICP and prospect routes are not live yet; until they are, `useIcp()` returns `null` on a 404 and
-  `useProspects()` errors. Snapshot mode returns `null` / `[]` while `snapshot.json` lacks the keys.
+`snapshot.json` mirrors the GET routes: `meta`, `donors` (GET /donors), `donor_details` (`{"<id>": GET
+/donors/{id}}`), `duplicates`, and since PR #15 `icp` (GET /icp, or null), `prospects` (GET /prospects,
+no drafts, dismissed excluded) and `prospect_details` (`{"<id>": GET /prospects/{id}}`, with drafts).
+With onboarding, `context` (`{profile, facts}` = GET /org-profile + GET /context). Older snapshots
+without these keys give `null` / `[]`.
+
+## 9. Open items
+
+- ICP + prospects: walked on 8b's populated snapshot (5 traits, 7 prospects). Prospect first-touch
+  drafts are `null` until 86's draft_prospect lands, so design the "no draft yet" state.
+- Live, GET /icp answers 404 before a profile exists. The data layer returns `null`, but Chromium still logs
+  the 404 as a console error; asked the service to answer 200 `null` instead (both work here).
+- Onboarding: POST /context/run is in PR #21 and not on :8000 until 86's build_context lands, so
+  `useRunContext()` shows the 503 message until then. The snapshot `context` is empty until then too.
+- Upload sends files under the form field `files`. Carlos's router decides the real name; one line in
+  `httpClient.ts` (`uploadFiles`) changes if it differs.
 - Run the tests: `npx vitest run --config vitest.config.ts --project app src/components/atomic-crm/providers/local`.
