@@ -1,3 +1,7 @@
+import type { CampaignMethods } from "./campaignTypes";
+
+export type * from "./campaignTypes";
+
 /**
  * The view model the Donor Desk screens render. parse.ts builds it from the
  * API shapes in apiTypes.ts. Every number here comes from score.py; the UI
@@ -352,7 +356,7 @@ export type TargetsByPeriod = Partial<Record<TargetPeriod, DonationTarget>>;
  * Writes resolve when the server is done; screens then refetch GET
  * /donors/{id}, so they never depend on a POST's response body.
  */
-export interface DonorDeskMethods {
+export interface DonorDeskMethods extends CampaignMethods {
   getDonors(): Promise<DonorSummary[]>;
   getDonor(id: number): Promise<DonorDetail>;
   getDuplicates(): Promise<DuplicatePair[]>;

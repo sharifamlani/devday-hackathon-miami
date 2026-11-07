@@ -235,3 +235,6 @@ export const useTargets = (period?: TargetPeriod) => {
     queryFn: () => dataProvider.getTargets(period),
   });
 };
+
+/* ---------- Campaigns (#38): simulated outbox ---------- */
+export * from "./campaignHooks";

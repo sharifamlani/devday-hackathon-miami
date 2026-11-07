@@ -22,7 +22,7 @@ def test_snapshot_mirrors_routes(db_file, tmp_path):
     assert loaded["donor_details"][str(donors[0]["id"])] == c.get(f"/donors/{donors[0]['id']}").json()
     assert loaded["duplicates"] == c.get("/duplicates").json()
     assert set(loaded) == {"meta", "donors", "donor_details", "duplicates", "icp", "prospects", "prospect_details",
-                           "context", "targets"}
+                           "context", "targets", "campaigns_demo"}
     assert loaded["targets"] == targets_client().get("/targets").json()
     assert loaded["context"] == {"profile": None, "facts": []}
     assert loaded["icp"] is None and loaded["prospects"] == [] and loaded["prospect_details"] == {}

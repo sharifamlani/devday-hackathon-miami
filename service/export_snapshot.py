@@ -12,6 +12,8 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "prospect_details": {"<id>": {...}}  # == GET /prospects/{id}
       "context":    {"profile": GET /org-profile | null, "facts": GET /context}
       "targets":    {"month": {...}, "quarter": {...}}  # == GET /targets (SAMPLE goals; donor_ids per period)
+      "campaigns_demo": {"label", "campaigns": [GET /campaigns/{id}], "outbox": [], "drafts": {...}}
+                     # #38: one precomputed sample campaign + template drafts per donor (no API, no writes)
     }
 
     python -m service.export_snapshot                    # rescore as of the demo date, write web/public/snapshot.json
@@ -57,7 +59,17 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "prospect_details": {str(p["id"]): get_prospect(p["id"], conn) for p in prospects},
         "context": {"profile": get_org_profile_or_none(conn), "facts": list_context(conn)},
         "targets": targets.compute_all(conn, as_of),
+        "campaigns_demo": campaigns_snapshot(conn),
     }
+
+
+def campaigns_snapshot(conn) -> dict | None:
+    """#38's sample campaign + template drafts; null when the outreach lane isn't on this build."""
+    try:
+        from service.routes_campaigns import campaigns_demo
+        return campaigns_demo(conn)
+    except ImportError:
+        return None
 
 
 def write_snapshot(snapshot: dict, out: Path) -> int:
