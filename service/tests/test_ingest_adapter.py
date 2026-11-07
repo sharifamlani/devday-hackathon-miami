@@ -123,6 +123,30 @@ def test_ingest_texts_writes_db(tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0] == 3
 
 
+def _declined_extraction():
+    P, G = ia.PersonOut, ia.GiftOut
+    return {("a.md", 0): ia.Extraction(
+        people=[P(key="1", full_name="Hye Park", donor_type="individual", contact_type="giver",
+                  contact_type_reason="gave", source_location="row 1")],
+        gifts=[G(person_key="1", amount="$40", date="2026-10-10", location="row 1"),
+               G(person_key="1", amount="$40", date="2026-11-10", status="declined", location="row 2")])}
+
+
+def test_declined_charge_stored_with_status_when_column_exists(tmp_path):
+    conn = db.connect(tmp_path / "s.db")
+    db.create_schema(conn)
+    conn.execute("ALTER TABLE gifts ADD COLUMN status TEXT NOT NULL DEFAULT 'ok'")
+    res = ia.ingest_texts({"a.md": "row 1: x"}, "auto", conn, extractions=_declined_extraction())
+    assert res["gifts_added"] == 2
+    assert [r[0] for r in conn.execute("SELECT status FROM gifts ORDER BY gift_date")] == ["ok", "declined"]
+
+
+def test_declined_charge_skipped_when_column_absent(tmp_path):
+    conn = db.connect(tmp_path / "n.db")
+    res = ia.ingest_texts({"a.md": "row 1: x"}, "auto", conn, extractions=_declined_extraction())
+    assert res["gifts_added"] == 1 and any("declined" in w for w in res["warnings"])
+
+
 def test_router_rejects_bad_target_and_reads_files(tmp_path, monkeypatch):
     monkeypatch.setenv("DONORS_DB", str(tmp_path / "r.db"))
     async def boom(*a, **k):
@@ -149,7 +173,13 @@ def _ascii(s: str) -> str:
 needs_key = pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="needs OPENAI_API_KEY")
 
 
+needs_3tab_inputs = pytest.mark.skipif(
+    "people" not in json.loads((SAMPLES / "answer_key.json").read_text(encoding="utf-8")),
+    reason="needs the 3-tab sample inputs and answer key (PR #44)")
+
+
 @needs_key
+@needs_3tab_inputs
 def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
     path = tmp_path / "e2e.db"
     monkeypatch.setenv("DONORS_DB", str(path))
@@ -167,7 +197,9 @@ def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     n_people = conn.execute("SELECT COUNT(*) FROM donors").fetchone()[0]
-    n_gifts, total = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM gifts").fetchone()
+    has_status = "status" in {r[1] for r in conn.execute("PRAGMA table_info(gifts)")}
+    ok = " WHERE status = 'ok'" if has_status else ""   # declined/failed charges are excluded from totals
+    n_gifts, total = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM gifts" + ok).fetchone()
     rows = [dict(x) for x in conn.execute("SELECT * FROM donors")]
     has_tab = True   # tabs graded from the response (the contact_type column may not exist yet)
 
@@ -193,7 +225,8 @@ def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
     amb = [p for p in key["people"] if p["ambiguous"]]
     amb_hit = [p["full_name"] for p in amb if _ascii(p["full_name"]) in flagged_names]
     park_failed = conn.execute("SELECT COUNT(*) FROM gifts g JOIN donors d ON d.id=g.donor_id "
-                               "WHERE d.full_name LIKE 'Hye-jin%' AND g.gift_date='2026-11-10'").fetchone()[0]
+                               "WHERE d.full_name LIKE 'Hye-jin%' AND g.gift_date='2026-11-10'" +
+                               (" AND g.status = 'ok'" if has_status else "")).fetchone()[0]
     print(f"people in db {n_people} vs key {len(key['people'])} persons (canonical donors {t['canonical_donors']} "
           f"+ {t['duplicate_groups']} fuzzy dup groups left for dedupe); key persons found {len(found)}/{len(people)}; "
           f"gifts {n_gifts} vs {t['unique_gifts']}; total {total:,.0f} vs {t['total_amount']:,}; "
@@ -208,4 +241,5 @@ def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
     assert len(amb_hit) == len(amb)
     assert conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0] == n_people
     assert sum(body["by_tab"].values()) == n_people
+
 

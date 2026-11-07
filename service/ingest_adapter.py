@@ -1,4 +1,4 @@
-"""Ingest adapter: messy donor files -> people + gifts in donors.db.
+﻿"""Ingest adapter: messy donor files -> people + gifts in donors.db.
 
 Pipeline: file -> text (convert_file) -> LLM structured extraction (people + gift rows, one call per
 chunk) -> deterministic cleanup (dates, amounts, emails, phones; Carlos's stat_mcp canonicalizer)
@@ -158,6 +158,7 @@ class GiftOut(BaseModel):
     date: str = Field(description="ISO YYYY-MM-DD when unambiguous, otherwise as written")
     channel: str | None = None
     fund_type: str | None = None
+    status: Literal["ok", "declined", "failed"] = Field("ok", description="declined/failed for a charge that did not go through")
     location: str = Field(description="Where this gift row is, e.g. \"sheet 'GMD gifts' row 9\", 'table 1 row 3', 'line 12'")
 
 
@@ -170,8 +171,9 @@ INSTRUCTIONS = """You extract nonprofit CRM data from one chunk of an uploaded f
 Return every distinct person or organization (people) and every actual money gift received (gifts).
 Rules:
 - A gift is money or stock actually given, with an amount and a date. Pledges/promises, asks, budget lines,
-  totals/subtotal rows, header/title rows, declined/failed/refunded charges, and cash mentioned in passing
-  (e.g. "put $25 in the jar") are NOT gifts. Never invent a gift.
+  totals/subtotal rows, header/title rows, and cash mentioned in passing (e.g. "put $25 in the jar") are NOT gifts.
+  A recurring charge that was declined or failed IS emitted, with status declined or failed (it is excluded
+  from totals downstream). Refunds are not gifts. Never invent a gift.
 - One gift per source row: if a row is a gift, emit exactly one gift for it with its location (sheet+row, table+row, line).
 - One person record per distinct person per chunk. Same email, or the same person with a nickname/accent/married-name
   variant (Bob/Robert), is one person. Use the fullest name stated. Keep every email you see in emails.
@@ -347,8 +349,8 @@ def collapse_cross_file_repeats(gifts: list[dict], warnings: list[str] | None = 
     def day(g: dict) -> date:
         return date.fromisoformat(g["gift_date"])
 
-    keep: list[dict] = []
-    for g in sorted(gifts, key=lambda x: (not is_check(x), x["gift_date"])):   # check rows first
+    keep: list[dict] = [g for g in gifts if g.get("status", "ok") != "ok"]
+    for g in sorted((g for g in gifts if g.get("status", "ok") == "ok"), key=lambda x: (not is_check(x), x["gift_date"])):   # check rows first
         twin = next((k for k in keep if k["amount"] == g["amount"] and abs((day(k) - day(g)).days) <= 2
                      and k["source_row"].split("|")[0] != g["source_row"].split("|")[0]
                      and (is_check(k) or is_check(g))), None)
@@ -406,6 +408,7 @@ def ingest_texts(texts: dict[str, str], target: str = "auto", conn: sqlite3.Conn
     groups = _merge_people(people_list)
     key_to_group = {pp.key: gi for gi, g in enumerate(groups) for _, pp in g["people"]}
 
+    gcols = _cols(conn, "gifts")
     # gifts: clean, and drop exact repeats of the same source row
     gifts_by_group: dict[int, list[dict]] = {}
     seen_rows: set[tuple] = set()
@@ -416,12 +419,15 @@ def ingest_texts(texts: dict[str, str], target: str = "auto", conn: sqlite3.Conn
             warnings.append(f"{f}: skipped gift '{g.amount}' '{g.date}' ({g.location}): "
                             f"{'unknown person' if gi is None else 'unparseable amount/date'}")
             continue
+        if g.status != "ok" and "status" not in gcols:
+            warnings.append(f"{f}: skipped {g.status} charge ${amt:,.0f} {dt} ({g.location}); gifts.status column absent")
+            continue
         sig = (f, g.location.lower(), amt, dt)
         if sig in seen_rows:
             continue
         seen_rows.add(sig)
         gifts_by_group.setdefault(gi, []).append({"amount": amt, "gift_date": dt, "channel": g.channel,
-                                                  "fund_type": g.fund_type, "source_row": f"{f} | {g.location}"})
+                                                  "fund_type": g.fund_type, "status": g.status, "source_row": f"{f} | {g.location}"})
 
     for gi, gl in gifts_by_group.items():
         gifts_by_group[gi] = collapse_cross_file_repeats(gl, warnings)
@@ -500,3 +506,5 @@ def ingest_files(files: list[tuple[str, bytes]], target: str = "auto", conn: sql
     res = ingest_texts(texts, target, conn)
     res["warnings"] = warnings + res["warnings"]
     return res
+
+
