@@ -209,7 +209,7 @@ No context probes for other sites were run on :8000: a failed run still overwrit
 | #34 fix/context-no-save-on-fail | 335a1ba | combined with #33: 111 passed; after a good run, typo (cached and live), unreachable and X-only runs → failed, /org-profile and /context unchanged | APPROVE (decision for lead: X-only socials no longer saved, which conflicts with #27's "user URLs always saved") |
 | #35 fix/website-required | 91b7684 | web/ only; 33/33; build:demo ok; fetch is never called for "", "   " or null (stubbed-fetch test); snapshot client guarded too | APPROVE (browser network check once the onboarding screen exists) |
 | #33 fix/icp-sources (re-check) | **985ceef** | 112 passed; 25/25 prospect facts: browser 200 + key words on the rendered page; 8/8 figures verbatim; Peacock now cites /grants/; provenance 25/25; no existing donors | APPROVE (Q12, Q13 closed) |
-| #42 docs/three-crm-calendar-plan | ade239e | docs only; Sat Nov 7 / Sat Nov 14 / Sun Nov 15 / Thu Nov 19 all correct; ROADMAP overlap with #41 merges cleanly | APPROVE |
+| #42 docs/three-crm-calendar-plan | ade239e → **7a0ae17** (tab names locked) | docs only; Sat Nov 7 / Sat Nov 14 / Sun Nov 15 / Thu Nov 19 all correct; ROADMAP overlap with #41 merges cleanly | APPROVE |
 
 Unqueued open PR: #41 codex/kindred-landing-design @37791d6 (FayeSMR). With #42: pytest 112, build:demo ok, a landing gate in front
 of the CRM ("Try sample data" → Call today in 0.22 s), 0 console errors. Open questions for the lead/Sharif: "kindred" vs "Donor Desk"
