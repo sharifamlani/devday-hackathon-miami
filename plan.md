@@ -679,15 +679,14 @@ Vercel snapshot, the chat panel). **No iPhone app.** **No AI phone calls** (call
 | Tab | Who | Fed by | What the agents do |
 |---|---|---|---|
 | **Givers** (locked) | gave to us (people + organizations) | uploads | **enrichment agent** (sourced facts), score + "call today", **campaign builder** in chat, donor brief → call script, email/text (approval for orgs/★) |
-| **Connections** (working name) | met, not yet either | uploads | **email + texting**: welcome / event invite / follow-up drafted from current context; next-step suggestion; move to another tab in one click |
-| **(name TBD: see options)** | the people the nonprofit helps | uploads | **slice + analyze** the data the nonprofit collected (demographic breakdowns, counts, trends); email/text about programs + help, **never a donation ask** |
+| **Neighbors** (locked) | met, not yet either | uploads | **email + texting**: welcome / event invite / follow-up drafted from current context; next-step suggestion; move to another tab in one click |
+| **Community** (locked) | the people the nonprofit helps | uploads | **slice + analyze** the data the nonprofit collected (demographic breakdowns, counts, trends); email/text about programs + help, **never a donation ask** |
 
-Name options for the third tab (Sharif to pick): **Community** · **Familia** · **Our People** · **Members** ·
-**Participants** · **Circle**.
+**Names locked (Sharif, Sat Nov 7 night): Givers · Neighbors · Community.**
 
 ### Upload (one screen feeds all three)
-Drop messy files (.xlsx, .docx, .md, .csv) → **pick the tab** (Givers / Connections / third tab) **or "Let the agent
-sort them"** (default). Sorting: a gift → Givers, an intake or service record → third tab, otherwise → Connections;
+Drop messy files (.xlsx, .docx, .md, .csv) → **pick the tab** (Givers / Neighbors / Community) **or "Let the agent
+sort them"** (default). Sorting: a gift → Givers, an intake or service record → Community, otherwise → Neighbors;
 anyone unclear or a cross-file duplicate is flagged for one-click review, never guessed. Carlos's import agent does
 the reading (adapter pending his OK); the tab choice or agent sort sets `contact_type`.
 
@@ -705,7 +704,7 @@ the reading (adapter pending his OK); the tab choice or agent sort sets `contact
 ### Chat agent (right side, every screen)
 Knows which tab or calendar you're on; uses tools visibly (find people, segment, get context and events, draft email,
 draft SMS, analyze, build brief); **asks before anything is sent**. Per tab: Givers = campaign builder;
-third tab = analyst + outreach; Connections = follow-ups; Calendar = event outreach.
+Community = analyst + outreach; Neighbors = follow-ups; Calendar = event outreach.
 
 ### Texting
 Provider under evaluation: **Linq** or **Twilio**, behind one `send_sms()` adapter so the choice can change late.
@@ -713,8 +712,8 @@ Demo texts go only to team members' phones (with consent); the fictional records
 
 ### Guardrails
 - Individual-giver research: **parked** (Sharif to decide on human review later). Demo research stays organizations-only.
-- Third-tab data: analysis uses only what the nonprofit recorded; nothing inferred, nothing searched online.
-- No donation asks to the third tab; approval required for orgs/★; every fact and event has a source.
+- Community data: analysis uses only what the nonprofit recorded; nothing inferred, nothing searched online.
+- No donation asks to the Community; approval required for orgs/★; every fact and event has a source.
 
 ### File tree (only what changes)
 ```
@@ -735,8 +734,8 @@ web/.../providers/local/   80: hooks for tabs, upload target, events, chat
 ### Flow
 ```
  [Upload + tab choice] --> ingest (Carlos) --> people(contact_type) --+--> Givers: enrich + score + campaigns
-                                                                     +--> Connections: follow-ups
-                                                                     +--> third tab: analysis + outreach
+                                                                     +--> Neighbors: follow-ups
+                                                                     +--> Community: analysis + outreach
  [Website + socials] --> context agent --> org_context --> events agent --> events (dated, sourced)
                                                                     |
                          audience across the 3 tabs <---------------+
@@ -748,7 +747,7 @@ web/.../providers/local/   80: hooks for tabs, upload target, events, chat
 1. Live upload → three tabs (ingest adapter + sorting + tab choice)
 2. Calendar v1: events from website/news context + audience + pre-drafted invites
 3. Chat agent with tools; email sending first
-4. Campaign builder (Givers) · analysis (third tab) · texting provider · social events · daily plan
+4. Campaign builder (Givers) · analysis (Community) · texting provider · social events · daily plan
 
 ### Evaluation criteria
 | Criterion | Threshold | How measured |
@@ -759,5 +758,5 @@ web/.../providers/local/   80: hooks for tabs, upload target, events, chat
 | Each event has an audience + drafts ready | 100% of upcoming events | API check |
 | Puppy-type event targets only people tagged with dogs | 0 untagged recipients | QA script |
 | Nothing sends without approval; orgs/★ need individual approval | 0 unapproved sends | text_log + email log audit |
-| Third-tab texts contain no donation ask | 0 | regex + review |
+| Community texts contain no donation ask | 0 | regex + review |
 | Demo path clean | 0 console errors, 0 4xx/5xx | Playwright |

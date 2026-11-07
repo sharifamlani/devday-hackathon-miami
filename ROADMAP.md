@@ -185,7 +185,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5D.10 | QA against §16 criteria | 98 | ⏸ | — | `plan.md` §16 |
 
 ### Phase 5E — Three CRMs in one + chat agent + event calendar
-**Goal:** Givers / Connections / third tab fed by one upload; calendar of real events with pre-drafted invites; chat agent with approval-gated sends. **Entry gate:** Carlos's OK on the ingest adapter. **Exit gate:** `plan.md` §17 criteria pass. **Status:** ⏸ (supersedes 5D where they differ)
+**Goal:** Givers / Neighbors / Community fed by one upload; calendar of real events with pre-drafted invites; chat agent with approval-gated sends. **Entry gate:** Carlos's OK on the ingest adapter. **Exit gate:** `plan.md` §17 criteria pass. **Status:** ⏸ (supersedes 5D where they differ)
 
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
@@ -196,7 +196,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5E.5 | Pre-drafted invites per event (approval-gated) | 86 · 90 | ⏸ | — | `plan.md` §17 |
 | 5E.6 | Chat agent with tools (find/segment/context/events/draft/analyze/brief); email send | 90 | ⏸ | — | `plan.md` §17 |
 | 5E.7 | send_sms() adapter (Linq or Twilio) + text_log | 90 · 8b | ⏸ | — | `plan.md` §17 |
-| 5E.8 | Campaign builder (Givers) · analysis (third tab) · daily plan | 86 · 42 | ⏸ | — | `plan.md` §17 |
+| 5E.8 | Campaign builder (Givers) · analysis (Community) · daily plan | 86 · 42 | ⏸ | — | `plan.md` §17 |
 | 5E.9 | Hooks for tabs, upload target, events, chat; Christian's tab, upload, calendar, chat visuals | 80 · Christian | ⏸ | — | `plan.md` §17 |
 | 5E.10 | QA against plan §17 criteria | 98 | ⏸ | — | `plan.md` §17 |
 
@@ -281,7 +281,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 - **Stat-MCP prototype:** `stat-mcp/` is a separate FastMCP donor-import and criteria-scoring prototype with its own field contract and integration guide. It is not connected to the primary FastAPI/SQLite service or web app; any adoption needs an explicit integration and data-contract decision.
 
-- **v0.8 · Sat Nov 7, 2026 (night):** Phase 5E: three CRMs in one (Givers locked; Connections; third tab name TBD), upload with tab choice or agent sort, event calendar from website + social context with pre-drafted invites, chat agent with approval-gated email/SMS (Linq or Twilio). No iPhone app. Individual-giver research parked. `plan.md` §17.
+- **v0.8 · Sat Nov 7, 2026 (night):** Phase 5E: three CRMs in one (names locked: Givers · Neighbors · Community), upload with tab choice or agent sort, event calendar from website + social context with pre-drafted invites, chat agent with approval-gated email/SMS (Linq or Twilio). No iPhone app. Individual-giver research parked. `plan.md` §17.
 - **v0.7 · Sat Nov 7, 2026 (late evening):** Phase 5D added: three classes (donor / beneficiary / contact), donor briefs, beneficiary demographics (self-reported only); AI calls cut (`plan.md` §16). Merged on QA: #14, #15, #16, #17, #18, #19, #20, #21, #23, #24, #26, #27.
 - **v0.6 · Sat Nov 7, 2026 (evening):** PRs #12, #13, #11 merged on QA approval; fallback tag `fallback-pre-ui`; Vercel ship in progress. New Phase 5C: two-screen onboarding (upload data; enter URLs) → context agent → local context dataset used by ICP + outreach (`plan.md` §15).
 - **v0.5 · Sat Nov 7, 2026 (evening):** merged on QA approval: #4, #8, #10, #5, #7 (main `2b2a921`, 46 tests green). SQLite concurrency fix (7.2) in. Fictional unstructured donor inputs being generated (6.1 decided: fictional).
