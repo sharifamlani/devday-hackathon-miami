@@ -1,6 +1,6 @@
 # ROADMAP: DevDay Exchange Community Hackathon: Miami
 
-**Version:** v0.1
+**Version:** v0.2
 **The shared "where are we?"** Flip each status cell in the same step as the work, with the time and
 commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a full-file rewrite.
 
@@ -22,7 +22,7 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 |---|---|---|
 | N1 | Repo from the kit; first push | ✅ Nov 7 · d671182 · pushed to github.com/sharifamlani/devday-hackathon-miami (private) |
 | N2 | `docs/event-brief.md` from the listing **and the organizer's own source** | ✅ Nov 7 · no organizer source exists; 9 sibling pages in `research/rules_check.md` |
-| N3 | `docs/idea-shortlist.md`: criteria at the top, 3 ideas scored, a fallback | ⏸ |
+| N3 | `docs/idea-shortlist.md`: criteria at the top, 3 ideas scored, a fallback | ✅ Nov 7 · 6 shapes scored (A 38, B 37), A↔B fallback |
 | N4 | Every key proven with a real call | ✅ Nov 7 · `scripts/smoke-openai.py` 7/7 |
 | N5 | Every API / dataset / device for the top 2 ideas probed (`data-prober`) | ⏸ |
 | N6 | Agents in `.claude/agents/`; subagents on sonnet | ✅ agents present (identical to kit) |
@@ -75,4 +75,5 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 ## §6: Changelog
 
+- **Nov 7, 2026 (morning)**: idea shortlist filled from Nov 6 brainstorm + Miami Foundation research (Give Miami Day = Thu Nov 19); top shapes A Campaign Kit, B Grant Report Autopilot · unblocked: K3 mapping at kickoff · blocked: D needs a data-prober run on 990 grant data
 - **Nov 7, 2026 (pre-event)**: kit copied from creative-tech-buildathon; event brief + rules check written; OpenAI key + 4 tiers + Agents SDK proven (7/7); Codex CLI installed · unblocked: kickoff · blocked: `codex login`, problem statements (revealed at K)
