@@ -1,0 +1,8 @@
+{
+  "_comment": "Onboarding screen 2 for the demo org: the URLs the context stage reads. A null URL is skipped. Socials verified from miamifoundation.org's own footer links (Sat Nov 7); it links no X account, so x_url stays null.",
+  "name": "The Miami Foundation",
+  "website": "https://miamifoundation.org",
+  "x_url": null,
+  "linkedin_url": "https://www.linkedin.com/company/the-miami-foundation/",
+  "instagram_url": "https://www.instagram.com/miamifoundation/"
+}

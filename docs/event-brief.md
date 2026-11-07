@@ -41,8 +41,9 @@ architecture.
 |---|---|
 | Sat 12:00 PM | Doors + opening ceremony + problem statements (**K**). At least one team member must attend |
 | Sat ~12:30 PM | **Building begins (T0)**, to be confirmed at K |
-| Sun ~3:30 PM | **Code freeze (F)**: 30 min before submissions |
-| Sun 4:00 PM | **Submissions due** |
+| Sun 4:15 PM | **Code freeze (F)**: 30 min before submissions close |
+| Sun 4:30 PM | **Team must be in person at The LAB** to submit |
+| Sun 4:45 PM | **Submissions close** (hard: nothing can change after) |
 | Sun 5–8 PM | **Demos (D)**, judging, winners: demo length? |
 
 > Build budget: T0 → F ≈ 15 h on site (Sat 12:30–8 + Sun 12–3:30), ~27 h wall clock.
@@ -54,14 +55,14 @@ architecture.
 | # | Question | Answer (write it the moment you hear it) |
 |---|---|---|
 | Q1 | **Demo length?** Live or recorded? Projector or our laptop? Q&A after? | |
-| Q2 | **How is it submitted?** Form, Devpost, repo link, live URL, video, Codex session ID? **By when?** (email says Sun 4 PM) | |
-| Q3 | **Judging criteria and weights?** | |
+| Q2 | **How is it submitted?** Form, Devpost, repo link, live URL, video, Codex session ID? **By when?** (email says Sun 4 PM) | ✅ DeepStation platform (deepstation.ai/hackathons/vtl7ctbeihnikitvjwl3941h): sign in, **Join Hackathon**, create/join team, then **Submission**: name, description, **github.com repo link (required)**; optional YouTube/MP4 demo video. Editable until **Sun 4:45 PM ET**. Only teams present at The LAB at 4:30 PM Sun can submit. (DeepStation email, Sat 1:37 PM) |
+| Q3 | **Judging criteria and weights?** | ✅ **Five equally weighted categories, each /10:** problem fit (judged against the challenge's "What solved looks like"), originality, use of Codex/OpenAI, feasibility and reasoning, presentation. Source: Christian's read of the official portal, posted in Slack #codex-dev-day-hackathon, Sat 1:57 PM. Portal says teams of 1–5 (the email said 1–4: use 4). **Challenge #2 minimum:** process the made-up donor list end to end: staff approve duplicates before they're merged, no giving history is lost, late regular gifts are found in time. Challenges use the fictional org "Tidepath" and require synthetic personal details. |
 | Q4 | **How does judging work?** Judges only, or a **peer vote** too? How are votes counted? | |
 | Q5 | **Sponsor prizes?** What are the "other big prizes"? Do they stack? | |
-| Q6 | **Must code be written during the event?** Is a blank scaffold or env setup before K OK? Public repo or license required? | |
-| Q7 | **Team size limit?** | |
+| Q6 | **Must code be written during the event?** Is a blank scaffold or env setup before K OK? Public repo or license required? | ✅ Repo must be **public** with an **MIT or Apache 2.0** license by the deadline. Challenges doc: docs.google.com/document/d/1dTh6wVOAtDjGyCIVv28Pm94Yfz8Z4kGo8DFhRNDpgsw |
+| Q7 | **Team size limit?** | ✅ **1 to 4** (DeepStation email). Not 5 |
 | Q8 | **Wi-Fi**, power, projector input (HDMI / USB-C)? | |
-| Q9 | **Coding tools: must all code be written with Codex? Are Claude Code / Cursor allowed?** (Tokyo and Osaka banned them by name) | |
+| Q9 | **Coding tools: must all code be written with Codex? Are Claude Code / Cursor allowed?** (Tokyo and Osaka banned them by name) | Email sets no tool rule. **Team decision (Sharif, Sat): not using Codex.** Luma still lists Codex as an acceptance criterion: accepted risk |
 | Q10 | Which nonprofits, and can we talk to the person who owns the problem during the build? | |
 
 Until Q6 is answered: **no application code before T0.** Until Q9 is answered: **product code is

@@ -1,0 +1,43 @@
+{
+  "org": "The Miami Foundation",
+  "captured_at": "2026-11-07",
+  "handle_source": "Handle URLs are as listed on the Foundation's GuideStar profile (https://www.guidestar.org/profile/65-0350357). miamifoundation.org itself sits behind a SiteGround CAPTCHA for non-browser clients as of 2026-11-07, so the site's own footer links could not be read; the CAPTCHA was not bypassed.",
+  "platforms": {
+    "x": {
+      "handle": "@miamifoundation",
+      "handle_url": "https://twitter.com/miamifoundation",
+      "blocked": "x.com serves only a JavaScript shell with no post text to unauthenticated clients (WebFetch returned HTTP 402). Posts require login or the X API v2 (X_BEARER_TOKEN)."
+    },
+    "linkedin": {
+      "handle": "the-miami-foundation",
+      "handle_url": "https://www.linkedin.com/company/the-miami-foundation/",
+      "blocked": "linkedin.com returns HTTP 403 / login wall to unauthenticated clients. Posts require the Community Management API (LINKEDIN_ACCESS_TOKEN + LINKEDIN_ORG_URN)."
+    },
+    "instagram": {
+      "handle": "@miamifoundation",
+      "handle_url": "https://www.instagram.com/miamifoundation/",
+      "blocked": null,
+      "note": "Profile lists posts through 2026-11-06 (Nov 2, 3, 4, 5, 6) but those post pages expose no caption text to unauthenticated clients, so none are cached. Only the two posts below expose caption text in their public og:description meta tags."
+    }
+  },
+  "items": [
+    {
+      "platform": "instagram",
+      "handle": "@miamifoundation",
+      "post_url": "https://www.instagram.com/miamifoundation/p/DLpfHe8MZbL/",
+      "posted_at": "2025-07-03",
+      "text": "Hi Miami! Please note, we never call/text/Whatsapp to solicit funds or to encourage investments of any kind. Beware of scams using any foundation’s name, including ours. Stay safe, stay vigilant, stay great!",
+      "captured_at": "2026-11-07",
+      "capture_method": "Unauthenticated GET of the public post page; caption read from og:description meta tag"
+    },
+    {
+      "platform": "instagram",
+      "handle": "@miamifoundation",
+      "post_url": "https://www.instagram.com/miamifoundation/p/DLm6RbJsmFQ/",
+      "posted_at": "2025-07-02",
+      "text": "Every effort we make is anchored in Leadership, Connection, Generosity and Strength. 🏛️ These four pillars are the steady truths guiding us toward a Greater Miami built on inclusion, opportunity, and lasting impact.",
+      "captured_at": "2026-11-07",
+      "capture_method": "Unauthenticated GET of the public post page; caption read from og:description meta tag"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "Amazon": [
+    {
+      "fact": "In January 2021, Amazon announced $500,000 for United Way organizations in Miami-Dade and Broward counties to support vulnerable families during the pandemic.",
+      "source_url": "https://www.gflalliance.org/news/2021/01/28/press-releases/south-florida-united-ways-to-receive-500-000-from-amazon/",
+      "retrieved_at": "2026-11-07T21:09:06+00:00"
+    }
+  ],
+  "John S. and James L. Knight Foundation": [
+    {
+      "fact": "The Miami Foundation administers the Knight-supported Esserman-Knight Journalism Awards, recognizing investigative and public-service reporting in Miami-Dade, Broward and Monroe counties.",
+      "source_url": "https://knightfoundation.org/events/main/",
+      "retrieved_at": "2026-11-07T21:09:25+00:00"
+    },
+    {
+      "fact": "Knight awarded $3 million in November 2022 to establish the Miami-Dade Innovation Authority, supporting technology adoption in climate resilience, health and financial inclusion.",
+      "source_url": "https://knightfoundation.org/wp-content/uploads/2025/11/Tax-Year-2024-Knight-Foundation-Form-990-PF.pdf",
+      "retrieved_at": "2026-11-07T21:09:25+00:00"
+    }
+  ],
+  "Frederick A. DeLuca Foundation": [
+    {
+      "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
+      "source_url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf",
+      "retrieved_at": "2026-11-07T21:07:34+00:00"
+    },
+    {
+      "fact": "It committed a $5 million matching grant to help launch and endow the Community Foundation of Broward’s Broward Center for Nonprofit Excellence.",
+      "source_url": "https://www.cfbroward.org/articles/10-million-fuels-permanent-support-for-broward-nonprofit-excellence",
+      "retrieved_at": "2026-11-07T21:07:34+00:00"
+    },
+    {
+      "fact": "It awarded Women In Distress of Broward County a $1.5 million matching grant for a capital campaign providing transitional housing for domestic violence survivors and their children.",
+      "source_url": "https://widbroward.org/building-a-safer-tomorrow/",
+      "retrieved_at": "2026-11-07T21:07:34+00:00"
+    }
+  ],
+  "McDermott Will & Schulte": [
+    {
+      "fact": "Legal Services of Greater Miami listed McDermott Will & Emery among its Leadership Circle financial donors in its April 2023 newsletter.",
+      "source_url": "https://www.legalservicesmiami.org/s/Legal-Services-SPRING-2023-Newsletter-428.pdf",
+      "retrieved_at": "2026-11-07T21:09:45+00:00"
+    },
+    {
+      "fact": "The Miami office received Legal Services of Greater Miami’s 2023 Equal Justice Pro Bono Large Firm Award for work including transactional clinics and full representation benefiting nonprofits, individuals and low-to-moderate-income small-business owners.",
+      "source_url": "https://www.mcdermottlaw.com/news/mcdermotts-miami-office-receives-equal-justice-pro-bono-large-firm-award-from-legal-services-of-greater-miami-inc/",
+      "retrieved_at": "2026-11-07T21:09:45+00:00"
+    },
+    {
+      "fact": "McDermott hired Jayme Cassidy as Miami-based transactions pro bono counsel in January 2025 to expand legal support for nonprofits, NGOs, small businesses and low-income entrepreneurs in underserved communities.",
+      "source_url": "https://www.mcdermottlaw.com/news/mcdermott-welcomes-jayme-cassidy-as-transactions-pro-bono-counsel/",
+      "retrieved_at": "2026-11-07T21:09:45+00:00"
+    }
+  ]
+}

@@ -40,11 +40,10 @@ never commit it, and never copy its contents into a tracked file.
 ## Current project state
 
 The selected challenge is Project 2: duplicate donor records and donors who quietly stop giving.
-The current implementation is a Python FastMCP service in `stat-mcp/`; it uses Pydantic, pandas,
-the OpenAI Agents SDK, and the OpenAI Python SDK. A Next.js frontend, authentication, persistent
-storage, and cross-source consolidation are not implemented yet. See `README.md`,
-`stat-mcp/AGENT_INTEGRATION.md`, and `stat-mcp/REQUIRED_FIELDS.md` for the current integration
-contract.
+The primary implementation is the React/Vite CRM in `web/` and the FastAPI/SQLite service in
+`service/`. `stat-mcp/` is a separate FastMCP prototype with its own schema; it is not connected to
+the main app. Read `README.md`, `plan.md`, and `ROADMAP.md` for the current product state, and the
+`stat-mcp/` guides before working on that prototype.
 
 | Path | Role |
 |---|---|
@@ -53,6 +52,8 @@ contract.
 | `ROADMAP.md` | Gate-by-gate status (N → K → B → F → A rows); flip a row in the same commit as the work |
 | `research/rules_check.md` | What 9 sibling DevDay events allow (tools, prep, team size) |
 | `docs/hackathon-kit/` | Lessons, runbook, playbooks and templates carried from past events. Edit `lessons-learned.md` after the event, not during |
+| `service/` | Primary FastAPI/SQLite backend: donor/gift data, scoring, research, outreach, and API routes |
+| `web/` | Primary React/Vite CRM and outreach inbox |
 | `stat-mcp/src/stat_mcp/` | FastMCP server, ingestion, canonical schemas, deterministic donor analysis, and Agents SDK extraction/scoring |
 | `stat-mcp/examples/` | Synthetic JSON/CSV/text fixtures and a JavaScript MCP client walkthrough |
 | `stat-mcp/TOOLS.md`, `REQUIRED_FIELDS.md`, `AGENT_INTEGRATION.md`, `DEPENDENCIES.md` | Current tool contracts, donor schema, UI-agent integration steps, and dependency ledger |
@@ -63,7 +64,11 @@ contract.
 ## Commands
 
 ```bash
-# Python MCP environment (uv); run from repository root
+# Main service dependencies and server
+python -m pip install -r service/requirements.txt
+uvicorn service.main:app --host 127.0.0.1 --port 8000
+
+# Separate MCP prototype (uv)
 cd stat-mcp && uv sync
 uv run python -m stat_mcp.server
 
@@ -73,9 +78,6 @@ STAT_MCP_URL=http://127.0.0.1:8000/mcp node examples/sample-call.mjs
 
 # Prove key, all four model tiers, and an Agents SDK tool call + structured output (expect 7/7, exit 0)
 .venv/Scripts/python.exe scripts/smoke-openai.py
-
-# Codex CLI: the required coding tool (login is a human step)
-codex login status
 
 # Production walk after every deploy (see tech-notes.md "Adapting verify-e2e.py")
 python scripts/verify-e2e.py <voice-dir> https://<app>.vercel.app --shots <scratch>/shots
@@ -99,9 +101,14 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
 7. **Lift working code, don't rewrite it** (`docs/hackathon-kit/tech-notes.md`).
 8. **Verify against the real system.** HTTP 200 isn't success. Walk production after every deploy.
 9. **Name the limits.** Never present a mock as live.
-10. **Product code is written in Codex** until a host answers `event-brief.md` Q9. Sibling DevDay
-    events banned Claude Code by name. Claude Code does research, docs, planning and verification.
-    Keep the Codex session(s) where the core was built.
+10. **Codex is not used (Sharif, Sat Nov 7).** Claude Code writes product code. The organizers' email set
+    no coding-tool restriction; the Luma page still lists Codex under "Acceptance Criteria", a risk the
+    team accepted. The OpenAI API and Agents SDK remain required and must be visibly used.
+11. **Never push to `main` directly.** Another coder shares the repo: work on a branch, open a PR.
+12. **The repo goes public with an MIT license by Sun 4:45 PM** (organizer rule). Nothing private in history.
+13. **🔒 Carlos owns ingest.** Never edit `service/ingest/` or the `/ingest` route body. Build against the
+    data contract in `plan.md` §13; contract changes need Carlos + Sharif.
+14. **No Supabase.** Data is local SQLite (`data/donors.db`, gitignored) behind the local Python API.
 
 ## How we work fast
 
