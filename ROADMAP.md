@@ -4,15 +4,15 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.3 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.4 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
 ## §0 You are here
 
-- **Current phase:** Phase 4 (Integrate) and Phase 5 (Front end), running in parallel
+- **Current phase:** Phase 4 (Integrate, QA-gated merges) · Phase 5B (ICP + prospects + org outreach) · Christian integrating his design (5)
 - **Current step:** 4.1, merge the reviewed PRs into `main` in dependency order (Sharif)
-- **Blocking decisions (Sharif):** 5.1 which front end · 6.1 fictional donor list or not · 6.6 Amazon fact
+- **Blocking decisions (Sharif):** 6.1 fictional donor list or not · 6.6 Amazon fact
 - **In flight:** 7.2 SQLite per-request connection fix (8b) · 7.3 service-wide model timeout (90) · QA round 4 (98)
 - **Next unblocked action:** merge PR #4, then #8
 - **Clock:** freeze **Sun Nov 8, 4:15 PM** · team in person at The LAB **4:30 PM** · submissions close **4:45 PM ET**
@@ -41,7 +41,8 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | ID | Decision | Source |
 |---|---|---|
 | D1 | Challenge #2 (duplicate donors + donors who stop giving) | team brainstorm, `transcripts/` · `plan.md` §1 |
-| D2 | UI base: marmelab/atomic-crm (MIT) fork in `web/`, **pending 5.1 re-confirmation** | `plan.md` §10, §12 |
+| D2 | UI: marmelab/atomic-crm (MIT) fork in `web/` with Christian's design; Christian integrates the design, our side wires data | `plan.md` §12 · Sharif, Sat evening |
+| D17 | Our side's focus: wiring, the intelligent ICP + prospect finder, organization outreach, organization context | Sharif, Sat evening · `docs/briefs/icp-and-prospects.md` |
 | D3 | Data is local SQLite (`data/donors.db`), no Supabase; the demo runs on Sharif's laptop | `plan.md` §10 |
 | D4 | Python service on the OpenAI Agents SDK (FastAPI, `localhost:8000`) | `plan.md` §5, §14 |
 | D5 | Scoring is deterministic Python; the LLM only explains it | `plan.md` §2 |
@@ -128,7 +129,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
-| 5.1 | **Decide the front end:** atomic-crm (PR #11) · Christian's inbox (PR #6) · Kindred site (PR #9) | Sharif + Christian | ⏸ | — | lead recommendation: atomic-crm |
+| 5.1 | **Decided (Sharif, Sat evening):** atomic-crm base + Christian's design; **Christian integrates the design** | Sharif | ✅ | Nov 7 | Sharif direction |
 | 5.2 | Call-today list, donor drawer (why/research/draft), duplicate banner + merge | 80 | ✅ | Nov 7 · `3359b1c` (PR #11) | `plan.md` §7 |
 | 5.3 | Local API + snapshot data layer, approve flow, Sample-history badge | 80 | ✅ | Nov 7 · `36c77b1` (PR #11) | D9, D11 |
 | 5.4 | Christian's inbox: CSV mapping, reversible merge, cadence explanation, drafts (labeled examples) | Christian | ✅ | Nov 7 · PR #6 `eefe303` | `docs/outreach-inbox-integration.md` |
@@ -136,6 +137,21 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5.6 | Hide the atomic-crm Donors tab and other unused screens (if 5.1 = atomic-crm) | 80 | ⏸ | — | `plan.md` §12 |
 | 5.7 | Make the AI visible: label where the Agents SDK ran (research, draft) | 80 | ⏸ | — | rubric: use of OpenAI |
 | 5.8 | Merge PR #11 (or the chosen UI's PR) | Sharif | ⏸ | — | D14 |
+
+### Phase 5B — Intelligent ICP, prospects, organization outreach
+**Goal:** "organizations that look like your best donors, and why" with sourced first-touch drafts. **Entry gate:** Phase 3. **Exit gate:** 6+ sourced prospects + drafts in the snapshot and the live API. **Status:** ⏳
+
+| # | Action | Owner | Status | Date · Commit | Source |
+|---|---|---|---|---|---|
+| 5B.1 | Schema: `icp_profile`, `prospects`, `outreach_drafts.prospect_id`; read routes; snapshot keys | 8b | ⏸ | — | `docs/briefs/icp-and-prospects.md` |
+| 5B.2 | ICP stats (Python) + ICP profile agent (traits with evidence) | 42 | ⏸ | — | same |
+| 5B.3 | Prospect finder: 6–10 South Florida orgs, 2+ sourced facts each, fit score, cached | 42 | ⏸ | — | same |
+| 5B.4 | Deeper org context (priorities, programs, impact pages; cached, dated, sourced) | 86 | ⏸ | — | same |
+| 5B.5 | Prospect first-touch drafts (status `draft`, no dollar ask) | 86 | ⏸ | — | same |
+| 5B.6 | Wire `POST /icp/run` + `POST /prospects/{id}/outreach` (90 s timeouts) | 90 | ⏸ | — | same |
+| 5B.7 | Pipeline stage: ICP → prospects → drafts → snapshot | 8b | ⏸ | — | same |
+| 5B.8 | UI data layer for ICP/prospects; hand-off to Christian | 80 | ⏸ | — | same |
+| 5B.9 | QA: orgs only, every URL loads, no existing donors as prospects, drafts are `draft` | 98 | ⏸ | — | same |
 
 ### Phase 6 — Data and ingest
 **Goal:** the demo's donor data matches the challenge, and upload works. **Entry gate:** 1.6. **Exit gate:** upload → ranked list, 6/6 duplicates. **Status:** ⏸
@@ -199,7 +215,6 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 | # | Decision | Deadline / trigger | Phase impact |
 |---|---|---|---|
-| 1 | Which front end (5.1) | now: everything on screen depends on it | 5, 7, 8 |
 | 2 | Fictional donor list (6.1) | before 6.5 | 6, 7 |
 | 3 | Carlos's field list (1.6) | before 6.2 | 6 |
 | 4 | Amazon research (6.6) | before 6.5 | 6 |
@@ -217,6 +232,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 ## §6 Changelog
 
+- **v0.4 · Sat Nov 7, 2026 (evening):** 5.1 decided (atomic-crm + Christian's design, Christian integrates). New Phase 5B: intelligent ICP, prospect finder, organization outreach, deeper context (spec `docs/briefs/icp-and-prospects.md`). Merges now QA-gated, then merged on approval (Sharif).
 - **v0.3 · Sat Nov 7, 2026 (evening):** restructured into the living build plan (Phases 0–10, an owner per
   row). Records everything shipped on branches today (data, scoring, dedupe, enrich, outreach, pipeline,
   snapshot, service, UI) with SHAs, Christian's inbox (PR #6, his UI1–UI3 rows now 5.4) and Kindred site
