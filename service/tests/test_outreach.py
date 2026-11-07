@@ -154,3 +154,23 @@ def test_zero_surviving_facts_is_an_error():
     assert kept == [] and status == "error: no usable facts (1 dropped)"
     kept, dropped, status = validate_source("website", [], set(), "miamifoundation.org", ["Civic"], "now")
     assert status == "error: search found no pages on miamifoundation.org"
+
+
+def test_cached_run_keeps_the_request_urls():
+    from org_context import build_context
+    res = build_context({"website": "https://miamifoundation.org/", "x_url": "https://x.com/example"}, refresh=False)
+    p = res["profile"]
+    assert p["x_url"] == "https://x.com/example" and p["instagram_url"] is None and p["linkedin_url"] is None
+    assert res["source_notes"]["x"] == "saved, not connected"
+    assert res["source_notes"]["instagram"] == "not provided"
+
+
+def test_cached_strings_are_clean_utf8():
+    import json
+    from org_context import CONTEXT_CACHE, clean_text, clean_phrase
+    raw = CONTEXT_CACHE.read_text(encoding="utf-8")
+    assert "\u00e2\u20ac" not in raw and "\u00e2\x80" not in raw                 # no mojibake ("â€")
+    for run in json.loads(raw).values():
+        assert all(p == clean_phrase(p) for p in run["profile"]["voice"]["phrases"])   # no wrapping quotes
+    good = "\u201cWe invest in leaders.\u201d"
+    assert clean_text(good.encode("utf-8").decode("latin-1")) == good

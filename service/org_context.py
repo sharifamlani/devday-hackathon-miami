@@ -386,7 +386,50 @@ async def run_context_searches(host: str, today: str, priorities: list[str], pro
 def strip_links(s: str) -> str:
     """Hosted search tends to append '([site](url))' citations inside text; facts stay plain."""
     s = re.sub(r"\s*\(\[[^\]]*\]\([^)]*\)\)", "", s or "")
-    return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"", s).strip()
+    return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", s).strip()
+
+
+MOJIBAKE = ("â€", "â", "Ã©", "Ã¡", "Ã±", "Â ")
+
+
+def clean_text(s: str | None) -> str:
+    """Repair UTF-8 that was decoded as cp1252 somewhere upstream ('â€œ' -> '“'); leave good text alone."""
+    s = s or ""
+    if not any(m in s for m in MOJIBAKE):
+        return s
+    raw = bytearray()
+    for ch in s:                                      # cp1252 where it maps, else the raw byte (0x81, 0x8d, 0x9d...)
+        try:
+            raw += ch.encode("cp1252")
+        except UnicodeEncodeError:
+            if ord(ch) > 0xFF:
+                return s
+            raw.append(ord(ch))
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return s
+
+
+def clean_phrase(s: str) -> str:
+    """A voice phrase, repaired and without the quote marks search wraps around it."""
+    return clean_text(strip_links(s)).strip().strip('"“”\'‘’').strip()
+
+
+def apply_request(out: dict, urls: dict, website: str | None, socials: dict) -> dict:
+    """Profile URLs always come from the request; a cached run only supplies facts, voice and
+    priorities. Social status follows the request too. Every string is repaired on the way out."""
+    out = json.loads(json.dumps(out))                 # never mutate the cached copy
+    prof = out["profile"]
+    prof.update({"website": website, "x_url": socials["x"], "linkedin_url": socials["linkedin"],
+                 "instagram_url": socials["instagram"], "name": urls.get("name") or prof.get("name")})
+    prof["voice"]["phrases"] = [clean_phrase(v) for v in prof["voice"].get("phrases", [])]
+    for f in out["facts"]:
+        f["fact"], f["quote"] = clean_text(f.get("fact")), clean_text(f.get("quote"))
+    for k, u in socials.items():
+        out["sources"][k] = "skipped"
+        out["source_notes"][k] = "saved, not connected" if u else "not provided"
+    return out
 
 
 def match_priority(label: str, priorities: list[str]) -> str | None:
@@ -443,10 +486,11 @@ def build_context(urls: dict, refresh: bool = False, progress=None, write_cache:
     cached = None if refresh else cached_run(host)
 
     if cached:
-        out = cached
-        out["sources"] = {s: ("cached" if st == "ok" else st) for s, st in out["sources"].items()}
+        cached["sources"] = {s: ("cached" if st == "ok" else st) for s, st in cached["sources"].items()}
+        cached.setdefault("source_notes", {})
+        out = apply_request(cached, urls, website, socials)
         for s, st in out["sources"].items():
-            progress(s, st)
+            progress(s, out["source_notes"].get(s, st) if s in socials else st)
         return out
     if not host:
         raise ValueError("build_context needs a website URL")
@@ -514,8 +558,8 @@ def validate_source(source: str, found: list, cited: set[str], host: str, priori
         elif "press forward" in f.fact.lower() and re.search(r"760,000|\$760K|nearly \$1", f.fact, re.I):
             why_dropped.append("Press Forward total (sources disagree)")
         else:
-            kept.append({"source": source, "url": url, "posted_at": f.posted_at, "fact": strip_links(f.fact),
-                         "quote": strip_links(f.quote), "priority": match_priority(f.priority, priorities),
+            kept.append({"source": source, "url": url, "posted_at": f.posted_at, "fact": clean_text(strip_links(f.fact)),
+                         "quote": clean_text(strip_links(f.quote)), "priority": match_priority(f.priority, priorities),
                          "captured_at": captured_at, "verification": "search-cited"})
     if kept:
         status = "ok"
@@ -540,7 +584,7 @@ def context_result(urls, website, socials, prof, priorities, facts, sources, dro
         "profile": {"name": urls.get("name") or (prof.name if prof else host), "website": website,
                     "x_url": socials["x"], "linkedin_url": socials["linkedin"], "instagram_url": socials["instagram"],
                     "priorities": [p for p in priorities if any(f["priority"] == p for f in facts)] or list(priorities),
-                    "voice": {"phrases": [strip_links(v) for v in (prof.voice if prof else [])][:5], "urls": voice_urls}},
+                    "voice": {"phrases": [clean_phrase(v) for v in (prof.voice if prof else [])][:5], "urls": voice_urls}},
         "facts": facts,
         "sources": sources,
         "source_notes": notes,
