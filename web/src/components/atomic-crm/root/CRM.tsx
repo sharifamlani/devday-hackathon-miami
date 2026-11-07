@@ -15,6 +15,7 @@ import { ForgotPasswordPage } from "@/components/supabase/forgot-password-page";
 import { SetPasswordPage } from "@/components/supabase/set-password-page";
 import { OAuthConsentPage } from "@/components/supabase/oauth-consent-page";
 
+import { AskPage } from "../ask/AskPage";
 import contacts from "../contacts";
 import { Dashboard } from "../dashboard/Dashboard";
 import { MobileDashboard } from "../dashboard/MobileDashboard";
@@ -245,6 +246,9 @@ const DesktopAdmin = (
         />
         <Route path={OAuthConsentPage.path} element={<OAuthConsentPage />} />
       </CustomRoutes>
+      <CustomRoutes>
+        <Route path="/ask" element={<AskPage />} />
+      </CustomRoutes>
 
       {/* Donor Desk: deals, companies, tasks, sales and settings screens are
           hidden. Their resources stay registered (no views) because the merge
@@ -316,6 +320,9 @@ const MobileAdmin = (
             element={<ForgotPasswordPage />}
           />
           <Route path={OAuthConsentPage.path} element={<OAuthConsentPage />} />
+        </CustomRoutes>
+        <CustomRoutes>
+          <Route path="/ask" element={<AskPage />} />
         </CustomRoutes>
         <Resource
           name="contacts"

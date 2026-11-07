@@ -1,3 +1,5 @@
+import type { AskAnswer, AskFilter, AskIntent } from "./ask";
+
 /**
  * The view model the Donor Desk screens render. parse.ts builds it from the
  * API shapes in apiTypes.ts. Every number here comes from score.py; the UI
@@ -282,4 +284,11 @@ export interface DonorDeskMethods {
   getOrgProfile(): Promise<OrgProfile | null>;
   /** "Cached sample" in snapshot mode; null when live. */
   getSourceLabel(): Promise<string | null>;
+  /** Ask Donor Desk (ask.ts): question → read-only filter → matching donors.
+   *  Pass `filter` (chip-edited) to skip the model and re-run it as given. */
+  ask(
+    question: string,
+    filter?: AskFilter | null,
+    intent?: AskIntent | null,
+  ): Promise<AskAnswer>;
 }

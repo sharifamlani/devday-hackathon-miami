@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDonorDesk } from "./index";
+import type { AskFilter, AskIntent } from "./ask";
 import type { ContextRunInput } from "./types";
 
 const ROOT = "donor-desk";
@@ -201,5 +202,26 @@ export const useOrgProfile = () => {
   return useQuery({
     queryKey: donorDeskKeys.orgProfile,
     queryFn: () => dataProvider.getOrgProfile(),
+  });
+};
+
+/* ---------- Ask Donor Desk (issue #36) ---------- */
+
+/**
+ * Read-only: nothing refetches after it. `filter` re-runs a chip-edited
+ * filter without the model (live) or in the browser (snapshot).
+ */
+export const useAsk = () => {
+  const dataProvider = useDonorDesk();
+  return useMutation({
+    mutationFn: ({
+      question,
+      filter,
+      intent,
+    }: {
+      question: string;
+      filter?: AskFilter | null;
+      intent?: AskIntent | null;
+    }) => dataProvider.ask(question, filter, intent),
   });
 };

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { PhoneCall, Users } from "lucide-react";
+import { PhoneCall, Sparkles, Users } from "lucide-react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
 
@@ -36,6 +36,12 @@ export const MobileNavigation = () => {
           Icon={Users}
           label={translate("resources.contacts.name", { smart_count: 2 })}
           isActive={onDonors}
+        />
+        <NavigationButton
+          href="/ask"
+          Icon={Sparkles}
+          label="Ask"
+          isActive={!!matchPath("/ask", location.pathname)}
         />
       </div>
     </nav>

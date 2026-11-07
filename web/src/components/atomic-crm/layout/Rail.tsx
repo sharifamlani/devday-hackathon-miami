@@ -1,4 +1,4 @@
-import { HeartHandshake, PhoneCall, Users } from "lucide-react";
+import { HeartHandshake, PhoneCall, Sparkles, Users } from "lucide-react";
 import type { ComponentType } from "react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
@@ -36,6 +36,12 @@ export const Rail = () => {
           label={translate("resources.contacts.name", { smart_count: 2 })}
           icon={Users}
           active={onDonors}
+        />
+        <RailButton
+          to="/ask"
+          label="Ask"
+          icon={Sparkles}
+          active={!!matchPath("/ask", location.pathname)}
         />
       </ul>
     </nav>
