@@ -58,26 +58,36 @@ this year; 23 days left in the year → call first."
 
 Team cap was discussed as 4 or 5 (confirm at the desk). Anni may join as the fifth.
 
-## 5. File tree (proposed: confirm stack at K5)
+## 5. File tree (locked: atomic-crm fork + Python service)
+
+`CC` = `web/src/components/atomic-crm` (atomic-crm's own layout). Only paths we touch are shown.
 
 ```
 devday_hackathon/
-├── plan.md                     this file: the living plan
-├── ROADMAP.md                  status rows, flipped per commit
-├── docs/demo-script.md         the spec: click order, the moment, Q&A
+├── plan.md                         this file: the living plan
+├── ROADMAP.md                      status rows, flipped per commit
+├── docs/demo-script.md             the spec: click order, the moment, Q&A
 ├── data/
-│   └── sample_donors.csv       messy sample: dupes, mixed date formats, real local orgs
-├── service/                    Python Agents SDK back end (not "agents/": shadows the SDK import)
-│   ├── main.py                 FastAPI: /ingest /donors /enrich /outreach
-│   ├── ingest.py               column mapping + clean profiles (LLM-assisted)
-│   ├── dedupe.py               fuzzy match → merge suggestions
-│   ├── score.py                propensity score: pure Python, unit-tested
-│   ├── org_context.py          reads the nonprofit's site → recent-news facts
-│   ├── enrich_agent.py         Agents SDK + web search tool → sourced donor facts
-│   ├── outreach_agent.py       drafts in the org's voice from org_context + profile
-│   └── tests/test_score.py     score correctness on hand-built histories
-└── web/                        Next.js UI on Vercel
-    └── app/page.tsx            upload → donor table → donor drawer → drafts
+│   ├── sample_donors.csv           messy Miami Foundation sample (§11): dupes, mixed dates, labelled SAMPLE
+│   └── answer_key.json             planted duplicates + expected #1 donor, for the evaluator
+├── web/                            atomic-crm fork (MIT notice kept in LICENSE.md); static Vite SPA on Vercel
+│   ├── supabase/migrations/        NEW: gifts, donor_scores, research_facts, outreach_drafts, duplicate_suggestions
+│   ├── supabase/seed.sql           NEW: pre-created demo user; signup disabled
+│   ├── CC/root/CRM.tsx             hide deals/companies/tasks/sales; dashboard={CallToday}; disableTelemetry
+│   ├── CC/root/defaultConfiguration.ts   title + logo → Miami Foundation demo branding
+│   ├── CC/providers/commons/englishCrmMessages.ts   relabel Contacts → Donors, Companies → Organizations
+│   ├── CC/dashboard/CallToday.tsx  NEW: ranked "Call today" list (the home screen)
+│   ├── CC/contacts/DonorDrawer.tsx NEW: drawer with ScoreWhyPanel, ResearchPanel, OutreachPanel
+│   ├── CC/contacts/ContactList.tsx add tier, ★ and score columns
+│   └── CC/contacts/ContactMergeButton.tsx   reuse the dialog, fed by duplicate_suggestions
+└── service/                        Python, OpenAI Agents SDK (not "agents/": shadows the SDK import)
+    ├── main.py                     FastAPI: /ingest /score /enrich /outreach; Supabase REST w/ service-role key
+    ├── ingest.py                   messy headers → clean contacts + gifts (LLM-assisted mapping)
+    ├── score.py                    propensity score + tier: pure Python, writes donor_scores
+    ├── org_context.py              reads miamifoundation.org news → dated facts with URLs
+    ├── enrich_agent.py             web search → sourced research_facts
+    ├── outreach_agent.py           drafts in the Foundation's voice → outreach_drafts
+    └── tests/test_score.py         score correctness on hand-built histories
 ```
 
 ## 6. Flow
@@ -191,8 +201,9 @@ devday_hackathon/
 ## 10. Open decisions
 
 - [ ] Product name
-- [ ] Stack confirm at K5: Python back end + Next.js (the plan above) vs. all-TypeScript (`@openai/agents`) for one deploy
-- [ ] **CRM base: recommend [marmelab/atomic-crm](https://github.com/marmelab/atomic-crm)** (MIT, verified
+- [x] **Stack: LOCKED Sat Nov 7.** atomic-crm fork (React + Vite + shadcn on Supabase) for the UI and data;
+      a separate Python service on the OpenAI Agents SDK for cleaning, scoring, enrichment and drafts.
+- [x] **CRM base: LOCKED Sat Nov 7 → [marmelab/atomic-crm](https://github.com/marmelab/atomic-crm)**. Audit in §12. (MIT, verified
       from GitHub metadata; 1.4k stars; pushed Nov 7, 2026). React + Vite + shadcn, on **Supabase**, which we
       already have. Supabase's auto-generated REST API lets the agent service read and write with no extra
       back-end code. It already has contacts, companies, notes, tags, tasks and CSV import. **Gaps to add:**
@@ -311,3 +322,84 @@ fee and bonus-pool details.
 [Press Forward](https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/) ·
 [Sept 2026 newsletter](https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/) ·
 [Miami Today CEO profile](https://www.miamitodaynews.com/2025/10/22/rebecca-fishman-lipsey-miami-foundations-ceo-targets-a-most-generous-miami/)
+
+---
+
+## 12. atomic-crm audit: what to keep, rip out, change and add
+
+Read from the real repo via `gh api` on Sat Nov 7 (no clone). `CC` = `src/components/atomic-crm` in the
+upstream repo. **Rule: hide, don't delete.** Several views (`activity_log`, `companies_summary`) and the
+merge logic reference `deals` and `companies`, so we remove their screens and keep their tables.
+
+### Repo facts
+- React 19 · Vite 8 · TypeScript 5.8 · Tailwind 4 · ra-core 5 (headless react-admin) + shadcn-admin-kit ·
+  papaparse · vitest. Node 24. Back end: Supabase (Postgres, REST, Auth, Storage, Deno edge functions).
+- **Production build is a static SPA** (`npm run build` → `dist/`), so it deploys to Vercel with no config.
+  Upstream itself only ships a GitHub Pages script.
+- Env vars: `VITE_SUPABASE_URL`, `VITE_SB_PUBLISHABLE_KEY`, `VITE_IS_DEMO`, `VITE_ATTACHMENTS_BUCKET`.
+- **No-backend demo mode exists:** `npm run dev:demo` runs on FakeRest with fake data. That's our stage
+  fallback if Supabase fails.
+- Schema source of truth: `supabase/schemas/*.sql`; migrations are generated from it with Docker.
+- License: MIT (`LICENSE.md`, © Marmelab). Keep the notice.
+
+### Keep
+| Item | Path | Why |
+|---|---|---|
+| Contacts list/show/edit | `CC/contacts/*` | Becomes Donors |
+| Supabase data provider | `CC/providers/supabase/dataProvider.ts` | Same REST API our Python service uses |
+| Auth + login page | `CC/providers/supabase/authProvider.ts`, `CC/login/` | Demo login |
+| Tags, notes | `CC/tags/*`, `CC/notes/*` | Donor labels; outreach history |
+| **Contact merge dialog + logic** | `CC/contacts/ContactMergeButton.tsx`, `supabase/functions/merge_contacts/`, `CC/providers/commons/mergeContacts.ts` | Base for the iPhone-style merge |
+| Global search | `CC/search/*`, `supabase/schemas/08_search.sql` | Free |
+| Layout + shadcn kit | `CC/layout/*`, `src/components/ui/*` | Styling |
+| FakeRest demo mode | `CC/providers/fakerest/*`, `demo/*` | Offline fallback |
+| RLS pattern | `supabase/schemas/05_policies.sql` | Copy for new tables |
+
+### Rip out / hide
+| Item | Path | Why | Effort |
+|---|---|---|---|
+| Deals Kanban + charts | `CC/deals/*`, deals `<Resource>` in `CC/root/CRM.tsx`, nav tab in `CC/layout/Header.tsx`, `CC/dashboard/DealsChart.tsx`, `DealsPipeline.tsx` | Off the demo path (**keep the table**) | M |
+| Companies screens | `CC/companies/*`, its `<Resource>` + nav tab | Show only as "Organization" on a donor (**keep the table**: FK) | S |
+| Dashboard + onboarding stepper | `CC/dashboard/Dashboard.tsx`, `Welcome.tsx` | Replaced by Call today | S |
+| Tasks | `CC/tasks/*`, `CC/dashboard/TasksList.tsx` | The call list replaces it | S |
+| Users admin, invitations | `CC/sales/*`, `supabase/functions/users` | Not needed | S |
+| Postmark email capture, MCP function | `supabase/functions/postmark/`, `supabase/functions/mcp/` | Irrelevant; don't deploy | S |
+| Settings, changelog, profile | `CC/settings/*`, `CC/misc/ChangelogPage.tsx` | Clutter | S |
+| **Upstream's `.claude/`, `CLAUDE.md`, `AGENTS.md`** | repo root | Their hooks (e.g. a migration-write blocker) would fight our workflow; our product code is written in Codex | S: delete on fork |
+| Husky + lint-staged | `.husky/`, `.lintstagedrc` | Pre-commit hooks may fail on Windows | S |
+| Telemetry | `CC/root/CRM.tsx` | Pass `disableTelemetry` | S |
+
+### Change
+| Item | Path | Change |
+|---|---|---|
+| Labels | `CC/providers/commons/englishCrmMessages.ts` | Contacts → Donors, Companies → Organizations (strings only, no code renames) |
+| Branding | `CC/root/defaultConfiguration.ts`, `src/index.css` | Miami Foundation demo title, logo, colors |
+| Donor form | `supabase/schemas/01_tables.sql`, `CC/contacts/ContactInputs.tsx` | Hide gender/linkedin/newsletter fields |
+| Donor list | `CC/contacts/ContactList.tsx` + `contacts_summary` view (`03_views.sql`) | Add tier, ★, score columns via the view |
+| CSV import | `CC/contacts/useContactImport.tsx`, `CC/dataImport/` | Upstream expects a fixed schema, with no gifts, no cleaning and no dedupe. Route uploads to our Python `/ingest` instead |
+| Show page → drawer | `CC/contacts/ContactShow.tsx` | Full page → right-hand drawer |
+| Merge flow | `ContactMergeButton.tsx` + `merge_contacts` | Feed it suggested pairs; also re-parent `gifts`, `research_facts`, `outreach_drafts` |
+| Signup | `supabase/config.toml` | Pre-create the demo user; disable signup |
+
+### Add
+| Item | Where | Notes |
+|---|---|---|
+| `gifts` | migration | `contact_id, amount, gift_date, fund_type, channel ('Give Miami Day'…), source_row`; index on contact_id |
+| `donor_scores` | migration; written by `service/score.py` | `contact_id, score, tier, is_star, why jsonb, computed_at`; joined into `contacts_summary` |
+| `research_facts` | migration | `contact_id, fact, source_url, retrieved_at, agent_run_id` |
+| `outreach_drafts` | migration | `contact_id, body, status, approved_by, approved_at`. **DB trigger blocks auto-send for ★ donors** (not just the UI) |
+| `duplicate_suggestions` view | migration | Pairs by lower-cased email (unnest `email_jsonb`) or normalized name; add `pg_trgm` |
+| Call today | `CC/dashboard/CallToday.tsx` | Ranked list = home screen |
+| Donor drawer | `CC/contacts/DonorDrawer.tsx` + 3 panels | Why · Research · Draft + Approve |
+| Python service | `service/` | Service-role key server-side only, never in the browser |
+| Demo user | `supabase/seed.sql` | Pre-seeded login |
+
+### Risks
+| Risk | Mitigation |
+|---|---|
+| Local Supabase needs Docker and a slow first start | Use a **hosted** Supabase project from hour 1; keep `dev:demo` as the fallback |
+| Merge runs as a Deno edge function (separate serve step) | Re-implement merge as a plain SQL function, or in Python |
+| Declarative schema workflow needs Docker for `db diff` | Write plain migration files; update `schemas/` by hand in the same commit |
+| FakeRest fallback doesn't know our new tables | Decide by hour 10: seed it, or drop the fallback and use a screen recording |
+| ~15k LOC wired together | Hide, don't delete; touch only the paths in §5 |
+| Windows: `makefile` uses `script`/`lsof` | Run `npm run` scripts directly |
