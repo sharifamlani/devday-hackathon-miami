@@ -197,7 +197,7 @@ const inRange = (day: string, range: AskDateRange | null) =>
 const has = <T>(list: T[] | null | undefined): list is T[] =>
   !!list && list.length > 0;
 
-interface Matched {
+export interface Matched {
   row: ApiDonorRow;
   ask: AskMatch;
 }
@@ -319,6 +319,32 @@ export const applyAskFilter = (
 const LIVE_ONLY =
   "Live AI runs on the demo laptop. In this cached sample, pick one of the example questions, then edit its filters.";
 
+/** An answer whose rows come from this snapshot (precomputed, edited, or a hosted model's filter). */
+export const snapshotAnswer = (
+  snapshot: ApiSnapshot,
+  question: string,
+  base: Pick<
+    AskAnswer,
+    "interpretation" | "filter" | "intent" | "served_from"
+  > &
+    Partial<Pick<AskAnswer, "trace_id" | "detail">>,
+  matched: Matched[],
+): AskAnswer => ({
+  question,
+  understood: true,
+  interpretation: base.interpretation,
+  filter: base.filter,
+  intent: base.intent,
+  served_from: base.served_from,
+  donor_ids: matched.map((m) => m.row.id),
+  donors: matched.map((m) => ({ ...parseDonorRow(m.row), ask: m.ask })),
+  trace_id: base.trace_id ?? null,
+  detail:
+    base.detail ??
+    "Cached sample: computed by the rules when the snapshot was exported.",
+  as_of: snapshot.meta.as_of,
+});
+
 /** Snapshot mode: example → precomputed; edited filter → re-run here; free text → live-only note. */
 export const askSnapshot = (
   snapshot: ApiSnapshotWithAsk,
@@ -334,17 +360,7 @@ export const askSnapshot = (
       "interpretation" | "filter" | "intent" | "served_from"
     >,
     matched: Matched[],
-  ): AskAnswer => ({
-    question,
-    understood: true,
-    ...base,
-    donor_ids: matched.map((m) => m.row.id),
-    donors: matched.map((m) => ({ ...parseDonorRow(m.row), ask: m.ask })),
-    trace_id: null,
-    detail:
-      "Cached sample: computed by the rules when the snapshot was exported.",
-    as_of: asOf,
-  });
+  ): AskAnswer => snapshotAnswer(snapshot, question, base, matched);
 
   if (filter) {
     return answer(
