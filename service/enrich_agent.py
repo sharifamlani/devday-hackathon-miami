@@ -137,8 +137,24 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
 def save_facts(donor_id: int, facts: list[Fact], agent_run_id: str) -> int:
     """Write facts as research_facts rows (donor_id, fact, source_url, retrieved_at, agent_run_id).
 
-    JSON file for now; switch this body to service.db once it lands. Returns rows written.
+    Writes to data/donors.db (via service.db) when that db exists; otherwise falls back to
+    data/research_facts.json. Returns rows written.
     """
+    try:
+        from service import db
+    except ImportError:
+        db = None
+    if db is not None and db.db_path().exists():
+        conn = db.connect()
+        with conn:
+            conn.executemany(
+                "INSERT INTO research_facts (donor_id, fact, source_url, retrieved_at, agent_run_id) "
+                "VALUES (?, ?, ?, ?, ?)",
+                [(donor_id, f.fact, f.source_url, f.retrieved_at, agent_run_id) for f in facts],
+            )
+        conn.close()
+        return len(facts)
+
     rows = json.loads(FACTS_JSON.read_text(encoding="utf-8")) if FACTS_JSON.exists() else []
     rows.extend({"donor_id": donor_id, **f.model_dump(), "agent_run_id": agent_run_id} for f in facts)
     FACTS_JSON.parent.mkdir(parents=True, exist_ok=True)
