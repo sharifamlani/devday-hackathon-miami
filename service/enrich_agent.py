@@ -16,6 +16,7 @@ and the caller shows "no public information found".
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -80,15 +81,25 @@ agent = Agent(
 
 
 def url_loads(url: str) -> bool:
-    """True when the URL answers with a 2xx/3xx; used to drop facts with dead links."""
+    """True only when the URL ends (after redirects) in HTTP 200; used to drop facts with dead links."""
     if not url.startswith(("http://", "https://")):
         return False
     request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (donor-enrichment check)"})
     try:
         with urllib.request.urlopen(request, timeout=URL_TIMEOUT_S) as response:
-            return response.status < 400
+            return response.status == 200
     except (urllib.error.URLError, TimeoutError, ValueError):
         return False
+
+
+def clean_fact(text: str) -> str:
+    """Strip markdown links from fact text; the URL belongs only in source_url.
+
+    Drops parenthetical citations like "([site.org](url))" and turns inline "[text](url)" into "text".
+    """
+    text = re.sub(r"\s*\(\[[^\]]*\]\([^)]*\)\)", "", text)
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    return text.strip()
 
 
 def read_cache() -> dict[str, list[dict]]:
@@ -130,7 +141,7 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
     # Check every link in parallel and keep only facts whose source actually loads
     with ThreadPoolExecutor(max_workers=8) as pool:
         alive = list(pool.map(url_loads, [f.source_url for f in researched]))
-    return [Fact(fact=f.fact, source_url=f.source_url, retrieved_at=retrieved_at)
+    return [Fact(fact=clean_fact(f.fact), source_url=f.source_url, retrieved_at=retrieved_at)
             for f, ok in zip(researched, alive) if ok]
 
 
