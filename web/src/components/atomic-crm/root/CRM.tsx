@@ -15,6 +15,7 @@ import { ForgotPasswordPage } from "@/components/supabase/forgot-password-page";
 import { SetPasswordPage } from "@/components/supabase/set-password-page";
 import { OAuthConsentPage } from "@/components/supabase/oauth-consent-page";
 
+import { AskPage } from "../ask/AskPage";
 import contacts from "../contacts";
 import { Dashboard } from "../dashboard/Dashboard";
 import { MobileDashboard } from "../dashboard/MobileDashboard";
@@ -249,6 +250,9 @@ const DesktopAdmin = (
         />
         <Route path={OAuthConsentPage.path} element={<OAuthConsentPage />} />
       </CustomRoutes>
+      <CustomRoutes>
+        <Route path="/ask" element={<AskPage />} />
+      </CustomRoutes>
 
       {/* Campaigns (#38): bulk drafts, approval, simulated outbox */}
       <CustomRoutes>
@@ -334,6 +338,7 @@ const MobileAdmin = (
           <Route path="/campaigns/new" element={<CampaignNew />} />
           <Route path="/campaigns/:id" element={<CampaignReview />} />
           <Route path="/outbox" element={<OutboxList />} />
+          <Route path="/ask" element={<AskPage />} />
         </CustomRoutes>
         <Resource
           name="contacts"

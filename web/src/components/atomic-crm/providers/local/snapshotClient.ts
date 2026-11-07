@@ -8,6 +8,7 @@ import type {
   ApiWhy,
 } from "./apiTypes";
 import { campaignSnapshotMethods } from "./campaigns";
+import { askSnapshot, type ApiSnapshotWithAsk } from "./ask";
 import { APPROVER_NAME, SNAPSHOT_URL } from "./config";
 import { requireWebsite } from "./validate";
 import {
@@ -544,6 +545,13 @@ export const snapshotMethods: DonorDeskMethods = {
     };
   },
   getContext: async () => contextOf(await loadSnapshot()),
+  ask: async (question, filter, intent) =>
+    askSnapshot(
+      (await loadSnapshot()) as ApiSnapshotWithAsk,
+      question,
+      filter,
+      intent,
+    ),
   getOrgProfile: async () => {
     const snapshot = await loadSnapshot();
     if (snapshot.org_profile) return parseOrgProfile(snapshot.org_profile);

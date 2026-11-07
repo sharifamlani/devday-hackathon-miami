@@ -3829,5 +3829,146 @@
     "captured_at": "2026-11-07 22:02:36"
    }
   ]
- }
+ },
+ "ask_examples": [
+  {
+   "question": "Who helped us reach our Q4 goal? Draft a thank-you now that the November push is over.",
+   "interpretation": "Donors who gave in Q4 2026 so far (Oct 1 to Nov 8, 2026), biggest quarter total first, for a thank-you.",
+   "filter": {
+    "status": null,
+    "tier": null,
+    "star": null,
+    "donor_type": null,
+    "gave_between": {
+     "start": "2026-10-01",
+     "end": "2026-11-08"
+    },
+    "last_gift_before": null,
+    "last_gift_after": null,
+    "min_gift": null,
+    "max_gift": null,
+    "min_total": null,
+    "max_total": null,
+    "channel": null,
+    "cadence": null,
+    "overdue": null,
+    "has_draft": null,
+    "not_contacted_since": null,
+    "sort": "period_total",
+    "limit": null
+   },
+   "intent": {
+    "kind": "thank_you",
+    "channel_hint": "email"
+   },
+   "donor_ids": [
+    9,
+    3
+   ],
+   "served_from": "rules"
+  },
+  {
+   "question": "Who needs outreach because they've gone quiet?",
+   "interpretation": "Donors who are past their usual giving rhythm or missed their usual giving month, highest priority first.",
+   "filter": {
+    "status": null,
+    "tier": null,
+    "star": null,
+    "donor_type": null,
+    "gave_between": null,
+    "last_gift_before": null,
+    "last_gift_after": null,
+    "min_gift": null,
+    "max_gift": null,
+    "min_total": null,
+    "max_total": null,
+    "channel": null,
+    "cadence": null,
+    "overdue": true,
+    "has_draft": null,
+    "not_contacted_since": null,
+    "sort": "score",
+    "limit": null
+   },
+   "intent": {
+    "kind": "re_engage",
+    "channel_hint": null
+   },
+   "donor_ids": [
+    1,
+    12,
+    5,
+    2,
+    6
+   ],
+   "served_from": "rules"
+  },
+  {
+   "question": "Monthly donors whose last gift is late",
+   "interpretation": "Monthly donors whose last gift is later than their usual monthly rhythm.",
+   "filter": {
+    "status": null,
+    "tier": null,
+    "star": null,
+    "donor_type": null,
+    "gave_between": null,
+    "last_gift_before": null,
+    "last_gift_after": null,
+    "min_gift": null,
+    "max_gift": null,
+    "min_total": null,
+    "max_total": null,
+    "channel": null,
+    "cadence": "monthly",
+    "overdue": true,
+    "has_draft": null,
+    "not_contacted_since": null,
+    "sort": "last_gift_oldest",
+    "limit": null
+   },
+   "intent": {
+    "kind": "check_in",
+    "channel_hint": "text"
+   },
+   "donor_ids": [],
+   "served_from": "rules"
+  },
+  {
+   "question": "Big donors we haven't called this quarter",
+   "interpretation": "Big donors with no outreach approved or sent since Q4 2026 began (Oct 1, 2026). There is no call log yet, so approved outreach stands in for a call.",
+   "filter": {
+    "status": null,
+    "tier": [
+     "big"
+    ],
+    "star": null,
+    "donor_type": null,
+    "gave_between": null,
+    "last_gift_before": null,
+    "last_gift_after": null,
+    "min_gift": null,
+    "max_gift": null,
+    "min_total": null,
+    "max_total": null,
+    "channel": null,
+    "cadence": null,
+    "overdue": null,
+    "has_draft": null,
+    "not_contacted_since": "2026-10-01",
+    "sort": "score",
+    "limit": null
+   },
+   "intent": {
+    "kind": "check_in",
+    "channel_hint": null
+   },
+   "donor_ids": [
+    11,
+    4,
+    9,
+    10
+   ],
+   "served_from": "rules"
+  }
+ ]
 }

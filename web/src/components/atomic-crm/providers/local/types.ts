@@ -1,6 +1,7 @@
 import type { CampaignMethods } from "./campaignTypes";
 
 export type * from "./campaignTypes";
+import type { AskAnswer, AskFilter, AskIntent } from "./ask";
 
 /**
  * The view model the Donor Desk screens render. parse.ts builds it from the
@@ -392,4 +393,12 @@ export interface DonorDeskMethods extends CampaignMethods {
   /** Raised vs. SAMPLE goal; both periods when period is omitted. Empty
    *  ({}) for a snapshot exported before targets existed. */
   getTargets(period?: TargetPeriod): Promise<TargetsByPeriod>;
+
+  /** Ask Donor Desk (ask.ts): question → read-only filter → matching donors.
+   *  Pass `filter` (chip-edited) to skip the model and re-run it as given. */
+  ask(
+    question: string,
+    filter?: AskFilter | null,
+    intent?: AskIntent | null,
+  ): Promise<AskAnswer>;
 }

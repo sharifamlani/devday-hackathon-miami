@@ -13,6 +13,7 @@ import type {
   ApiTargets,
 } from "./apiTypes";
 import { campaignHttpMethods } from "./campaigns";
+import { parseAskResponse, type ApiAskResponse } from "./ask";
 import { API_URL, APPROVER_NAME } from "./config";
 import { requireWebsite } from "./validate";
 import {
@@ -252,6 +253,13 @@ export const localApiMethods: DonorDeskMethods = {
     }
   },
   getContext: async () => parseContext(await request<ApiContext>("/context")),
+  ask: async (question, filter, intent) =>
+    parseAskResponse(
+      await request<ApiAskResponse>("/ask", {
+        method: "POST",
+        body: { question, filter: filter ?? null, intent: intent ?? null },
+      }),
+    ),
   // 200 null (preferred) or 404 both mean "no profile yet".
   getOrgProfile: async () => {
     try {
