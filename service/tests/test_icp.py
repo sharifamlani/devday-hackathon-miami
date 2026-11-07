@@ -203,3 +203,17 @@ def test_browser_render_sees_only_visible_text_and_needs_200(tmp_path):
     assert "youth programs across miami-dade" in text and "450,000" not in text and "arc broward" not in text
     assert pages[f"{base}/blocked"] is None
     assert not icp_agent.fact_on_page("Taft gave Arc Broward $450,000.", "Arc Broward $450,000 employment transition", text)
+
+
+def test_stats_count_only_giver_orgs_and_ok_gifts(conn):
+    conn.execute("ALTER TABLE donors ADD COLUMN contact_type TEXT NOT NULL DEFAULT 'giver'")   # 8b's PR #60
+    conn.execute("ALTER TABLE gifts ADD COLUMN status TEXT NOT NULL DEFAULT 'ok'")
+    giver = db.insert_donor(conn, {"full_name": "Giver Fund", "donor_type": "organization",
+                                   "gifts": [(1000, "2025-05-01", "check"), (1000, "2026-05-01", "check")]})
+    db.insert_donor(conn, {"full_name": "Neighbor Org", "donor_type": "organization"})
+    conn.execute("UPDATE donors SET contact_type = 'neighbor' WHERE full_name = 'Neighbor Org'")
+    conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, status) VALUES (?, 5000, '2026-06-01', 'declined')", (giver,))
+    conn.commit()
+    stats = icp_agent.icp_stats(conn)
+    assert [d["name"] for d in stats["donors"]] == ["Giver Fund"]
+    assert stats["donors"][0]["lifetime"] == 2000 and stats["donors"][0]["gifts"] == 2
