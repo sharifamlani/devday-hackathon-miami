@@ -138,15 +138,17 @@
   margin-block-start: 0;
   max-inline-size: 100%;
   min-block-size: 44px;
-  padding-inline: 32px;
-  gap: 10px;
-  font-size: 16px;
+  padding-inline: 24px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  gap: 8px;
+  font-size: 15px;
   box-shadow: none;
 }
 
 .kindred-dropzone .kindred-upload svg {
-  inline-size: 18px;
-  block-size: 18px;
+  inline-size: 16px;
+  block-size: 16px;
 }
 
 .kindred-dropzone .kindred-file-hint {
