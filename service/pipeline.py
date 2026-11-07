@@ -5,6 +5,9 @@
 Stages, in order:
     1. rebuild   drop + recreate data/donors.db with the SAMPLE seed, score and dedupe
                  (--keep-db: keep the rows ingest wrote, just rescore + dedupe)
+    1b. context  read the Foundation's website + social URLs (service/org_config.json) into the local
+                 context dataset (org_profile, org_context) so ICP, prospects and drafts can use it.
+                 build_context is pure; db.save_context is the only writer.
     2. enrich    research ORGANIZATION donors only (policy: fictional sample individuals are never
                  researched). Cache first (data/research_cache.json); uncached orgs are skipped unless
                  --live-enrich. Writes research_facts via enrich_agent.save_facts.
@@ -35,12 +38,16 @@ from service import db, dedupe, score
 from service.export_snapshot import DEFAULT_OUT, build_snapshot, write_snapshot
 from service.routes_data import get_donor, get_prospect
 
+ORG_CONFIG = Path(__file__).resolve().parent / "org_config.json"
+CONTEXT_MODULES = ["service.context_agent", "service.org_context"]   # whichever has build_context
+
 STAGE_MODULES = {
     "enrich": ["service.enrich_agent"],
     "outreach": ["service.outreach_agent", "service.org_context"],
     "icp": ["service.icp_agent", "service.outreach_agent", "service.org_context"],
 }
 MISSING_HINT = {
+    "context": "build_context in service/context_agent.py or service/org_context.py (86, plan §15)",
     "enrich": "service/enrich_agent.py (PR #5, feat/enrich)",
     "outreach": "service/outreach_agent.py + service/org_context.py (PR #7, feat/outreach)",
     "icp": "service/icp_agent.py (42, feat/icp) + outreach_agent.draft_prospect (86, feat/outreach)",
@@ -71,6 +78,36 @@ def stage_rebuild(as_of: date, keep_db: bool) -> str:
         return f"kept existing rows; scored {n}, {pending} pending duplicates"
     db.rebuild(as_of=as_of)
     return "rebuilt with SAMPLE seed"
+
+
+def load_org_config(path: Path = ORG_CONFIG) -> dict:
+    config = json.loads(path.read_text(encoding="utf-8"))
+    return {k: v for k, v in config.items() if not k.startswith("_")}
+
+
+def stage_context(refresh: bool = False, config_path: Path = ORG_CONFIG) -> str:
+    build_context = None
+    for name in CONTEXT_MODULES:
+        try:
+            build_context = getattr(importlib.import_module(name), "build_context", None)
+        except ImportError:
+            continue
+        if build_context:
+            break
+    if build_context is None:
+        raise StageMissing(f"context stage unavailable: needs {MISSING_HINT['context']}")
+    bound_model_calls()
+    urls = load_org_config(config_path)
+    result = build_context(urls, refresh=refresh)
+    conn = db.connect()
+    saved = db.save_context(conn, result)
+    conn.close()
+    statuses = result.get("sources") or {}
+    detail = (f"{len(saved['context_ids'])} facts from {', '.join(saved['replaced_sources']) or 'no source'}"
+              f"; status {json.dumps(statuses, sort_keys=True)}")
+    if saved["skipped_facts"]:
+        detail += f"; {saved['skipped_facts']} facts without a URL dropped"
+    return detail
 
 
 def stage_enrich(live: bool) -> str:
@@ -238,11 +275,13 @@ def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich
                  skip: tuple[str, ...] = (), out: Path = DEFAULT_OUT) -> list[dict]:
     """Run every stage, timing each. Returns [{stage, status, seconds, detail}]; status is
     ok | skipped | missing | failed."""
+    # Context first so ICP, prospects and donor drafts can all use it; ICP before outreach.
     stages = [
         ("rebuild", lambda: stage_rebuild(as_of, keep_db)),
+        ("context", lambda: stage_context()),
         ("enrich", lambda: stage_enrich(live_enrich)),
-        ("outreach", lambda: stage_outreach(as_of, top_n)),
         ("icp", lambda: stage_icp(as_of)),
+        ("outreach", lambda: stage_outreach(as_of, top_n)),
         ("export", lambda: stage_export(out)),
     ]
     report = []
@@ -265,12 +304,12 @@ def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Precompute the demo: rebuild → enrich → outreach → export")
+    parser = argparse.ArgumentParser(description="Precompute the demo: rebuild → context → enrich → icp → outreach → export")
     parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: $SCORE_AS_OF or 2026-11-08)")
     parser.add_argument("--top", type=int, default=3, help="draft outreach for the top N donors (plus every ★)")
     parser.add_argument("--keep-db", action="store_true", help="keep ingested rows; don't rebuild from the seed")
     parser.add_argument("--live-enrich", action="store_true", help="web-search orgs missing from the cache")
-    parser.add_argument("--skip", action="append", default=[], choices=["enrich", "outreach", "icp", "export"])
+    parser.add_argument("--skip", action="append", default=[], choices=["context", "enrich", "icp", "outreach", "export"])
     parser.add_argument("--out", default=str(DEFAULT_OUT))
     args = parser.parse_args()
 

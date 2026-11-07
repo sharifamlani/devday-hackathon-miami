@@ -21,7 +21,7 @@ def env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def stubs(monkeypatch):
-    calls = {"enriched": [], "drafted": [], "prospect_drafts": [], "excluded": set()}
+    calls = {"enriched": [], "drafted": [], "prospect_drafts": [], "excluded": set(), "context_urls": None}
 
     enrich = types.ModuleType("service.enrich_agent")
     enrich.read_cache = lambda: {"Amazon": [], "Frederick A. DeLuca Foundation": []}
@@ -92,6 +92,18 @@ def stubs(monkeypatch):
     org_context = types.ModuleType("service.org_context")
     org_context.load_org_facts = lambda: [{"fact": "f", "url": "https://miamifoundation.org/x"}]
 
+    def build_context(urls, refresh=False):
+        calls["context_urls"] = urls
+        return {"profile": {**urls, "priorities": ["Prosperity", "Climate & Resilience"], "voice": {"phrases": ["Miami"]}},
+                "facts": [{"source": "website", "url": "https://miamifoundation.org/news/a", "posted_at": "2026-10-01",
+                           "fact": "Record Give Miami Day", "quote": "record", "priority": "Prosperity"},
+                          {"source": "linkedin", "url": "https://www.linkedin.com/posts/b", "posted_at": "2026-11-03",
+                           "fact": "New climate fund", "quote": "climate", "priority": "Climate & Resilience"},
+                          {"source": "linkedin", "url": "", "fact": "no source"}],
+                "sources": {"website": "ok", "linkedin": "cached", "instagram": "blocked", "x": "skipped"}}
+
+    org_context.build_context = build_context
+
     for name, mod in [("service.enrich_agent", enrich), ("service.outreach_agent", outreach),
                       ("service.org_context", org_context), ("service.icp_agent", icp)]:
         monkeypatch.setitem(sys.modules, name, mod)
@@ -101,11 +113,13 @@ def stubs(monkeypatch):
 def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     out = env / "snapshot.json"
     report = pipeline.run_pipeline(AS_OF, top_n=3, out=out)
-    assert [r["status"] for r in report] == ["ok"] * 5, report
+    assert [r["stage"] for r in report] == ["rebuild", "context", "enrich", "icp", "outreach", "export"]
+    assert [r["status"] for r in report] == ["ok"] * 6, report
+    stage = {r["stage"]: r for r in report}
 
     # Orgs only, cache only: the two cached orgs; no individual, no uncached org
     assert sorted(stubs["enriched"]) == ["Amazon", "Frederick A. DeLuca Foundation"]
-    assert "individuals skipped by policy" in report[1]["detail"]
+    assert "individuals skipped by policy" in stage["enrich"]["detail"]
 
     snap = json.loads(out.read_text(encoding="utf-8"))
     top = snap["donors"][0]
@@ -122,6 +136,14 @@ def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     assert facts and all(f["source_url"].startswith("https://") for f in facts)
     assert all(today == AS_OF for _, today, _ in stubs["drafted"])
     assert snap["meta"]["as_of"] == "2026-11-08"
+
+    # Context stage: config URLs in, facts newest first, the URL-less fact dropped, blocked shown as blocked
+    assert stubs["context_urls"]["website"] == "https://miamifoundation.org"
+    assert stubs["context_urls"]["x_url"] is None and "_comment" not in stubs["context_urls"]
+    ctx = snap["context"]
+    assert [f["source"] for f in ctx["facts"]] == ["linkedin", "website"]
+    assert ctx["profile"]["source_status"]["instagram"] == "blocked"
+    assert "1 facts without a URL dropped" in stage["context"]["detail"]
 
     # ICP stage: profile, prospects best-fit first, current donors excluded, a 'draft' per prospect
     assert "Amazon" in stubs["excluded"]
@@ -151,9 +173,12 @@ def test_pipeline_is_idempotent_on_keep_db(env, stubs):
 def test_missing_stage_is_named_and_rest_still_runs(env, monkeypatch):
     monkeypatch.setitem(sys.modules, "service.enrich_agent", None)
     monkeypatch.setitem(sys.modules, "service.outreach_agent", None)
+    monkeypatch.setitem(sys.modules, "service.context_agent", None)
+    monkeypatch.setitem(sys.modules, "service.org_context", None)
     out = env / "snapshot.json"
     report = {r["stage"]: r for r in pipeline.run_pipeline(AS_OF, out=out)}
     assert report["enrich"]["status"] == "missing" and "PR #5" in report["enrich"]["detail"]
     assert report["outreach"]["status"] == "missing" and "PR #7" in report["outreach"]["detail"]
     assert report["icp"]["status"] == "missing" and "42" in report["icp"]["detail"]
+    assert report["context"]["status"] == "missing" and "build_context" in report["context"]["detail"]
     assert report["export"]["status"] == "ok" and out.exists()
