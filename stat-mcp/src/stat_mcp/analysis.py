@@ -10,25 +10,27 @@ from typing import Iterable
 
 import pandas as pd
 
-from stat_mcp.schemas import CriterionOutcome, DonorAssessment, DonorRecord
+from stat_mcp.schemas import CriterionOutcome, DonorAssessment, DonorRecord, ImportedTransaction
 
 
 def _normalize(value: str | None) -> str:
     return re.sub(r"[^a-z0-9]", "", (value or "").casefold())
 
 
-def summarize_giving(records: list[DonorRecord]) -> dict[str, object]:
-    """Return useful descriptive stats for explicitly reported donor gift totals."""
+def summarize_giving(transactions: list[ImportedTransaction]) -> dict[str, object]:
+    """Return gift-level statistics from explicit source transaction events."""
 
-    amounts = [record.donation_amount for record in records if record.donation_amount is not None]
+    gifts = [item for item in transactions if item.transaction_type == "gift"]
+    amounts = [item.amount for item in gifts if item.amount is not None]
     if not amounts:
         return {
-            "records_with_donation_amount": 0,
-            "reported_donation_total": None,
-            "mean_donation_amount": None,
-            "median_donation_amount": None,
-            "min_donation_amount": None,
-            "max_donation_amount": None,
+            "gift_transaction_count": len(gifts),
+            "gifts_with_amount": 0,
+            "reported_gift_total": None,
+            "mean_gift_amount": None,
+            "median_gift_amount": None,
+            "min_gift_amount": None,
+            "max_gift_amount": None,
         }
     # Use pandas for the distribution; Decimal keeps the aggregate currency sum exact.
     distribution = pd.Series([float(amount) for amount in amounts], dtype="float64")
@@ -37,12 +39,13 @@ def summarize_giving(records: list[DonorRecord]) -> dict[str, object]:
         return str(Decimal(str(value)).quantize(Decimal("0.01")))
 
     return {
-        "records_with_donation_amount": int(distribution.count()),
-        "reported_donation_total": str(sum(amounts, Decimal("0.00"))),
-        "mean_donation_amount": to_money(distribution.mean()),
-        "median_donation_amount": to_money(median(amounts)),
-        "min_donation_amount": to_money(distribution.min()),
-        "max_donation_amount": to_money(distribution.max()),
+        "gift_transaction_count": len(gifts),
+        "gifts_with_amount": int(distribution.count()),
+        "reported_gift_total": str(sum(amounts, Decimal("0.00"))),
+        "mean_gift_amount": to_money(distribution.mean()),
+        "median_gift_amount": to_money(median(amounts)),
+        "min_gift_amount": to_money(distribution.min()),
+        "max_gift_amount": to_money(distribution.max()),
     }
 
 

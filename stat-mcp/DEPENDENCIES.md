@@ -10,7 +10,9 @@ Update this file whenever a dependency is installed or first used by the service
 | FastMCP | `fastmcp` / `from fastmcp import FastMCP` | Declared `>=4,<5`; installed `4.1.6`; used in `src/stat_mcp/server.py` | Hosts the MCP tools over Streamable HTTP. |
 | OpenAI Agents SDK | `openai-agents` / `from agents import Agent, Runner` | Declared `>=0.5,<1`; installed `0.20.0`; used in `src/stat_mcp/agent.py` | Performs structured, per-donor criterion assessments with an LLM. |
 | OpenAI Python SDK | `openai` / `from openai import OpenAI` | Declared `>=2,<3`; installed `2.54.0`; used by `scripts/smoke-openai.py` and transitively by the Agents SDK | Provides the official Python client and Responses API used by the SDK smoke script. |
-| pandas | `pandas` | Declared `>=2.2,<4`; installed `3.1.1`; used in `src/stat_mcp/ingest.py` | Parses CSV exports into tabular records. |
+| pandas | `pandas` | Declared `>=2.2,<4`; installed `3.1.1`; used in CSV/XLSX readers in `src/stat_mcp/file_ingest.py` | Parses tabular records and all Excel worksheets. |
+| openpyxl | `openpyxl` | Declared `>=3.1,<4`; installed `3.1.5` on 2026-11-07 | Excel engine for `.xlsx` uploads. |
+| python-docx | `python-docx` / `docx` | Declared `>=1.1,<2`; installed `1.2.0` on 2026-11-07 | Reads paragraphs and tables from `.docx` uploads. |
 | Pydantic | `pydantic` | Declared `>=2.12,<3`; installed `2.14.3`; used in `src/stat_mcp/schemas.py` | Validates donor rows, custom criteria, agent outputs, and score inputs. |
 | python-dotenv | `python-dotenv` / `dotenv` | Declared `>=1,<2`; installed `1.2.4`; used in server and agent startup | Loads local `.env` settings during development. |
 | Starlette | `starlette` | Declared `>=0.37,<2`; resolved to `1.10.0`; used in the `GET /tools` custom route | Provides the typed HTTP request and JSON response for the human-readable tool catalog. FastMCP also uses Starlette for HTTP serving. |
@@ -25,9 +27,9 @@ Update this file whenever a dependency is installed or first used by the service
 
 ## Setup
 
-From `stat-mcp/`, run `uv sync` to install the declared dependencies and update `uv.lock`, then use `uv run python -m stat_mcp.server`. If no local `.env` exists, copy `.env.example` to `.env` and set `OPENAI_API_KEY` for LLM extraction/scoring. The server defaults to `127.0.0.1:8000`; configure deployment HTTPS and authentication before remote use.
+From `stat-mcp/`, run `uv sync` to install the declared dependencies and update `uv.lock`, then use `uv run python -m stat_mcp.server`. If no local `.env` exists, copy `.env.example` to `.env` and set `OPENAI_API_KEY` for LLM extraction/scoring. The server defaults to `127.0.0.1:8010` to avoid the primary service on port 8000; configure deployment HTTPS and authentication before remote use.
 
-`uv sync` completed on 2026-11-07, creating `uv.lock` and installing the runtime dependencies into `.venv`. It did not install the optional `dev` group, make an API call, or run tests. The smoke script requires a valid key and incurs API usage.
+`uv sync` completed on 2026-11-07 after adding the Excel and Word readers; `uv.lock` now includes `openpyxl` and `python-docx`. The optional `dev` group was not installed, no API call was made, and tests were not run. The smoke script requires a valid key and incurs API usage.
 
 ## Security and data handling
 

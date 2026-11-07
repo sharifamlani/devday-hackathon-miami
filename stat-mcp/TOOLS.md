@@ -7,8 +7,10 @@ The user-requirements source is [Project 2: Duplicate donor records, and donors 
 | Tool | Purpose | Important boundary |
 | --- | --- | --- |
 | `GET /tools` | List each registered MCP tool name and description as JSON for the UI. | Read-only catalog; actual MCP discovery is also available through `tools/list`. |
-| `import_donor_data` | Parse CSV/JSON or extract donor records from unstructured text into a temporary dataset. | Unstructured text is sent to the configured OpenAI model for extraction; raw source text may contain personal data. |
-| `summarize_donor_dataset` | Report row count, detected fields, and count/sum/mean/median/min/max for donation amounts. | An absent gift is not evidence of payment failure. |
+| `import_donor_data` | Parse one CSV/JSON/XLSX/DOCX/Markdown/text file, emit source events, then derive person summaries. Binary content is base64. | Text is sent to the configured OpenAI model; inspect warnings for table/prose overlap. |
+| `import_donor_files` | Import 1–20 named base64 files in one call; supports the complete hackathon upload set. | Each file is limited to 20 MB and the batch to 50 MB; data remains in process memory. |
+| `get_donor_transactions` | Page through preserved source events, including one row per explicitly stated gift. | Never combine multiple gifts into a total at import time. |
+| `summarize_donor_dataset` | Report person/event counts and gift-level count/sum/mean/median/min/max from explicit gift events. | An absent gift is not evidence of payment failure. |
 | `suggest_duplicate_donors` | Rank candidate pairs using exact email/phone and name similarity. | Suggestions only; never merge or alter records automatically. |
 | `get_donor_profile` | Fetch one normalized donor row for the UI/backend. | Contains PII; the prototype has no user authentication yet, so use synthetic data only. |
 | `get_donor_records` | Return a page of normalized donor rows for the UI/backend. | Contains PII; authorize the caller and do not pass entire pages into an LLM context. |
@@ -20,29 +22,15 @@ The user-requirements source is [Project 2: Duplicate donor records, and donors 
 
 ## Ingestion contract
 
-The user may supply unstructured prose, CSV, or JSON, up to 2 MB. Unstructured text is limited to 50,000 characters and uses the Agents SDK extractor; the text should describe donors rather than a transaction-per-row gift ledger. CSV headers and JSON keys map to canonical donor fields. See [REQUIRED_FIELDS.md](REQUIRED_FIELDS.md) for the complete required-field contract and source aliases.
+The user may upload `.csv`, `.json`, `.xlsx`, `.docx`, `.md` / `.markdown`, or `.txt` files. XLSX reads all worksheets; DOCX reads paragraphs and tables; Markdown reads prose and pipe tables. Binary files are base64-encoded for MCP transport; each file is limited to 20 MB and each batch to 50 MB. Narrative text is limited to 50,000 characters per extraction and uses the Agents SDK. See [REQUIRED_FIELDS.md](REQUIRED_FIELDS.md) for the transaction and derived person contracts.
 
 ```text
 Jordan Lee donated $250 on August 3, 2026. Email jordan@example.org, phone (305) 555-0134.
 ```
 
-Every canonical record includes the seven required keys: `first_name`, `last_name`, `email_address`, `donation_amount`, `phone_number`, `date_of_last_donation`, and `id`. Missing text fields are empty strings; a missing `donation_amount` is JSON `null`; and if `id` is missing or marked `NA`, the server assigns a UUID. A full name is split at its first space when separate first/last names are absent. Other recognized optional fields include `contact_preference`, `organization`, `employer`, `giving_history`, `gift_count`, `engagement_notes`, `stated_interests`, `relationship_owner`, and `source`. Unknown CSV/JSON columns are ignored.
+The import's primary output is an event row. Each explicit gift has its own `transaction_id`, `amount`, and `transaction_date`, plus person identity, `contact_type`, channel, fund, and source location. Person summaries are grouped only through a source-scoped person key; same names or contact details remain separate duplicate candidates for human review. A summary's total is the sum of its explicit gift rows. A missing gift stays absent, not a zero-dollar transaction. See [REQUIRED_FIELDS.md](REQUIRED_FIELDS.md).
 
-For example, if only a name and email were present, the normalized required portion looks like (the actual ID is a UUID):
-
-```json
-{
-  "id": "generated-uuid",
-  "first_name": "Jordan",
-  "last_name": "Lee",
-  "email_address": "jordan@example.org",
-  "donation_amount": null,
-  "phone_number": "",
-  "date_of_last_donation": ""
-}
-```
-
-`GET /tools` returns a JSON catalog from the registered FastMCP tools (`name` and `description`) and the `/mcp` endpoint path. FastMCP clients can use the standard MCP `tools/list` method instead. After import, the UI/backend can page through normalized output with `get_donor_records` (`limit` max 50); score and summary tools return structured analysis results separately.
+`import_donor_files` accepts `files: [{"name": "...xlsx", "content": "<base64>"}]`. `GET /tools` returns a JSON catalog and MCP clients can use `tools/list`. After import, `get_donor_transactions` returns source events and `get_donor_records` returns derived person summaries. In the main SQLite adapter, persist gift events to `gifts` and person projections to `donors`.
 
 ## Suggested criteria for a nonprofit-configured rubric
 

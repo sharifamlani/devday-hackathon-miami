@@ -1,75 +1,66 @@
-# Integration walkthrough for an application agent
-
-This guide is for the agent or developer connecting the UI to the current `stat-mcp` service.
+# Agent and service integration
 
 ## What exists
 
-- Python FastMCP service using Streamable HTTP at `http://127.0.0.1:8000/mcp` locally.
-- Read-only HTTP tool catalog at `GET http://127.0.0.1:8000/tools` (JSON names/descriptions and the MCP endpoint path).
-- CSV/JSON normalization and Agents SDK extraction for unstructured text.
-- Temporary in-process dataset storage. Dataset IDs stop working when the server restarts.
-- Pydantic validation and canonical fields documented in [REQUIRED_FIELDS.md](REQUIRED_FIELDS.md).
-- Pandas summary statistics and deterministic duplicate suggestions.
-- An Agents SDK rubric evaluator with a deterministic equal-weight aggregation function.
+- FastMCP Streamable HTTP server at `http://127.0.0.1:8010/mcp`; port 8010 avoids the main FastAPI service on 8000.
+- `GET /tools` catalog for a UI/operator and normal MCP `tools/list` discovery.
+- File readers for `.csv`, `.json`, `.xlsx`, `.docx`, `.md` / `.markdown`, and `.txt`.
+- Transaction-first imports: each explicit gift is preserved as an event; person summaries are derived projections.
+- Pandas summaries and duplicate suggestions, Pydantic schemas, and an Agents SDK narrative extractor / criterion evaluator.
+- In-memory MCP dataset storage. It is not connected to the main service's `data/donors.db` or web app.
 
-This repository does not yet contain the frontend, a REST API, authentication, persistent storage, or a merge workflow. Connect from a server-side application/backend. Do not put the OpenAI key or donor file contents in browser code.
+The primary product still uses FastAPI/SQLite. For that integration, import the file-processing library from the existing `/ingest` route; do not start a second HTTP service or write a second database. The library entry point is `stat_mcp.file_ingest.extract_file_transactions(filename, payload)`. It returns `(format, events, warnings)`. `stat_mcp.transactions.project_people(events)` derives person summaries. The caller should map summaries to `donors` and each explicit `gift` event to one `gifts` row in a single SQLite transaction.
 
-## Recommended user journey
+## Supported files and upload journeys
 
-1. **Connect and discover.** Use MCP Streamable HTTP on `/mcp`. A human UI may call `GET /tools` to display the available tool names and descriptions. MCP clients should use the protocol's normal `tools/list` method for tool discovery.
-2. **Upload.** Call `import_donor_data` with `content`, `file_format` (`auto`, `csv`, `json`, or `text`), and optional `source_name`. Maximum upload is 2 MB; unstructured text is limited to 50,000 characters.
-3. **Render normalized rows.** Read `dataset_id` from the import response, then page through `get_donor_records(dataset_id, offset, limit)`; `limit` is at most 50. Render the page directly in the authorized UI. These records contain PII—do not forward full pages to an LLM.
-4. **Show deterministic analysis.** Call `summarize_donor_dataset(dataset_id)` and `suggest_duplicate_donors(dataset_id, threshold)`. Display match evidence and require staff to confirm/reject candidates. Never merge automatically.
-5. **Get criteria and score.** Call `get_suggested_scoring_criteria` to populate an editable rubric or provide organization-authored criteria. Each criterion has `id`, `label`, `question`, and optional `evidence_fields`. Call `score_donor` for an individual record, or `score_donor_dataset` for a bounded batch. There can be at most 12 criteria and 25 donors per dataset-scoring call. An optional `opportunity_context` is limited to 1,000 characters.
-6. **Present the result.** Show `score`, `coverage`, each criterion outcome/rationale/evidence, and `human_decision_required`. Keep `insufficient_evidence` distinct from `fail`; score only means rubric fit, not donation probability. Staff decide whether to pursue and approve any contact.
+| Extension | Handling |
+|---|---|
+| `.csv` | Read rows using pandas. |
+| `.json` | Accept an object or object list under `transactions`, `gifts`, `records`, `donors`, or `data`. |
+| `.xlsx` | Read all worksheets and preserve sheet/row locations. |
+| `.docx` | Read paragraphs and tables; tables are parsed as structured rows. |
+| `.md` / `.markdown` | Send prose for extraction and parse pipe tables as rows. |
+| `.txt` | Send text for extraction. |
 
-## MCP client call shape
-
-The runnable JavaScript example at [examples/sample-call.mjs](examples/sample-call.mjs) shows imports and tool calls using the official MCP JavaScript SDK. The core call pattern is:
+Each file is limited to 20 MB. MCP clients pass binary data as base64. The batch tool accepts 1–20 files:
 
 ```js
-const imported = await call("import_donor_data", {
-  content: uploadedText,
-  file_format: "text", // or "csv", "json", or "auto"
-  source_name: file.name,
+const imported = await call("import_donor_files", {
+  files: uploads.map(file => ({
+    name: file.name,
+    content: Buffer.from(file.bytes).toString("base64"),
+  })),
 });
 
-const page = await call("get_donor_records", {
+const events = await call("get_donor_transactions", {
   dataset_id: imported.dataset_id,
   offset: 0,
-  limit: 20,
-});
-
-const summary = await call("summarize_donor_dataset", {
-  dataset_id: imported.dataset_id,
-});
-
-const duplicates = await call("suggest_duplicate_donors", {
-  dataset_id: imported.dataset_id,
-  threshold: 0.65,
-});
-
-const scoring = await call("score_donor_dataset", {
-  dataset_id: imported.dataset_id,
-  criteria,
-  max_records: 10,
-  opportunity_context: "Review fit for the community learning fund.",
+  limit: 100,
 });
 ```
 
-`call` in the example wraps `Client.callTool`, checks `isError`, and parses the JSON text result. If the UI needs to display all normalized rows, fetch all pages in the server-side application, not through model reasoning. Keep API errors visible as actionable UI states rather than silently replacing them with empty rows.
+For integration inside the primary FastAPI service, call the library directly instead of MCP:
 
-## Interpreting assessment results
+```python
+from stat_mcp.file_ingest import extract_file_transactions
+from stat_mcp.transactions import project_people
 
-- Each assessment returns `criterion_id`, `outcome`, `rationale`, `evidence`, and optional `confidence`.
-- `outcome` is `pass`, `fail`, or `insufficient_evidence`.
-- Final `score` is `100 × passes / (passes + fails)` across criteria with enough evidence. If none can be assessed, score is `null`.
-- `coverage` is assessed criteria divided by requested criteria. Always show it beside the score.
-- The Agents SDK makes one LLM call per donor. `score_donor_dataset` processes rows sequentially; the per-call row cap controls request size but each donor still incurs a model call.
-- Duplicate scores are matching heuristics for review, not calibrated identity probabilities. Shared phones/emails can represent a household.
+file_format, events, warnings = await extract_file_transactions(upload.filename, await upload.read())
+people = project_people(events)
+# In one SQLite transaction: insert/update people, then insert each event with
+# transaction_type == "gift" into gifts, preserving its amount/date/source location.
+```
 
-## Data handling and deployment boundary
+The adapter must honor the database contract in `plan.md` §13 and §16. In particular, map `contact_type` to `donor`, `beneficiary`, or `contact`; do not treat `total_giving` or lifetime totals as individual gifts; do not manufacture missing gifts; and do not write non-gift profile/contact events into `gifts`. The SQLite `gifts.gift_date` column is required, so incomplete gift rows need a review/error path rather than an invented date. Keep source filename and row/sheet/table location for traceability.
 
-The unstructured-text extractor sends the submitted text to the configured OpenAI model. The scoring evaluator sends an allowlisted, minimized profile without name/email/phone; it still includes giving history and selected staff notes. Confirm the nonprofit's data-use approval before processing real data. Use synthetic records for the hackathon.
+When a DOCX or Markdown file contains both narrative and a table, both are extracted and a warning is emitted because the same event can appear twice. Require staff review of that warning before database insertion; automatic fuzzy transaction deduplication is intentionally not performed.
 
-`GET /tools` describes the tool catalog and contains no donor rows. The current custom route is unauthenticated, as is the rest of this prototype. Keep the server local or behind an authenticated server-side boundary. Before public deployment, add per-user/dataset authorization, durable storage with retention controls, TLS, and audit logging. Do not infer payment failure from missing donations, merge automatically, or send outreach automatically.
+## Person projections and analysis
+
+`project_people()` groups only events sharing a source-scoped `person_group_key` (or source ID). Structured rows without an explicit identifier remain separate, even when names or emails match, so duplicate candidates remain available for staff review. The narrative extractor can reuse a local group key for events that clearly refer to the same person within one source. It derives gift totals, gift counts, and the latest unambiguous date from explicit gift events only. A contact with no gifts remains a person with null donation amount and count; it does not receive a fake zero gift.
+
+The MCP tools `get_donor_records`, `score_donor`, and `score_donor_dataset` operate on those derived person projections. The rubric score is not the live app's deterministic gift-cadence propensity score or a probability of donating. Show coverage and retain `insufficient_evidence` separately from `fail`.
+
+## Privacy and deployment
+
+Narrative extraction sends submitted text to the configured OpenAI model. Use synthetic records until the nonprofit approves model processing. The MCP prototype has no authentication, durable storage, or tenant isolation. Keep the service local or behind the existing authenticated server-side boundary; keep keys out of browser code and logs. The current file library can be called without running the MCP server, so a FastAPI adapter does not create a port conflict.
