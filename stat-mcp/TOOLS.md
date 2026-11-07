@@ -30,7 +30,7 @@ Jordan Lee donated $250 on August 3, 2026. Email jordan@example.org, phone (305)
 
 The import's primary output is an event row. Each explicit gift has its own `transaction_id`, `amount`, and `transaction_date`, plus person identity, `contact_type`, channel, fund, and source location. Person summaries are grouped only through a source-scoped person key; same names or contact details remain separate duplicate candidates for human review. A summary's total is the sum of its explicit gift rows. A missing gift stays absent, not a zero-dollar transaction. See [REQUIRED_FIELDS.md](REQUIRED_FIELDS.md).
 
-`import_donor_files` accepts `files: [{"name": "...xlsx", "content": "<base64>"}]`. `GET /tools` returns a JSON catalog and MCP clients can use `tools/list`. After import, `get_donor_transactions` returns source events and `get_donor_records` returns derived person summaries. In the main SQLite adapter, persist gift events to `gifts` and person projections to `donors`.
+`import_donor_files` accepts `files: [{"name": "...xlsx", "content": "<base64>"}]`. `GET /tools` returns a JSON catalog and MCP clients can use `tools/list`. After import, `get_donor_transactions` returns source events and `get_donor_records` returns derived person summaries. The main app has no `/ingest` adapter yet; a future adapter should persist gift events to `gifts` and person projections to `donors`.
 
 ## Suggested criteria for a nonprofit-configured rubric
 

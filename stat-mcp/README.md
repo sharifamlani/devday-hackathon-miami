@@ -10,6 +10,10 @@
 
 The live app's `gifts` table is transaction-oriented. Map each explicit `gift` event to one gift row, then build donor/person rows from the source-scoped grouping key. Keep matching people separate for human duplicate review. Do not turn lifetime totals into individual gifts or invent missing dates and amounts.
 
+## Main application workflow
+
+The intended flow is **staff upload → FastAPI validation → file extraction → staff review → one SQLite transaction → donor analysis**. The existing Python FastAPI app should call the `stat_mcp` parsing library directly from its `/ingest` adapter, persist accepted gift events and derived people through its existing database layer, then expose summaries, duplicate suggestions, and evidence-based rubric assessments to the UI. The browser should never connect to MCP directly. See [Agent Integration](AGENT_INTEGRATION.md) for the step-by-step adapter handoff and Node.js alternative.
+
 ## Initialize and run
 
 From the repository root:

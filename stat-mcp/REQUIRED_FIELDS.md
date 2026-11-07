@@ -7,7 +7,7 @@ Import is transaction-first. Each explicit gift is retained as its own event row
 | Field | Type | Missing behavior | Purpose |
 |---|---|---|---|
 | `transaction_id` | string | Generate UUID | Unique imported event ID. |
-| `source_transaction_id` | string or null | Null | Preserve source gift/payment identifier when provided. |
+| `source_transaction_id` | string or null | Null | Optional source gift/payment identifier. Narrative extraction may return it; current structured file readers do not map source transaction IDs yet. |
 | `person_source_id` | string or null | Null | Preserve a source-supplied ID; do not fabricate one. |
 | `person_group_key` | string or null | Generate a unique key per structured row; narrative extraction may reuse a local key for events clearly referring to the same person in that source | Internal, source-scoped key used to build a person projection. |
 | `contact_type` | `donor`, `beneficiary`, or `contact` | `contact` unless an explicit gift establishes donor role | Person classification for the app's group tag. |
@@ -26,7 +26,7 @@ Person identity fields repeat on each event row: `first_name`, `last_name`, `org
 
 `project_people()` groups only events sharing a source-scoped `person_group_key` or source ID. It does not group by matching email, phone, or name; those remain duplicate evidence for human review. It creates one summary per group with `contact_type`, contact details, total of explicit gift amounts, count of explicit gift events, the latest unambiguous gift date, and a concise gift-history string. If there are no explicit gifts, donation amount and gift count are null and the last-gift date is blank.
 
-For the main SQLite adapter, map the summary to `donors` and each `transaction_type == "gift"` event to a distinct `gifts` row. Preserve `source_name` and `source_location` in `source_row`. Do not create database gift rows for `profile`, `contact`, or `benefit` events. A gift with an unknown date must be reviewed because the current SQLite `gifts.gift_date` contract requires a date.
+For a future main SQLite adapter, map the summary to `donors` and each `transaction_type == "gift"` event to a distinct `gifts` row. Preserve `source_name` and `source_location` in `source_row`. Do not create database gift rows for `profile`, `contact`, or `benefit` events. A gift with an unknown date must be reviewed because the current SQLite `gifts.gift_date` contract requires a date. Structured imports currently generate transaction IDs and do not preserve a source gift ID as `source_transaction_id`.
 
 ## Supported files
 

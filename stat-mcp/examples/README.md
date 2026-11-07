@@ -31,4 +31,4 @@ The sample performs bounded rubric scoring and incurs model calls. Use synthetic
 
 ## Main app adapter
 
-The `stat_mcp.file_ingest.extract_file_transactions(filename, payload)` async library function does not start a server. An adapter can call it from the existing FastAPI `/ingest` route, then call `stat_mcp.transactions.project_people(events)` and write people plus individual gift events to the existing SQLite tables. The adapter must apply the SQLite contract and preserve a human review path for warnings and incomplete gift dates.
+The `stat_mcp.file_ingest.extract_file_transactions(filename, payload)` async library function does not start a server. The primary FastAPI app does not currently mount `/ingest`; when that route is implemented, its adapter can call this function, then call `stat_mcp.transactions.project_people(events)` and write people plus individual gift events to SQLite. The adapter must apply the SQLite contract and preserve a human review path for warnings and incomplete gift dates.
