@@ -1,28 +1,40 @@
 {
   "miamifoundation.org": [
     {
-      "title": "Give Miami Day — Early Giving",
+      "title": "Give Miami Day — Early Giving opens",
       "starts_at": "2026-11-14",
       "ends_at": null,
       "place": null,
       "audience_hint": "giving",
       "source_url": "https://www.givemiamiday.org/",
       "source": "website",
-      "quote": "Join the party on November 19, 2026. Early Giving opens on November 14.",
-      "verification": "search-cited",
-      "captured_at": "2026-11-07T23:00:22+00:00"
+      "quote": "Miami Day turns 15! Join the party on November 19, 2026. Early Giving opens on November 14. 0 Hours 0 Min. 00 Sec. Explore all Participating Nonprofits 16px Sp",
+      "verification": "page-verified",
+      "captured_at": "2026-11-07T23:29:40+00:00"
     },
     {
-      "title": "The Give Miami 5K: Race + Festival",
-      "starts_at": "2026-11-15",
+      "title": "The Give Miami 5K",
+      "starts_at": "2026-11-15T08:00",
       "ends_at": null,
-      "place": "Maurice A. Ferré Park",
+      "place": "Maurice A Ferre Park, 1075 Biscayne Blvd, Miami, FL 33132",
       "audience_hint": "community",
-      "source_url": "https://miamifoundation.org/featured/registration-for-the-give-miami-5k-race-festival-is-now-open/",
-      "source": "website",
-      "quote": "Make your miles matter on November 15, 2026 at Maurice A. Ferré Park.",
-      "verification": "search-cited",
-      "captured_at": "2026-11-07T23:00:22+00:00"
+      "source_url": "https://runsignup.com/Race/FL/Miami/TBDS/",
+      "source": "search",
+      "quote": "nd we're celebrating with the second annual Give Miami 5K + Festival on Sunday, November 15 at Maurice A. Ferré Park. Whether you run, walk, skip, dance, or che",
+      "verification": "page-verified",
+      "captured_at": "2026-11-07T23:29:40+00:00"
+    },
+    {
+      "title": "The Give Miami 5K Post-Race Festival, a Party with a Purpose!",
+      "starts_at": "2026-11-15T08:30",
+      "ends_at": "2026-11-15T12:00",
+      "place": "Maurice A. Ferré Park, 1075 Biscayne Boulevard, Miami, FL 33132",
+      "audience_hint": "community",
+      "source_url": "https://www.eventbrite.com/e/the-give-miami-5k-post-race-festival-a-party-with-a-purpose-tickets-2003307355227/",
+      "source": "search",
+      "quote": "The Give Miami 5K Post-Race Festival, a Party with a Purpose! Tickets, Sunday, November 15 • 8:30 AM - 12 PM | Eventbrite Eventbrite Eventbrite Search events a",
+      "verification": "page-verified",
+      "captured_at": "2026-11-07T23:29:40+00:00"
     },
     {
       "title": "Give Miami Day",
@@ -32,9 +44,9 @@
       "audience_hint": "giving",
       "source_url": "https://www.givemiamiday.org/p/new/",
       "source": "website",
-      "quote": "On November 19, 2026, Miami will rally together to raise funds for over 1,000 local nonprofits.",
-      "verification": "search-cited",
-      "captured_at": "2026-11-07T23:00:22+00:00"
+      "quote": "fundraising event hosted by The Miami Foundation , first celebrated in 2012. On November 19, 2026, Miami will rally together to raise funds for over 1,000 local",
+      "verification": "page-verified",
+      "captured_at": "2026-11-07T23:29:40+00:00"
     }
   ]
 }

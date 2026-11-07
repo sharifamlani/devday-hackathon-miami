@@ -53,6 +53,103 @@ def own_page(url: str) -> bool:
     return not any(part in url for part in OTHER_ORG_PATHS)
 
 
+# An event's own registration page (a race's sign-up site) can be its source too, but only if the
+# page itself states the event's date and names the event (verify_sources checks the text)
+REGISTRATION_SITES = {"runsignup.com", "eventbrite.com"}
+GENERIC_TITLE_WORDS = {"miami", "give", "giving", "with", "from", "opens", "open", "your", "join", "the",
+                       "day", "race", "festival", "event", "annual"}
+
+
+# ----------------------------------------------------------------------------------------------
+# Source check: the cited page's own text must state the date (and the place, or no place is shown)
+# ----------------------------------------------------------------------------------------------
+
+def fetch_text(url: str) -> str | None:
+    """The page's visible text, or None when it can't be read (bot wall, error). TLS is verified
+    against certifi's CA bundle; some sites' chains don't verify against the Windows store."""
+    import html as _html
+    import ssl
+    import urllib.request
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        ctx = ssl.create_default_context()
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (DevDay Miami events check)"})
+        with urllib.request.urlopen(req, timeout=15, context=ctx) as r:
+            if r.status != 200:
+                return None
+            raw = r.read().decode("utf-8", "ignore")
+    except Exception:
+        return None
+    raw = re.sub(r"(?s)<(script|style)[^>]*>.*?</\1>", " ", raw)
+    return re.sub(r"\s+", " ", _html.unescape(re.sub(r"<[^>]+>", " ", raw))).strip() or None
+
+
+def plain(s: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c)).lower()
+
+
+def date_forms(iso: str) -> list[str]:
+    d = date.fromisoformat(iso[:10])
+    month, short = d.strftime("%B").lower(), d.strftime("%b").lower()
+    return [f"{month} {d.day}", f"{short} {d.day}", f"{short}. {d.day}", f"{d.month}/{d.day}", iso[:10]]
+
+
+def page_states(text: str, event: dict) -> tuple[bool, bool, str]:
+    """(states the date, states the place, a snippet around the date) from the page's own text."""
+    t = plain(text)
+    hit = next((t.find(f) for f in date_forms(event["starts_at"]) if f in t), -1)
+    words = [w for w in re.findall(r"[a-z]{4,}", plain(event.get("place") or "")) if w not in {"miami", "park", "florida", "center"}]
+    place_ok = bool(event.get("place")) and (all(w in t for w in words) if words else plain(event["place"]) in t)
+    snippet = text[max(0, hit - 80): hit + 80].strip() if hit >= 0 else ""
+    return hit >= 0, place_ok, snippet
+
+
+def title_words(title: str) -> tuple[list[str], list[str]]:
+    """(distinctive words like '5k' or 'soiree', all longer words) of an event title."""
+    words = re.findall(r"[a-z0-9]+", plain(title))
+    distinctive = [w for w in words if (len(w) >= 3 or any(c.isdigit() for c in w)) and w not in GENERIC_TITLE_WORDS]
+    return distinctive, [w for w in words if len(w) >= 4]
+
+
+def names_event(text: str, event: dict) -> bool:
+    """The page names this event: a distinctive title word appears, else every longer title word."""
+    distinctive, longer = title_words(event["title"])
+    t = plain(text)
+    return any(re.search(rf"\b{re.escape(w)}\b", t) for w in distinctive) if distinctive else all(w in t for w in longer)
+
+
+def verify_sources(events: list[dict], cited: set[str], allowed: set[str], fetch=fetch_text) -> tuple[list[dict], list[str]]:
+    """Keep an event only if some page it can cite (its own source, else another page the search
+    returned on an allowed or registration site) states its date in the page text and names it.
+    The place is kept only if that page states it too. Pages are fetched in parallel."""
+    from concurrent.futures import ThreadPoolExecutor
+    hosts = allowed | REGISTRATION_SITES
+    pool_urls = sorted({u for u in cited if site_host(u) in hosts and own_page(u)} | {e["source_url"] for e in events})
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        pages = dict(zip(pool_urls, pool.map(fetch, pool_urls)))
+    kept, dropped = [], []
+    for e in events:
+        words = set(title_words(e["title"])[0])
+        others = sorted((u for u in pool_urls if u != e["source_url"]),
+                        key=lambda u: -sum(w in plain(u) for w in words))
+        for url in [e["source_url"]] + others:
+            text = pages.get(url)
+            if not text or not names_event(text, e):
+                continue
+            date_ok, place_ok, snippet = page_states(text, e)
+            if date_ok:
+                kept.append(e | {"source_url": url, "place": e.get("place") if place_ok else None,
+                                 "quote": snippet, "verification": "page-verified"})
+                break
+        else:
+            dropped.append(f"no readable page states the date: {e['title']} {e['starts_at']}")
+    return kept, dropped
+
+
 # ----------------------------------------------------------------------------------------------
 # Extract
 # ----------------------------------------------------------------------------------------------
@@ -95,7 +192,7 @@ def validate_events(found: list, cited: set[str], allowed: set[str], today: str,
     kept, dropped, seen = [], [], set()
     for e in found:
         url = norm_url(e.source_url)
-        if site_host(url) not in allowed:
+        if site_host(url) not in allowed | REGISTRATION_SITES:
             dropped.append(f"off-site {url}")
         elif not own_page(url):
             dropped.append(f"another org's page {url}")
@@ -141,13 +238,17 @@ def extract_events(context_facts: list[dict] | None = None, refresh: bool = Fals
     sites = " OR ".join(f"site:{h}" for h in sorted(allowed))
     prompt = (f"Today is {today}. Find every upcoming event (on or after today, within ~60 days) that "
               f"{host} runs or promotes: giving days, races, celebrations, forums, community events. "
-              f"Search {sites}. Use only pages your searches return; source_url must be that page's exact "
+              f"Search {sites}, and for races or ticketed events also their official registration page "
+              f"(runsignup.com, eventbrite.com). Use only pages your searches return; source_url must be that page's exact "
               f"URL and must state the date. Copy dates exactly; never guess a date or a place. "
               f"Plain text, no links or markdown.\n\nRecent context (hints, not sources):\n{hints or '- none'}")
     agent = search_agent("EventsAgent", "You find an organization's upcoming events on its own websites.", FoundEvents)
     result = asyncio.run(Runner.run(agent, prompt))
     captured_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    events, dropped = validate_events(result.final_output.events, search_sources(result), allowed, today, captured_at)
+    cited = search_sources(result)
+    events, dropped = validate_events(result.final_output.events, cited, allowed, today, captured_at)
+    events, unverified = verify_sources(events, cited, allowed)
+    dropped += unverified
     for d in dropped:
         print(f"  dropped: {d}", file=sys.stderr)
     if events:
@@ -183,8 +284,19 @@ def is_star_or_org(p: dict) -> bool:
     return bool(p.get("is_star")) or p.get("donor_type") == "organization"
 
 
+def reachable(people: list[dict]) -> list[dict]:
+    """People with an email or a phone, with `id` set (data's /people uses id; some keys say person_id)."""
+    out = []
+    for p in people:
+        if p.get("email") or p.get("phone"):
+            out.append(p if "id" in p else p | {"id": p.get("person_id")})
+    return out
+
+
 def rule_audience(event: dict, people: list[dict]) -> tuple[str, list[dict], dict]:
-    """The deterministic part: who, in what order, and a one-line reason each."""
+    """The deterministic part: who, in what order, and a one-line reason each. Nobody without an
+    email or a phone is chosen: an invite they can't receive isn't an invite."""
+    people = reachable(people)
     kind = event_kind(event)
     why = {}
     if kind == "pet":

@@ -9,19 +9,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from events_agent import check_invite, event_kind, rule_audience, validate_events  # noqa: E402
 
 PEOPLE = [
-    {"id": 1, "full_name": "Maria Delgado", "contact_type": "giver", "status": "lapsing", "is_star": 0, "has_dog": False},
-    {"id": 2, "full_name": "DeLuca Foundation", "contact_type": "giver", "donor_type": "organization", "is_star": 1},
-    {"id": 3, "full_name": "Ana Ruiz", "contact_type": "community", "has_dog": True, "interests": ["running"]},
-    {"id": 4, "full_name": "Leo Park", "contact_type": "neighbor", "has_dog": False, "interests": ["arts"]},
-    {"id": 5, "full_name": "Sam Cole", "contact_type": "neighbor", "has_dog": True},
-    {"id": 6, "full_name": "Bo Diaz", "contact_type": "giver", "status": "on_track", "has_dog": True},
+    {"id": 1, "full_name": "Maria Delgado", "contact_type": "giver", "status": "lapsing", "is_star": 0, "has_dog": False, "email": "m@example.org"},
+    {"id": 2, "full_name": "DeLuca Foundation", "contact_type": "giver", "donor_type": "organization", "is_star": 1, "email": "d@example.org"},
+    {"id": 3, "full_name": "Ana Ruiz", "contact_type": "community", "has_dog": True, "interests": ["running"], "phone": "+13055550103"},
+    {"id": 4, "full_name": "Leo Park", "contact_type": "neighbor", "has_dog": False, "interests": ["arts"], "email": "l@example.org"},
+    {"id": 5, "full_name": "Sam Cole", "contact_type": "neighbor", "has_dog": True, "email": "s@example.org"},
+    {"id": 6, "full_name": "Bo Diaz", "contact_type": "giver", "status": "on_track", "has_dog": True, "email": "b@example.org"},
+    {"id": 7, "full_name": "No Contact", "contact_type": "community", "has_dog": True},
 ]
 
 
-def test_pet_event_targets_only_people_with_dogs():
+def test_pet_event_targets_only_reachable_people_with_dogs():
     kind, chosen, why = rule_audience({"title": "Puppy Outreach Day", "starts_at": "2026-11-21"}, PEOPLE)
-    assert kind == "pet" and {p["id"] for p in chosen} == {3, 5, 6}
-    assert all(p["has_dog"] for p in chosen)
+    assert kind == "pet" and {p["id"] for p in chosen} == {3, 5, 6}          # 7 has a dog but no email or phone
+    assert all(p["has_dog"] and (p.get("email") or p.get("phone")) for p in chosen)
+
+
+def test_person_id_key_is_accepted():
+    people = [{"person_id": 9, "contact_type": "neighbor", "has_dog": True, "email": "x@example.org"}]
+    _, chosen, why = rule_audience({"title": "Puppy Day", "starts_at": "2026-11-21"}, people)
+    assert [p["id"] for p in chosen] == [9] and 9 in why
 
 
 def test_giving_event_targets_givers_lapsing_then_star_first():
@@ -33,6 +40,24 @@ def test_giving_event_targets_givers_lapsing_then_star_first():
 def test_community_event_targets_matching_interests_in_community_and_neighbors():
     kind, chosen, _ = rule_audience({"title": "Arts in the Park", "starts_at": "2026-11-22"}, PEOPLE)
     assert kind == "community" and [p["id"] for p in chosen] == [4]
+
+
+def test_event_needs_a_page_that_states_its_date_and_place():
+    from events_agent import verify_sources
+    five_k = {"title": "The Give Miami 5K: Race + Festival", "starts_at": "2026-11-15", "place": "Maurice A. Ferré Park",
+              "source_url": "https://miamifoundation.org/featured/5k/"}
+    pages = {"https://miamifoundation.org/featured/5k/": None,          # bot wall: can't be read
+             "https://runsignup.com/race/fl/miami/givemiami5k/": "The Give Miami 5K Sunday, November 15 2026 Maurice A. Ferre Park, Miami"}
+    kept, dropped = verify_sources([five_k], set(pages), {"miamifoundation.org"}, fetch=pages.get)
+    assert kept[0]["source_url"] == "https://runsignup.com/race/fl/miami/givemiami5k/"
+    assert kept[0]["place"] == "Maurice A. Ferré Park" and kept[0]["verification"] == "page-verified"
+    # a page with the title but no date: dropped; a page with the date but not the place: place cleared
+    kept, dropped = verify_sources([five_k], {"https://runsignup.com/x/"}, {"miamifoundation.org"},
+                                   fetch={"https://runsignup.com/x/": "Give Miami 5K registration"}.get)
+    assert kept == [] and dropped
+    kept, _ = verify_sources([five_k], {"https://runsignup.com/y/"}, {"miamifoundation.org"},
+                             fetch={"https://runsignup.com/y/": "Give Miami 5K on November 15"}.get)
+    assert kept[0]["place"] is None
 
 
 def test_events_need_a_future_date_and_a_search_returned_source():
