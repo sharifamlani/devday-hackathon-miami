@@ -1,0 +1,122 @@
+"""Data routes for the UI and the agents. main.py mounts this router:
+
+    from service.routes_data import router as data_router
+    app.include_router(data_router)
+
+GET  /donors                     every donor with score fields, highest score first
+GET  /donors/{id}                one donor: gifts, score + why, research_facts, outreach_drafts
+GET  /duplicates                 pending duplicate suggestions with both donors
+POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id": n})
+POST /duplicates/{id}/dismiss    "not a duplicate"
+POST /score/run                  rescore everyone, refresh duplicate suggestions (?as_of=YYYY-MM-DD)
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from collections.abc import Iterator
+from datetime import date
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+
+from service import dedupe, score
+from service.db import connect, create_schema
+
+router = APIRouter(tags=["data"])
+
+
+def get_conn() -> Iterator[sqlite3.Connection]:
+    conn = connect()
+    create_schema(conn)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _donor_out(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    d["emails_all"] = json.loads(d.get("emails_all") or "[]")
+    if "is_star" in d:
+        d["is_star"] = bool(d["is_star"]) if d["is_star"] is not None else False
+    if "why" in d:
+        d["why"] = json.loads(d["why"]) if d["why"] else None
+    return d
+
+
+DONOR_WITH_SCORE = """
+SELECT d.*, s.score, s.tier, s.is_star, s.status, s.why, s.as_of AS score_as_of
+FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id
+"""
+
+
+@router.get("/donors")
+def list_donors(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+    rows = conn.execute(DONOR_WITH_SCORE + " ORDER BY s.score IS NULL, s.score DESC, d.id").fetchall()
+    return [_donor_out(r) for r in rows]
+
+
+@router.get("/donors/{donor_id}")
+def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    row = conn.execute(DONOR_WITH_SCORE + " WHERE d.id = ?", (donor_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, f"donor {donor_id} not found")
+    donor = _donor_out(row)
+    donor["gifts"] = [dict(r) for r in conn.execute(
+        "SELECT * FROM gifts WHERE donor_id = ? ORDER BY gift_date DESC", (donor_id,))]
+    donor["research_facts"] = [dict(r) for r in conn.execute(
+        "SELECT * FROM research_facts WHERE donor_id = ? ORDER BY retrieved_at DESC, id DESC", (donor_id,))]
+    donor["outreach_drafts"] = [dict(r) for r in conn.execute(
+        "SELECT * FROM outreach_drafts WHERE donor_id = ? ORDER BY created_at DESC, id DESC", (donor_id,))]
+    return donor
+
+
+@router.get("/duplicates")
+def list_duplicates(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+    out = []
+    for s in conn.execute(
+            "SELECT * FROM duplicate_suggestions WHERE status = 'pending' ORDER BY confidence DESC, id"):
+        item = dict(s)
+        item["reasons"] = json.loads(item["reasons"])
+        for side in ("a", "b"):
+            donor = conn.execute(DONOR_WITH_SCORE + " WHERE d.id = ?", (item[f"donor_{side}_id"],)).fetchone()
+            item[f"donor_{side}"] = _donor_out(donor) if donor else None
+            item[f"donor_{side}_gift_count"] = conn.execute(
+                "SELECT COUNT(*) FROM gifts WHERE donor_id = ?", (item[f"donor_{side}_id"],)).fetchone()[0]
+        out.append(item)
+    return out
+
+
+@router.post("/duplicates/{suggestion_id}/merge")
+def merge_duplicate(suggestion_id: int, keep_id: int | None = Body(None, embed=True),
+                    conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    try:
+        result = dedupe.merge(conn, suggestion_id, keep_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    score.run(conn)
+    result["donor"] = get_donor(result["kept_donor_id"], conn)
+    return result
+
+
+@router.post("/duplicates/{suggestion_id}/dismiss")
+def dismiss_duplicate(suggestion_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    try:
+        dedupe.dismiss(conn, suggestion_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    return {"suggestion_id": suggestion_id, "status": "dismissed"}
+
+
+@router.post("/score/run")
+def run_scores(as_of: date | None = Query(None), conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    scored = score.run(conn, as_of)
+    pending = dedupe.run(conn)
+    top = list_donors(conn)[:5]
+    return {"scored": scored, "pending_duplicates": pending,
+            "as_of": (as_of or score.default_as_of()).isoformat(),
+            "top": [{"id": d["id"], "full_name": d["full_name"], "score": d["score"], "status": d["status"]}
+                    for d in top]}
