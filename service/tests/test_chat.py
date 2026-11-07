@@ -104,7 +104,10 @@ def test_approved_item_without_an_address_is_blocked_not_sent(db_file):
     assert r["sent"] == 0 and r["blocked"] == [{"id": 1, "reason": "no email on file"}]
 
 
-def test_refresh_now_without_the_refresh_lane_is_503(db_file):
+def test_refresh_now_without_the_refresh_lane_is_503(db_file, monkeypatch):
+    from service import main
+    real = main.module_present
+    monkeypatch.setattr(main, "module_present", lambda name: False if name == "service.refresh" else real(name))
     r = TestClient(app).post("/context/refresh")
     assert r.status_code == 503 and r.json()["detail"] == "service.refresh has not landed on this build yet"
 

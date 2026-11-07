@@ -57,6 +57,7 @@ def stand_in_events_agent(monkeypatch):
     fake.extract_events = lambda refresh=False: [dict(e) for e in EVENTS]
     fake.suggest_audience, fake.draft_event_invite = suggest_audience, draft_event_invite
     monkeypatch.setitem(sys.modules, "service.events_agent", fake)
+    monkeypatch.setattr(event_outreach, "load_events", lambda conn: [{**e, "id": i} for i, e in enumerate(EVENTS, 1)])
     monkeypatch.setenv("SCORE_AS_OF", "2026-11-08")
 
     def refuse(*args, **kwargs):
@@ -155,8 +156,16 @@ def test_route_plans_an_event_and_nothing_sends_until_approved(three_tabs):
     assert sent["sent"] > 0 and all(o["delivery_status"] == "queued (dry run)" for o in sent["outbox"])
 
 
-def test_without_three_tabs_only_givers_are_planned_and_it_says_so(db_file):
+def test_without_three_tabs_only_givers_are_planned_and_it_says_so(db_file, monkeypatch):
+    from service import routes_data
+    monkeypatch.delattr(routes_data, "list_people", raising=False)     # before data's three tabs land
     result = event_outreach.plan_event_outreach("all_upcoming")
     five_k = result["events"][1]
     assert result["givers_only"] is True
     assert five_k["batch_id"] is None and five_k["note"] == event_outreach.GIVERS_ONLY_NOTE
+
+
+def test_no_saved_events_says_run_refresh(db_file, monkeypatch):
+    monkeypatch.setattr(event_outreach, "load_events", lambda conn: [])
+    result = event_outreach.plan_event_outreach("all_upcoming")
+    assert result["events"] == [] and result["note"] == event_outreach.NO_EVENTS_NOTE

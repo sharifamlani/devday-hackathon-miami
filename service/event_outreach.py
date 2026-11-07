@@ -18,6 +18,7 @@ from service import db
 
 DRAFT_WORKERS = 4
 GIVERS_ONLY_NOTE = "only Givers are loaded so far; Neighbors and Community join once uploads assign tabs"
+NO_EVENTS_NOTE = "no upcoming events saved yet: run Refresh now to read them from the website"
 
 
 def events_agent():
@@ -136,6 +137,9 @@ def plan_event_outreach(target: int | str = "all_upcoming") -> dict:
             if not picked:
                 raise LookupError(f"event {target} not found")
         people, givers_only = load_people(conn)
-        return {"events": [plan_event(conn, e, people, givers_only) for e in picked], "givers_only": givers_only}
+        out = {"events": [plan_event(conn, e, people, givers_only) for e in picked], "givers_only": givers_only}
+        if not picked and target == "all_upcoming":
+            out["note"] = NO_EVENTS_NOTE
+        return out
     finally:
         conn.close()
