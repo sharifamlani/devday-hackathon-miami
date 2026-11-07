@@ -117,10 +117,20 @@ def run(conn: sqlite3.Connection) -> int:
     return conn.execute("SELECT COUNT(*) FROM duplicate_suggestions WHERE status = 'pending'").fetchone()[0]
 
 
-def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = None) -> dict:
+MOVED_TABLES = ["gifts", "research_facts", "outreach_drafts"]
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = None,
+          approved_by: str | None = None) -> dict:
     """Merge a suggested pair into one donor. The kept donor takes the other's gifts, research facts,
     drafts and emails, and fills any blank fields from it; the other donor row is then deleted.
-    Default keeper: the donor with more gifts (ties → lower id). Raises ValueError on a bad request."""
+    Default keeper: the donor with more gifts (ties → lower id). Raises ValueError on a bad request.
+
+    Everything needed to undo the merge exactly is written to merge_log in the same transaction."""
     s = conn.execute("SELECT * FROM duplicate_suggestions WHERE id = ?", (suggestion_id,)).fetchone()
     if s is None:
         raise LookupError(f"no duplicate suggestion {suggestion_id}")
@@ -135,8 +145,17 @@ def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = No
         raise ValueError(f"keep_id {keep_id} is not in suggestion {suggestion_id}")
     drop_id = pair[1] if keep_id == pair[0] else pair[0]
 
-    keep = dict(conn.execute("SELECT * FROM donors WHERE id = ?", (keep_id,)).fetchone())
-    drop = dict(conn.execute("SELECT * FROM donors WHERE id = ?", (drop_id,)).fetchone())
+    keep_row = conn.execute("SELECT * FROM donors WHERE id = ?", (keep_id,)).fetchone()
+    drop_row = conn.execute("SELECT * FROM donors WHERE id = ?", (drop_id,)).fetchone()
+    if keep_row is None or drop_row is None:
+        raise ValueError(f"suggestion {suggestion_id} refers to a donor that no longer exists")
+    keep, drop = dict(keep_row), dict(drop_row)
+    score_row = conn.execute("SELECT * FROM donor_scores WHERE donor_id = ?", (drop_id,)).fetchone()
+    moved_ids = {t: [r[0] for r in conn.execute(f"SELECT id FROM {t} WHERE donor_id = ? ORDER BY id", (drop_id,))]
+                 for t in MOVED_TABLES}
+    superseded_ids = [r[0] for r in conn.execute(
+        "SELECT id FROM duplicate_suggestions WHERE status = 'pending' AND id != ? "
+        "AND (donor_a_id = ? OR donor_b_id = ?) ORDER BY id", (suggestion_id, drop_id, drop_id))]
 
     emails = sorted(donor_emails(keep) | donor_emails(drop))
     updates = {"emails_all": json.dumps(emails)}
@@ -146,21 +165,108 @@ def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = No
     updates["notes"] = "\n".join(x for x in [keep.get("notes"), drop.get("notes")] if x) or None
     updates["source_row"] = "\n".join(x for x in [keep.get("source_row"), drop.get("source_row")] if x) or None
 
-    conn.execute(f"UPDATE donors SET {', '.join(f'{k} = ?' for k in updates)} WHERE id = ?",
-                 [*updates.values(), keep_id])
-    moved = {}
-    for table in ["gifts", "research_facts", "outreach_drafts"]:
-        moved[table] = conn.execute(f"UPDATE {table} SET donor_id = ? WHERE donor_id = ?", (keep_id, drop_id)).rowcount
-    conn.execute("DELETE FROM donor_scores WHERE donor_id = ?", (drop_id,))
-    conn.execute("DELETE FROM donors WHERE id = ?", (drop_id,))
+    now = _now()
+    try:
+        conn.execute(f"UPDATE donors SET {', '.join(f'{k} = ?' for k in updates)} WHERE id = ?",
+                     [*updates.values(), keep_id])
+        moved = {}
+        for table in MOVED_TABLES:
+            moved[table] = conn.execute(
+                f"UPDATE {table} SET donor_id = ? WHERE donor_id = ?", (keep_id, drop_id)).rowcount
+        conn.execute("DELETE FROM donor_scores WHERE donor_id = ?", (drop_id,))
+        conn.execute("DELETE FROM donors WHERE id = ?", (drop_id,))
 
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    conn.execute("UPDATE duplicate_suggestions SET status = 'merged', resolved_at = ? WHERE id = ?", (now, suggestion_id))
-    conn.execute(
-        "UPDATE duplicate_suggestions SET status = 'superseded', resolved_at = ? "
-        "WHERE status = 'pending' AND (donor_a_id = ? OR donor_b_id = ?)", (now, drop_id, drop_id))
-    conn.commit()
-    return {"suggestion_id": suggestion_id, "kept_donor_id": keep_id, "removed_donor_id": drop_id, "moved": moved}
+        conn.execute("UPDATE duplicate_suggestions SET status = 'merged', resolved_at = ? WHERE id = ?", (now, suggestion_id))
+        for sid in superseded_ids:
+            conn.execute("UPDATE duplicate_suggestions SET status = 'superseded', resolved_at = ? WHERE id = ?", (now, sid))
+        merge_id = conn.execute(
+            "INSERT INTO merge_log (suggestion_id, kept_id, merged_id, merged_at, approved_by, kept_before, "
+            "merged_row, merged_score, moved, superseded) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (suggestion_id, keep_id, drop_id, now, approved_by, json.dumps(keep), json.dumps(drop),
+             json.dumps(dict(score_row)) if score_row else None, json.dumps(moved_ids),
+             json.dumps(superseded_ids))).lastrowid
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    return {"suggestion_id": suggestion_id, "kept_donor_id": keep_id, "removed_donor_id": drop_id,
+            "moved": moved, "merge_id": merge_id}
+
+
+def undo_merge(conn: sqlite3.Connection, merge_id: int) -> dict:
+    """Undo one merge exactly: the dropped donor returns with its original id and columns, the kept donor's
+    columns revert, and exactly the rows that were moved go back. Only the newest not-yet-undone merge into a
+    donor can be undone. Raises LookupError (no such merge) or ValueError (cannot be undone)."""
+    m = conn.execute("SELECT * FROM merge_log WHERE id = ?", (merge_id,)).fetchone()
+    if m is None:
+        raise LookupError(f"no merge {merge_id}")
+    if m["undone_at"] is not None:
+        raise ValueError(f"merge {merge_id} was already undone")
+    kept_id, merged_id = m["kept_id"], m["merged_id"]
+    newest = conn.execute(
+        "SELECT id FROM merge_log WHERE kept_id = ? AND undone_at IS NULL ORDER BY id DESC LIMIT 1",
+        (kept_id,)).fetchone()
+    if newest["id"] != merge_id:
+        raise ValueError(f"merge {merge_id} is not the newest merge into donor {kept_id}; undo merge {newest['id']} first")
+    if conn.execute("SELECT 1 FROM donors WHERE id = ?", (merged_id,)).fetchone():
+        raise ValueError(f"donor {merged_id} already exists again; merge {merge_id} cannot be undone")
+    if conn.execute("SELECT 1 FROM donors WHERE id = ?", (kept_id,)).fetchone() is None:
+        raise ValueError(f"donor {kept_id} no longer exists (merged into another donor); undo that merge first")
+
+    kept_before = json.loads(m["kept_before"])
+    merged_row = json.loads(m["merged_row"])
+    merged_score = json.loads(m["merged_score"]) if m["merged_score"] else None
+    moved = json.loads(m["moved"])
+    superseded = json.loads(m["superseded"])
+    try:
+        cols = list(merged_row)
+        conn.execute(f"INSERT INTO donors ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                     [merged_row[c] for c in cols])
+        restore = {k: v for k, v in kept_before.items() if k != "id"}
+        if restore:
+            conn.execute(f"UPDATE donors SET {', '.join(f'{k} = ?' for k in restore)} WHERE id = ?",
+                         [*restore.values(), kept_id])
+        for table in MOVED_TABLES:
+            for row_id in moved.get(table, []):
+                conn.execute(f"UPDATE {table} SET donor_id = ? WHERE id = ? AND donor_id = ?",
+                             (merged_id, row_id, kept_id))
+        if merged_score:
+            sc = list(merged_score)
+            conn.execute(f"INSERT OR REPLACE INTO donor_scores ({', '.join(sc)}) VALUES ({', '.join('?' * len(sc))})",
+                         [merged_score[c] for c in sc])
+        for sid in [m["suggestion_id"], *superseded]:
+            if sid is not None:
+                conn.execute("UPDATE duplicate_suggestions SET status = 'pending', resolved_at = NULL WHERE id = ?", (sid,))
+        conn.execute("UPDATE merge_log SET undone_at = ? WHERE id = ?", (_now(), merge_id))
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    return {"kept_id": kept_id, "restored_id": merged_id}
+
+
+def merges_for(conn: sqlite3.Connection, donor_id: int) -> list[dict]:
+    """Merges into this donor, newest first, for the donor detail view. Only the newest merge that has not
+    been undone can be undone (can_undo)."""
+    out, undoable_seen = [], False
+    for m in conn.execute("SELECT * FROM merge_log WHERE kept_id = ? ORDER BY id DESC", (donor_id,)):
+        merged = json.loads(m["merged_row"])
+        try:
+            emails = json.loads(merged.get("emails_all") or "[]")
+        except (TypeError, json.JSONDecodeError):
+            emails = []
+        if not emails and merged.get("email"):
+            emails = [merged["email"]]
+        can_undo = m["undone_at"] is None and not undoable_seen
+        if m["undone_at"] is None:
+            undoable_seen = True
+        out.append({
+            "id": m["id"], "kept_id": m["kept_id"], "merged_id": m["merged_id"],
+            "merged_name": merged.get("full_name"), "merged_email": merged.get("email"),
+            "merged_emails": emails, "gifts_moved": len(json.loads(m["moved"]).get("gifts", [])),
+            "merged_at": m["merged_at"], "approved_by": m["approved_by"],
+            "undone_at": m["undone_at"], "can_undo": can_undo})
+    return out
 
 
 def dismiss(conn: sqlite3.Connection, suggestion_id: int) -> None:

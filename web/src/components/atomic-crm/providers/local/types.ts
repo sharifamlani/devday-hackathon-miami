@@ -78,6 +78,7 @@ export interface DonorDetail extends DonorSummary {
   score_factors: ScoreFactor[];
   gifts: Gift[];
   research: ResearchFact[];
+  merges: MergeLogEntry[]; // merges into this donor, newest first ([] if none)
   draft: OutreachDraft | null; // newest outreach_drafts row
 }
 
@@ -248,6 +249,66 @@ export interface IngestResult {
 export interface MergeResult {
   kept_id: number;
   merged_id: number;
+  /** merge_log row for this merge; pass to undoMerge. null if the server predates the log. */
+  merge_id: number | null;
+}
+
+/**
+ * One merge into this donor, newest first on DonorDetail.merges. The merged
+ * record is kept whole in the log (GET /donors/{id} "merges"), so nothing is
+ * lost and the merge can be undone.
+ */
+export interface MergeLogEntry {
+  id: number;
+  kept_id: number;
+  merged_id: number;
+  merged_name: string;
+  merged_email: string | null;
+  merged_emails: string[]; // every email the merged record carried
+  gifts_moved: number;
+  merged_at: string; // ISO timestamp
+  approved_by: string | null;
+  undone_at: string | null;
+  /** true only for the newest merge into this donor that has not been undone */
+  can_undo: boolean;
+}
+
+export interface UndoMergeResult {
+  kept_id: number;
+  restored_id: number;
+}
+
+/** One gift parsed from an uploaded list, in the ingest contract's shape (plan §13). */
+export interface ImportedGift {
+  amount: number;
+  gift_date: string; // YYYY-MM-DD
+  channel: string | null;
+  fund_type: string | null;
+}
+
+/** One donor parsed from an uploaded list, in the ingest contract's shape (plan §13). */
+export interface ImportedDonorRow {
+  full_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  org_name: string | null;
+  donor_type: DonorType;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  notes: string | null; // unmapped columns, verbatim
+  source_row: string; // "<file name>#<row number>"
+  gifts: ImportedGift[];
+}
+
+/** contract field -> source column header (null = not mapped) */
+export type ImportMapping = Record<string, string | null>;
+
+export interface ImportInput {
+  files: File[];
+  mapping: ImportMapping;
+  rows: ImportedDonorRow[];
 }
 
 /**
@@ -274,6 +335,12 @@ export interface DonorDeskMethods {
   dismissProspect(id: number): Promise<void>;
   /** Screen 1: multipart POST /ingest with every file under "files". */
   uploadFiles(files: File[]): Promise<IngestResult>;
+  /** Import dialog. Live: uploadFiles(files) to Carlos's /ingest, which maps
+   *  columns itself. Snapshot: adds the parsed rows to this tab's data and
+   *  flags duplicates by email or phone. */
+  importDonors(input: ImportInput): Promise<IngestResult>;
+  /** POST /merges/{mergeId}/undo: restores the merged donor exactly as it was. */
+  undoMerge(mergeId: number): Promise<UndoMergeResult>;
   /** Screen 2: saves the URLs and researches the website. One call,
    *  up to 30 s; the result includes the saved profile and facts. */
   runContext(input: ContextRunInput): Promise<ContextRun>;
