@@ -144,13 +144,19 @@ TABLES = ["outreach_drafts", "research_facts", "duplicate_suggestions", "donor_s
 
 
 def connect(path: str | Path | None = None) -> sqlite3.Connection:
-    """Open the db with Row access and foreign keys on. ':memory:' works for tests."""
+    """Open the db with Row access and foreign keys on. ':memory:' works for tests.
+
+    Each API request gets its own connection (routes_data.get_conn), but FastAPI opens it in one
+    threadpool thread and runs the sync route in another, so check_same_thread is off; the
+    connection is still never shared between requests. Writers wait up to 10 s for a lock
+    instead of failing with "database is locked"."""
     target = str(path) if path is not None else str(db_path())
     if target != ":memory:":
         Path(target).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(target)
+    conn = sqlite3.connect(target, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 10000")
     return conn
 
 
