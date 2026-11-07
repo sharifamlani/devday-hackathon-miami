@@ -34,8 +34,8 @@ every unit, verify against the real system) we did both times, and it worked bot
 | `tech-notes.md` | Proven parts to lift (voice interviewer, AI matching, music previews, 3D rooms, voice e2e test) with file paths, plus every technical trap we hit | When choosing the stack and building |
 | `templates/` | Blank `event-brief.md`, `idea-shortlist.md`, `demo-script.md`, `ROADMAP.md`, `CLAUDE.md`, judge-facing `README.md`, `env.example` | Starting the new repo |
 | `agents/` | The 5 Claude Code subagents: `data-prober`, `screen-builder`, `submission-scribe`, `demo-verifier`, `bug-hypothesis` | Copy into the new repo's `.claude/agents/` |
-| `playbooks/` | `parallel-build-playbook.md` (how one builder runs agents) and `gemma4-integration.md` (open-weight model traps) | Before dispatching agents; before any Gemma call |
-| `scripts/` | `verify-e2e.py` (Playwright on production, with a recorded voice fed into the mic) and `make-voice.ps1` (makes those voices) | After every deploy |
+| `playbooks/` | `parallel-build-playbook.md` (how one builder runs agents), `gemma4-integration.md` (open-weight model traps) and `openai-integration.md` (GPT-6.x tiers, Agents SDK, Codex-only rule) | Before dispatching agents; before any Gemma or OpenAI call |
+| `scripts/` | `verify-e2e.py` (Playwright on production, with a recorded voice fed into the mic) and `make-voice.ps1` (makes those voices). The repo root's `scripts/smoke-openai.py` proves the OpenAI key, tiers and Agents SDK | After every deploy; night before (N4) |
 
 The full post-mortems behind the rules: `../lessons-from-hack-for-humanity.md` and
 `../lessons-from-converge.md`.
