@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-11-07T21:53:03+00:00",
+  "generated_at": "2026-11-07T22:24:26+00:00",
   "icp": {
     "traits": [
       {
         "trait": "sector",
-        "value": "Target grantmaking foundations, corporate funders and legal-services firms with demonstrated community investment.",
+        "value": "Target philanthropic foundations, corporate giving programs and legal-services firms with demonstrated community investment.",
         "evidence": [
           {
             "donor": "Frederick A. DeLuca Foundation",
             "donor_id": 11,
-            "fact": "It committed a $5 million matching grant to help launch and endow the Community Foundation of Broward’s Broward Center for Nonprofit Excellence.",
-            "url": "https://www.cfbroward.org/articles/10-million-fuels-permanent-support-for-broward-nonprofit-excellence"
+            "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
+            "url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf"
           },
           {
             "donor": "Amazon",
@@ -28,49 +28,7 @@
       },
       {
         "trait": "causes",
-        "value": "Lead with economic mobility, youth-and-family support, access to justice and nonprofit capacity building when cultivating organizational prospects.",
-        "evidence": [
-          {
-            "donor": "Frederick A. DeLuca Foundation",
-            "donor_id": 11,
-            "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
-            "url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf"
-          },
-          {
-            "donor": "McDermott Will & Schulte",
-            "donor_id": 12,
-            "fact": "The Miami office received Legal Services of Greater Miami’s 2023 Equal Justice Pro Bono Large Firm Award for work including transactional clinics and full representation benefiting nonprofits, individuals and low-to-moderate-income small-business owners.",
-            "url": "https://www.mcdermottlaw.com/news/mcdermotts-miami-office-receives-equal-justice-pro-bono-large-firm-award-from-legal-services-of-greater-miami-inc/"
-          },
-          {
-            "donor": "Frederick A. DeLuca Foundation",
-            "donor_id": 11,
-            "fact": "It committed a $5 million matching grant to help launch and endow the Community Foundation of Broward’s Broward Center for Nonprofit Excellence.",
-            "url": "https://www.cfbroward.org/articles/10-million-fuels-permanent-support-for-broward-nonprofit-excellence"
-          }
-        ]
-      },
-      {
-        "trait": "geography",
-        "value": "Prioritize organizations investing in Miami-Dade and Broward, while including prospects whose South Florida work extends to Palm Beach and Monroe counties.",
-        "evidence": [
-          {
-            "donor": "Frederick A. DeLuca Foundation",
-            "donor_id": 11,
-            "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
-            "url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf"
-          },
-          {
-            "donor": "John S. and James L. Knight Foundation",
-            "donor_id": 9,
-            "fact": "The Miami Foundation administers the Knight-supported Esserman-Knight Journalism Awards, recognizing investigative and public-service reporting in Miami-Dade, Broward and Monroe counties.",
-            "url": "https://knightfoundation.org/events/main/"
-          }
-        ]
-      },
-      {
-        "trait": "foundation_priorities",
-        "value": "Frame outreach around Eliminate Inequities, Empower Youth & Families and Generate Prosperity, with tailored opportunities for Inspire Civic Involvement and Build Climate & Disaster Resilience.",
+        "value": "Lead with opportunities supporting youth and families, economic mobility, equitable legal access, public-service journalism and climate resilience.",
         "evidence": [
           {
             "donor": "Frederick A. DeLuca Foundation",
@@ -95,6 +53,60 @@
             "donor_id": 9,
             "fact": "Knight awarded $3 million in November 2022 to establish the Miami-Dade Innovation Authority, supporting technology adoption in climate resilience, health and financial inclusion.",
             "url": "https://knightfoundation.org/wp-content/uploads/2025/11/Tax-Year-2024-Knight-Foundation-Form-990-PF.pdf"
+          }
+        ]
+      },
+      {
+        "trait": "geography",
+        "value": "Prioritize organizations investing in Miami-Dade and Broward, with regional prospects also supporting Palm Beach and Monroe counties.",
+        "evidence": [
+          {
+            "donor": "Amazon",
+            "donor_id": 10,
+            "fact": "In January 2021, Amazon announced $500,000 for United Way organizations in Miami-Dade and Broward counties to support vulnerable families during the pandemic.",
+            "url": "https://www.gflalliance.org/news/2021/01/28/press-releases/south-florida-united-ways-to-receive-500-000-from-amazon/"
+          },
+          {
+            "donor": "Frederick A. DeLuca Foundation",
+            "donor_id": 11,
+            "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
+            "url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf"
+          },
+          {
+            "donor": "John S. and James L. Knight Foundation",
+            "donor_id": 9,
+            "fact": "The Miami Foundation administers the Knight-supported Esserman-Knight Journalism Awards, recognizing investigative and public-service reporting in Miami-Dade, Broward and Monroe counties.",
+            "url": "https://knightfoundation.org/events/main/"
+          }
+        ]
+      },
+      {
+        "trait": "foundation_priorities",
+        "value": "Match prospects to all five priorities—Empower Youth & Families, Generate Prosperity, Inspire Civic Involvement, Build Climate & Disaster Resilience and Eliminate Inequities—with Eliminate Inequities the most common alignment among researched donors.",
+        "evidence": [
+          {
+            "donor": "Frederick A. DeLuca Foundation",
+            "donor_id": 11,
+            "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
+            "url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf"
+          },
+          {
+            "donor": "John S. and James L. Knight Foundation",
+            "donor_id": 9,
+            "fact": "The Miami Foundation administers the Knight-supported Esserman-Knight Journalism Awards, recognizing investigative and public-service reporting in Miami-Dade, Broward and Monroe counties.",
+            "url": "https://knightfoundation.org/events/main/"
+          },
+          {
+            "donor": "John S. and James L. Knight Foundation",
+            "donor_id": 9,
+            "fact": "Knight awarded $3 million in November 2022 to establish the Miami-Dade Innovation Authority, supporting technology adoption in climate resilience, health and financial inclusion.",
+            "url": "https://knightfoundation.org/wp-content/uploads/2025/11/Tax-Year-2024-Knight-Foundation-Form-990-PF.pdf"
+          },
+          {
+            "donor": "McDermott Will & Schulte",
+            "donor_id": 12,
+            "fact": "McDermott hired Jayme Cassidy as Miami-based transactions pro bono counsel in January 2025 to expand legal support for nonprofits, NGOs, small businesses and low-income entrepreneurs in underserved communities.",
+            "url": "https://www.mcdermottlaw.com/news/mcdermott-welcomes-jayme-cassidy-as-transactions-pro-bono-counsel/"
           }
         ]
       },
@@ -157,8 +169,8 @@
         "trait": "sector",
         "donor": "Frederick A. DeLuca Foundation",
         "donor_id": 11,
-        "fact": "It committed a $5 million matching grant to help launch and endow the Community Foundation of Broward’s Broward Center for Nonprofit Excellence.",
-        "url": "https://www.cfbroward.org/articles/10-million-fuels-permanent-support-for-broward-nonprofit-excellence"
+        "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
+        "url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf"
       },
       {
         "trait": "sector",
@@ -185,15 +197,29 @@
         "trait": "causes",
         "donor": "McDermott Will & Schulte",
         "donor_id": 12,
-        "fact": "The Miami office received Legal Services of Greater Miami’s 2023 Equal Justice Pro Bono Large Firm Award for work including transactional clinics and full representation benefiting nonprofits, individuals and low-to-moderate-income small-business owners.",
-        "url": "https://www.mcdermottlaw.com/news/mcdermotts-miami-office-receives-equal-justice-pro-bono-large-firm-award-from-legal-services-of-greater-miami-inc/"
+        "fact": "McDermott hired Jayme Cassidy as Miami-based transactions pro bono counsel in January 2025 to expand legal support for nonprofits, NGOs, small businesses and low-income entrepreneurs in underserved communities.",
+        "url": "https://www.mcdermottlaw.com/news/mcdermott-welcomes-jayme-cassidy-as-transactions-pro-bono-counsel/"
       },
       {
         "trait": "causes",
-        "donor": "Frederick A. DeLuca Foundation",
-        "donor_id": 11,
-        "fact": "It committed a $5 million matching grant to help launch and endow the Community Foundation of Broward’s Broward Center for Nonprofit Excellence.",
-        "url": "https://www.cfbroward.org/articles/10-million-fuels-permanent-support-for-broward-nonprofit-excellence"
+        "donor": "John S. and James L. Knight Foundation",
+        "donor_id": 9,
+        "fact": "The Miami Foundation administers the Knight-supported Esserman-Knight Journalism Awards, recognizing investigative and public-service reporting in Miami-Dade, Broward and Monroe counties.",
+        "url": "https://knightfoundation.org/events/main/"
+      },
+      {
+        "trait": "causes",
+        "donor": "John S. and James L. Knight Foundation",
+        "donor_id": 9,
+        "fact": "Knight awarded $3 million in November 2022 to establish the Miami-Dade Innovation Authority, supporting technology adoption in climate resilience, health and financial inclusion.",
+        "url": "https://knightfoundation.org/wp-content/uploads/2025/11/Tax-Year-2024-Knight-Foundation-Form-990-PF.pdf"
+      },
+      {
+        "trait": "geography",
+        "donor": "Amazon",
+        "donor_id": 10,
+        "fact": "In January 2021, Amazon announced $500,000 for United Way organizations in Miami-Dade and Broward counties to support vulnerable families during the pandemic.",
+        "url": "https://www.gflalliance.org/news/2021/01/28/press-releases/south-florida-united-ways-to-receive-500-000-from-amazon/"
       },
       {
         "trait": "geography",
@@ -215,13 +241,6 @@
         "donor_id": 11,
         "fact": "Its Community Funding RFP prioritizes regranting in Miami-Dade, Broward and Palm Beach counties for economic mobility and youth-and-family programs.",
         "url": "https://www.delucafdn.org/wp-content/uploads/2025/04/DeLuca_Foundation_Community_Funding_RFP.pdf"
-      },
-      {
-        "trait": "foundation_priorities",
-        "donor": "McDermott Will & Schulte",
-        "donor_id": 12,
-        "fact": "McDermott hired Jayme Cassidy as Miami-based transactions pro bono counsel in January 2025 to expand legal support for nonprofits, NGOs, small businesses and low-income entrepreneurs in underserved communities.",
-        "url": "https://www.mcdermottlaw.com/news/mcdermott-welcomes-jayme-cassidy-as-transactions-pro-bono-counsel/"
       },
       {
         "trait": "foundation_priorities",
@@ -236,6 +255,13 @@
         "donor_id": 9,
         "fact": "Knight awarded $3 million in November 2022 to establish the Miami-Dade Innovation Authority, supporting technology adoption in climate resilience, health and financial inclusion.",
         "url": "https://knightfoundation.org/wp-content/uploads/2025/11/Tax-Year-2024-Knight-Foundation-Form-990-PF.pdf"
+      },
+      {
+        "trait": "foundation_priorities",
+        "donor": "McDermott Will & Schulte",
+        "donor_id": 12,
+        "fact": "McDermott hired Jayme Cassidy as Miami-based transactions pro bono counsel in January 2025 to expand legal support for nonprofits, NGOs, small businesses and low-income entrepreneurs in underserved communities.",
+        "url": "https://www.mcdermottlaw.com/news/mcdermott-welcomes-jayme-cassidy-as-transactions-pro-bono-counsel/"
       }
     ],
     "recent_context": [
@@ -260,7 +286,7 @@
         "url": "https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/",
         "posted_at": "2026-09-23",
         "fact": "The Miami Foundation committed $100,000 in rapid-response support for Spanish-language coverage through elTOQUE and City of Miami coverage through The Florida Trib in partnership with the Coconut Grove Spotlight.",
-        "priority": "Inspire Civic Involvement",
+        "priority": null,
         "weight": 1.0
       },
       {
@@ -268,7 +294,7 @@
         "url": "https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/",
         "posted_at": "2026-09-23",
         "fact": "Press Forward South Florida awarded Newsroom Collaboration grants including $100,000 to WLRN and $100,000 to Florida International University's Lee Caplin School of Journalism & Media.",
-        "priority": "Inspire Civic Involvement",
+        "priority": "Empower Youth & Families",
         "weight": 1.0
       },
       {
@@ -276,7 +302,7 @@
         "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
         "posted_at": "2026-08-31",
         "fact": "The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.",
-        "priority": "Eliminate Inequities",
+        "priority": null,
         "weight": 1.0
       },
       {
@@ -284,7 +310,7 @@
         "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
         "posted_at": "2026-08-31",
         "fact": "Inspired directly by the Foundation-commissioned report, Amazon announced a $1 million investment in 13 South Dade nonprofit organizations to strengthen their capacity and deepen their community impact.",
-        "priority": "Eliminate Inequities",
+        "priority": null,
         "weight": 1.0
       },
       {
@@ -300,8 +326,32 @@
         "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
         "posted_at": "2026-08-31",
         "fact": "The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.",
-        "priority": "Generate Prosperity",
+        "priority": "Empower Youth & Families",
         "weight": 1.0
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/miamis-priorities/climate-disaster-resilience/",
+        "posted_at": "2026-08-04",
+        "fact": "The Miami Foundation activates its Disaster Resilience Fund with foundations and philanthropists to support disaster preparedness and equitable long-term recovery efforts.",
+        "priority": "Build Climate & Disaster Resilience",
+        "weight": 0.6
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/miamis-priorities/climate-disaster-resilience/",
+        "posted_at": "2026-08-04",
+        "fact": "During Florida's 2021 legislative session, Senator Ileana Garcia and State Representative Nick Duran led a successful bipartisan effort to create the Biscayne Bay specialty license plate, with plate-sale revenue designated to preserve and restore Biscayne Bay.",
+        "priority": null,
+        "weight": 0.6
+      },
+      {
+        "source": "website",
+        "url": "https://miamifoundation.org/miamis-priorities/climate-disaster-resilience/",
+        "posted_at": "2026-08-04",
+        "fact": "In 2021, Miami-Dade County received a challenge grant offer from the Adrienne Arsht-Rockefeller Foundation Resilience Center to fast start an extreme heat initiative under the Resilient305 program.",
+        "priority": "Build Climate & Disaster Resilience",
+        "weight": 0.6
       },
       {
         "source": "website",
@@ -310,67 +360,12 @@
         "fact": "The Miami Disaster Resilience Fund is investing $135,000 in resilience hubs and community-based organizations strengthening preparedness across Miami-Dade County.",
         "priority": "Build Climate & Disaster Resilience",
         "weight": 0.6
-      },
-      {
-        "source": "website",
-        "url": "https://miamifoundation.org/news/foundation-newsletter-july-2026/",
-        "posted_at": "2026-07-31",
-        "fact": "Vote Miami hosted three virtual candidate forums for Miami-Dade County Commission races in Districts 2, 5, and 8.",
-        "priority": "Inspire Civic Involvement",
-        "weight": 0.6
       }
     ]
   },
   "prospects": [
     {
-      "name": "Bressler, Amery & Ross, P.C.",
-      "org_type": "company",
-      "city": "Fort Lauderdale",
-      "matched_traits": [
-        "causes",
-        "foundation_priorities",
-        "geography",
-        "sector"
-      ],
-      "facts": [
-        {
-          "fact": "The firm's pro bono work covers housing, homelessness, immigration, socioeconomic injustice, nonprofits and youth affairs.",
-          "url": "https://www.bressler.com/about-community-citizenship"
-        },
-        {
-          "fact": "Its pro bono partners include Broward County Guardian Ad Litem and Legal Aid Service of Broward County's Mission United Veterans Pro Bono Project.",
-          "url": "https://www.bressler.com/about-community-citizenship"
-        },
-        {
-          "fact": "The firm states that its nonprofit partners rely on law firms such as Bressler for financial support and governance.",
-          "url": "https://www.bressler.com/about-community-citizenship"
-        }
-      ],
-      "priority": "Eliminate Inequities",
-      "status": "new",
-      "matched_context": [
-        {
-          "fact": "The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.",
-          "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
-          "posted_at": "2026-08-31"
-        },
-        {
-          "fact": "Inspired directly by the Foundation-commissioned report, Amazon announced a $1 million investment in 13 South Dade nonprofit organizations to strengthen their capacity and deepen their community impact.",
-          "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
-          "posted_at": "2026-08-31"
-        }
-      ],
-      "fit_breakdown": {
-        "geography": 12,
-        "priority_overlap": 22,
-        "primary_priority": 20,
-        "matched_traits": 15,
-        "recent_focus": 20
-      },
-      "fit_score": 89
-    },
-    {
-      "name": "Shutts & Bowen LLP",
+      "name": "White & Case LLP",
       "org_type": "company",
       "city": "Miami",
       "matched_traits": [
@@ -381,16 +376,307 @@
       ],
       "facts": [
         {
-          "fact": "The firm provides pro bono representation to nonprofit educational, cultural and civic organizations that cannot afford counsel.",
-          "url": "https://www.shutts.com/about-pro-bono"
+          "fact": "Legal Services of Greater Miami recognized its Miami office in 2023 for LGBTQ+ rights work.",
+          "url": "https://www.whitecase.com/responsible-business/pro-bono/external-recognition",
+          "quote": "Equal Justice Special Project of the Year Award for our work on LGBTQ+ rights.",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:24:25+00:00"
         },
         {
-          "fact": "Its attorneys delivered 3,582 pro bono service hours in 2025.",
-          "url": "https://www.shutts.com/about-pro-bono"
+          "fact": "Ayuda recognized the firm's pro bono immigration work for a family fleeing targeted violence in 2026.",
+          "url": "https://www.whitecase.com/responsible-business/pro-bono/external-recognition",
+          "quote": "In 2026, Ayuda awarded us its Pro Bono Impact Award",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:24:25+00:00"
+        }
+      ],
+      "priority": "Eliminate Inequities",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Press Forward South Florida, an initiative fueled in part by The Miami Foundation, announced grants to more than a dozen newsrooms and partnerships serving Broward, Miami-Dade and Monroe counties.",
+          "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/",
+          "posted_at": "2026-10-01"
         },
         {
-          "fact": "Its Dade Legal Aid Put Something Back partnership provides free civil legal services to qualifying low-income Miami-Dade residents.",
-          "url": "https://www.shutts.com/about-pro-bono"
+          "fact": "The Miami Foundation partnered with McDermott Will & Schulte to provide pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000.",
+          "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/",
+          "posted_at": "2026-10-01"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 10,
+        "primary_priority": 20,
+        "matched_traits": 15,
+        "recent_focus": 20
+      },
+      "fit_score": 85
+    },
+    {
+      "name": "Dunspaugh-Dalton Foundation",
+      "org_type": "foundation",
+      "city": "Coral Gables",
+      "matched_traits": [
+        "causes",
+        "foundation_priorities",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "The foundation funds cultural, educational, health, human-services and youth activities.",
+          "url": "https://www.dunspaughdalton.org/what-we-fund",
+          "quote": "Our areas of concentration include cultural, educational, health and human services, and youth activities.",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        },
+        {
+          "fact": "Miami-Dade County is one of its two stated geographic concentrations.",
+          "url": "https://www.dunspaughdalton.org/what-we-fund",
+          "quote": "Miami-Dade County, Florida and Monterey County, California.",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        }
+      ],
+      "priority": "Empower Youth & Families",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Press Forward South Florida awarded Newsroom Collaboration grants including $100,000 to WLRN and $100,000 to Florida International University's Lee Caplin School of Journalism & Media.",
+          "url": "https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/",
+          "posted_at": "2026-09-23"
+        },
+        {
+          "fact": "The Miami Foundation awarded scholarships totaling $3.45 million to 969 students this year.",
+          "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+          "posted_at": "2026-08-31"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 5,
+        "primary_priority": 13,
+        "matched_traits": 15,
+        "recent_focus": 20
+      },
+      "fit_score": 73
+    },
+    {
+      "name": "RSM US LLP",
+      "org_type": "company",
+      "city": "Coral Gables",
+      "matched_traits": [
+        "causes",
+        "foundation_priorities",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "RSM and the Davis Love Foundation reported nearly $48 million in donations supporting children and families since 2010.",
+          "url": "https://rsmus.com/newsroom/2024/rsm-announces-winner-of-rsms-birdies-fore-love-on-course-competition.html",
+          "quote": "have donated nearly $48 million to nonprofit organizations that support children and families in need",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        },
+        {
+          "fact": "RSM's foundation awards five first-generation students up to $30,000 each in scholarships.",
+          "url": "https://rsmus.com/careers/starting-your-career/scholarships.html",
+          "quote": "awards five first generation students with up to $30,000 each in scholarships",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        }
+      ],
+      "priority": "Empower Youth & Families",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Press Forward South Florida awarded Newsroom Collaboration grants including $100,000 to WLRN and $100,000 to Florida International University's Lee Caplin School of Journalism & Media.",
+          "url": "https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/",
+          "posted_at": "2026-09-23"
+        },
+        {
+          "fact": "The Miami Foundation awarded scholarships totaling $3.45 million to 969 students this year.",
+          "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+          "posted_at": "2026-08-31"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 5,
+        "primary_priority": 13,
+        "matched_traits": 15,
+        "recent_focus": 20
+      },
+      "fit_score": 73
+    },
+    {
+      "name": "The Taft Foundation",
+      "org_type": "foundation",
+      "city": "Fort Lauderdale",
+      "matched_traits": [
+        "causes",
+        "foundation_priorities",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "In 2024, Taft awarded Arc Broward $450,000 for employment, transition, infrastructure and staff-retention work.",
+          "url": "https://thetaftfoundation.org/our-grantees?area=12",
+          "quote": "Arc Broward Employment and Transition Programs, and Infrastructure Improvements and Staff Retention Efforts",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        },
+        {
+          "fact": "Taft funds nonprofit service providers in Miami-Dade, Broward and Palm Beach counties.",
+          "url": "https://thetaftfoundation.org/what-we-fund",
+          "quote": "Southeast Florida (Miami-Dade, Broward, and Palm Beach counties).",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        },
+        {
+          "fact": "Taft's 2024 grants included $416,661 for Brooklyn Law School's Disability and Civil Rights Clinic.",
+          "url": "https://thetaftfoundation.org/our-grantees?area=12",
+          "quote": "Brooklyn Law School Disability and Civil Rights Clinic",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        }
+      ],
+      "priority": "Eliminate Inequities",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Press Forward South Florida awarded Newsroom Collaboration grants including $100,000 to WLRN and $100,000 to Florida International University's Lee Caplin School of Journalism & Media.",
+          "url": "https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/",
+          "posted_at": "2026-09-23"
+        },
+        {
+          "fact": "The Miami Foundation awarded scholarships totaling $3.45 million to 969 students this year.",
+          "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+          "posted_at": "2026-08-31"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 12,
+        "priority_overlap": 5,
+        "primary_priority": 20,
+        "matched_traits": 15,
+        "recent_focus": 20
+      },
+      "fit_score": 72
+    },
+    {
+      "name": "Health Foundation of South Florida",
+      "org_type": "foundation",
+      "city": "Miami",
+      "matched_traits": [
+        "causes",
+        "foundation_priorities",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "Its Other Community Needs funding opportunity supports projects serving Broward, Miami-Dade and Monroe residents.",
+          "url": "https://hfsf.org/other-community-needs/",
+          "quote": "The project must exclusively serve residents of Broward, Miami-Dade and/or Monroe Counties.",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        },
+        {
+          "fact": "The opportunity seeks proposals that reduce health disparities and create health equity.",
+          "url": "https://hfsf.org/other-community-needs/",
+          "quote": "share ideas and interests that reduce health disparities and create health equity.",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:19:17+00:00"
+        }
+      ],
+      "priority": "Eliminate Inequities",
+      "status": "new",
+      "matched_context": [],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 8,
+        "primary_priority": 20,
+        "matched_traits": 15,
+        "recent_focus": 0
+      },
+      "fit_score": 63
+    },
+    {
+      "name": "Salah Foundation",
+      "org_type": "foundation",
+      "city": "Fort Lauderdale",
+      "matched_traits": [
+        "causes",
+        "foundation_priorities",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "In 2013, Salah Foundation supported Covenant House Florida's More Opportunities for Moms & Babies project.",
+          "url": "https://www.salahfoundation.org/salah-foundation-makes-generous-grant-to-covenant-house-florida/",
+          "quote": "Covenant House Florida recently received a significant grant in support of its M.O.M. (More Opportunities for Moms & Babies) project from the Salah Foundation.",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:24:25+00:00"
+        },
+        {
+          "fact": "Salah requires grant requests to target specific programs or projects rather than general initiatives or overhead.",
+          "url": "https://www.salahfoundation.org/grant-instructions/",
+          "quote": "Always target a specific program or project for your application as we do not fund general initiatives or overhead.",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:24:25+00:00"
+        }
+      ],
+      "priority": "Empower Youth & Families",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Press Forward South Florida awarded Newsroom Collaboration grants including $100,000 to WLRN and $100,000 to Florida International University's Lee Caplin School of Journalism & Media.",
+          "url": "https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/",
+          "posted_at": "2026-09-23"
+        },
+        {
+          "fact": "The Miami Foundation awarded scholarships totaling $3.45 million to 969 students this year.",
+          "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
+          "posted_at": "2026-08-31"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 12,
+        "priority_overlap": 0,
+        "primary_priority": 13,
+        "matched_traits": 15,
+        "recent_focus": 20
+      },
+      "fit_score": 60
+    },
+    {
+      "name": "The Al & Jane Nahmad Family Foundation",
+      "org_type": "foundation",
+      "city": "Miami",
+      "matched_traits": [
+        "foundation_priorities",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "The foundation supports projects benefiting Miami-Dade County through one-year grants.",
+          "url": "https://ajnff.org/apply",
+          "quote": "AJNFF support projects benefitting Miami-Dade County. All of our grants are one-year in scope",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:24:25+00:00"
+        },
+        {
+          "fact": "It makes grants on a rolling basis using an LOI, application, grant agreement, and final-report process.",
+          "url": "https://ajnff.org/apply",
+          "quote": "Our grants are made on a rolling basis. The process is LOI, application, grant agreement and final report.",
+          "via": "web search",
+          "retrieved_at": "2026-11-07T22:24:25+00:00"
         }
       ],
       "priority": "Inspire Civic Involvement",
@@ -409,240 +695,10 @@
       ],
       "fit_breakdown": {
         "geography": 20,
-        "priority_overlap": 18,
+        "priority_overlap": 0,
         "primary_priority": 13,
-        "matched_traits": 15,
-        "recent_focus": 20
-      },
-      "fit_score": 86
-    },
-    {
-      "name": "Amerant Bank",
-      "org_type": "company",
-      "city": "Coral Gables",
-      "matched_traits": [
-        "causes",
-        "foundation_priorities",
-        "geography",
-        "sector"
-      ],
-      "facts": [
-        {
-          "fact": "Economic development and education represented more than 70% of Amerant's total community giving in 2025.",
-          "url": "https://investor.amerantbank.com/sec-filings/all-sec-filings/content/0001734342-26-000026/amtb-20260421.htm"
-        },
-        {
-          "fact": "Amerant supports South Florida communities through Habitat for Humanity builds, financial-literacy instruction, school support and nonprofit partnerships.",
-          "url": "https://www.amerantbank.com/impact/"
-        },
-        {
-          "fact": "Its charitable-giving and volunteering partners include Centro Mater Foundation, Voices for Children and Camillus House.",
-          "url": "https://www.amerantbank.com/careers/"
-        }
-      ],
-      "priority": "Generate Prosperity",
-      "status": "new",
-      "matched_context": [
-        {
-          "fact": "The Jorge M. Pérez Family Foundation at The Miami Foundation announced a $720,000 investment in Miami-Dade County's nonprofit arts sector through its CreARTE grant program.",
-          "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
-          "posted_at": "2026-08-31"
-        },
-        {
-          "fact": "Press Forward South Florida, an initiative fueled in part by The Miami Foundation, announced grants to more than a dozen newsrooms and partnerships serving Broward, Miami-Dade and Monroe counties.",
-          "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/",
-          "posted_at": "2026-10-01"
-        }
-      ],
-      "fit_breakdown": {
-        "geography": 20,
-        "priority_overlap": 15,
-        "primary_priority": 13,
-        "matched_traits": 15,
-        "recent_focus": 20
-      },
-      "fit_score": 83
-    },
-    {
-      "name": "Peacock Foundation, Inc.",
-      "org_type": "foundation",
-      "city": "Coral Gables",
-      "matched_traits": [
-        "causes",
-        "foundation_priorities",
-        "geography",
-        "sector"
-      ],
-      "facts": [
-        {
-          "fact": "The foundation makes nonprofit grants to improve the health and well-being of children and families in Miami-Dade County.",
-          "url": "https://peacockfoundationinc.org/"
-        },
-        {
-          "fact": "Its human-services grants support youth development, abused or neglected children, homelessness reduction, food security and self-sufficiency.",
-          "url": "https://peacockfoundationinc.org/"
-        },
-        {
-          "fact": "Its education funding includes literacy, arts and environmental education, and special education for people with disabilities.",
-          "url": "https://peacockfoundationinc.org/"
-        }
-      ],
-      "priority": "Empower Youth & Families",
-      "status": "new",
-      "matched_context": [
-        {
-          "fact": "The Miami Foundation awarded scholarships totaling $3.45 million to 969 students this year.",
-          "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
-          "posted_at": "2026-08-31"
-        },
-        {
-          "fact": "Press Forward South Florida, an initiative fueled in part by The Miami Foundation, announced grants to more than a dozen newsrooms and partnerships serving Broward, Miami-Dade and Monroe counties.",
-          "url": "https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/",
-          "posted_at": "2026-10-01"
-        }
-      ],
-      "fit_breakdown": {
-        "geography": 20,
-        "priority_overlap": 10,
-        "primary_priority": 13,
-        "matched_traits": 15,
-        "recent_focus": 20
-      },
-      "fit_score": 78
-    },
-    {
-      "name": "Health Foundation of South Florida",
-      "org_type": "foundation",
-      "city": "Miami",
-      "matched_traits": [
-        "causes",
-        "foundation_priorities",
-        "geography",
-        "sector"
-      ],
-      "facts": [
-        {
-          "fact": "The foundation supports projects that create or protect affordable housing and works with regional anchor institutions to build a more inclusive economy.",
-          "url": "https://hfsf.org/"
-        },
-        {
-          "fact": "It announced more than $1 million in new investments to advance health equity in October 2024.",
-          "url": "https://hfsf.org/"
-        },
-        {
-          "fact": "It awarded Miami Dade College $500,000 for nursing scholarships and student wraparound services, matched by the Mitchell Wolfson Family Foundation.",
-          "url": "https://hfsf.org/wp-content/uploads/2023/05/HFSF_Impact-Report_2022_Final_REMEDIATED.pdf"
-        }
-      ],
-      "priority": "Eliminate Inequities",
-      "status": "new",
-      "matched_context": [
-        {
-          "fact": "The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.",
-          "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
-          "posted_at": "2026-08-31"
-        },
-        {
-          "fact": "Inspired directly by the Foundation-commissioned report, Amazon announced a $1 million investment in 13 South Dade nonprofit organizations to strengthen their capacity and deepen their community impact.",
-          "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
-          "posted_at": "2026-08-31"
-        }
-      ],
-      "fit_breakdown": {
-        "geography": 20,
-        "priority_overlap": 12,
-        "primary_priority": 20,
-        "matched_traits": 15,
-        "recent_focus": 9
-      },
-      "fit_score": 76
-    },
-    {
-      "name": "JM Family Enterprises",
-      "org_type": "company",
-      "city": "Deerfield Beach",
-      "matched_traits": [
-        "causes",
-        "foundation_priorities",
-        "geography",
-        "sector"
-      ],
-      "facts": [
-        {
-          "fact": "JM Family's charitable giving focuses on empowering families, promoting education and embracing the environment.",
-          "url": "https://jmfamily.com/our-impact/"
-        },
-        {
-          "fact": "Its family-support funding emphasizes safe, affordable housing and resources that help families achieve stability and opportunity.",
-          "url": "https://jmfamily.com/our-impact/"
-        },
-        {
-          "fact": "Through a long-term grant agreement, it funds The Jim Moran Foundation based on a percentage of company profits.",
-          "url": "https://jmfamily.com/our-impact/"
-        }
-      ],
-      "priority": "Empower Youth & Families",
-      "status": "new",
-      "matched_context": [
-        {
-          "fact": "The Miami Foundation awarded scholarships totaling $3.45 million to 969 students this year.",
-          "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
-          "posted_at": "2026-08-31"
-        },
-        {
-          "fact": "The Miami Foundation commissioned and unveiled South Dade Community Needs and Nonprofit Funding Landscape, which analyzed more than 1,400 grants to 262 South Dade nonprofits and included interviews with 19 community leaders, providers and advocates.",
-          "url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/",
-          "posted_at": "2026-08-31"
-        }
-      ],
-      "fit_breakdown": {
-        "geography": 12,
-        "priority_overlap": 12,
-        "primary_priority": 13,
-        "matched_traits": 15,
-        "recent_focus": 9
-      },
-      "fit_score": 61
-    },
-    {
-      "name": "Dunspaugh-Dalton Foundation",
-      "org_type": "foundation",
-      "city": "Miami",
-      "matched_traits": [
-        "causes",
-        "foundation_priorities",
-        "geography",
-        "sector"
-      ],
-      "facts": [
-        {
-          "fact": "The foundation restricts grant eligibility to organizations located in or primarily serving Miami-Dade County or Monterey County, California.",
-          "url": "https://www.dunspaughdalton.org/grantmakingcriteria"
-        },
-        {
-          "fact": "Its grantmaking concentrations include education, health and human services, community services and youth activities.",
-          "url": "https://www.dunspaughdalton.org/grantmakingcriteria"
-        },
-        {
-          "fact": "Grants generally cover one year, and returning grantees may reapply after their grant period ends and their final report is approved.",
-          "url": "https://www.dunspaughdalton.org/grantmakingcriteria"
-        }
-      ],
-      "priority": "Empower Youth & Families",
-      "status": "new",
-      "matched_context": [
-        {
-          "fact": "The Miami Foundation awarded scholarships totaling $3.45 million to 969 students this year.",
-          "url": "https://miamifoundation.org/news/foundation-newsletter-august-2026/",
-          "posted_at": "2026-08-31"
-        }
-      ],
-      "fit_breakdown": {
-        "geography": 20,
-        "priority_overlap": 5,
-        "primary_priority": 13,
-        "matched_traits": 15,
-        "recent_focus": 4
+        "matched_traits": 11,
+        "recent_focus": 13
       },
       "fit_score": 57
     }
