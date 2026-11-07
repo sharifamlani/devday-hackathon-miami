@@ -14,15 +14,17 @@ export const MobileLayout = ({ children }: { children: ReactNode }) => {
   useConfigurationLoader();
   return (
     <DataImportProvider>
-      <ScrollRestoration />
-      <PullToRefresh />
-      <ErrorBoundary FallbackComponent={Error}>
-        <Suspense fallback={<Skeleton className="h-12 w-12 rounded-full" />}>
-          {children}
-        </Suspense>
-      </ErrorBoundary>
+      <div className="min-h-screen bg-surface pb-[calc(78px+env(safe-area-inset-bottom))]">
+        <ScrollRestoration />
+        <PullToRefresh />
+        <ErrorBoundary FallbackComponent={Error}>
+          <Suspense fallback={<Skeleton className="h-12 w-12 rounded-full" />}>
+            {children}
+          </Suspense>
+        </ErrorBoundary>
+      </div>
       <MobileNavigation />
-      <Notification mobileOffset={{ bottom: "72px" }} />
+      <Notification mobileOffset={{ bottom: "88px" }} />
     </DataImportProvider>
   );
 };
