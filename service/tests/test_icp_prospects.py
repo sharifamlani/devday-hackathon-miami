@@ -108,7 +108,8 @@ def test_old_db_migrates_in_place(tmp_path):
 
 def test_routes_icp_prospects_dismiss_and_snapshot_parity(db_file):
     c = client()
-    assert c.get("/icp").status_code == 404
+    r = c.get("/icp")
+    assert r.status_code == 200 and r.json() is None              # not built yet: 200 null, no console error
     assert c.get("/prospects").json() == []
 
     conn = db.connect(db_file)
@@ -141,3 +142,60 @@ def test_routes_icp_prospects_dismiss_and_snapshot_parity(db_file):
 
     # A donor's drafts never pick up prospect drafts, and the donor detail still works
     assert all(d["prospect_id"] is None for d in c.get("/donors/1").json()["outreach_drafts"])
+
+
+def test_icp_extras_round_trip_through_routes(db_file):
+    conn = db.connect(db_file)
+    profile = {**PROFILE, "recent_context": [{"source": "linkedin", "url": "https://l", "posted_at": "2026-11-03",
+                                              "fact": "climate fund", "priority": "Climate & Resilience", "weight": 2}]}
+    prospect = {**PROSPECTS[0], "fit_breakdown": {"cause": 60, "geography": 28},
+                "matched_context": [{"fact": "climate fund", "url": "https://l", "posted_at": "2026-11-03"}]}
+    (pid,) = db.save_icp_run(conn, {"icp": profile, "prospects": [prospect]})["prospect_ids"]
+    conn.close()
+    c = client()
+    assert c.get("/icp").json()["recent_context"] == profile["recent_context"]
+    p = c.get(f"/prospects/{pid}").json()
+    assert p["fit_breakdown"] == {"cause": 60, "geography": 28} and p["matched_context"][0]["url"] == "https://l"
+
+
+def test_create_schema_adds_new_nullable_columns_to_an_existing_db(tmp_path):
+    path = tmp_path / "pre.db"
+    old = sqlite3.connect(path)
+    old.executescript("""
+        CREATE TABLE icp_profile (id INTEGER PRIMARY KEY, traits TEXT NOT NULL, stats TEXT NOT NULL,
+            evidence TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+        CREATE TABLE prospects (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, org_type TEXT, city TEXT,
+            fit_score INTEGER NOT NULL DEFAULT 0, matched_traits TEXT NOT NULL DEFAULT '[]',
+            facts TEXT NOT NULL DEFAULT '[]', priority TEXT, status TEXT NOT NULL DEFAULT 'new',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')));
+        INSERT INTO prospects (name, fit_score) VALUES ('Kept Prospect', 70);
+    """)
+    old.commit()
+    old.close()
+    conn = db.connect(path)
+    db.create_schema(conn)
+    db.create_schema(conn)                                           # idempotent
+    assert {"fit_breakdown", "matched_context"} <= {r[1] for r in conn.execute("PRAGMA table_info(prospects)")}
+    assert "recent_context" in {r[1] for r in conn.execute("PRAGMA table_info(icp_profile)")}
+    assert conn.execute("SELECT name, fit_score FROM prospects").fetchone()[:] == ("Kept Prospect", 70)
+    conn.close()
+
+
+def test_saving_a_prospect_draft_marks_it_drafted_from_any_writer(conn):
+    seeded(conn)
+    new_id, dismissed_id = db.save_prospects(conn, PROSPECTS[:2])
+    conn.execute("UPDATE prospects SET status = 'dismissed' WHERE id = ?", (dismissed_id,))
+    for pid in (new_id, dismissed_id):
+        conn.execute("INSERT INTO outreach_drafts (prospect_id, body) VALUES (?, 'intro')", (pid,))
+    status = dict(conn.execute("SELECT id, status FROM prospects").fetchall())
+    assert status == {new_id: "drafted", dismissed_id: "dismissed"}
+
+
+def test_create_schema_backfills_prospects_drafted_before_the_trigger(conn):
+    seeded(conn)
+    (pid,) = db.save_prospects(conn, PROSPECTS[:1])
+    conn.execute("DROP TRIGGER prospect_drafted_on_draft")              # a db from before the trigger
+    conn.execute("INSERT INTO outreach_drafts (prospect_id, body) VALUES (?, 'intro')", (pid,))
+    assert conn.execute("SELECT status FROM prospects WHERE id = ?", (pid,)).fetchone()[0] == "new"
+    db.create_schema(conn)
+    assert conn.execute("SELECT status FROM prospects WHERE id = ?", (pid,)).fetchone()[0] == "drafted"

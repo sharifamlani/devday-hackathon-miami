@@ -10,10 +10,12 @@ POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id
 POST /duplicates/{id}/dismiss    "not a duplicate"
 POST /score/run                  rescore everyone, refresh duplicate suggestions (?as_of=YYYY-MM-DD)
 POST /drafts/{id}/approve        a human approves a draft (optional edited body) → status approved
-GET  /icp                        the latest ideal donor profile (traits, stats, evidence)
+GET  /icp                        the latest ideal donor profile (traits, stats, evidence), or null
 GET  /prospects                  organization prospects, best fit first (?include_dismissed=true)
 GET  /prospects/{id}             one prospect with its first-touch drafts
 POST /prospects/{id}/dismiss     "not a fit"
+GET  /org-profile                the Foundation's profile: URLs, priorities, voice, per-source status, or null
+GET  /context                    dated, sourced facts about the Foundation, newest first (?source=x)
 """
 
 from __future__ import annotations
@@ -163,7 +165,7 @@ def approve_draft(draft_id: int, req: ApproveDraft, conn: sqlite3.Connection = D
 
 def _icp_out(row: sqlite3.Row) -> dict:
     d = dict(row)
-    for k in ("traits", "stats", "evidence"):
+    for k in ("traits", "stats", "evidence", "recent_context"):
         d[k] = json.loads(d[k]) if d.get(k) else ([] if k != "stats" else {})
     return d
 
@@ -172,6 +174,8 @@ def _prospect_out(row: sqlite3.Row) -> dict:
     d = dict(row)
     d["matched_traits"] = json.loads(d.get("matched_traits") or "[]")
     d["facts"] = json.loads(d.get("facts") or "[]")
+    d["fit_breakdown"] = json.loads(d.get("fit_breakdown") or "{}")
+    d["matched_context"] = json.loads(d.get("matched_context") or "[]")
     return d
 
 
@@ -180,12 +184,10 @@ def latest_icp(conn: sqlite3.Connection) -> dict | None:
     return _icp_out(row) if row else None
 
 
+# "Not built yet" is 200 null, not 404: browsers log every 404 fetch as a console error.
 @router.get("/icp")
-def get_icp(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    icp = latest_icp(conn)
-    if icp is None:
-        raise HTTPException(404, "no ideal donor profile yet: run the pipeline or POST /icp/run")
-    return icp
+def get_icp(conn: sqlite3.Connection = Depends(get_conn)) -> dict | None:
+    return latest_icp(conn)
 
 
 @router.get("/prospects")
@@ -212,3 +214,36 @@ def dismiss_prospect(prospect_id: int, conn: sqlite3.Connection = Depends(get_co
         raise HTTPException(404, f"prospect {prospect_id} not found")
     conn.commit()
     return get_prospect(prospect_id, conn)
+
+
+CONTEXT_ORDER = " ORDER BY posted_at IS NULL, posted_at DESC, id DESC"
+
+
+def get_org_profile_or_none(conn: sqlite3.Connection) -> dict | None:
+    row = conn.execute("SELECT * FROM org_profile ORDER BY id DESC LIMIT 1").fetchone()
+    if row is None:
+        return None
+    d = dict(row)
+    d["priorities"] = json.loads(d.get("priorities") or "[]")
+    d["voice"] = json.loads(d.get("voice") or "{}")
+    d["source_status"] = json.loads(d.get("source_status") or "{}")
+    return d
+
+
+def list_context(conn: sqlite3.Connection, source: str | None = None) -> list[dict]:
+    if source:
+        rows = conn.execute("SELECT * FROM org_context WHERE source = ?" + CONTEXT_ORDER, (source,))
+    else:
+        rows = conn.execute("SELECT * FROM org_context" + CONTEXT_ORDER)
+    return [dict(r) for r in rows]
+
+
+@router.get("/org-profile")
+def get_org_profile(conn: sqlite3.Connection = Depends(get_conn)) -> dict | None:
+    return get_org_profile_or_none(conn)
+
+
+@router.get("/context")
+def get_context(source: str | None = Query(None, pattern="^(website|x|linkedin|instagram|news)$"),
+                conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+    return list_context(conn, source)

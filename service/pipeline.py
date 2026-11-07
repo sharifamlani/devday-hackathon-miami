@@ -4,7 +4,10 @@
 
 Stages, in order:
     1. rebuild   drop + recreate data/donors.db with the SAMPLE seed, score and dedupe
-                 (--keep-db: keep the rows ingest wrote, just rescore + dedupe)
+                 (--keep-db / --no-seed: never seed; keep the rows ingest wrote, just rescore + dedupe)
+    1b. context  read the Foundation's website + social URLs (service/org_config.json) into the local
+                 context dataset (org_profile, org_context) so ICP, prospects and drafts can use it.
+                 build_context is pure; db.save_context is the only writer.
     2. enrich    research ORGANIZATION donors only (policy: fictional sample individuals are never
                  researched). Cache first (data/research_cache.json); uncached orgs are skipped unless
                  --live-enrich. Writes research_facts via enrich_agent.save_facts.
@@ -35,15 +38,19 @@ from service import db, dedupe, score
 from service.export_snapshot import DEFAULT_OUT, build_snapshot, write_snapshot
 from service.routes_data import get_donor, get_prospect
 
+ORG_CONFIG = Path(__file__).resolve().parent / "org_config.json"
+CONTEXT_MODULES = ["service.context_agent", "service.org_context"]   # whichever has build_context
+
 STAGE_MODULES = {
     "enrich": ["service.enrich_agent"],
     "outreach": ["service.outreach_agent", "service.org_context"],
     "icp": ["service.icp_agent", "service.outreach_agent", "service.org_context"],
 }
 MISSING_HINT = {
+    "context": "build_context in service/context_agent.py or service/org_context.py (86, plan §15)",
     "enrich": "service/enrich_agent.py (PR #5, feat/enrich)",
     "outreach": "service/outreach_agent.py + service/org_context.py (PR #7, feat/outreach)",
-    "icp": "service/icp_agent.py (42, feat/icp) + outreach_agent.draft_prospect (86, feat/outreach)",
+    "icp": "service/icp_agent.py (42, feat/icp)",
 }
 
 
@@ -71,6 +78,39 @@ def stage_rebuild(as_of: date, keep_db: bool) -> str:
         return f"kept existing rows; scored {n}, {pending} pending duplicates"
     db.rebuild(as_of=as_of)
     return "rebuilt with SAMPLE seed"
+
+
+def load_org_config(path: Path = ORG_CONFIG) -> dict:
+    config = json.loads(path.read_text(encoding="utf-8"))
+    return {k: v for k, v in config.items() if not k.startswith("_")}
+
+
+def stage_context(refresh_cache: bool = False, config_path: Path = ORG_CONFIG) -> str:
+    build_context = None
+    for name in CONTEXT_MODULES:
+        try:
+            build_context = getattr(importlib.import_module(name), "build_context", None)
+        except ImportError:
+            continue
+        if build_context:
+            break
+    if build_context is None:
+        raise StageMissing(f"context stage unavailable: needs {MISSING_HINT['context']}")
+    bound_model_calls()
+    urls = load_org_config(config_path)
+    # Default: read the db/cache and never rewrite the reviewed service/context_cache.json.
+    # --refresh-demo-cache fetches live and rewrites it (86's write_cache=True).
+    result = (build_context(urls, refresh=True, write_cache=True) if refresh_cache
+              else build_context(urls, refresh=False))
+    conn = db.connect()
+    saved = db.save_context(conn, result)
+    conn.close()
+    statuses = result.get("sources") or {}
+    detail = (f"{len(saved['context_ids'])} facts from {', '.join(saved['replaced_sources']) or 'no source'}"
+              f"; status {json.dumps(statuses, sort_keys=True)}")
+    if saved["skipped_facts"]:
+        detail += f"; {saved['skipped_facts']} facts without a URL dropped"
+    return detail
 
 
 def stage_enrich(live: bool) -> str:
@@ -166,8 +206,7 @@ def stage_outreach(as_of: date, top_n: int, workers: int = 4) -> str:
 
 def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
     icp_agent, outreach_agent, org_context = load_stage("icp")
-    if not hasattr(outreach_agent, "draft_prospect"):
-        raise StageMissing(f"icp stage unavailable: needs {MISSING_HINT['icp']} (no draft_prospect yet)")
+    can_draft = hasattr(outreach_agent, "draft_prospect")      # 86's piece may land after 42's
     bound_model_calls()
 
     conn = db.connect()
@@ -182,7 +221,7 @@ def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
     ids = db.save_prospects(conn, found)
     prospects = [get_prospect(i, conn) for i in ids]
     conn.close()
-    targets = [p for p in prospects if p["status"] != "dismissed"]
+    targets = [p for p in prospects if p["status"] != "dismissed"] if can_draft else []
 
     org_facts = org_context.load_org_facts()
 
@@ -212,6 +251,8 @@ def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
             saved += 1
     conn.close()
     detail = f"profile with {len(profile.get('traits') or [])} traits; {len(ids)} prospects; {saved} first-touch drafts"
+    if not can_draft:
+        detail += "; first-touch drafts skipped: needs outreach_agent.draft_prospect (86)"
     if len(found) != len(ids):
         detail += f"; {len(found) - len(ids)} dropped as current donors"
     if failed:
@@ -235,14 +276,16 @@ def table_counts() -> dict[str, int]:
 
 
 def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich: bool = False,
-                 skip: tuple[str, ...] = (), out: Path = DEFAULT_OUT) -> list[dict]:
+                 skip: tuple[str, ...] = (), out: Path = DEFAULT_OUT, refresh_demo_cache: bool = False) -> list[dict]:
     """Run every stage, timing each. Returns [{stage, status, seconds, detail}]; status is
     ok | skipped | missing | failed."""
+    # Context first so ICP, prospects and donor drafts can all use it; ICP before outreach.
     stages = [
         ("rebuild", lambda: stage_rebuild(as_of, keep_db)),
+        ("context", lambda: stage_context(refresh_demo_cache)),
         ("enrich", lambda: stage_enrich(live_enrich)),
-        ("outreach", lambda: stage_outreach(as_of, top_n)),
         ("icp", lambda: stage_icp(as_of)),
+        ("outreach", lambda: stage_outreach(as_of, top_n)),
         ("export", lambda: stage_export(out)),
     ]
     report = []
@@ -265,17 +308,21 @@ def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Precompute the demo: rebuild → enrich → outreach → export")
+    parser = argparse.ArgumentParser(description="Precompute the demo: rebuild -> context -> enrich -> icp -> outreach -> export")
     parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: $SCORE_AS_OF or 2026-11-08)")
-    parser.add_argument("--top", type=int, default=3, help="draft outreach for the top N donors (plus every ★)")
-    parser.add_argument("--keep-db", action="store_true", help="keep ingested rows; don't rebuild from the seed")
+    parser.add_argument("--top", type=int, default=3, help="draft outreach for the top N donors (plus every star donor)")
+    parser.add_argument("--keep-db", "--no-seed", dest="keep_db", action="store_true",
+                        help="run on whatever ingest wrote (empty is fine): no rebuild, no seed; just rescore + dedupe")
     parser.add_argument("--live-enrich", action="store_true", help="web-search orgs missing from the cache")
-    parser.add_argument("--skip", action="append", default=[], choices=["enrich", "outreach", "icp", "export"])
+    parser.add_argument("--refresh-demo-cache", action="store_true",
+                        help="fetch the Foundation's context live and REWRITE the committed service/context_cache.json")
+    parser.add_argument("--skip", action="append", default=[], choices=["context", "enrich", "icp", "outreach", "export"])
     parser.add_argument("--out", default=str(DEFAULT_OUT))
     args = parser.parse_args()
 
     as_of = date.fromisoformat(args.as_of) if args.as_of else score.default_as_of()
-    report = run_pipeline(as_of, args.top, args.keep_db, args.live_enrich, tuple(args.skip), Path(args.out))
+    report = run_pipeline(as_of, args.top, args.keep_db, args.live_enrich, tuple(args.skip), Path(args.out),
+                          args.refresh_demo_cache)
 
     print(f"pipeline as of {as_of.isoformat()}")
     for r in report:

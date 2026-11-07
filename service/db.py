@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS icp_profile (
     traits      TEXT NOT NULL,     -- JSON (icp_agent)
     stats       TEXT NOT NULL,     -- JSON, deterministic Python
     evidence    TEXT NOT NULL,     -- JSON list: the donor + fact + URL behind each trait
+    recent_context TEXT,           -- JSON list: the org's recent work that steered the profile
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -109,9 +110,38 @@ CREATE TABLE IF NOT EXISTS prospects (
     matched_traits TEXT NOT NULL DEFAULT '[]',   -- JSON list of ICP traits it matches
     facts          TEXT NOT NULL DEFAULT '[]',   -- JSON list of {fact, url}
     priority       TEXT,           -- the Foundation priority it fits
+    fit_breakdown  TEXT,           -- JSON {component: points} behind fit_score (icp_agent)
+    matched_context TEXT,          -- JSON list of the org's own recent facts it ties to
     status         TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'drafted', 'dismissed')),
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- 5C: the local context dataset (onboarding screen 2): who the Foundation is and what it posted ---
+CREATE TABLE IF NOT EXISTS org_profile (
+    id            INTEGER PRIMARY KEY,   -- one row (id 1), upserted by save_context
+    name          TEXT,
+    website       TEXT,
+    x_url         TEXT,
+    linkedin_url  TEXT,
+    instagram_url TEXT,
+    priorities    TEXT NOT NULL DEFAULT '[]',   -- JSON list
+    voice         TEXT NOT NULL DEFAULT '{}',   -- JSON (tone, phrases, sign-off)
+    source_status TEXT NOT NULL DEFAULT '{}',   -- JSON {source: ok|cached|blocked|skipped}: "blocked" is shown, never faked
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS org_context (
+    id          INTEGER PRIMARY KEY,
+    source      TEXT NOT NULL CHECK (source IN ('website', 'x', 'linkedin', 'instagram', 'news')),
+    url         TEXT NOT NULL CHECK (url <> ''),     -- every fact carries its URL
+    posted_at   TEXT,                                -- ISO date when the source shows one
+    fact        TEXT NOT NULL CHECK (fact <> ''),
+    quote       TEXT,                                -- the verbatim words the fact rests on
+    priority    TEXT,                                -- the Foundation priority it fits
+    captured_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (source, url, fact)
+);
+CREATE INDEX IF NOT EXISTS idx_context_posted ON org_context(posted_at);
 
 -- A draft belongs to exactly one donor or one prospect.
 CREATE TABLE IF NOT EXISTS outreach_drafts (
@@ -132,6 +162,15 @@ CREATE TABLE IF NOT EXISTS outreach_drafts (
 );
 CREATE INDEX IF NOT EXISTS idx_outreach_donor ON outreach_drafts(donor_id);
 CREATE INDEX IF NOT EXISTS idx_outreach_prospect ON outreach_drafts(prospect_id);
+
+-- Saving a first-touch draft moves the prospect from 'new' to 'drafted', whoever writes it
+-- (pipeline, POST /prospects/{id}/outreach). A dismissed prospect stays dismissed.
+CREATE TRIGGER IF NOT EXISTS prospect_drafted_on_draft
+AFTER INSERT ON outreach_drafts
+WHEN NEW.prospect_id IS NOT NULL
+BEGIN
+    UPDATE prospects SET status = 'drafted' WHERE id = NEW.prospect_id AND status = 'new';
+END;
 
 -- Prospect first-touch drafts are always human-sent: never 'ready', never 'sent' without an approver.
 CREATE TRIGGER IF NOT EXISTS prospect_needs_human_insert
@@ -183,7 +222,7 @@ BEGIN
 END;
 """
 
-TABLES = ["outreach_drafts", "prospects", "icp_profile", "research_facts", "duplicate_suggestions",
+TABLES = ["outreach_drafts", "prospects", "icp_profile", "org_context", "org_profile", "research_facts", "duplicate_suggestions",
           "donor_scores", "gifts", "donors"]
 
 
@@ -204,9 +243,24 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     return conn
 
 
+# Nullable columns added after a table first shipped; create_schema adds any that are missing.
+ADDED_COLUMNS = {
+    "icp_profile": {"recent_context": "TEXT"},
+    "prospects": {"fit_breakdown": "TEXT", "matched_context": "TEXT"},
+}
+
+
 def create_schema(conn: sqlite3.Connection) -> None:
     migrate_outreach_drafts(conn)
     conn.executescript(SCHEMA)
+    for table, columns in ADDED_COLUMNS.items():
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, kind in columns.items():
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+    # Backfill for drafts saved before the prospect_drafted_on_draft trigger existed.
+    conn.execute("UPDATE prospects SET status = 'drafted' WHERE status = 'new' AND id IN "
+                 "(SELECT prospect_id FROM outreach_drafts WHERE prospect_id IS NOT NULL)")
     conn.commit()
 
 
@@ -245,9 +299,9 @@ def _name_key(name: str | None) -> str:
 
 def save_icp(conn: sqlite3.Connection, profile: dict) -> int:
     cur = conn.execute(
-        "INSERT INTO icp_profile (traits, stats, evidence) VALUES (?, ?, ?)",
+        "INSERT INTO icp_profile (traits, stats, evidence, recent_context) VALUES (?, ?, ?, ?)",
         (json.dumps(profile.get("traits") or []), json.dumps(profile.get("stats") or {}),
-         json.dumps(profile.get("evidence") or [])))
+         json.dumps(profile.get("evidence") or []), json.dumps(profile.get("recent_context") or [])))
     conn.commit()
     return cur.lastrowid
 
@@ -262,16 +316,18 @@ def save_prospects(conn: sqlite3.Connection, prospects: list[dict]) -> list[int]
         if not p.get("name") or _name_key(p["name"]) in donor_keys:
             continue
         values = (p.get("org_type"), p.get("city"), int(round(p.get("fit_score") or 0)),
-                  json.dumps(p.get("matched_traits") or []), json.dumps(p.get("facts") or []), p.get("priority"))
+                  json.dumps(p.get("matched_traits") or []), json.dumps(p.get("facts") or []), p.get("priority"),
+                  json.dumps(p.get("fit_breakdown") or {}), json.dumps(p.get("matched_context") or []))
         row = conn.execute("SELECT id FROM prospects WHERE name = ?", (p["name"],)).fetchone()
         if row:
             conn.execute("UPDATE prospects SET org_type = ?, city = ?, fit_score = ?, matched_traits = ?, "
-                         "facts = ?, priority = ? WHERE id = ?", (*values, row[0]))
+                         "facts = ?, priority = ?, fit_breakdown = ?, matched_context = ? WHERE id = ?",
+                         (*values, row[0]))
             ids.append(row[0])
         else:
             ids.append(conn.execute(
-                "INSERT INTO prospects (name, org_type, city, fit_score, matched_traits, facts, priority) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)", (p["name"], *values)).lastrowid)
+                "INSERT INTO prospects (name, org_type, city, fit_score, matched_traits, facts, priority, "
+                "fit_breakdown, matched_context) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (p["name"], *values)).lastrowid)
     conn.commit()
     return ids
 
@@ -280,6 +336,51 @@ def save_icp_run(conn: sqlite3.Connection, run: dict) -> dict:
     """Write icp_agent.run_icp() output ({generated_at, icp, prospects}) in one call."""
     return {"icp_id": save_icp(conn, run.get("icp") or {}),
             "prospect_ids": save_prospects(conn, run.get("prospects") or [])}
+
+
+
+CONTEXT_SOURCES = ("website", "x", "linkedin", "instagram", "news")
+PROFILE_FIELDS = ("name", "website", "x_url", "linkedin_url", "instagram_url")
+
+
+def save_context(conn: sqlite3.Connection, result: dict) -> dict:
+    """Write context_agent.build_context() output ({profile, facts, sources}); the only writer of
+    org_profile and org_context. Facts are replaced only for sources that read ok or from cache, so
+    a blocked platform keeps the real facts captured earlier instead of being wiped."""
+    profile = result.get("profile") or {}
+    statuses = dict(result.get("sources") or {})
+    facts = result.get("facts") or []
+    for f in facts:                                     # a source with facts but no status was read
+        statuses.setdefault(f.get("source"), "ok")
+
+    current = conn.execute("SELECT * FROM org_profile WHERE id = 1").fetchone()
+    merged_status = {**(json.loads(current["source_status"]) if current else {}), **statuses}
+    values = {k: profile.get(k, current[k] if current else None) for k in PROFILE_FIELDS}
+    values["priorities"] = json.dumps(profile.get("priorities", json.loads(current["priorities"]) if current else []))
+    values["voice"] = json.dumps(profile.get("voice", json.loads(current["voice"]) if current else {}))
+    values["source_status"] = json.dumps(merged_status)
+    conn.execute(
+        f"INSERT INTO org_profile (id, {', '.join(values)}, updated_at) VALUES (1, {', '.join('?' * len(values))}, datetime('now')) "
+        f"ON CONFLICT(id) DO UPDATE SET {', '.join(f'{k} = excluded.{k}' for k in values)}, updated_at = datetime('now')",
+        list(values.values()))
+
+    replaced = sorted(s for s, st in statuses.items() if st in ("ok", "cached") and s in CONTEXT_SOURCES)
+    for source in replaced:
+        conn.execute("DELETE FROM org_context WHERE source = ?", (source,))
+    ids, skipped = [], 0
+    for f in facts:
+        if f.get("source") not in replaced:
+            continue
+        if not (f.get("url") or "").strip() or not (f.get("fact") or "").strip():
+            skipped += 1                                # no URL, no claim
+            continue
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO org_context (source, url, posted_at, fact, quote, priority) VALUES (?, ?, ?, ?, ?, ?)",
+            (f["source"], f.get("url"), f.get("posted_at"), f.get("fact"), f.get("quote"), f.get("priority")))
+        if cur.rowcount:
+            ids.append(cur.lastrowid)
+    conn.commit()
+    return {"org_profile_id": 1, "context_ids": ids, "replaced_sources": replaced, "skipped_facts": skipped}
 
 
 # SAMPLE seed: fictional, hand-built histories so scoring/dedupe/UI aren't blocked on ingest.
