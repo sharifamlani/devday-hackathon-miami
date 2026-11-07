@@ -155,6 +155,56 @@ def flat_stats(stats: dict) -> dict[str, float]:
     return {k: v for k, v in flat.items() if v is not None}
 
 
+# --- Org context: what the Foundation has been doing recently (plan §15) ---------------------------
+
+ORG_FACTS_JSON = REPO_ROOT / "service" / "org_facts.json"   # outreach's website cache, until org_context fills
+RECENT_CONTEXT = 12
+
+
+def load_org_context(conn) -> list[dict]:
+    """The org's own dated, sourced facts, newest first: org_context table, else org_facts.json, else []."""
+    rows = []
+    try:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT source, url, posted_at, fact, priority FROM org_context ORDER BY posted_at DESC")]
+    except Exception:      # table not created yet (8b's schema lands separately)
+        pass
+    if not rows and ORG_FACTS_JSON.exists():
+        data = json.loads(ORG_FACTS_JSON.read_text(encoding="utf-8"))
+        rows = [{"source": "website", "url": f["url"], "posted_at": f.get("date"), "fact": f["fact"],
+                 "priority": f.get("priority")} for f in data.get("facts", [])]
+    for r in rows:
+        if r.get("priority") not in PRIORITIES:
+            hits = priority_hits(r["fact"])
+            r["priority"] = hits[0] if hits else None
+    return sorted(rows, key=lambda r: r.get("posted_at") or "", reverse=True)
+
+
+def recency_weight(posted_at: str | None, as_of: datetime) -> float:
+    """Newer work counts more: ≤90 days 1.0, ≤180 0.6, ≤365 0.3, older or undated 0.1."""
+    if not posted_at:
+        return 0.1
+    days = (as_of - datetime.fromisoformat(posted_at[:10])).days
+    return 1.0 if days <= 90 else 0.6 if days <= 180 else 0.3 if days <= 365 else 0.1
+
+
+def recent_context(conn) -> list[dict]:
+    """The newest org facts with a recency weight, for steering the search and citing in matches."""
+    from service.score import default_as_of
+    as_of = datetime.combine(default_as_of(), datetime.min.time())
+    return [{**r, "weight": recency_weight(r.get("posted_at"), as_of)}
+            for r in load_org_context(conn)[:RECENT_CONTEXT]]
+
+
+def focus_weights(context: list[dict]) -> dict[str, float]:
+    """Recency-weighted count of the org's recent facts per Foundation priority."""
+    focus = {p: 0.0 for p in PRIORITIES}
+    for c in context:
+        if c.get("priority") in focus:
+            focus[c["priority"]] += c["weight"]
+    return focus
+
+
 def giving_style_trait(stats: dict) -> dict:
     """The giving-style trait is numbers, so Python writes it; evidence cites gift records, not the web."""
     band, cadence = stats["lifetime_band"], stats["median_cadence_days"]
@@ -243,7 +293,8 @@ prospect_agent = Agent(
 Use web search. Every prospect is a company or a foundation with a South Florida presence: never a private
 individual, never a government body, never one of the excluded current donors, and never a peer
 fundraiser that competes for the same donors (other community foundations, United Ways, federated campaigns).
-Favor organizations headquartered or with a major office in Miami-Dade.
+Favor organizations headquartered or with a major office in Miami-Dade, and organizations that fund what
+the Foundation has been doing RECENTLY (recent_focus: its own newest work, newest first).
 For each prospect give 2-3 facts about its public giving, community investment or causes, each with the
 exact URL of the page it came from. matched_traits lists which ICP traits it shares (sector, causes,
 geography, foundation_priorities); priority is the Foundation priority it fits best.
@@ -267,8 +318,11 @@ COUNTY_CITIES = {
                    "palm beach gardens", "wellington"],
     "Monroe": ["key west", "key largo", "marathon", "islamorada"],
 }
-# Points out of 100; the model's own matched_traits count least, since it tends to claim every trait
+# Points out of 100; the model's own matched_traits count least, since it tends to claim every trait.
+# With org context, recent_focus takes points from the donor-based parts; without it, donors only.
 FIT_WEIGHTS = {"geography": 25, "priority_overlap": 35, "primary_priority": 25, "matched_traits": 15}
+FIT_WEIGHTS_CONTEXT = {"geography": 20, "priority_overlap": 25, "primary_priority": 20, "recent_focus": 20,
+                       "matched_traits": 15}
 
 
 def county_for(city: str) -> str | None:
@@ -283,6 +337,8 @@ def fit_breakdown(prospect: dict, icp: dict) -> dict:
     priority_overlap  Foundation priorities in the prospect's facts, weighted by how many current
                       org donors share each one (keyword match, same as icp_stats)
     primary_priority  how many current org donors share the prospect's main priority
+    recent_focus      (with org context) how much of the org's recent, recency-weighted work sits in the
+                      prospect's priorities
     matched_traits    share of the four ICP traits the finder says it matches
     """
     counts = {p: int(icp["stats"].get(f"priority: {p}", 0)) for p in PRIORITIES}
@@ -290,13 +346,25 @@ def fit_breakdown(prospect: dict, icp: dict) -> dict:
     total = sum(counts.values()) or 1
     county = county_for(prospect["city"])
     hits = set(priority_hits(" ".join(f["fact"] for f in prospect["facts"])))
+    focus = focus_weights(icp.get("recent_context", []))
+    weights = FIT_WEIGHTS_CONTEXT if any(focus.values()) else FIT_WEIGHTS
     parts = {
         "geography": 1.0 if county == "Miami-Dade" else 0.6 if county else 0.0,
         "priority_overlap": sum(counts.get(p, 0) for p in hits) / total,
         "primary_priority": counts.get(prospect["priority"], 0) / top,
         "matched_traits": len(set(prospect["matched_traits"]) & set(TRAITS)) / len(TRAITS),
     }
-    return {k: round(FIT_WEIGHTS[k] * v) for k, v in parts.items()}
+    if any(focus.values()):
+        parts["recent_focus"] = max(focus.get(p, 0) for p in hits | {prospect["priority"]}) / max(focus.values())
+    return {k: round(weights[k] * v) for k, v in parts.items()}
+
+
+def matched_context(prospect: dict, icp: dict, limit: int = 2) -> list[dict]:
+    """The org's own recent facts in the prospect's priorities (main priority first, then newest)."""
+    hits = set(priority_hits(" ".join(f["fact"] for f in prospect["facts"]))) | {prospect["priority"]}
+    picks = [c for c in icp.get("recent_context", []) if c.get("priority") in hits]
+    picks.sort(key=lambda c: (c["priority"] != prospect["priority"], -c["weight"]))
+    return [{"fact": c["fact"], "url": c["url"], "posted_at": c.get("posted_at")} for c in picks[:limit]]
 
 
 def fit_score(prospect: dict, icp: dict) -> int:
@@ -310,6 +378,8 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
         return read_cache()["prospects"]
     excluded = {normalize(n) for n in exclude_names}
     brief = {"icp": [{"trait": t["trait"], "value": t["value"]} for t in icp["traits"]],
+             "recent_focus": [{"fact": c["fact"], "priority": c["priority"], "posted_at": c.get("posted_at")}
+                              for c in icp.get("recent_context", [])],
              "exclude": sorted(exclude_names)}
     found = Runner.run_sync(prospect_agent, json.dumps(brief, indent=1)).final_output.prospects
 
@@ -332,6 +402,7 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
         prospect = {"name": p.name, "org_type": p.org_type, "city": p.city,
                     "matched_traits": sorted(set(p.matched_traits)), "facts": facts,
                     "priority": p.priority, "status": "new"}
+        prospect["matched_context"] = matched_context(prospect, icp)
         prospect["fit_breakdown"] = fit_breakdown(prospect, icp)
         prospect["fit_score"] = fit_score(prospect, icp)
         prospects.append(prospect)
@@ -356,7 +427,7 @@ def build_profile(refresh: bool = False) -> dict:
         return read_cache()["icp"]
     conn = db.connect()
     try:
-        return build_icp(icp_stats(conn), org_facts(conn))
+        return {**build_icp(icp_stats(conn), org_facts(conn)), "recent_context": recent_context(conn)}
     finally:
         conn.close()
 
@@ -369,7 +440,7 @@ def run_icp(refresh: bool = False) -> dict:
     try:
         donor_names = {r[0] for r in conn.execute("SELECT full_name FROM donors")}
         donor_names |= {r[0] for r in conn.execute("SELECT org_name FROM donors WHERE org_name IS NOT NULL")}
-        icp = build_icp(icp_stats(conn), org_facts(conn))
+        icp = {**build_icp(icp_stats(conn), org_facts(conn)), "recent_context": recent_context(conn)}
     finally:
         conn.close()
     run = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "icp": icp,
@@ -391,6 +462,7 @@ def main() -> int:
     print(f"ICP ({run['generated_at']})")
     for t in run["icp"]["traits"]:
         print(f"  {t['trait']}: {t['value']}  [{len(t['evidence'])} evidence]")
+    print(f"Org context: {len(run['icp'].get('recent_context', []))} recent facts steering the search")
     print(f"Prospects ({len(run['prospects'])})")
     for p in run["prospects"]:
         print(f"  {p['fit_score']:>3}  {p['name']} ({p['org_type']}, {p['city']}) · {p['priority']} · "

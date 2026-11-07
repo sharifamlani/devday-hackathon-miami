@@ -78,3 +78,43 @@ def test_cached_run_is_fast_and_shaped(tmp_path, monkeypatch):
     assert time.perf_counter() - start < 1
     assert set(run) == {"generated_at", "icp", "prospects"}
     assert icp_agent.build_profile() == ICP
+
+
+CONTEXT = [
+    {"fact": "Funded South Dade youth scholarships.", "url": "https://mf/1", "posted_at": "2026-10-01",
+     "priority": "Empower Youth & Families", "weight": 1.0},
+    {"fact": "Hurricane resilience grants.", "url": "https://mf/2", "posted_at": "2026-03-01",
+     "priority": "Build Climate & Disaster Resilience", "weight": 0.3},
+]
+
+
+def test_org_context_falls_back_to_json_then_empty(conn, tmp_path, monkeypatch):
+    facts = tmp_path / "org_facts.json"
+    facts.write_text(json.dumps({"facts": [
+        {"date": "2026-01-05", "fact": "Old climate work.", "url": "https://mf/a", "priority": "Build Climate & Disaster Resilience"},
+        {"date": "2026-10-20", "fact": "New youth work.", "url": "https://mf/b", "priority": "Empower Youth & Families"}]}),
+        encoding="utf-8")
+    monkeypatch.setattr(icp_agent, "ORG_FACTS_JSON", facts)
+    rows = icp_agent.load_org_context(conn)             # no org_context table yet → JSON fallback
+    assert [r["url"] for r in rows] == ["https://mf/b", "https://mf/a"]
+    monkeypatch.setattr(icp_agent, "ORG_FACTS_JSON", tmp_path / "missing.json")
+    assert icp_agent.load_org_context(conn) == []
+
+
+def test_recency_weight_prefers_newer_work():
+    as_of = icp_agent.datetime(2026, 11, 8)
+    weights = [icp_agent.recency_weight(d, as_of) for d in ("2026-10-01", "2026-06-01", "2026-01-01", "2024-01-01", None)]
+    assert weights == [1.0, 0.6, 0.3, 0.1, 0.1]
+
+
+def test_context_adds_recent_focus_and_matched_context():
+    youth = {"name": "Y", "city": "Miami", "priority": "Empower Youth & Families", "matched_traits": ["sector"],
+             "facts": [{"fact": "Funds youth programs.", "url": "u"}]}
+    climate = {**youth, "priority": "Build Climate & Disaster Resilience",
+               "facts": [{"fact": "Funds hurricane recovery.", "url": "u"}]}
+    with_ctx = {**ICP, "recent_context": CONTEXT}
+    assert "recent_focus" not in icp_agent.fit_breakdown(youth, ICP)          # donors-only fallback
+    assert icp_agent.fit_breakdown(youth, with_ctx)["recent_focus"] > icp_agent.fit_breakdown(climate, with_ctx)["recent_focus"]
+    assert icp_agent.matched_context(youth, with_ctx) == [
+        {"fact": "Funded South Dade youth scholarships.", "url": "https://mf/1", "posted_at": "2026-10-01"}]
+    assert icp_agent.matched_context(youth, ICP) == []
