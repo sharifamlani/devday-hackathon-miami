@@ -11,7 +11,7 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 **Phase:** night before → kickoff · **K** = Sat 12:00 PM · **T0** = ~12:30 PM (confirm) · **F** = Sun 3:30 PM · **Submit** = Sun 4:00 PM · **D** = Sun 5–8 PM
 
 - **Roles:** spine = __ · presenter = __ · visuals = __ · data = __
-- **In flight:** —
+- **In flight:** Christian’s `feat/outreach-inbox` frontend slice in `web/`; Sharif retains backend ownership. CSV import → human duplicate review → explainable follow-up → simulated call handoff. No deployment or merge authorized in this delegated task.
 - **Next unblocked:** `codex login` (human); N5 data-prober on idea D (990 grants) if the team leans fundraising; N8 pack; then K1 at opening
 
 ---
@@ -51,7 +51,9 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 | B6 | The moment end to end; slow AI precomputed; tag `v01`; recording captured | | ⏸ |
 | B7 | The AI's output visible on screen in the demo path | F − 45 m | ⏸ |
 | B8 | Every input tested by a human on the venue setup | F − 30 m | ⏸ |
-| _(event-specific rows go here at K5)_ | | | |
+| UI1 | Simplified Gmail-style inbox; fictional CSV import and mapping; reversible duplicate review | Nov 7 | In progress on `feat/outreach-inbox` |
+| UI2 | Deterministic missed-gift explanation; editable example drafts; simulated join/leave call | Nov 7 | In progress; no paid integration configured |
+| UI3 | Local typecheck, domain tests, build and browser walkthrough | Nov 7 | Pending |
 
 ## §4: Freeze and demo
 
