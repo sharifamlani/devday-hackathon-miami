@@ -4,7 +4,7 @@
 
 Stages, in order:
     1. rebuild   drop + recreate data/donors.db with the SAMPLE seed, score and dedupe
-                 (--keep-db: keep the rows ingest wrote, just rescore + dedupe)
+                 (--keep-db / --no-seed: never seed; keep the rows ingest wrote, just rescore + dedupe)
     1b. context  read the Foundation's website + social URLs (service/org_config.json) into the local
                  context dataset (org_profile, org_context) so ICP, prospects and drafts can use it.
                  build_context is pure; db.save_context is the only writer.
@@ -305,10 +305,11 @@ def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Precompute the demo: rebuild → context → enrich → icp → outreach → export")
+    parser = argparse.ArgumentParser(description="Precompute the demo: rebuild -> context -> enrich -> icp -> outreach -> export")
     parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: $SCORE_AS_OF or 2026-11-08)")
-    parser.add_argument("--top", type=int, default=3, help="draft outreach for the top N donors (plus every ★)")
-    parser.add_argument("--keep-db", action="store_true", help="keep ingested rows; don't rebuild from the seed")
+    parser.add_argument("--top", type=int, default=3, help="draft outreach for the top N donors (plus every star donor)")
+    parser.add_argument("--keep-db", "--no-seed", dest="keep_db", action="store_true",
+                        help="run on whatever ingest wrote (empty is fine): no rebuild, no seed; just rescore + dedupe")
     parser.add_argument("--live-enrich", action="store_true", help="web-search orgs missing from the cache")
     parser.add_argument("--skip", action="append", default=[], choices=["context", "enrich", "icp", "outreach", "export"])
     parser.add_argument("--out", default=str(DEFAULT_OUT))

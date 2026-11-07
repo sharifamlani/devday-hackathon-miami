@@ -224,7 +224,7 @@ def main() -> None:
     for row in conn.execute(
             "SELECT d.full_name, s.score, s.tier, s.is_star, s.status FROM donor_scores s "
             "JOIN donors d ON d.id = s.donor_id ORDER BY s.score DESC"):
-        print(f"{row['score']:>3}  {row['tier']:<5} {'★' if row['is_star'] else ' '} {row['status']:<9} {row['full_name']}")
+        print(f"{row['score']:>3}  {row['tier']:<5} {'*' if row['is_star'] else ' '} {row['status']:<9} {row['full_name']}")
     print(f"scored {n} donors")
 
 
