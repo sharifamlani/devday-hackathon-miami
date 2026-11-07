@@ -4,13 +4,13 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.8 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.9 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
 ## §0 You are here
 
-- **Current phase:** Phase 4 (Integrate, QA-gated merges) · Phase 5B (ICP + prospects + org outreach) · Christian integrating his design (5)
+- **Current phase:** Phase 5E (three CRMs in one + calendar + chat agent), building in parallel · Phase 4 (Integrate, QA-gated merges) · Phase 5B (ICP + prospects + org outreach) · Christian integrating his design (5)
 - **Current step:** 4.5, PR #12 (service) re-check by QA at its new head, then #11 and #13; QA-gated, the lead merges on approval
 - **Blocking decisions (Sharif):** 6.6 Amazon fact
 - **In flight:** 7.2 SQLite per-request connection fix (8b) · 7.3 service-wide model timeout (90) · QA round 4 (98)
@@ -185,20 +185,23 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5D.10 | QA against §16 criteria | 98 | ⏸ | — | `plan.md` §16 |
 
 ### Phase 5E — Three CRMs in one + chat agent + event calendar
-**Goal:** Givers / Neighbors / Community fed by one upload; calendar of real events with pre-drafted invites; chat agent with approval-gated sends. **Entry gate:** Carlos's OK on the ingest adapter. **Exit gate:** `plan.md` §17 criteria pass. **Status:** ⏸ (supersedes 5D where they differ)
+**Goal:** Givers / Neighbors / Community fed by one upload; calendar of real events with pre-drafted invites; chat agent with approval-gated sends. **Entry gate:** Carlos's OK on the ingest adapter. **Exit gate:** `plan.md` §17 criteria pass. **Status:** ⏳ building (supersedes 5D where they differ)
 
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
-| 5E.1 | Ingest adapter: files → text → Carlos's stat_mcp extraction → people/gifts + contact_type (pending Carlos's OK) | 90 (w/ Carlos) | ⏸ | — | `plan.md` §17 |
-| 5E.2 | Upload tab choice + agent sort; unclear/dupes flagged for review | 8b · 80 | ⏸ | — | `plan.md` §17 |
-| 5E.3 | Sample inputs: + intake forms (incl. 'has a dog'), event sign-in sheet; answer key per tab | helper | ⏸ | — | `plan.md` §17 |
-| 5E.4 | Events agent: context → dated, sourced events; audience across tabs | 86 | ⏸ | — | `plan.md` §17 |
-| 5E.5 | Pre-drafted invites per event (approval-gated) | 86 · 90 | ⏸ | — | `plan.md` §17 |
-| 5E.6 | Chat agent with tools (find/segment/context/events/draft/analyze/brief); email send | 90 | ⏸ | — | `plan.md` §17 |
-| 5E.7 | send_sms() adapter (Linq or Twilio) + text_log | 90 · 8b | ⏸ | — | `plan.md` §17 |
-| 5E.8 | Campaign builder (Givers) · analysis (Community) · daily plan | 86 · 42 | ⏸ | — | `plan.md` §17 |
-| 5E.9 | Hooks for tabs, upload target, events, chat; Christian's tab, upload, calendar, chat visuals | 80 · Christian | ⏸ | — | `plan.md` §17 |
-| 5E.10 | QA against plan §17 criteria | 98 | ⏸ | — | `plan.md` §17 |
+| 5E.1 | Ingest adapter: files → text → Carlos's stat_mcp extraction (as a library) → people/gifts + contact_type; branch held until Carlos OKs | new agent (ingest) | ⏳ | — | `plan.md` §17 |
+| 5E.2 | Schema: contact_type (giver|neighbor|community), interests, has_dog, self-reported demographics, tab_review; events + event_drafts; people/events/community-stats routes. **No text_log** (Christian's outbox is the single send log) | 8b | ⏳ | — | `plan.md` §17 |
+| 5E.3 | Sample inputs: Community intake forms, event sign-in sheet, ambiguous cases; answer key per tab | helper agent | ⏳ | — | `plan.md` §17 |
+| 5E.4 | Events agent: Foundation events (Nov 14/15/19) with sources; audience across tabs; pre-drafted invites (no ask to Community) | 86 | ⏳ | — | `plan.md` §17 |
+| 5E.5 | **Send gate = Christian's campaigns** (feat/campaigns: approval triggers, outbox). Chat send batch = a campaign; approved messages go out via send_sms()/Gmail (dry run by default) | Christian (PR) · 90 (hook) | ⏳ | — | `plan.md` §17 |
+| 5E.6 | Chat agent with visible tool steps (find/segment/context/events/draft/stats/brief); sends only via an approved campaign | 90 | ⏳ | — | `plan.md` §17 |
+| 5E.7 | send_sms() adapter (Linq | Twilio | dryrun) + minimal Gmail sender behind EMAIL_SEND=on | 90 | ⏳ | — | `plan.md` §17 |
+| 5E.8 | Late and failed monthly gifts (challenge #2 minimum; Christian's issue #39) | 42 | ⏳ | — | `plan.md` §17 |
+| 5E.9 | Hooks for tabs, upload target, events, community stats, chat + send batch; README rules for Christian | 80 | ⏳ | — | `plan.md` §17 |
+| 5E.10 | Christian's screens: tabs, upload (tab choice / agent sort), calendar, chat panel | Christian | ⏸ | — | `plan.md` §17 |
+| 5E.11 | Landing page (Faye's PR #41): decide the name (kindred vs Donor Desk) + the landing gate | Sharif | ⏸ | — | `plan.md` §17 |
+| 5E.12 | QA against plan §17 criteria + the overlap check on every PR | 98 | ⏳ | — | `plan.md` §17 |
+| 5E.13 | Backlog from Christian's issues: #37 targets, #40 merge history/undo (#36 Ask bar → covered by the chat agent; #38 → 5E.5) | — | ⏸ | — | `plan.md` §17 |
 
 ### Phase 6 — Data and ingest
 **Goal:** the demo's donor data matches the challenge, and upload works. **Entry gate:** 1.6. **Exit gate:** upload → ranked list, 6/6 duplicates. **Status:** ⏸
@@ -281,6 +284,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 - **Stat-MCP prototype:** `stat-mcp/` is a separate FastMCP donor-import and criteria-scoring prototype with its own field contract and integration guide. It is not connected to the primary FastAPI/SQLite service or web app; any adoption needs an explicit integration and data-contract decision.
 
+- **v0.9 · Sat Nov 7, 2026 (night):** names locked Givers · Neighbors · Community; send gate = Christian's campaigns (no second log); 5E dispatched to 8b, 86, 90, 80, 42 + new ingest and sample-input agents; Christian's issues #36–#40 mapped (5E.5/5E.6/5E.8/5E.13); Faye's landing PR #41 awaiting naming. Merged since v0.7: #28–#35, #42.
 - **v0.8 · Sat Nov 7, 2026 (night):** Phase 5E: three CRMs in one (names locked: Givers · Neighbors · Community), upload with tab choice or agent sort, event calendar from website + social context with pre-drafted invites, chat agent with approval-gated email/SMS (Linq or Twilio). No iPhone app. Individual-giver research parked. `plan.md` §17.
 - **v0.7 · Sat Nov 7, 2026 (late evening):** Phase 5D added: three classes (donor / beneficiary / contact), donor briefs, beneficiary demographics (self-reported only); AI calls cut (`plan.md` §16). Merged on QA: #14, #15, #16, #17, #18, #19, #20, #21, #23, #24, #26, #27.
 - **v0.6 · Sat Nov 7, 2026 (evening):** PRs #12, #13, #11 merged on QA approval; fallback tag `fallback-pre-ui`; Vercel ship in progress. New Phase 5C: two-screen onboarding (upload data; enter URLs) → context agent → local context dataset used by ICP + outreach (`plan.md` §15).
