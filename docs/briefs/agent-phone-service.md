@@ -10,7 +10,7 @@ on the OpenAI Agents SDK runs on Sharif's laptop with local SQLite (no Supabase)
 `docs/hackathon-kit/playbooks/openai-integration.md`. Never name a folder or file `agents`.
 
 **Setup first:** all sessions share one folder, so make your own worktree:
-`git fetch origin && git worktree add "../dd-service" -b feat/service origin/main`, then work only in
+`git fetch origin && git worktree add --no-track "../dd-service" -b feat/service origin/main`, then work only in
 `../dd-service`.
 
 **Owns:** `service/main.py` (FastAPI app shell that mounts routers), `service/config.py` (loads `.env`),
@@ -34,3 +34,5 @@ test endpoint shows one real Agents SDK call returning structured JSON.
 
 **Return to the lead:** run command, curl outputs, commit SHAs, PR link. Push `feat/service`, open a PR to
 `main`, **do not merge, never push to `main`**.
+
+**Push safety:** always push with `git push -u origin feat/service`. Check that `git rev-parse --abbrev-ref @{upstream}` shows `origin/feat/service`, never `origin/main`.

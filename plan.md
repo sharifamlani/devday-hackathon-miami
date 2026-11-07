@@ -492,7 +492,7 @@ and the UI loads it when `VITE_DATA_MODE=snapshot`, with a "Cached sample" label
 against the laptop (`VITE_DATA_MODE=local`). This also covers "precompute slow AI" for the stage.
 
 **Working rules for every agent**
-1. **One branch per agent, in its own git worktree** (`git worktree add ../dd-<lane> -b feat/<lane>`).
+1. **One branch per agent, in its own git worktree** (`git worktree add --no-track ../dd-<lane> -b feat/<lane> origin/main`, then `git push -u origin feat/<lane>`).
    Sessions sharing one folder would switch branches under each other.
 2. Touch only your paths. Anything outside them goes to the lead as a request.
 3. Build against the §13 contract. Contract changes go through Carlos + Sharif via the lead.
