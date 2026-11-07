@@ -311,3 +311,13 @@ def test_event_batch_id_is_null_until_campaigns_link_events(db_file):
     conn.close()
     assert c.get(f"/events/{gmd}").json()["batch_id"] == latest
     assert {e["id"]: e["batch_id"] for e in c.get("/events").json()} == {gmd: latest, fivek: None}
+
+
+def test_event_quote_is_stored_and_a_new_snippet_is_not_a_change(conn):
+    db.seed(conn)
+    e = {**EVENTS[0], "verification": "page-verified", "quote": "Give Miami Day returns Nov. 19", "place": None}
+    (gid,) = db.save_events(conn, [e])["ids"]
+    again = db.save_events(conn, [{**e, "quote": "Give Miami Day is Thursday, Nov. 19"}])
+    assert again["changed"] == 0
+    row = conn.execute("SELECT quote, status, place FROM events WHERE id = ?", (gid,)).fetchone()
+    assert tuple(row) == ("Give Miami Day is Thursday, Nov. 19", "upcoming", None)

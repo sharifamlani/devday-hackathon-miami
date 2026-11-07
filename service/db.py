@@ -256,7 +256,8 @@ CREATE TABLE IF NOT EXISTS events (
     audience_hint TEXT,                   -- giving | community | pet (events_agent)
     source_url    TEXT NOT NULL CHECK (source_url <> ''),   -- every event has a source
     source        TEXT,                   -- website | news | search
-    verification  TEXT,
+    verification  TEXT,                   -- e.g. page-verified
+    quote         TEXT,                   -- the page snippet the event rests on
     captured_at   TEXT,                   -- when the agent read it
     status        TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'changed', 'past')),
     event_kind    TEXT,                   -- from suggest_audience
@@ -465,7 +466,7 @@ def save_context(conn: sqlite3.Connection, result: dict) -> dict:
 
 # 5E writers: events_agent (86) stays pure; these are the only writers of events, event_audience,
 # event_drafts and context_refresh_log.
-EVENT_FIELDS = ("starts_at", "ends_at", "place", "audience_hint", "source_url", "verification", "captured_at")
+EVENT_FIELDS = ("starts_at", "ends_at", "place", "audience_hint", "source_url", "verification", "quote", "captured_at")
 
 
 def _today() -> str:
@@ -497,7 +498,8 @@ def save_events(conn: sqlite3.Connection, events: list[dict], complete: bool = F
                 (e["title"], e.get("source"), status, *new.values())).lastrowid)
             added += 1
             continue
-        differs = any((row[k] or None) != (new[k] or None) for k in EVENT_FIELDS if k not in ("captured_at", "verification"))
+        differs = any((row[k] or None) != (new[k] or None) for k in EVENT_FIELDS
+                      if k not in ("captured_at", "verification", "quote"))   # a re-read snippet isn't a change
         if differs and status != "past":
             status = "changed"
             changed += 1
