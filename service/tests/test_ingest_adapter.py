@@ -1,4 +1,4 @@
-"""Ingest adapter tests: converters (offline), the router (offline, injected extraction), and the
+﻿"""Ingest adapter tests: converters (offline), the router (offline, injected extraction), and the
 end-to-end run on data/sample_inputs/ graded against answer_key.json (needs OPENAI_API_KEY)."""
 
 import io
@@ -16,8 +16,7 @@ from fastapi.testclient import TestClient
 from service import config, db, ingest_adapter as ia, ingest_router
 
 SAMPLES = Path(__file__).resolve().parents[2] / "data" / "sample_inputs"
-FILES = ["give_miami_day_export_2022-2025.xlsx", "board_retreat_notes.md", "check_deposit_log_q3_2026.docx",
-         "donor_intake_forms_2026.docx", "stock_and_daf_grants.docx"]
+FILES = json.loads((SAMPLES / "answer_key.json").read_text(encoding="utf-8"))["files"]
 
 
 # ------------------------------------------------------------------ converters
@@ -161,32 +160,52 @@ def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
     r = c.post("/ingest", files=files, data={"target": "auto"})
     assert r.status_code == 200, r.text
     body = r.json()
-    print("\nRESPONSE:", json.dumps({k: v for k, v in body.items() if k != "flagged_for_review"}), "flagged:", len(body["flagged_for_review"]))
+    print("\nRESPONSE:", json.dumps({k: v for k, v in body.items() if k != "flagged_for_review"}))
 
     key = json.loads((SAMPLES / "answer_key.json").read_text(encoding="utf-8"))
     t = key["totals"]
     conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
     n_people = conn.execute("SELECT COUNT(*) FROM donors").fetchone()[0]
     n_gifts, total = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM gifts").fetchone()
+    rows = [dict(x) for x in conn.execute("SELECT * FROM donors")]
+    has_tab = True   # tabs graded from the response (the contact_type column may not exist yet)
 
-    # every canonical donor found (by any email or by name tokens)
-    rows = conn.execute("SELECT full_name, email, emails_all FROM donors").fetchall()
-    emails = {e.lower() for _, em, al in rows for e in ([em] if em else []) + json.loads(al or "[]")}
-    names = [_ascii(n) for n, _, _ in rows]
-    found = 0
-    for d in key["canonical_donors"]:
-        hit = any(e.lower() in emails for e in d["emails_all"]) or any(
-            _ascii(w) in names for w in d["names_as_written"] + [d["full_name"]])
-        found += hit
-    coverage = found / len(key["canonical_donors"])
-    print(f"donors in db {n_people} vs key {t['canonical_donors']} (+{t['duplicate_groups']} fuzzy dup groups left for dedupe); "
-          f"canonical coverage {found}/{len(key['canonical_donors'])}; gifts {n_gifts} vs {t['unique_gifts']}; "
-          f"total {total:,.0f} vs {t['total_amount']:,}; seconds {body['seconds']}")
-    # fuzzy duplicates are left for the dedupe step, so the donor count may exceed the canonical count
-    assert t["canonical_donors"] <= n_people <= t["canonical_donors"] + 2 * t["duplicate_groups"]
-    assert coverage >= 0.9
+    assigned = {a["donor_id"]: a["tab"] for a in body["assigned"]}
+
+    def tab_of(d):
+        return assigned[d["id"]]
+
+    # match every key person to db rows by email or by a name as written
+    def matches(p):
+        em = {e.lower() for e in p.get("emails_all", [])}
+        nm = {_ascii(x) for x in p.get("names_as_written", []) + [p["full_name"]]}
+        return [d for d in rows if _ascii(d["full_name"]) in nm
+                or (em and em & {e.lower() for e in json.loads(d["emails_all"] or "[]")})]
+
+    canon = {d["donor_id"]: d for d in key["canonical_donors"]}
+    people = [{**canon.get(p["person_id"], {}), **p} for p in key["people"]]
+    found = [p for p in people if matches(p)]
+    right = [p for p in found if any(tab_of(d) == p["tab"] for d in matches(p))] if has_tab else []
+    per_tab = {tb: (sum(1 for p in right if p["tab"] == tb), sum(1 for p in found if p["tab"] == tb))
+               for tb in ("giver", "neighbor", "community")}
+    flagged_names = {_ascii(f["name"]) for f in body["flagged_for_review"]}
+    amb = [p for p in key["people"] if p["ambiguous"]]
+    amb_hit = [p["full_name"] for p in amb if _ascii(p["full_name"]) in flagged_names]
+    park_failed = conn.execute("SELECT COUNT(*) FROM gifts g JOIN donors d ON d.id=g.donor_id "
+                               "WHERE d.full_name LIKE 'Hye-jin%' AND g.gift_date='2026-11-10'").fetchone()[0]
+    print(f"people in db {n_people} vs key {len(key['people'])} persons (canonical donors {t['canonical_donors']} "
+          f"+ {t['duplicate_groups']} fuzzy dup groups left for dedupe); key persons found {len(found)}/{len(people)}; "
+          f"gifts {n_gifts} vs {t['unique_gifts']}; total {total:,.0f} vs {t['total_amount']:,}; "
+          f"tab accuracy {len(right)}/{len(found)} per tab {per_tab}; ambiguous flagged {amb_hit} of "
+          f"{[p['full_name'] for p in amb]}; failed Nov-10 gift ingested: {park_failed}; seconds {body['seconds']}")
+    assert len(found) / len(people) >= 0.9
     assert abs(n_gifts - t["unique_gifts"]) <= 0.02 * t["unique_gifts"]
     assert abs(total - t["total_amount"]) <= 0.02 * t["total_amount"]
-    # the answer key carries no tab labels, so tab accuracy is not graded; the split is printed above
+    assert park_failed == 0
+    if has_tab:
+        assert len(right) / len(found) >= 0.95
+    assert len(amb_hit) == len(amb)
     assert conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0] == n_people
     assert sum(body["by_tab"].values()) == n_people
+
