@@ -315,6 +315,18 @@ def source_progress(req: "ContextRun", result: dict | None) -> dict:
     return out
 
 
+def run_state(sources: dict) -> str:
+    """'done' if every source that was read succeeded, 'partial' if some failed, 'failed' if none succeeded.
+
+    Only sources that were actually read count: "not provided" and "saved, not connected" are neither.
+    """
+    read = [s["status"] for s in sources.values() if s["status"] not in ("not provided", "saved, not connected")]
+    ok = read.count("done")
+    if not read or ok == len(read):
+        return "done"
+    return "partial" if ok else "failed"
+
+
 def with_user_urls(result: dict | None, urls: dict) -> dict | None:
     """What the user typed is always what's saved; a cached run supplies facts, never the org's URLs."""
     if not result or not isinstance(result.get("profile"), dict):
@@ -352,9 +364,12 @@ async def context_run(req: ContextRun) -> dict:
         result = with_user_urls(cached_context(req.website), urls)
         state, cached, served_from, saved = "failed", True, "fallback", None
 
+    sources = source_progress(req, result)
+    if served_from != "fallback":
+        state = run_state(sources)
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "sources": source_progress(req, result),
+            "sources": sources,
             "profile": (result or {}).get("profile"), "facts": (result or {}).get("facts", []),
             "saved": saved}
 
