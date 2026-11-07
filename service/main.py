@@ -162,8 +162,8 @@ async def outreach(donor_id: int) -> dict:
         draft, where_saved = await run_agent(
             "outreach", draft_for_donor, donor_id,
             fallback=lambda: {"donor_id": donor_id, "cached_draft": newest_draft("donor_id", donor_id)})
-    except KeyError as e:
-        raise HTTPException(404, str(e))
+    except KeyError:
+        raise HTTPException(404, f"donor {donor_id} not found")
     return {"donor_id": donor_id, "draft_id": draft_id_of(where_saved), "saved_to": where_saved,
             **draft.model_dump()}
 
@@ -207,8 +207,8 @@ async def prospect_outreach(prospect_id: int) -> dict:
             "prospect_outreach", draft_for_prospect, prospect_id,
             fallback=lambda: {"prospect_id": prospect_id,
                               "cached_draft": newest_draft("prospect_id", prospect_id)})
-    except KeyError as e:
-        raise HTTPException(404, str(e))
+    except KeyError:
+        raise HTTPException(404, f"prospect {prospect_id} not found")
     return {"prospect_id": prospect_id, "draft_id": draft_id_of(where_saved), "saved_to": where_saved,
             **draft.model_dump()}
 
