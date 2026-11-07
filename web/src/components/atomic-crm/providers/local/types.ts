@@ -123,6 +123,21 @@ export interface IcpProfile {
   traits: IcpTrait[];
   stats: IcpStat[];
   evidence: IcpEvidence[]; // profile-level evidence not tied to one trait
+  recent_context: DatedFact[]; // newest org facts the ICP leaned on
+}
+
+/** A sourced, dated fact (org context matched to an ICP or a prospect). */
+export interface DatedFact {
+  source: string | null; // "website", ...
+  fact: string;
+  source_url: string;
+  posted_at: string | null;
+}
+
+/** One component of a prospect's fit score, e.g. Geography 12. */
+export interface FitComponent {
+  label: string;
+  points: number;
 }
 
 export type ProspectStatus = "new" | "drafted" | "dismissed";
@@ -137,6 +152,8 @@ export interface ProspectSummary {
   priority: string | null; // the Foundation priority it fits
   status: ProspectStatus;
   facts: FactUsed[]; // sourced facts, every one with a URL
+  fit_breakdown: FitComponent[]; // biggest first; sums to fit_score
+  matched_context: DatedFact[]; // org facts this prospect lines up with
 }
 
 export interface ProspectDetail extends ProspectSummary {

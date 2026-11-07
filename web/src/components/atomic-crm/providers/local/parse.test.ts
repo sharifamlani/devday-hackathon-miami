@@ -207,6 +207,25 @@ describe("parseProspect", () => {
     expect(p.status).toBe("new");
   });
 
+  it("humanizes trait keys and reads fit_breakdown and matched_context", () => {
+    const p = parseProspect({
+      ...prospect,
+      matched_traits: ["foundation_priorities", "geography"],
+      fit_breakdown: { geography: 12, priority_overlap: 22 },
+      matched_context: [
+        { fact: "Older", url: "https://example.org/o", posted_at: "2026-08-01" },
+        { fact: "Newer", url: "https://example.org/n", posted_at: "2026-10-01" },
+        { fact: "No URL" },
+      ],
+    });
+    expect(p.matched_traits).toEqual(["Foundation priorities", "Geography"]);
+    expect(p.fit_breakdown).toEqual([
+      { label: "Priority overlap", points: 22 },
+      { label: "Geography", points: 12 },
+    ]);
+    expect(p.matched_context.map((c) => c.fact)).toEqual(["Newer", "Older"]);
+  });
+
   it("returns null draft when there are no outreach drafts", () => {
     expect(parseProspectDetail(prospect).draft).toBeNull();
   });

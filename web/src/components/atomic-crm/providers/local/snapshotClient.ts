@@ -158,14 +158,24 @@ export const snapshotMethods: DonorDeskMethods = {
       cached: true,
       detail: "Cached sample: the snapshot cannot run live research.",
       sources: [
-        {
-          source: "website",
-          label: "Website",
-          state: "done",
-          status_text: "done",
-          fact_count: website.length,
-          detail: null,
-        },
+        // Never report "done" for facts the snapshot doesn't have.
+        website.length
+          ? {
+              source: "website",
+              label: "Website",
+              state: "done" as const,
+              status_text: "done",
+              fact_count: website.length,
+              detail: null,
+            }
+          : {
+              source: "website",
+              label: "Website",
+              state: "failed" as const,
+              status_text: "no saved context",
+              fact_count: 0,
+              detail: "This snapshot has no saved website context.",
+            },
         social("x", "X", input.x_url),
         social("linkedin", "LinkedIn", input.linkedin_url),
         social("instagram", "Instagram", input.instagram_url),

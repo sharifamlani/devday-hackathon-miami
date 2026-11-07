@@ -7,6 +7,7 @@ import type {
   ApiJson,
   ApiContext,
   ApiContextFact,
+  ApiContextFactLite,
   ApiContextRun,
   ApiOrgProfile,
   ApiOutreachDraft,
@@ -21,7 +22,9 @@ import type {
   ContextFact,
   ContextRun,
   ContextRunSource,
+  DatedFact,
   FactUsed,
+  FitComponent,
   IcpEvidence,
   IngestResult,
   OrgContext,
@@ -374,7 +377,10 @@ const traitFrom = (fallbackLabel: string, item: unknown): IcpTrait => {
   if (item && typeof item === "object" && !Array.isArray(item)) {
     const t = item as TraitLike;
     return {
-      label: t.label ?? t.name ?? t.trait ?? (t.key ? humanize(t.key) : fallbackLabel),
+      label:
+        t.label ??
+        t.name ??
+        (t.trait ? humanize(t.trait) : t.key ? humanize(t.key) : fallbackLabel),
       value: asText(t.value ?? t.values ?? t.description ?? t.summary ?? ""),
       evidence: parseEvidence(t.evidence),
     };
@@ -414,12 +420,35 @@ export const parseStats = (raw: ApiJson<unknown>): IcpStat[] => {
   return [];
 };
 
+const parseDatedFacts = (raw: ApiJson<ApiContextFactLite[]>): DatedFact[] => {
+  const list = fromJson(raw);
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((f) => ({
+      source: f?.source ?? null,
+      fact: String(f?.fact ?? ""),
+      source_url: String(f?.source_url ?? f?.url ?? ""),
+      posted_at: f?.posted_at ?? null,
+    }))
+    .filter((f) => f.fact && f.source_url)
+    .sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""));
+};
+
+const parseFitBreakdown = (raw: ApiJson<Record<string, number>>): FitComponent[] => {
+  const map = fromJson(raw);
+  if (!map || typeof map !== "object" || Array.isArray(map)) return [];
+  return Object.entries(map)
+    .map(([key, points]) => ({ label: humanize(key), points: Number(points) || 0 }))
+    .sort((a, b) => b.points - a.points);
+};
+
 export const parseIcp = (raw: ApiIcpProfile): IcpProfile => ({
   id: raw.id,
   created_at: raw.created_at,
   traits: parseTraits(raw.traits),
   stats: parseStats(raw.stats),
   evidence: parseEvidence(raw.evidence),
+  recent_context: parseDatedFacts(raw.recent_context),
 });
 
 const PROSPECT_STATUSES: ProspectStatus[] = ["new", "drafted", "dismissed"];
@@ -432,12 +461,16 @@ export const parseProspect = (raw: ApiProspect): ProspectSummary => {
     org_type: raw.org_type,
     city: raw.city,
     fit_score: raw.fit_score ?? 0,
-    matched_traits: Array.isArray(matched) ? matched.map(asText) : [],
+    matched_traits: Array.isArray(matched)
+      ? matched.map((t) => humanize(asText(t)))
+      : [],
     priority: raw.priority,
     status: PROSPECT_STATUSES.includes(raw.status as ProspectStatus)
       ? (raw.status as ProspectStatus)
       : "new",
     facts: parseFactsUsed(raw.facts),
+    fit_breakdown: parseFitBreakdown(raw.fit_breakdown),
+    matched_context: parseDatedFacts(raw.matched_context),
   };
 };
 

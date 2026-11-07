@@ -166,7 +166,17 @@ export interface ApiIcpProfile {
   traits: ApiJson<unknown>;
   stats: ApiJson<unknown>;
   evidence: ApiJson<ApiEvidence[]>;
+  /** Newest org context facts the ICP leaned on: {source, url, posted_at, fact} */
+  recent_context?: ApiJson<ApiContextFactLite[]>;
   created_at: string;
+}
+
+export interface ApiContextFactLite {
+  source?: string;
+  url?: string;
+  source_url?: string;
+  posted_at?: string | null;
+  fact?: string;
 }
 
 /** One item of GET /prospects (prospects row) */
@@ -181,6 +191,10 @@ export interface ApiProspect {
   priority: string | null;
   status: string;
   created_at: string;
+  /** Why it scored what it did: {component: points}, summing to fit_score */
+  fit_breakdown?: ApiJson<Record<string, number>>;
+  /** Org context facts this prospect lines up with */
+  matched_context?: ApiJson<ApiContextFactLite[]>;
   /** GET /prospects/{id}: drafts with prospect_id = id, newest first */
   outreach_drafts?: ApiOutreachDraft[];
 }
