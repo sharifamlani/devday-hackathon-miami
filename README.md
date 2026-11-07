@@ -15,7 +15,7 @@ service/ (FastAPI, SQLite, ingestion, scoring, research, outreach)
 
 ## `stat-mcp` prototype
 
-`stat-mcp/` is a separate Python FastMCP prototype for importing donor data, canonicalizing required fields, identifying possible duplicates, and assessing a donor against configurable criteria. It is not wired into the primary `service/` or `web/` application and has a distinct data contract. Its MCP walkthrough, required fields, and tools are documented in [Agent Integration](stat-mcp/AGENT_INTEGRATION.md), [Required Fields](stat-mcp/REQUIRED_FIELDS.md), and [Tools](stat-mcp/TOOLS.md).
+`stat-mcp/` is a separate Python FastMCP prototype for importing transaction events, deriving person summaries, identifying possible duplicates, and assessing a person against configurable criteria. It is not wired into the primary `service/` or `web/` application. It supports CSV, JSON, XLSX, DOCX, Markdown, and text, and runs on port 8010 by default. Its integration walkthrough, transaction/person contract, and tools are documented in [Agent Integration](stat-mcp/AGENT_INTEGRATION.md), [Required Fields](stat-mcp/REQUIRED_FIELDS.md), and [Tools](stat-mcp/TOOLS.md).
 
 To run the prototype locally:
 
@@ -26,7 +26,7 @@ uv sync
 uv run python -m stat_mcp.server
 ```
 
-It serves MCP at `http://127.0.0.1:8000/mcp` and a tool catalog at `http://127.0.0.1:8000/tools`. See [stat-mcp dependencies](stat-mcp/DEPENDENCIES.md) before setting up the environment.
+It serves MCP at `http://127.0.0.1:8010/mcp` and a tool catalog at `http://127.0.0.1:8010/tools`. See [stat-mcp dependencies](stat-mcp/DEPENDENCIES.md) before setting up the environment.
 
 ## Safety and data
 

@@ -666,7 +666,7 @@ web/.../providers/local/      80: hooks for the classes, brief and demographics
 
 ## Appendix: separate `stat-mcp` prototype
 
-The repository also contains `stat-mcp/`, a FastMCP prototype for CSV/JSON/text import, required-field normalization, duplicate suggestions, and configurable criterion scoring. It is a separate implementation with in-memory datasets and a canonical one-row-per-donor contract; the primary product described above uses the FastAPI/SQLite service and its donors/gifts and person-classification contracts. The prototype is not wired into the primary service or web UI. Do not treat its score as the deterministic gift-history propensity score, or substitute its schema without an explicit integration decision. See `stat-mcp/AGENT_INTEGRATION.md`, `stat-mcp/REQUIRED_FIELDS.md`, and `stat-mcp/TOOLS.md`.
+The repository also contains `stat-mcp/`, a separate FastMCP prototype with transaction-first import readers for CSV, JSON, XLSX, DOCX, Markdown, and text. It preserves individual source gift events and derives person summaries, but its MCP datasets remain in process memory and it is not wired into the primary FastAPI/SQLite service or web UI. The primary app does not currently mount `/ingest`. When that adapter is implemented, it should call the Python reader library directly and map valid gift events to `gifts`, person projections to `donors`, and `contact_type` to the agreed person class. Do not treat its rubric score as the live app's deterministic gift-history score. See `stat-mcp/README.md`, `stat-mcp/AGENT_INTEGRATION.md`, `stat-mcp/REQUIRED_FIELDS.md`, and `stat-mcp/TOOLS.md`.
 
 ---
 

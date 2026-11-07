@@ -1,54 +1,33 @@
-# Required donor fields
+# Imported transaction and person fields
 
-This is the canonical output schema for every imported donor record. It applies whether a user uploads unstructured text, CSV, or JSON.
+Import is transaction-first. Each explicit gift is retained as its own event row. Person summaries are derived by grouping transaction rows; they are projections for analysis and UI display, not the primary import record. A person/contact without a gift is represented as a `profile` event with no amount or date. The system never inserts a fake $0 gift.
 
-| Field | Output type | If missing | Notes |
-| --- | --- | --- | --- |
-| `id` | string | Generate a UUID | Preserve a supplied `id`, `donor_id`, or `record_id` unless it is blank/`NA`. |
-| `first_name` | string | `""` | If only a full name is supplied, split at the first space. |
-| `last_name` | string | `""` | If only one name token is supplied, this remains blank. |
-| `email_address` | string | `""` | Accept `email` as a source alias. |
-| `donation_amount` | decimal number or `null` | `null` | A missing, `NA`, or invalid amount is unknown; do not turn it into zero. |
-| `phone_number` | string | `""` | Accept `phone` as a source alias. |
-| `date_of_last_donation` | string | `""` | Accept `last_gift_date`, `last_donation_date`, or `last_gift`; ISO `YYYY-MM-DD` is preferred. |
+## Source event fields
 
-The canonical keys are always present in the output. Empty strings are used for missing text values; JSON `null` is used for a missing donation amount. The parser treats blank strings, `NA`, `N/A`, `none`, `null`, `unknown`, `not provided`, and `not available` as missing values. If an ID is missing, it generates a UUID instead of using a blank value.
+| Field | Type | Missing behavior | Purpose |
+|---|---|---|---|
+| `transaction_id` | string | Generate UUID | Unique imported event ID. |
+| `source_transaction_id` | string or null | Null | Optional source gift/payment identifier. Narrative extraction may return it; current structured file readers do not map source transaction IDs yet. |
+| `person_source_id` | string or null | Null | Preserve a source-supplied ID; do not fabricate one. |
+| `person_group_key` | string or null | Generate a unique key per structured row; narrative extraction may reuse a local key for events clearly referring to the same person in that source | Internal, source-scoped key used to build a person projection. |
+| `contact_type` | `donor`, `beneficiary`, or `contact` | `contact` unless an explicit gift establishes donor role | Person classification for the app's group tag. |
+| `transaction_type` | string | `profile` | `gift` for a documented gift; `profile`, `contact`, or `benefit` for non-gift events. |
+| `amount` | decimal or null | Null | The amount of this gift only, never a lifetime total. |
+| `transaction_date` | ISO date or string or null | Null | The event date; unambiguous dates normalize to `YYYY-MM-DD`, ambiguous dates are preserved. |
+| `channel` | string or null | Null | Event, payment channel, or source program when provided. |
+| `fund_type` | string or null | Null | Fund designation when provided. |
+| `source_name` | string | Uploaded filename | Trace back to the input file. |
+| `source_location` | string or null | Row, sheet/row, or table/row when available | Trace back to the location inside the source. |
+| `notes` | string or null | Null | Explicit supporting details from the source. |
 
-## Source field mappings
+Person identity fields repeat on each event row: `first_name`, `last_name`, `organization`, `email_address`, and `phone_number`. Blank values remain blank; the ingestion layer does not fill them from guesses.
 
-Common source names map to the canonical schema:
+## Derived person summary
 
-| Source field | Canonical field |
-| --- | --- |
-| `donor_id`, `record_id` | `id` |
-| `name`, `donor`, `donor_name`, `full_name`, `constituent_name` | Split into `first_name` and `last_name` when those fields are absent |
-| `email` | `email_address` |
-| `phone` | `phone_number` |
-| `gift_total`, `total_giving`, `lifetime_giving` | `donation_amount` |
-| `last_gift_date`, `last_donation_date`, `last_gift` | `date_of_last_donation` |
+`project_people()` groups only events sharing a source-scoped `person_group_key` or source ID. It does not group by matching email, phone, or name; those remain duplicate evidence for human review. It creates one summary per group with `contact_type`, contact details, total of explicit gift amounts, count of explicit gift events, the latest unambiguous gift date, and a concise gift-history string. If there are no explicit gifts, donation amount and gift count are null and the last-gift date is blank.
 
-The server also preserves recognized optional fields such as `contact_preference`, `organization`, `employer`, `giving_history`, `gift_count`, `engagement_notes`, `stated_interests`, `relationship_owner`, and `source`. Unknown source columns are ignored.
+For a future main SQLite adapter, map the summary to `donors` and each `transaction_type == "gift"` event to a distinct `gifts` row. Preserve `source_name` and `source_location` in `source_row`. Do not create database gift rows for `profile`, `contact`, or `benefit` events. A gift with an unknown date must be reviewed because the current SQLite `gifts.gift_date` contract requires a date. Structured imports currently generate transaction IDs and do not preserve a source gift ID as `source_transaction_id`.
 
-## Example normalized record
+## Supported files
 
-Input:
-
-```text
-Jordan Lee donated $250 on August 3, 2026. Email jordan@example.org.
-```
-
-Output required fields:
-
-```json
-{
-  "id": "generated-uuid",
-  "first_name": "Jordan",
-  "last_name": "Lee",
-  "email_address": "jordan@example.org",
-  "donation_amount": 250.00,
-  "phone_number": "",
-  "date_of_last_donation": "2026-08-03"
-}
-```
-
-The actual generated UUID differs per imported row. For unstructured text, extraction is model-assisted and may need staff correction; the server does not claim that every inferred parse is certain.
+`.csv`, `.json`, `.xlsx` (all worksheets), `.docx` (paragraphs and tables), `.md` / `.markdown` (prose and Markdown tables), and `.txt`. Binary files are passed to MCP as base64. Structured rows are parsed directly; narrative prose is sent to the Agents SDK for transaction extraction. Combined documents with both tables and prose may yield overlapping events, so import warnings flag them for human review before writing to SQLite.
