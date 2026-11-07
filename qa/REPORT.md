@@ -214,3 +214,22 @@ No context probes for other sites were run on :8000: a failed run still overwrit
 Unqueued open PR: #41 codex/kindred-landing-design @37791d6 (FayeSMR). With #42: pytest 112, build:demo ok, a landing gate in front
 of the CRM ("Try sample data" → Call today in 0.22 s), 0 console errors. Open questions for the lead/Sharif: "kindred" vs "Donor Desk"
 branding, and the codex/ branch vs CLAUDE.md rule 10. #36-#40 are issues, not PRs.
+
+### Gate round: backlog fan-out (Sat evening), 3 parallel review agents + QA lead
+
+| PR | SHA | Checks | Verdict |
+|---|---|---|---|
+| #41 codex/kindred-landing-design | 37791d6 | landing 0.78 s → Try sample data → Call today 0.26 s; honest upload dialog in the snapshot build; deep links skip the landing; 0 console errors | APPROVE (merged) |
+| #43 docs/roadmap-v09 | b5e4f78 | docs only | APPROVE (merged) |
+| #44 feat/sample-inputs-3tabs | 9876765 → 2a88c4f → **edbd237** | at 2a88c4f Park's declined charge was dated after as_of (REJECT); at edbd237 the Oct 10 decline is in the xlsx and out of the totals, 113 gifts = $1,269,470, nothing after Nov 8 | APPROVE (merged) |
+| #48 feat/gift-alerts | c16d648 | Park flagged for the wrong reason; 2 extra yearly lates; route unmounted; its own test broke with #44 | REJECT → re-grading at the new head |
+| #49 feat/events | bac83c9 | givemiamiday ×2 state their dates (real Chrome); the 5K page states neither Nov 15 nor Ferré Park, yet the invite says both; pet rule picks exactly the 16 has_dog people; invites carry no ask | REJECT (owner 86) |
+| #51 feat/ingest-adapter | a12d73e | conflicts with main (hooks/snapshotClient/types) | superseded by the lead |
+| #53 feat/three-crm-data | f070f73 | conflicts with main (4 provider files); POST /context/refresh, /chat, /send not provided by #60 | REJECT → re-grading at the new head with #60 |
+| #54 docs/context-db-daily | a8cfdbd | docs only; 166 passed | APPROVE (merged) |
+| #59 feat/stat-mcp-transaction-import | 31bf441 | conflicts in plan.md; CLAUDE.md/sample.env edit is a port move only; no secrets | REJECT (rebase), then the full suite |
+| #61 docs/nonprofit-calendar-research | 1bc41a7 | docs only; 9 weekday pairs correct | APPROVE |
+| #63 feat/landing-sample-go | 6ce5db2 | conflicts in KindredLanding.tsx; no answer_key.json under web/ | REJECT (rebase) |
+| #65 feat/dedupe-names | 1b92a24 | 6/6 planted groups, 0 false pairs, 0 auto-merges (name-only rows); 175 passed | APPROVE |
+
+Integration: #45/#46/#47/#53 conflict in shared provider files; agreed merge order #46 → #45 → #47 → #53 (owners rebase in turn); #58 after #47; #67 after #53.
