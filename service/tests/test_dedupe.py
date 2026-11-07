@@ -99,3 +99,13 @@ def test_star_donor_draft_cannot_be_sent_without_human(conn):
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("UPDATE outreach_drafts SET status = 'sent' WHERE id = ?", (draft,))
     conn.execute("UPDATE outreach_drafts SET status = 'sent', approved_by = 'staff@miamifoundation' WHERE id = ?", (draft,))
+
+
+def test_ready_status_allowed_for_non_star_and_draft_for_star(conn):
+    db.seed(conn)
+    score.run(conn, AS_OF)
+    small = conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 0 LIMIT 1").fetchone()[0]
+    conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'hi', 'ready')", (small,))
+    conn.execute("UPDATE outreach_drafts SET status = 'sent' WHERE donor_id = ?", (small,))   # small path may send
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'hi', 'queued')", (small,))

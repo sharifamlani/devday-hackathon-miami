@@ -67,9 +67,15 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
         "SELECT * FROM gifts WHERE donor_id = ? ORDER BY gift_date DESC", (donor_id,))]
     donor["research_facts"] = [dict(r) for r in conn.execute(
         "SELECT * FROM research_facts WHERE donor_id = ? ORDER BY retrieved_at DESC, id DESC", (donor_id,))]
-    donor["outreach_drafts"] = [dict(r) for r in conn.execute(
+    donor["outreach_drafts"] = [_draft_out(r) for r in conn.execute(
         "SELECT * FROM outreach_drafts WHERE donor_id = ? ORDER BY created_at DESC, id DESC", (donor_id,))]
     return donor
+
+
+def _draft_out(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    d["facts_used"] = json.loads(d["facts_used"]) if d.get("facts_used") else []
+    return d
 
 
 @router.get("/duplicates")

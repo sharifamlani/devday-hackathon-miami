@@ -97,7 +97,10 @@ CREATE TABLE IF NOT EXISTS outreach_drafts (
     channel     TEXT,              -- email | text
     subject     TEXT,
     body        TEXT NOT NULL,
-    status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'approved', 'sent')),
+    call_script TEXT,              -- what a staff member says on the phone (outreach_agent)
+    facts_used  TEXT,              -- JSON list of {fact, url} the draft cites
+    -- draft: a human must approve (big/★) · ready: small-donor path may auto-send
+    status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'approved', 'sent')),
     approved_by TEXT,
     approved_at TEXT,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
