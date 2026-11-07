@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDonorDesk } from "./index";
+import type { ContextRunInput } from "./types";
 
 const ROOT = "donor-desk";
 
@@ -12,6 +13,8 @@ export const donorDeskKeys = {
   icp: [ROOT, "icp"] as const,
   prospects: [ROOT, "prospects"] as const,
   prospect: (id: number) => [ROOT, "prospect", id] as const,
+  context: [ROOT, "context"] as const,
+  orgProfile: [ROOT, "org-profile"] as const,
 };
 
 export const useDonors = () => {
@@ -154,5 +157,49 @@ export const useDismissProspect = () => {
   return useMutation({
     mutationFn: (id: number) => dataProvider.dismissProspect(id),
     onSuccess: invalidateAll,
+  });
+};
+
+/* ---------- Onboarding (plan.md §15) ---------- */
+
+/** Screen 1. On success everything refetches: new donors, scores, duplicates. */
+export const useUploadFiles = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: (files: File[]) => dataProvider.uploadFiles(files),
+    onSuccess: invalidateAll,
+  });
+};
+
+/**
+ * Screen 2: one synchronous call (up to 30 s). Use isPending as the
+ * "researching your website" state; data is the full result.
+ */
+export const useRunContext = () => {
+  const dataProvider = useDonorDesk();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ContextRunInput) => dataProvider.runContext(input),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: donorDeskKeys.context });
+      queryClient.invalidateQueries({ queryKey: donorDeskKeys.orgProfile });
+    },
+  });
+};
+
+export const useOrgContext = () => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: donorDeskKeys.context,
+    queryFn: () => dataProvider.getContext(),
+  });
+};
+
+export const useOrgProfile = () => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: donorDeskKeys.orgProfile,
+    queryFn: () => dataProvider.getOrgProfile(),
   });
 };

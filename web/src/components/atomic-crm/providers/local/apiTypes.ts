@@ -138,6 +138,8 @@ export interface ApiSnapshot {
   icp?: ApiIcpProfile | null;
   prospects?: ApiProspect[]; // == GET /prospects (no drafts, dismissed excluded)
   prospect_details?: Record<string, ApiProspect>; // == GET /prospects/{id}
+  context?: ApiContext | null; // == GET /context (§15)
+  org_profile?: ApiOrgProfile | null; // == GET /org-profile, if exported separately
 }
 
 /*
@@ -181,4 +183,73 @@ export interface ApiProspect {
   created_at: string;
   /** GET /prospects/{id}: drafts with prospect_id = id, newest first */
   outreach_drafts?: ApiOutreachDraft[];
+}
+
+/*
+ * Onboarding (plan.md §15): upload → POST /ingest (Carlos), and the local
+ * context dataset (org_profile + org_context). Routes are not built yet, so
+ * these shapes follow §15 and parse.ts accepts the reasonable variants.
+ */
+
+export interface ApiOrgProfile {
+  id?: number;
+  name: string | null;
+  website: string | null;
+  x_url: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+  priorities?: ApiJson<unknown>;
+  voice?: ApiJson<unknown>;
+  updated_at?: string | null;
+}
+
+/** One org_context row: a dated, sourced fact about the organization. */
+export interface ApiContextFact {
+  id: number;
+  source: string; // website | x | linkedin | instagram | news
+  url: string;
+  posted_at: string | null;
+  fact: string;
+  quote?: string | null;
+  priority?: string | null;
+  captured_at?: string | null;
+}
+
+/** GET /context, and the snapshot's "context" key. */
+export type ApiContext =
+  | ApiContextFact[]
+  | {
+      profile?: ApiOrgProfile | null;
+      org_profile?: ApiOrgProfile | null;
+      facts?: ApiContextFact[];
+      org_context?: ApiContextFact[];
+      items?: ApiContextFact[];
+      cached?: boolean;
+      captured_at?: string | null;
+    };
+
+/** POST /context/run (PR #21): synchronous, at most 30 s, always 200
+ *  (503 until the context module lands). */
+export interface ApiContextRun {
+  state: string; // done | failed
+  cached: boolean; // true: the live read timed out or failed; saved context shown
+  detail: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  // website | news | x | linkedin | instagram
+  sources: Record<string, ApiContextRunSource>;
+  profile?: ApiOrgProfile | null;
+  facts?: ApiContextFact[];
+  saved?: {
+    org_profile_id: number;
+    context_ids: number[];
+    replaced_sources: string[];
+  } | null;
+}
+
+export interface ApiContextRunSource {
+  // done | blocked | failed | not provided | saved, not connected
+  status: string;
+  facts?: number;
+  detail?: string | null; // block reason, or the saved URL for socials
 }

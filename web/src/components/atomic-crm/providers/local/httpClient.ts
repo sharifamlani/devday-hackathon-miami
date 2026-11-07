@@ -1,17 +1,24 @@
 import type {
+  ApiContext,
+  ApiContextRun,
   ApiDonorDetail,
   ApiDonorRow,
   ApiDuplicate,
   ApiIcpProfile,
   ApiMergeResult,
+  ApiOrgProfile,
   ApiProspect,
 } from "./apiTypes";
 import { API_URL, APPROVER_NAME } from "./config";
 import {
+  parseContext,
+  parseContextRun,
   parseDonorDetail,
   parseDonorRow,
   parseDuplicate,
   parseIcp,
+  parseIngestResult,
+  parseOrgProfile,
   parseProspect,
   parseProspectDetail,
 } from "./parse";
@@ -33,13 +40,20 @@ const request = async <T>(
   init?: { method?: "GET" | "POST"; body?: unknown },
 ): Promise<T> => {
   const method = init?.method ?? "GET";
+  const isForm = init?.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     method,
+    // FormData sets its own multipart boundary header.
     headers:
-      init?.body !== undefined
+      init?.body !== undefined && !isForm
         ? { "Content-Type": "application/json" }
         : undefined,
-    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+    body:
+      init?.body === undefined
+        ? undefined
+        : isForm
+          ? (init.body as FormData)
+          : JSON.stringify(init.body),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -136,5 +150,60 @@ export const localApiMethods: DonorDeskMethods = {
   draftProspectOutreach: (id) => postAgent(`/prospects/${id}/outreach`),
   dismissProspect: async (id) => {
     await request(`/prospects/${id}/dismiss`, { method: "POST" });
+  },
+
+  uploadFiles: async (files) => {
+    const form = new FormData();
+    for (const file of files) form.append("files", file, file.name);
+    try {
+      return parseIngestResult(
+        await request<unknown>("/ingest", { method: "POST", body: form }),
+      );
+    } catch (error) {
+      // /ingest is mounted only once Carlos's router exists.
+      if (
+        error instanceof ApiError &&
+        (error.status === 404 || error.status === 503)
+      ) {
+        throw new Error(
+          "Upload isn't available yet: the ingest service is not running.",
+        );
+      }
+      throw error;
+    }
+  },
+  runContext: async (input) => {
+    try {
+      return parseContextRun(
+        await request<ApiContextRun>("/context/run", {
+          method: "POST",
+          body: {
+            website: input.website || null,
+            x_url: input.x_url || null,
+            linkedin_url: input.linkedin_url || null,
+            instagram_url: input.instagram_url || null,
+            refresh: input.refresh ?? false,
+          },
+        }),
+      );
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 503) {
+        throw new Error(
+          "Website research isn't available yet: the context service is not running.",
+        );
+      }
+      throw error;
+    }
+  },
+  getContext: async () => parseContext(await request<ApiContext>("/context")),
+  // 200 null (preferred) or 404 both mean "no profile yet".
+  getOrgProfile: async () => {
+    try {
+      const profile = await request<ApiOrgProfile | null>("/org-profile");
+      return profile ? parseOrgProfile(profile) : null;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
   },
 };

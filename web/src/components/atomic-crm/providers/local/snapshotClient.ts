@@ -1,10 +1,12 @@
 import type { ApiSnapshot } from "./apiTypes";
 import { APPROVER_NAME, SNAPSHOT_URL } from "./config";
 import {
+  parseContext,
   parseDonorDetail,
   parseDonorRow,
   parseDuplicate,
   parseIcp,
+  parseOrgProfile,
   parseProspect,
   parseProspectDetail,
 } from "./parse";
@@ -49,6 +51,13 @@ const prospectOf = (snapshot: ApiSnapshot, id: number) => {
   if (!prospect) throw new Error(`Prospect ${id} is not in the snapshot`);
   return prospect;
 };
+
+/** The snapshot's context run is simulated: instantly done, labeled cached. */
+const contextOf = (snapshot: ApiSnapshot) =>
+  parseContext(snapshot.context, {
+    cached: true,
+    profile: snapshot.org_profile ?? null,
+  });
 
 const READ_ONLY =
   "This is a read-only snapshot. Running the agents needs the local API.";
@@ -129,6 +138,48 @@ export const snapshotMethods: DonorDeskMethods = {
     parseProspectDetail(structuredClone(prospectOf(await loadSnapshot(), id))),
   draftProspectOutreach: async () => {
     throw new Error(READ_ONLY);
+  },
+  uploadFiles: async () => {
+    throw new Error(READ_ONLY);
+  },
+  runContext: async (input) => {
+    const context = contextOf(await loadSnapshot());
+    const website = context.facts.filter((f) => f.source === "website");
+    const social = (source: "x" | "linkedin" | "instagram", label: string, url?: string | null) => ({
+      source,
+      label,
+      state: url ? ("saved_not_connected" as const) : ("not_provided" as const),
+      status_text: url ? "saved, not connected" : "not provided",
+      fact_count: 0,
+      detail: url || null,
+    });
+    return {
+      status: "done",
+      cached: true,
+      detail: "Cached sample: the snapshot cannot run live research.",
+      sources: [
+        {
+          source: "website",
+          label: "Website",
+          state: "done",
+          status_text: "done",
+          fact_count: website.length,
+          detail: null,
+        },
+        social("x", "X", input.x_url),
+        social("linkedin", "LinkedIn", input.linkedin_url),
+        social("instagram", "Instagram", input.instagram_url),
+      ],
+      profile: context.profile,
+      facts: context.facts,
+      finished_at: null,
+    };
+  },
+  getContext: async () => contextOf(await loadSnapshot()),
+  getOrgProfile: async () => {
+    const snapshot = await loadSnapshot();
+    if (snapshot.org_profile) return parseOrgProfile(snapshot.org_profile);
+    return contextOf(snapshot).profile;
   },
   dismissProspect: async (id) => {
     const snapshot = await loadSnapshot();
