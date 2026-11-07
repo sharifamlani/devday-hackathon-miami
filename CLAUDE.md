@@ -32,6 +32,11 @@ Anything that serves none of the three is out of scope.
 | **Judging** | not published (Q3/Q4). 9 judges, 2 from The Miami Foundation's data + grants side |
 | **Prizes** | $1,000 / $500 / $250 API credits + 3 mo ChatGPT Pro; more TBA |
 
+## Team contacts
+
+Names, emails and the pending team email are in `TEAM_CONTEXT.md` at the repo root. It is gitignored:
+never commit it, and never copy its contents into a tracked file.
+
 ## Repo map
 
 There is **no application code yet**: the build starts at T0, after the nonprofit problem statements

@@ -11,3 +11,6 @@ __pycache__/
 # unrelated personal tooling (property/Gmail scripts), not part of the entry
 .packages/
 transcripts/
+
+# Team contact info: personal emails, never committed (repo may be shared with judges)
+TEAM_CONTEXT.md
