@@ -25,11 +25,19 @@ Update this file whenever a dependency is installed or first used by the service
 | pytest | `pytest` | Optional dependency group `dev`; not installed | Unit tests for parsers, matching, aggregation, and tool contracts. |
 | Ruff | `ruff` | Optional dependency group `dev`; not installed | Python formatting and linting. |
 
+## Optional JavaScript client
+
+| Dependency | Package / import | Status | Purpose |
+|---|---|---|---|
+| Node.js | Node `>=20` | Runtime requirement for `client-js/`; no system Node runtime was available in the development environment | Runs the server-side JavaScript MCP client. |
+| MCP JavaScript SDK | `@modelcontextprotocol/sdk` | Declared `^1.0.0`; resolved/installed `1.32.2` with pnpm on 2026-11-07 | Connects the Node main-server adapter to FastMCP using Streamable HTTP. |
+| pnpm | `pnpm` | `11.25.0` used to resolve and install the client package | Installs JavaScript client dependencies. |
+
 ## Setup
 
-From `stat-mcp/`, run `uv sync` to install the declared dependencies and update `uv.lock`, then use `uv run python -m stat_mcp.server`. If no local `.env` exists, copy `.env.example` to `.env` and set `OPENAI_API_KEY` for LLM extraction/scoring. The server defaults to `127.0.0.1:8010` to avoid the primary service on port 8000; configure deployment HTTPS and authentication before remote use.
+Run `./stat-mcp/scripts/init-and-run.sh` from the repository root. It creates `.env` from the blank template only when absent, runs `uv sync`, and starts the server. Alternatively, from `stat-mcp/`, run `uv sync` and `uv run python -m stat_mcp.server`. Install the optional JavaScript client with `pnpm install` from `stat-mcp/client-js/`. Set `OPENAI_API_KEY` for LLM extraction/scoring. The server defaults to `127.0.0.1:8010` to avoid the primary service on port 8000; configure HTTPS and authentication before remote use.
 
-`uv sync` completed on 2026-11-07 after adding the Excel and Word readers; `uv.lock` now includes `openpyxl` and `python-docx`. The optional `dev` group was not installed, no API call was made, and tests were not run. The smoke script requires a valid key and incurs API usage.
+`uv sync` completed on 2026-11-07 after adding the Excel and Word readers; `uv.lock` includes `openpyxl` and `python-docx`. `pnpm install` resolved and installed the JavaScript MCP client dependency. The optional Python `dev` group was not installed; no OpenAI API call was made and tests were not run. The smoke script requires a valid key and incurs API usage.
 
 ## Security and data handling
 
