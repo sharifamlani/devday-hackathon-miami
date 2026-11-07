@@ -29,7 +29,7 @@ why, in your own voice.*
 | 6 | **Value-based outreach** | Drafts lead with "here's what we did," never just "please give." Big donors: AI drafts, a human sends. Small/lapsed: automated email/text. Written in the org's voice | Core |
 | 7 | **Enrichment research agent** | Researches existing donors from public sources (employer, giving history, board seats, foundation ties) and adds that to the profile. Big-donor briefs go to staff | Core (Sharif) |
 | 8 | **ICP + new-donor finder** | From the enriched current donors, the agent builds an ideal donor profile, then researches **new** prospects who match it, with the reason for each | Stretch (after 1–7 work) |
-| 9 | AI voice calls to small donors | Script + objection handling (needs Twilio) | Cut unless time |
+| 9 | AI voice calls to small donors | Script + objection handling (needs Twilio) | **Cut**: the Miami Foundation states it never solicits by robocall (§11) |
 
 **How the score works (decided):** Python computes the number deterministically from gift history (the
 LLM never computes it). The LLM only explains it in plain words: "Gave every December for 4 years; nothing
@@ -41,9 +41,10 @@ this year; 23 days left in the year → call first."
 - **No AI-generated images or video of the nonprofit's work.** The AI only assembles real content.
 - **Research only public, professional information** on donors (the standard nonprofit practice called
   prospect research). No home addresses or family details. Show the source link for every enriched fact.
-- **Demo data:** fictional individual donors plus **real local businesses and foundations**, so the
-  enrichment agent finds real public results on stage without profiling private people. Label the sample
-  as sample data.
+- **Demo data:** the demo runs as **The Miami Foundation** (see §11). Individual donors are fictional. Org
+  donors are real, **publicly reported** Miami Foundation supporters (§11), so the enrichment agent finds
+  real results on stage, but their gift amounts and dates are invented. The upload and the UI say
+  "Sample data" on screen. Never present invented gifts as the Foundation's real records.
 - **Big donors never get an automated message.** A human approves and sends.
 
 ## 4. Team and roles
@@ -116,7 +117,7 @@ devday_hackathon/
 
 ```
 +--------------------------------------------------------------------------+
-| [logo] Donor Desk          Sample: "Miami Paws Rescue"   [Upload list ⬆] |
+| [logo] Donor Desk   The Miami Foundation · SAMPLE DATA   [Upload list ⬆] |
 +--------------------------------------------------------------------------+
 | ⚠ 6 possible duplicates found                         [Review merges →] |
 +--------------------------------------------------------------------------+
@@ -201,5 +202,112 @@ devday_hackathon/
       krayin/laravel-crm (MIT, 24k stars) but PHP and not Vercel-hostable. **No MIT/Apache nonprofit-specific
       CRM exists:** CiviCRM, Twenty, EspoCRM, SuiteCRM and Frappe CRM are all AGPL or mixed, so excluded.
       If adopted, `web/` in §5 becomes the atomic-crm fork and the stack question below is settled.
-- [ ] Which real local businesses/foundations go in the sample list
+- [x] ~~Which real local orgs go in the sample list~~ → the Miami Foundation's publicly reported supporters (§11)
 - [ ] Team size (4 or 5) and who owns UI, data and pitch
+- [ ] Confirm the persona framing with the team: we **demo as** the Foundation's fundraising staff; we do not
+      claim the Foundation uses the tool. Opening line idea: "Imagine you're on Mike Rogers' philanthropy
+      team, 12 days before Give Miami Day."
+
+---
+
+## 11. Demo persona: The Miami Foundation
+
+Researched Sat Nov 7, 2026. ✅ = page read · 🔸 = search summary, verify before saying it on stage. Two
+judges work here (Data & Engagement; Grants Administration), so **every fact on screen must be exact**.
+
+**Why this persona works:** the Foundation's president said in Oct 2025 she wants "a most generous Miami".
+It has 1,000+ fundholders and 60,000+ donors, and Give Miami Day is **Thu Nov 19** (early giving opens
+**Sat Nov 14**), 12 days after the hackathon. The demo story writes itself: *"Who gave on Give Miami Day
+last year but hasn't yet this year? Call them before the 14th."*
+
+### Identity ✅
+- **The Miami Foundation Inc** · EIN 65-0350357 · 40 NW 3rd Street, Suite 305, Miami, FL 33128
+- Founded **1967** as the Dade Foundation. Renamed Dade Community Foundation (1987), then The Miami
+  Foundation (2010).
+- Tagline: **"Together, we are building a Greater Miami where everyone can thrive."**
+- Five priorities: Empower Youth & Families · Generate Prosperity · Inspire Civic Involvement · Build
+  Climate & Disaster Resilience · Eliminate Inequities
+- "Invested over $905M" since 1967. Goal: $1 billion by end of 2026.
+
+### Leadership ✅ (team page)
+Rebecca Fishman Lipsey (President & CEO) · Lindsey Linzer (Chief Impact Officer) · Sue Rosenthal (CFO) ·
+Nikisha Williams (COO) · Jocelyn Noya-Quintana (CMO) · Natalia Zea (Chief Community Investment Officer) ·
+Francisco Gozalo (VP Finance & Controller) · **Mike Rogers (VP of Philanthropy): the demo user's boss**
+
+### How they raise money ✅ (for-donors page)
+| Fund type | Minimum |
+|---|---|
+| Donor Advised · Designated · Organization Reserve | $5,000 |
+| Organization Endowment · Field of Interest | $25,000 |
+| Scholarships · Fiscal Sponsorship | $100,000 |
+| Supporting Organization | $3,000,000 |
+| Unrestricted · Estate gifts | no minimum |
+
+Giving societies: **Legacy Society** (planned gifts) and the **Ruth and Richard Shack Society**
+(fundholders who've given $1M+). That maps directly onto our tiers: Shack-level = ★.
+Fundholders have a 24/7 online donor portal. The Foundation sends a monthly newsletter. It accepts gifts
+only via miamifoundation.org, givemiamiday.org and FCsuite, and **never by robocall or WhatsApp**, so our
+outreach drafts are email and a human call only.
+
+### Financials ✅ (ProPublica, fiscal year ends Dec)
+| FY | Total assets | Contributions | Total revenue |
+|---|---|---|---|
+| 2025 | $622.7M | $113.7M | $156.0M |
+| 2024 | $565.2M | $101.6M | $138.6M |
+| 2023 | $525.0M | $119.3M | $133.5M |
+
+### Give Miami Day results
+| Year | Raised | Nonprofits | Donors |
+|---|---|---|---|
+| 2023 🔸 | $34.1M | 1,000+ | 46,619 |
+| 2024 🔸 | $39.5M | 1,200+ | 51,700+ |
+| 2025 ✅ | ~$43.8M (record) | 1,400+ | 60,000+ |
+| 2026 | Thu Nov 19 (15th edition) · early giving Nov 14–18 · Give Miami 5K Sun Nov 15, Maurice Ferré Park | | |
+
+### Recent news the outreach agent can cite (all real, all dated)
+1. ✅ **Aug 31, 2026:** first South Dade Community Needs and Nonprofit Funding Landscape study: $94M across
+   1,400+ grants to 262 nonprofits; **only 4% flexible/unrestricted**. Amazon committed $1M to 13 South Dade
+   nonprofits.
+2. ✅ **Sep 2026:** Press Forward South Florida grants to a dozen-plus newsrooms after Miami Herald layoffs
+   (Foundation $100K, Knight $50K). ⚠ Total is "nearly $1M" in the release vs. $760K in the newsletter:
+   don't quote a total.
+3. ✅ **Sep 2026:** SET Summits in Wynwood and Homestead drew 300+ nonprofit leaders. McDermott Will &
+   Schulte gave 398 pro bono hours ($500K+) to 17 nonprofits.
+4. ✅ **Nov 2025:** record Give Miami Day, ~$43.8M for 1,400+ nonprofits.
+5. ✅ **2026:** Miami Fellows Class XII (Education Lab, Aug 2026).
+6. 🔸 Frederick A. DeLuca Foundation: $5.6M to Arts Access Miami, expanding to Central Miami from 2026.
+
+Programs by priority ✅: Scholarships, Arts Access, Zero Drownings Miami · Nonprofit Bridge Loan, Miami Open
+for Business · Vote Miami, Press Forward South Florida, Give Miami Day, Thrive 305 · Biscayne Bay
+Recovery, Disaster Resilience, Resilient 305 · Racial Equity Fund, State of Black Philanthropy, Saltwater
+Fellowship, LGBTQ Equity Fund.
+
+### Brand voice ✅ (for the outreach agent's style prompt)
+Upbeat, civic, plain, proudly local. Real phrases: "eternal optimists and Miami's greatest fans" ·
+"Miami, this is your celebration." · "Everyone has a role to play." · "surround-sound generosity" (CEO).
+
+### Sample donor list (built from this; see `data/`)
+- **Org donors (real, publicly reported supporters; gift histories invented and labelled sample):** Amazon,
+  John S. and James L. Knight Foundation, Frederick A. DeLuca Foundation, McDermott Will & Schulte (in-kind),
+  Pérez Family Foundation 🔸
+- **Individuals:** fictional names only, spread across fund types and tiers, including the planted cases:
+  a lapsing Give Miami Day donor (gave 2023–2025, nothing in 2026), a quarterly donor who's overdue,
+  duplicates (same email with a name variant), and a Shack-level ★ fundholder.
+
+### Not found / don't claim
+Grants paid per year (2025 audit PDF is encrypted) · "Our Miami Report" · Co-Lab page (404) · Give Miami Day
+fee and bonus-pool details.
+
+**Sources:** [miamifoundation.org](https://miamifoundation.org) ·
+[who we are](https://miamifoundation.org/who-we-are/) ·
+[team](https://miamifoundation.org/who-we-are/our-team/) ·
+[for donors](https://miamifoundation.org/for-donors/) ·
+[priorities](https://miamifoundation.org/miamis-priorities/) ·
+[financials](https://miamifoundation.org/who-we-are/financials/) ·
+[ProPublica 990s](https://projects.propublica.org/nonprofits/organizations/650350357) ·
+[Give Miami Day](https://www.givemiamiday.org/) ·
+[WLRN 2025 results](https://www.wlrn.org/south-florida/2025-11-21/give-miami-day-reports-raising-record-breaking-43-million-for-more-than-1-400-non-profits) ·
+[Amazon / South Dade study](https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/) ·
+[Press Forward](https://miamifoundation.org/news/press-forward-south-florida-awards-funds-2026/) ·
+[Sept 2026 newsletter](https://miamifoundation.org/newsletter/foundation-newsletter-september-2026/) ·
+[Miami Today CEO profile](https://www.miamitodaynews.com/2025/10/22/rebecca-fishman-lipsey-miami-foundations-ceo-targets-a-most-generous-miami/)
