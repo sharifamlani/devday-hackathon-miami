@@ -16,6 +16,11 @@ GET  /prospects/{id}             one prospect with its first-touch drafts
 POST /prospects/{id}/dismiss     "not a fit"
 GET  /org-profile                the Foundation's profile: URLs, priorities, voice, per-source status, or null
 GET  /context                    dated, sourced facts about the Foundation, newest first (?source=x)
+GET  /people                     people in one tab (?type=giver|neighbor|community, ?has_dog, ?interest) + counts
+PATCH /people/{id}               move a person to another tab {"contact_type": ...}
+GET  /events                     the calendar, upcoming first, with draft counts
+GET  /events/{id}                one event: audience (with names and why) + its drafted invites
+GET  /community/stats            counts by each recorded demographic field, with a "not recorded" bucket
 """
 
 from __future__ import annotations
@@ -29,6 +34,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from service import dedupe, score
+from service import db
 from service.db import connect, create_schema
 
 router = APIRouter(tags=["data"])
@@ -53,6 +59,10 @@ def _donor_out(row: sqlite3.Row) -> dict:
         d["is_star"] = bool(d["is_star"]) if d["is_star"] is not None else False
     if "why" in d:
         d["why"] = json.loads(d["why"]) if d["why"] else None
+    if "interests" in d:
+        d["interests"] = json.loads(d["interests"] or "[]")
+        d["demographics"] = json.loads(d["demographics"] or "{}")
+        d["has_dog"] = None if d["has_dog"] is None else bool(d["has_dog"])
     return d
 
 
@@ -64,7 +74,9 @@ FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id
 
 @router.get("/donors")
 def list_donors(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
-    rows = conn.execute(DONOR_WITH_SCORE + " ORDER BY s.score IS NULL, s.score DESC, d.id").fetchall()
+    """Givers only: the call-today list. Every tab's people come from GET /people."""
+    rows = conn.execute(DONOR_WITH_SCORE + " WHERE d.contact_type = 'giver'"
+                        " ORDER BY s.score IS NULL, s.score DESC, d.id").fetchall()
     return [_donor_out(r) for r in rows]
 
 
@@ -247,3 +259,146 @@ def get_org_profile(conn: sqlite3.Connection = Depends(get_conn)) -> dict | None
 def get_context(source: str | None = Query(None, pattern="^(website|x|linkedin|instagram|news)$"),
                 conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
     return list_context(conn, source)
+
+
+
+# ---- 5E: three tabs, events, community stats ----------------------------------------------------
+
+CONTACT_TYPE_PATTERN = "^(giver|neighbor|community)$"
+NOT_RECORDED = "not recorded"
+
+
+def people_counts(conn: sqlite3.Connection) -> dict:
+    counts = {t: 0 for t in db.CONTACT_TYPES}
+    for row in conn.execute("SELECT contact_type, COUNT(*) FROM donors GROUP BY contact_type"):
+        counts[row[0]] = row[1]
+    counts["needs_review"] = conn.execute("SELECT COUNT(*) FROM donors WHERE tab_review IS NOT NULL").fetchone()[0]
+    return counts
+
+
+def list_people(conn: sqlite3.Connection, contact_type: str | None = None, has_dog: bool | None = None,
+                interest: str | None = None) -> list[dict]:
+    """In-process helper for the chat agent's find_people and the routes. Givers come best score first,
+    everyone else by name. interest matches a tag case-insensitively."""
+    where, args = [], []
+    if contact_type:
+        where.append("d.contact_type = ?")
+        args.append(contact_type)
+    if has_dog is not None:
+        where.append("d.has_dog = ?")
+        args.append(int(has_dog))
+    if interest:
+        where.append("EXISTS (SELECT 1 FROM json_each(COALESCE(d.interests, '[]')) WHERE lower(value) = lower(?))")
+        args.append(interest)
+    sql = DONOR_WITH_SCORE + (" WHERE " + " AND ".join(where) if where else "")
+    sql += " ORDER BY s.score IS NULL, s.score DESC, d.full_name, d.id"
+    return [_donor_out(r) for r in conn.execute(sql, args)]
+
+
+@router.get("/people")
+def get_people(type: str | None = Query(None, pattern=CONTACT_TYPE_PATTERN), has_dog: bool | None = Query(None),
+               interest: str | None = Query(None), conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    return {"type": type, "counts": people_counts(conn), "people": list_people(conn, type, has_dog, interest)}
+
+
+class MovePerson(BaseModel):
+    contact_type: str = Field(pattern=CONTACT_TYPE_PATTERN)
+
+
+@router.patch("/people/{person_id}")
+def move_person(person_id: int, req: MovePerson, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    """One-click move between tabs; clears any review flag. A new Giver is scored right away."""
+    if conn.execute("UPDATE donors SET contact_type = ?, tab_review = NULL WHERE id = ?",
+                    (req.contact_type, person_id)).rowcount == 0:
+        raise HTTPException(404, f"person {person_id} not found")
+    conn.commit()
+    score.run(conn)
+    return get_donor(person_id, conn)
+
+
+def _event_out(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    d["audience"] = json.loads(d.get("audience") or "{}")
+    return d
+
+
+EVENT_WITH_COUNT = """
+SELECT e.*, (SELECT COUNT(*) FROM event_drafts ed WHERE ed.event_id = e.id) AS draft_count
+FROM events e
+"""
+
+
+def list_events(conn: sqlite3.Connection, today: date | None = None) -> list[dict]:
+    """Upcoming first (soonest first), then past events (most recent first)."""
+    today_s = (today or score.default_as_of()).isoformat()
+    rows = conn.execute(
+        EVENT_WITH_COUNT + " ORDER BY substr(e.starts_at, 1, 10) < ?, "
+        "CASE WHEN substr(e.starts_at, 1, 10) >= ? THEN e.starts_at END ASC, e.starts_at DESC, e.id",
+        (today_s, today_s))
+    return [_event_out(r) for r in rows]
+
+
+@router.get("/events")
+def get_events(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+    return list_events(conn)
+
+
+def event_detail(conn: sqlite3.Connection, event_id: int) -> dict | None:
+    row = conn.execute(EVENT_WITH_COUNT + " WHERE e.id = ?", (event_id,)).fetchone()
+    if row is None:
+        return None
+    event = _event_out(row)
+    why = event["audience"].get("why") or {}
+    people = []
+    for pid in event["audience"].get("person_ids") or []:
+        p = conn.execute("SELECT id, full_name, contact_type, donor_type, has_dog FROM donors WHERE id = ?",
+                         (pid,)).fetchone()
+        if p:
+            people.append({**dict(p), "has_dog": None if p["has_dog"] is None else bool(p["has_dog"]),
+                           "why": why.get(str(pid)) or why.get(pid)})
+    event["audience_people"] = people
+    event["drafts"] = [{**_draft_out(r), "person_name": r["person_name"]} for r in conn.execute(
+        "SELECT d.*, p.full_name AS person_name FROM outreach_drafts d JOIN event_drafts ed ON ed.draft_id = d.id "
+        "LEFT JOIN donors p ON p.id = d.donor_id WHERE ed.event_id = ? ORDER BY d.id", (event_id,))]
+    return event
+
+
+@router.get("/events/{event_id}")
+def get_event(event_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    event = event_detail(conn, event_id)
+    if event is None:
+        raise HTTPException(404, f"event {event_id} not found")
+    return event
+
+
+def community_stats(conn: sqlite3.Connection) -> dict:
+    """Counts by each self-reported demographic field across the Community tab. A field missing from a
+    record lands in "not recorded"; list fields (programs) count each value once per person."""
+    people = [json.loads(r[0] or "{}") for r in conn.execute(
+        "SELECT demographics FROM donors WHERE contact_type = 'community'")]
+    fields = {}
+    for field in db.DEMOGRAPHIC_FIELDS:
+        buckets: dict[str, int] = {}
+        recorded = 0
+        for demo in people:
+            entry = demo.get(field)
+            value = entry.get("value") if isinstance(entry, dict) else entry
+            values = [v for v in (value if isinstance(value, list) else [value]) if v not in (None, "")]
+            if not values:
+                continue
+            recorded += 1
+            for v in dict.fromkeys(str(v) for v in values):
+                buckets[v] = buckets.get(v, 0) + 1
+        missing = len(people) - recorded
+        fields[field] = {
+            "recorded": recorded,
+            "not_recorded": missing,
+            "buckets": [{"value": v, "count": n} for v, n in sorted(buckets.items(), key=lambda kv: (-kv[1], kv[0]))]
+                       + ([{"value": NOT_RECORDED, "count": missing}] if missing else []),
+        }
+    return {"total": len(people), "fields": fields}
+
+
+@router.get("/community/stats")
+def get_community_stats(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    return community_stats(conn)

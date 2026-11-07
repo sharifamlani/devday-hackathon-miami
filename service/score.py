@@ -200,7 +200,8 @@ def run(conn: sqlite3.Connection, as_of: date | None = None) -> int:
         gifts_by_donor.setdefault(row["donor_id"], []).append(dict(row))
 
     computed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    donor_ids = [r["id"] for r in conn.execute("SELECT id FROM donors")]
+    # Only Givers are scored ("call today"); Neighbors and Community have no gift history to rank.
+    donor_ids = [r["id"] for r in conn.execute("SELECT id FROM donors WHERE contact_type = 'giver'")]
     conn.execute("DELETE FROM donor_scores")
     for donor_id in donor_ids:
         result = score_donor(gifts_by_donor.get(donor_id, []), as_of)
