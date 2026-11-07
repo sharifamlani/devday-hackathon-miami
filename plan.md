@@ -561,3 +561,103 @@ The context agent runs **in real time during onboarding**, not as a manual step:
 4. **Stage safety:** the last successful run is cached, and the UI falls back to it (labeled cached) on timeout.
 
 **Scope cut (Sharif, Sat Nov 7 late evening): for the demo the context agent researches the WEBSITE ONLY.** Screen 2 still collects the Instagram, X and LinkedIn URLs and saves them to `org_profile`, shown as "saved, not connected". They are not fetched or integrated in the demo. Steps 1 (social search), 2 (account connection) and per-social progress above are post-demo.
+
+---
+
+## 16. Three classes of people, donor briefs, beneficiary demographics (Sharif, Sat Nov 7 late evening)
+
+**Changes to scope**
+- **Cut:** any AI-placed phone call. Human call scripts stay; a person makes the call.
+- **Add:** every person in the CRM is tagged into one of **three classes**: `donor` (supported us),
+  `beneficiary` (people we help), `contact` (met, not yet either). Tagging is a simple field, set by Carlos's
+  ingest from unstructured files and changeable in one click.
+- **Add:** a **donor brief**: staff pick enrichment facts and the agent packages them into a call script plus
+  talking points for a human to use.
+- **Add:** **beneficiary demographics**, extracted by an agent from what the nonprofit already collected.
+- **Keep:** texting, now aimed at all three classes: value updates to donors, check-ins and service
+  reminders to beneficiaries, a welcome note to contacts. The provider is still to be decided.
+
+### File tree (only what changes)
+```
+service/
+├── db.py                     8b: people.contact_type, demographics table, text_log table
+├── routes_data.py            8b: GET /people?type=, PATCH /people/{id} {contact_type}
+├── ingest/                   🔒 Carlos: emits contact_type + self-reported demographics per person
+├── demographics_agent.py     NEW (42): extract + normalize self-reported demographics from intake text
+├── brief_agent.py            NEW (86): selected facts → call script + talking points
+├── outreach_agent.py         86: SMS drafts per class (no ask to beneficiaries)
+├── main.py                   90: POST /people/{id}/brief, POST /people/{id}/demographics, POST /texts/send
+└── tests/                    owners' tests
+data/sample_inputs/           helper: + client intake forms (self-reported demographics), event sign-in sheet
+web/.../providers/local/      80: hooks for the classes, brief and demographics
+(Christian)                   screens: People tabs, tag chip, brief builder, demographics panel
+```
+
+### Flow
+```
+ [Upload messy files] --> Carlos's ingest --> people(contact_type) + gifts + intake text
+                                               |
+              +--------------------------------+-------------------------------+
+              v                                v                               v
+        donor                             beneficiary                       contact
+          |                                    |                               |
+   score + enrich (orgs)              demographics_agent                 one-click retag
+          |                         (self-reported only)                       |
+   [staff selects facts]                       |                               v
+          v                                    v                     becomes donor/beneficiary
+     brief_agent --> call script        funder-ready counts
+          |                                    |
+          +-----> outreach_agent (email/SMS per class; orgs/star need approval) ---> text_log
+```
+
+### UI wireframe (Christian designs; this sets the content)
+```
++-----------------------------------------------------------------+
+| People   [ Donors 33 ] [ People we help 12 ] [ Met 9 ]   [Upload] |
++-----------------------------------------------------------------+
+| Name              Class v        Last touch   Next step           |
+| Maria Delgado     [Donor v]      Nov 20 '25   Call (score 89)   > |
+| Jean-Paul Ade     [We help v]    Oct 30       Check-in text     > |
+| Ana Ruiz          [Met v]        Nov 1        Tag ->            > |
++-----------------------------------------------------------------+
+ Donor drawer:   WHY | RESEARCH [x fact] [x fact] [ fact] [Build brief] -> CALL SCRIPT
+ We-help drawer: DEMOGRAPHICS (self-reported; source line per field) | CHECK-IN TEXT
+```
+
+| UI piece | BEFORE | AFTER |
+|---|---|---|
+| People list | donors only | three tabs with counts |
+| Class control | none | one-click tag chip per row |
+| Donor drawer | why / research / draft | + fact checkboxes + "Build brief" -> call script |
+| Beneficiary drawer | none | self-reported demographics with source lines + check-in text |
+
+### Guardrails (lead recommendation, Sharif to confirm)
+- **Demographics are never inferred or searched online.** Only what the person self-reported in the
+  nonprofit's own intake records is extracted, with the source line shown for every field. A field that
+  isn't stated stays "not stated". No guessing gender from a name, age from a photo, or race from anything.
+  These are often vulnerable people; inference is inaccurate and biased, and funders (and the Foundation's
+  equity lens) expect self-reported data.
+- **Donor research stays organizations-only for the demo**, since fictional individuals have nothing public.
+  Researching real individuals would need an identity match plus human review (post-demo).
+- **Beneficiary texts never ask for money.**
+
+### Derisking (in dependency order)
+| # | What it proves | Command | Expected | If it fails |
+|---|---|---|---|---|
+| 1 | Contract agreed: contact_type + demographics fields | Carlos + Sharif sign-off in §13 | §13 updated | hold ingest changes |
+| 2 | Sample files carry all 3 classes + self-reported demographics | `python scripts/make_sample_inputs.py` | answer key lists counts per class | fix the generator |
+| 3 | Ingest tags classes | ingest on sample_inputs, compare with the answer key | at least 95% class match | Carlos adjusts the prompt |
+| 4 | Demographics are extracted, not inferred | `pytest service/tests/test_demographics.py` | every value has a source line; 0 values absent from source | tighten the extractor |
+| 5 | Brief uses only selected facts | `pytest service/tests/test_brief.py` | 100% of cited facts within the selection | fix the prompt + check |
+| 6 | End to end on the demo laptop | upload, tabs, retag, brief, text draft | all steps on screen, 0 console errors | walk back to the failing step |
+
+### Evaluation criteria
+| Criterion | Metric + threshold | How measured | Evidence |
+|---|---|---|---|
+| Uploaded people land in the right class | at least 95% match with answer_key class counts | QA script vs answer_key.json | report row |
+| Retagging works | 1 click; persists after reload | Playwright + DB row | screenshot + SQL |
+| Brief cites only chosen facts | 100% of script facts within the selection | test + 3 live runs | pytest line |
+| Demographics never inferred | 0 values without a source line; at least 95% match with answer key | QA script | report row |
+| Beneficiary texts have no money ask | 0 asks across all beneficiary drafts | regex + review | report row |
+| No AI phone calls anywhere | 0 call-placing routes or code | grep + route list | grep output |
+| Demo path is clean | 0 console errors, 0 4xx/5xx | Playwright on prod snapshot | log |
