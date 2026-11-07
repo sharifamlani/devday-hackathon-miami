@@ -23,7 +23,7 @@ import {
   parseProspect,
   parseProspectDetail,
 } from "./parse";
-import type { DonorDeskMethods } from "./types";
+import type { BaseDonorDeskMethods } from "./types";
 
 /** A non-2xx response, keeping the status and the parsed JSON body. */
 export class ApiError extends Error {
@@ -36,9 +36,9 @@ export class ApiError extends Error {
   }
 }
 
-const request = async <T>(
+export const request = async <T>(
   path: string,
-  init?: { method?: "GET" | "POST"; body?: unknown },
+  init?: { method?: "GET" | "POST" | "PATCH"; body?: unknown },
 ): Promise<T> => {
   const method = init?.method ?? "GET";
   const isForm = init?.body instanceof FormData;
@@ -99,7 +99,7 @@ const postAgent = async (path: string) => {
 };
 
 /** Talks to the Python API on the demo laptop (VITE_DATA_MODE=local). */
-export const localApiMethods: DonorDeskMethods = {
+export const localApiMethods: BaseDonorDeskMethods = {
   getDonors: async () =>
     (await request<ApiDonorRow[]>("/donors")).map(parseDonorRow),
   getDonor: async (id) =>
@@ -166,9 +166,10 @@ export const localApiMethods: DonorDeskMethods = {
     await request(`/prospects/${id}/dismiss`, { method: "POST" });
   },
 
-  uploadFiles: async (files) => {
+  uploadFiles: async (files, target = "auto") => {
     const form = new FormData();
     for (const file of files) form.append("files", file, file.name);
+    form.append("target", target);
     try {
       return parseIngestResult(
         await request<unknown>("/ingest", { method: "POST", body: form }),

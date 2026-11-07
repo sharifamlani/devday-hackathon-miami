@@ -3,12 +3,17 @@ import { useDataProvider } from "ra-core";
 import { dataProvider as fakerestDataProvider } from "../fakerest";
 import type { CrmDataProvider } from "../types";
 import { DATA_MODE } from "./config";
+import { crmHttpMethods } from "./crmHttp";
+import { crmSnapshotMethods } from "./crmSnapshot";
 import { localApiMethods } from "./httpClient";
 import { snapshotMethods } from "./snapshotClient";
 import type { DonorDeskMethods } from "./types";
 
+// The base methods omit the Phase 5E (three tabs) ones, which live in crm*.ts.
 export const donorDeskMethods: DonorDeskMethods =
-  DATA_MODE === "local" ? localApiMethods : snapshotMethods;
+  DATA_MODE === "local"
+    ? { ...localApiMethods, ...crmHttpMethods }
+    : { ...snapshotMethods, ...crmSnapshotMethods };
 
 export type DonorDeskDataProvider = CrmDataProvider & DonorDeskMethods;
 
@@ -26,3 +31,6 @@ export const useDonorDesk = () => useDataProvider<DonorDeskDataProvider>();
 
 export { DATA_MODE } from "./config";
 export type * from "./types";
+export type * from "./crmTypes";
+export { TABS, TAB_LABELS } from "./crmTypes";
+export { NOT_RECORDED } from "./crmParse";
