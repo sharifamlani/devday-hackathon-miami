@@ -15,6 +15,7 @@ Results are cached to service/org_facts.json so the demo never depends on the si
     python service/org_context.py            # refresh news facts from the live feed (keeps page facts)
     python service/org_context.py --pages    # refresh page facts from org_pages.json (keeps news facts)
     python service/org_context.py --show     # print the cached facts
+    python service/org_context.py --context [--write-cache]   # live context run (runtime file; + committed cache)
 """
 
 import argparse
@@ -267,7 +268,10 @@ def scrub(fact: dict) -> dict:
 # own site AND among the URLs that run's searches actually returned, and it has a date. Its quote
 # can't be checked against the page itself. Social URLs are stored on the profile, never fetched.
 
+# The reviewed demo cache is committed and changes only on an explicit --write-cache (the pipeline);
+# a live run writes the gitignored runtime file instead, so a run on stage never dirties the repo.
 CONTEXT_CACHE = SERVICE_DIR / "context_cache.json"
+CONTEXT_LIVE = Path(os.environ.get("CONTEXT_LIVE", REPO_ROOT / "data" / "context_live.json"))
 SOCIALS = {"x": ("x_url", "x"), "linkedin": ("linkedin_url", "linkedin"), "instagram": ("instagram_url", "instagram")}
 CONTEXT_TIMEOUT_S = 40
 
@@ -396,10 +400,37 @@ def match_priority(label: str, priorities: list[str]) -> str | None:
     return best if best and words & set(re.findall(r"[a-z]{4,}", best.lower())) else None
 
 
-def build_context(urls: dict, refresh: bool = False, progress=None) -> dict:
+def read_runs(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+
+def cached_run(host: str) -> dict | None:
+    """The last good run for this site: the runtime file first, then the committed cache."""
+    for path in (CONTEXT_LIVE, CONTEXT_CACHE):
+        run = read_runs(path).get(host)
+        if run:
+            return run
+    return None
+
+
+def save_run(host: str, out: dict, write_cache: bool = False) -> list[str]:
+    """Store a good run in the runtime file, and in the committed cache only when asked."""
+    written = []
+    for path in [CONTEXT_LIVE] + ([CONTEXT_CACHE] if write_cache else []):
+        runs = read_runs(path)
+        runs[host] = out
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(runs, indent=2, ensure_ascii=False), encoding="utf-8")
+        written.append(str(path))
+    return written
+
+
+def build_context(urls: dict, refresh: bool = False, progress=None, write_cache: bool = False) -> dict:
     """The context agent. urls: {name, website, x_url, linkedin_url, instagram_url} (bare x/linkedin/
     instagram keys also accepted; None = not provided). Pure: no db writes (db.save_context stores it).
-    refresh=False returns the last good run from service/context_cache.json when there is one.
+    refresh=False returns the last good run (data/context_live.json, then the committed
+    service/context_cache.json) when there is one. A live run writes data/context_live.json;
+    write_cache=True (the pipeline's --write-cache) also rewrites the committed cache.
     progress(source, status) is called as each source starts and finishes."""
     import asyncio
     import time
@@ -409,10 +440,10 @@ def build_context(urls: dict, refresh: bool = False, progress=None) -> dict:
     website = urls.get("website")
     host = site_host(website)
     socials = {k: urls.get(a) or urls.get(b) for k, (a, b) in SOCIALS.items()}
-    cache = json.loads(CONTEXT_CACHE.read_text(encoding="utf-8")) if CONTEXT_CACHE.exists() else {}
+    cached = None if refresh else cached_run(host)
 
-    if not refresh and host in cache:
-        out = cache[host]
+    if cached:
+        out = cached
         out["sources"] = {s: ("cached" if st == "ok" else st) for s, st in out["sources"].items()}
         for s, st in out["sources"].items():
             progress(s, st)
@@ -480,9 +511,8 @@ def build_context(urls: dict, refresh: bool = False, progress=None) -> dict:
         "run_seconds": round(time.monotonic() - started, 1),
         "captured_at": captured_at,
     }
-    if facts:                                         # cache only a good run
-        cache[host] = out
-        CONTEXT_CACHE.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8")
+    if facts:                                         # store only a good run
+        save_run(host, out, write_cache)
     return out
 
 
@@ -497,8 +527,9 @@ def context_as_org_facts() -> list[dict]:
             con.row_factory = sqlite3.Row
             if con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_context'").fetchone():
                 rows = [dict(r) for r in con.execute("SELECT * FROM org_context")]
-    if not rows and CONTEXT_CACHE.exists():
-        rows = [f for run in json.loads(CONTEXT_CACHE.read_text(encoding="utf-8")).values() for f in run["facts"]]
+    if not rows:                                      # runtime file first, then the committed cache
+        runs = read_runs(CONTEXT_CACHE) | read_runs(CONTEXT_LIVE)
+        rows = [f for run in runs.values() for f in run["facts"]]
     return [{"date": r.get("posted_at"), "kind": r.get("source"), "fact": r["fact"], "quote": r.get("quote"),
              "priority": normalize_priority(r.get("priority")) or r.get("priority"), "url": r["url"]}
             for r in rows if r.get("fact") and r.get("url")]
@@ -510,10 +541,12 @@ if __name__ == "__main__":
     ap.add_argument("--pages", action="store_true", help="refresh page facts from org_pages.json (not the news feed)")
     ap.add_argument("--posts", type=int, default=20)
     ap.add_argument("--context", action="store_true", help="run the context agent live on the Foundation's URLs")
+    ap.add_argument("--write-cache", action="store_true", help="with --context: also rewrite the committed context_cache.json")
     args = ap.parse_args()
 
     if args.context:
-        res = build_context(FOUNDATION_URLS, refresh=True, progress=lambda s, st: print(f"  [{s}] {st}", file=sys.stderr))
+        res = build_context(FOUNDATION_URLS, refresh=True, write_cache=args.write_cache,
+                            progress=lambda s, st: print(f"  [{s}] {st}", file=sys.stderr))
         for f in res["facts"]:
             print(f"{f['posted_at']}  [{f['source']}|{f['priority']}]  {f['fact']}\n            {f['url']}")
         print(f"\n{len(res['facts'])} facts in {res['run_seconds']} s · sources {res['source_notes']}")

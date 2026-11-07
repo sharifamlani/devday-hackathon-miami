@@ -113,3 +113,20 @@ def test_build_context_without_refresh_returns_the_cached_run():
     assert res["sources"]["website"] == "cached" and res["sources"]["linkedin"] == "skipped"
     assert res["source_notes"]["linkedin"] == "saved, not connected"
     assert ("website", "cached") in seen
+
+
+def test_live_runs_never_rewrite_the_committed_cache(tmp_path, monkeypatch):
+    import org_context
+    committed, live = tmp_path / "context_cache.json", tmp_path / "data" / "context_live.json"
+    committed.write_text('{"miamifoundation.org": {"facts": [{"fact": "old", "url": "u0"}], "sources": {}}}', encoding="utf-8")
+    monkeypatch.setattr(org_context, "CONTEXT_CACHE", committed)
+    monkeypatch.setattr(org_context, "CONTEXT_LIVE", live)
+    before = committed.read_text(encoding="utf-8")
+
+    run = {"facts": [{"fact": "new", "url": "u1"}], "sources": {"website": "ok"}}
+    org_context.save_run("miamifoundation.org", run)                       # a live run
+    assert committed.read_text(encoding="utf-8") == before                 # committed cache untouched
+    assert org_context.cached_run("miamifoundation.org")["facts"][0]["fact"] == "new"   # runtime read first
+
+    org_context.save_run("miamifoundation.org", run, write_cache=True)    # the pipeline's --write-cache
+    assert '"new"' in committed.read_text(encoding="utf-8")
