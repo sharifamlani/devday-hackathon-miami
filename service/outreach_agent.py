@@ -7,16 +7,15 @@ cited fact carries its exact text and URL. A numeric check rejects any figure in
 that isn't in the facts or the donor's own gift history, and the agent retries once.
 
 Channels: email draft plus a call script for a human. Never robocalls (plan.md §11).
-Big donors (is_star or tier == "big") get status "draft": a person must approve and send.
-Everyone else gets "ready": the automated path may send it. (db.py's trigger also blocks
+Big donors (is_star or tier == "big") and every organization get status "draft": a person must
+approve and send. Individuals get "ready": the automated path may send it. (db.py's trigger also blocks
 'sent' on a star donor without a human approver.)
 
 Drafts go to the outreach_drafts table in data/donors.db (DONORS_DB overrides), with subject,
 call_script and facts_used (JSON list of {fact, url}). If the table is missing or older than
 that schema, the full draft goes to data/outreach_drafts.json instead.
 
-    python -m service.outreach_agent 1 4          # donors 1 and 4 from donors.db (what POST /outreach/{id} runs)
-    python -m service.outreach_agent              # the hand-built demo donors (not in the db)
+    python -m service.outreach_agent 1 11         # donors 1 and 11 from donors.db (what POST /outreach/{id} runs)
 """
 
 import json
@@ -216,7 +215,9 @@ def ask_for(big: bool, today: date) -> str:
 
 
 def is_big(donor: dict) -> bool:
-    return bool(donor.get("is_star")) or donor.get("tier") == "big"
+    """Needs a human: star, big tier, or any organization (corporate and foundation
+    relationships are personal). Drives status 'draft' and the conversation ask."""
+    return bool(donor.get("is_star")) or donor.get("tier") == "big" or donor.get("donor_type") == "organization"
 
 
 def hides_gifts(donor: dict) -> bool:
@@ -399,47 +400,6 @@ def draft_for_donor(donor_id: int) -> tuple[Draft, str]:
     return draft, save_draft(donor_id, draft)
 
 
-# ----------------------------------------------------------------------------------------------
-# Demo: hand-built donors (fictional names; histories labelled sample)
-# ----------------------------------------------------------------------------------------------
-
-DEMO_CASES = [
-    {
-        "donor": {"id": 9001, "full_name": "Elena Marquez", "first_name": "Elena", "donor_type": "individual",
-                  "fund_type": None, "tier": "small", "is_star": False},
-        "gifts": [{"amount": 150, "gift_date": "2023-11-16", "channel": "Give Miami Day"},
-                  {"amount": 200, "gift_date": "2024-11-21", "channel": "Give Miami Day"},
-                  {"amount": 250, "gift_date": "2025-11-20", "channel": "Give Miami Day"}],
-        "score_why": "Gave on Give Miami Day three years running (2023-2025), each gift larger than the last; nothing yet in 2026.",
-        "research_facts": [],
-    },
-    {
-        "donor": {"id": 9101, "full_name": "Amazon", "org_name": "Amazon", "donor_type": "organization",
-                  "fund_type": "Designated", "tier": "big", "is_star": True},
-        "gifts": [{"amount": 50000, "gift_date": "2025-09-15", "channel": "online"}],
-        "score_why": "Corporate sponsor; last gift September 2025; no 2026 gift on file (sample history).",
-        "research_facts": [{"fact": "Amazon's community giving in Miami-Dade has focused on South Dade nonprofits.",
-                            "source_url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"}],
-    },
-    {
-        "donor": {"id": 9102, "full_name": "John S. and James L. Knight Foundation", "org_name": "Knight Foundation",
-                  "donor_type": "organization", "fund_type": "Field of Interest", "tier": "big", "is_star": True},
-        "gifts": [{"amount": 50000, "gift_date": "2025-10-01", "channel": "check"}],
-        "score_why": "Long-time partner; annual gift each fall; none yet in 2026 (sample history).",
-        "research_facts": [{"fact": "Knight Foundation funds local journalism and informed, engaged communities.",
-                            "source_url": "https://knightfoundation.org/"}],
-    },
-    {
-        "donor": {"id": 9103, "full_name": "Frederick A. DeLuca Foundation", "org_name": "Frederick A. DeLuca Foundation",
-                  "donor_type": "organization", "fund_type": "Field of Interest", "tier": "big", "is_star": True},
-        "gifts": [{"amount": 100000, "gift_date": "2025-06-30", "channel": "check"}],
-        "score_why": "Arts funder; gift each June; 2026 gift not yet received (sample history).",
-        "research_facts": [{"fact": "The DeLuca Foundation supports Arts Access Miami, bringing arts programs to Miami-Dade students.",
-                            "source_url": "https://miamifoundation.org/"}],
-    },
-]
-
-
 def print_draft(name: str, d: Draft, where: str) -> None:
     print(f"\n=== {name}  status={d.status}  saved to {where}")
     print(f"Subject: {d.subject}\n\n{d.body}\n\n--- Call script ---\n{d.call_script}\n\n--- facts_used ---")
@@ -454,15 +414,9 @@ if __name__ == "__main__":
     from org_context import load_org_facts
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("donor_ids", type=int, nargs="*", help="donor ids in donors.db; none = hand-built demo donors")
+    ap.add_argument("donor_ids", type=int, nargs="+", help="donor ids in donors.db")
     args = ap.parse_args()
 
-    if args.donor_ids:
-        for donor_id in args.donor_ids:
-            d, where = draft_for_donor(donor_id)
-            print_draft(load_donor(donor_id)[0]["full_name"], d, where)
-    else:
-        org_facts = load_org_facts()
-        for case in DEMO_CASES:
-            d = draft_outreach(case["donor"], case["gifts"], case["score_why"], case["research_facts"], org_facts)
-            print_draft(case["donor"]["full_name"], d, save_draft(case["donor"]["id"], d))
+    for donor_id in args.donor_ids:
+        d, where = draft_for_donor(donor_id)
+        print_draft(load_donor(donor_id)[0]["full_name"], d, where)

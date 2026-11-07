@@ -56,3 +56,11 @@ def test_sample_org_prompt_carries_no_gift_figures():
     prompt = build_prompt(REAL_ORG, GIFTS, {"status": "on_track", "pattern": {"years": [2025, 2026]}},
                           FACTS, True, date(2026, 11, 8), hide_gifts=True)
     assert "300,000" not in prompt and "2026-06-29" not in prompt and "2025" not in prompt
+
+
+def test_organizations_always_need_a_human():
+    from outreach_agent import is_big
+    mcdermott = {"donor_type": "organization", "tier": "mid", "is_star": 0}
+    assert is_big(mcdermott)                                                   # status 'draft', conversation ask
+    assert is_big(FICTIONAL_PERSON | {"is_star": 1})
+    assert not is_big(FICTIONAL_PERSON)                                        # individuals: 'ready'
