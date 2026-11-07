@@ -134,7 +134,7 @@ def is_grounded(quote: str, text: str) -> bool:
 def refresh_cache(n_posts: int = 20) -> list[dict]:
     load_dotenv(REPO_ROOT / ".env")
     posts = fetch_posts(n_posts)
-    facts = extract_facts(posts)
+    facts = [scrub(f) for f in extract_facts(posts)]
     if len(facts) < MIN_FACTS:
         raise RuntimeError(f"only {len(facts)} grounded facts (need {MIN_FACTS}); cache left unchanged")
     CACHE_PATH.write_text(json.dumps({
@@ -148,7 +148,18 @@ def refresh_cache(n_posts: int = 20) -> list[dict]:
 def load_org_facts() -> list[dict]:
     """The cached facts, newest first. This is what outreach_agent reads; it never hits the network."""
     data = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
-    return sorted(data["facts"], key=lambda f: f["date"], reverse=True)
+    return sorted((scrub(f) for f in data["facts"]), key=lambda f: f["date"], reverse=True)
+
+
+# Sources disagree on the Press Forward South Florida total: the release says "nearly $1M", the
+# September newsletter says $760,000 (plan.md §11). Keep the item, drop the total.
+PRESS_FORWARD_TOTAL = re.compile(r"(?:nearly |more than |over )?\$[\d,.]+\s*(?:million|M|K)?\s+in\s+(?=grants|support)", re.I)
+
+
+def scrub(fact: dict) -> dict:
+    if "press forward" not in fact["fact"].lower():
+        return fact
+    return fact | {"fact": PRESS_FORWARD_TOTAL.sub("", fact["fact"])}
 
 
 if __name__ == "__main__":

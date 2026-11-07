@@ -92,8 +92,9 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
     load_dotenv(REPO_ROOT / ".env")
     today = today or date.today()
 
+    ranked = rank_org_facts(donor, research_facts, org_facts)
     facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
-             for i, f in enumerate(org_facts[:10], 1)}
+             for i, f in enumerate(ranked[:MAX_ORG_FACTS], 1)}
     facts |= {f"R{i}": {"fact": f["fact"], "url": f.get("source_url") or f.get("url", "")}
               for i, f in enumerate(research_facts, 1)}
 
@@ -110,7 +111,7 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
 
     for attempt in range(2):
         out: ModelDraft = Runner.run_sync(agent, prompt).final_output
-        problems = check_draft(out, facts, gifts)
+        problems = check_draft(out, facts, gifts, lead_id="O1")
         if not problems:
             break
         prompt += "\n\nYour previous draft was rejected:\n- " + "\n- ".join(problems) + "\nRewrite it."
@@ -124,6 +125,50 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
         facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"]) for i in dict.fromkeys(out.fact_ids)],
         status="draft" if big else "ready",
     )
+
+
+# ----------------------------------------------------------------------------------------------
+# Fact choice: the org fact that fits this donor leads; ties rotate by donor id
+# ----------------------------------------------------------------------------------------------
+
+MAX_ORG_FACTS = 4
+
+TOPICS = {
+    "journalism": ("journalism", "newsroom", "news", "media", "press", "knight"),
+    "south dade": ("south dade", "homestead", "amazon"),
+    "arts":       ("arts", "artist", "museum", "culture", "creative", "crearte", "deluca"),
+    "education":  ("scholarship", "student", "education", "youth", "school"),
+    "legal":      ("legal", "law firm", "pro bono", "attorney"),
+    "resilience": ("resilience", "disaster", "climate", "hurricane", "preparedness"),
+    "civic":      ("vote", "candidate", "election", "civic"),
+}
+
+
+def donor_text(donor: dict, research_facts: list[dict]) -> str:
+    parts = [donor.get(k) or "" for k in ("full_name", "org_name", "fund_type", "notes")]
+    return " ".join(parts + [f["fact"] for f in research_facts]).lower()
+
+
+def topics_in(text: str) -> set[str]:
+    return {t for t, words in TOPICS.items() if any(w in text for w in words)}
+
+
+def rank_org_facts(donor: dict, research_facts: list[dict], org_facts: list[dict]) -> list[dict]:
+    """Best fit first: shared topics count 2, shared distinctive words count 1. Facts are first
+    rotated by donor id, so equally good facts lead in a different order for different donors."""
+    if not org_facts:
+        return []
+    text = donor_text(donor, research_facts)
+    words = {w for w in re.findall(r"[a-z][a-z'-]{4,}", text)} - {"miami", "foundation", "family", "their", "which"}
+    want = topics_in(text)
+
+    shift = int(donor.get("id") or 0) % len(org_facts)
+    rotated = org_facts[shift:] + org_facts[:shift]
+
+    def fit(f):
+        ft = f["fact"].lower()
+        return 2 * len(want & topics_in(ft)) + sum(w in ft for w in words)
+    return sorted(rotated, key=fit, reverse=True)       # stable: ties keep the rotated order
 
 
 def is_big(donor: dict) -> bool:
@@ -150,7 +195,8 @@ Why they're on today's list: {why}
 Gift history:
 {history or '- none on file'}
 
-Numbered facts you may use (O = Foundation accomplishment from miamifoundation.org, R = research on this donor):
+Numbered facts you may use (O = Foundation accomplishment from miamifoundation.org, R = research on this donor).
+O1 was chosen to fit this donor: lead the "here's what we did" part with O1, and list it first in fact_ids.
 {fact_lines}"""
 
 
@@ -165,8 +211,16 @@ def long_date(d: date) -> str:
 NUM_RE = re.compile(r"\$?\d[\d,]*(?:\.\d+)?\s*(?:million|billion|M|K|%)?", re.I)
 
 
-def check_draft(out: ModelDraft, facts: dict, gifts: list[dict]) -> list[str]:
+# Sources disagree on the Press Forward total ("nearly $1M" vs $760K, plan.md §11): never quote one
+BANNED_FIGURES = re.compile(r"760,000|\$760K|nearly \$1|\$1 ?(?:million|M)\b[^.]*press forward|press forward[^.]*\$1 ?(?:million|M)\b", re.I)
+
+
+def check_draft(out: ModelDraft, facts: dict, gifts: list[dict], lead_id: str | None = None) -> list[str]:
     problems = []
+    if lead_id and (not out.fact_ids or out.fact_ids[0] != lead_id):
+        problems.append(f"lead with {lead_id} and list it first in fact_ids")
+    if BANNED_FIGURES.search(out.subject + " " + out.body + " " + out.call_script):
+        problems.append("never state a Press Forward South Florida total")
     unknown = [i for i in out.fact_ids if i not in facts]
     if unknown:
         problems.append(f"fact_ids not in the list: {unknown}")
@@ -225,7 +279,7 @@ def save_draft(donor_id: int, draft: Draft) -> str:
 
 
 # ----------------------------------------------------------------------------------------------
-# Demo: two hand-built donors (fictional names; histories labelled sample)
+# Demo: hand-built donors (fictional names; histories labelled sample)
 # ----------------------------------------------------------------------------------------------
 
 DEMO_CASES = [
@@ -239,12 +293,28 @@ DEMO_CASES = [
         "research_facts": [],
     },
     {
-        "donor": {"id": 9002, "full_name": "Ricardo and Ana Villanueva", "donor_type": "individual",
-                  "fund_type": "Donor Advised", "tier": "big", "is_star": True},
-        "gifts": [{"amount": 250000, "gift_date": "2024-12-10", "channel": "check"},
-                  {"amount": 300000, "gift_date": "2025-12-12", "channel": "check"}],
-        "score_why": "Shack Society-level fundholder; gives every December, larger each year; no 2026 gift yet.",
-        "research_facts": [],
+        "donor": {"id": 9101, "full_name": "Amazon", "org_name": "Amazon", "donor_type": "organization",
+                  "fund_type": "Designated", "tier": "big", "is_star": True},
+        "gifts": [{"amount": 50000, "gift_date": "2025-09-15", "channel": "online"}],
+        "score_why": "Corporate sponsor; last gift September 2025; no 2026 gift on file (sample history).",
+        "research_facts": [{"fact": "Amazon's community giving in Miami-Dade has focused on South Dade nonprofits.",
+                            "source_url": "https://miamifoundation.org/news/amazon-commits-1-million-to-13-south-dade-nonprofits/"}],
+    },
+    {
+        "donor": {"id": 9102, "full_name": "John S. and James L. Knight Foundation", "org_name": "Knight Foundation",
+                  "donor_type": "organization", "fund_type": "Field of Interest", "tier": "big", "is_star": True},
+        "gifts": [{"amount": 50000, "gift_date": "2025-10-01", "channel": "check"}],
+        "score_why": "Long-time partner; annual gift each fall; none yet in 2026 (sample history).",
+        "research_facts": [{"fact": "Knight Foundation funds local journalism and informed, engaged communities.",
+                            "source_url": "https://knightfoundation.org/"}],
+    },
+    {
+        "donor": {"id": 9103, "full_name": "Frederick A. DeLuca Foundation", "org_name": "Frederick A. DeLuca Foundation",
+                  "donor_type": "organization", "fund_type": "Field of Interest", "tier": "big", "is_star": True},
+        "gifts": [{"amount": 100000, "gift_date": "2025-06-30", "channel": "check"}],
+        "score_why": "Arts funder; gift each June; 2026 gift not yet received (sample history).",
+        "research_facts": [{"fact": "The DeLuca Foundation supports Arts Access Miami, bringing arts programs to Miami-Dade students.",
+                            "source_url": "https://miamifoundation.org/"}],
     },
 ]
 
