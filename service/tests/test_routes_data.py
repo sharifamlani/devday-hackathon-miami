@@ -125,3 +125,42 @@ def test_merged_sample_donor_stays_sample(db_file):
     c = client()
     s = c.get("/duplicates").json()[0]
     assert c.post(f"/duplicates/{s['id']}/merge", json={}).json()["donor"]["is_sample"] is True
+
+
+def test_approve_star_draft_then_sent_is_allowed(db_file):
+    import sqlite3 as _sqlite3
+    import pytest as _pytest
+    from service import db as _db
+    conn = _db.connect(db_file)
+    star_id = conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 1").fetchone()[0]
+    draft_id = conn.execute("INSERT INTO outreach_drafts (donor_id, subject, body, status) VALUES (?, 'S', 'Old', 'draft')",
+                            (star_id,)).lastrowid
+    conn.commit()
+    with _pytest.raises(_sqlite3.IntegrityError):                      # not approved yet: trigger refuses
+        conn.execute("UPDATE outreach_drafts SET status = 'sent' WHERE id = ?", (draft_id,))
+    conn.rollback()
+
+    c = client()
+    assert c.post(f"/drafts/{draft_id}/approve", json={"approved_by": "  "}).status_code == 422
+    r = c.post(f"/drafts/{draft_id}/approve", json={"approved_by": "Ana (Philanthropy)", "body": "Edited"})
+    assert r.status_code == 200
+    d = r.json()
+    assert (d["status"], d["approved_by"], d["body"]) == ("approved", "Ana (Philanthropy)", "Edited")
+    assert d["approved_at"] and d["facts_used"] == []
+    assert c.get(f"/donors/{star_id}").json()["outreach_drafts"][0]["status"] == "approved"
+
+    conn.execute("UPDATE outreach_drafts SET status = 'sent' WHERE id = ?", (draft_id,))   # now allowed
+    conn.commit()
+    conn.close()
+    assert c.post(f"/drafts/{draft_id}/approve", json={"approved_by": "Ana"}).status_code == 409
+    assert c.post("/drafts/9999/approve", json={"approved_by": "Ana"}).status_code == 404
+
+
+def test_approve_keeps_body_when_omitted(db_file):
+    from service import db as _db
+    conn = _db.connect(db_file)
+    draft_id = conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (1, 'Keep me', 'ready')").lastrowid
+    conn.commit()
+    conn.close()
+    d = client().post(f"/drafts/{draft_id}/approve", json={"approved_by": "Ana"}).json()
+    assert d["body"] == "Keep me" and d["status"] == "approved"
