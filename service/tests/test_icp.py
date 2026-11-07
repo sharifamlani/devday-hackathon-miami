@@ -20,7 +20,7 @@ ICP = {
 
 def prospect(name, city="Miami", priority="Empower Youth & Families", facts=2, traits=("sector", "causes")):
     return Prospect(name=name, org_type="foundation", city=city, matched_traits=list(traits), priority=priority,
-                    facts=[ProspectFact(fact=f"Funds youth programs {i}.", url=f"https://{name[:3].lower()}/{i}",
+                    facts=[ProspectFact(fact="Funds youth programs in Miami-Dade.", url=f"https://{name[:3].lower()}/{i}",
                                         quote="The Foundation funds youth programs in Miami-Dade")
                            for i in range(facts)])
 
