@@ -1,5 +1,5 @@
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { Upload } from "lucide-react";
+import { Pause, Play, Upload } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 
 import {
@@ -25,6 +25,7 @@ export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
 };
 
 export const KindredLanding = () => {
+  const [areColorsPaused, setColorsPaused] = useState(false);
   const [isUploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
@@ -66,7 +67,10 @@ export const KindredLanding = () => {
   };
 
   return (
-    <main className="kindred-landing" aria-labelledby="kindred-heading">
+    <main
+      className={`kindred-landing${areColorsPaused ? " colors-paused" : ""}`}
+      aria-labelledby="kindred-heading"
+    >
       <div className="kindred-landing-content">
         <p className="kindred-wordmark">kindred</p>
         <h1 id="kindred-heading" className="kindred-headline">
@@ -117,6 +121,21 @@ export const KindredLanding = () => {
           <li>Reach out thoughtfully</li>
         </ol>
       </div>
+
+      <button
+        className="kindred-motion-toggle"
+        type="button"
+        onClick={() => setColorsPaused((paused) => !paused)}
+        aria-pressed={areColorsPaused}
+        aria-label="Pause background colors"
+      >
+        {areColorsPaused ? (
+          <Play size={13} aria-hidden="true" />
+        ) : (
+          <Pause size={13} aria-hidden="true" />
+        )}
+        {areColorsPaused ? "Resume colors" : "Pause colors"}
+      </button>
 
       <Dialog
         open={isUploadOpen}

@@ -1,7 +1,7 @@
-# Current Kindred landing design QA
+# Current Kindred local motion demo QA
 
 final result: passed
 
-The current landing implementation has passed visual and responsive review against the approved page and refined upload still. See [full QA report](docs/design/landing/design-qa.md) for references, screenshot dimensions, normalized comparison evidence, interactions, findings and checks.
+The local autonomous-color demo passed visual and responsive review against the selected landing layout. See [current demo QA](docs/design/landing/motion-demo/design-qa.md) for captures, comparisons, motion/pause observations, checks and limitations.
 
-The older standalone outreach-inbox review is preserved at [outreach inbox QA](docs/design/outreach-inbox-qa.md); its historical verification blocker applies to that separate prototype.
+The [previous static landing QA](docs/design/landing/design-qa.md) and [older standalone outreach-inbox QA](docs/design/outreach-inbox-qa.md) remain preserved separately.
