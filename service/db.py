@@ -91,9 +91,33 @@ CREATE TABLE IF NOT EXISTS research_facts (
 );
 CREATE INDEX IF NOT EXISTS idx_research_donor ON research_facts(donor_id);
 
+-- Phase 5B: the ideal donor profile and the new organization prospects that match it ----------
+CREATE TABLE IF NOT EXISTS icp_profile (
+    id          INTEGER PRIMARY KEY,
+    traits      TEXT NOT NULL,     -- JSON (icp_agent)
+    stats       TEXT NOT NULL,     -- JSON, deterministic Python
+    evidence    TEXT NOT NULL,     -- JSON list: the donor + fact + URL behind each trait
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS prospects (
+    id             INTEGER PRIMARY KEY,
+    name           TEXT NOT NULL UNIQUE,
+    org_type       TEXT,           -- organizations only: company, foundation, ...
+    city           TEXT,
+    fit_score      INTEGER NOT NULL DEFAULT 0 CHECK (fit_score BETWEEN 0 AND 100),
+    matched_traits TEXT NOT NULL DEFAULT '[]',   -- JSON list of ICP traits it matches
+    facts          TEXT NOT NULL DEFAULT '[]',   -- JSON list of {fact, url}
+    priority       TEXT,           -- the Foundation priority it fits
+    status         TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'drafted', 'dismissed')),
+    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- A draft belongs to exactly one donor or one prospect.
 CREATE TABLE IF NOT EXISTS outreach_drafts (
     id          INTEGER PRIMARY KEY,
-    donor_id    INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+    donor_id    INTEGER REFERENCES donors(id) ON DELETE CASCADE,
+    prospect_id INTEGER REFERENCES prospects(id) ON DELETE CASCADE,
     channel     TEXT,              -- email | text
     subject     TEXT,
     body        TEXT NOT NULL,
@@ -103,9 +127,28 @@ CREATE TABLE IF NOT EXISTS outreach_drafts (
     status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'approved', 'sent')),
     approved_by TEXT,
     approved_at TEXT,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK ((donor_id IS NULL) <> (prospect_id IS NULL))
 );
 CREATE INDEX IF NOT EXISTS idx_outreach_donor ON outreach_drafts(donor_id);
+CREATE INDEX IF NOT EXISTS idx_outreach_prospect ON outreach_drafts(prospect_id);
+
+-- Prospect first-touch drafts are always human-sent: never 'ready', never 'sent' without an approver.
+CREATE TRIGGER IF NOT EXISTS prospect_needs_human_insert
+BEFORE INSERT ON outreach_drafts
+WHEN NEW.prospect_id IS NOT NULL
+     AND (NEW.status = 'ready' OR (NEW.status = 'sent' AND NEW.approved_by IS NULL))
+BEGIN
+    SELECT RAISE(ABORT, 'prospect drafts need a human approver before send');
+END;
+
+CREATE TRIGGER IF NOT EXISTS prospect_needs_human_update
+BEFORE UPDATE OF status ON outreach_drafts
+WHEN NEW.prospect_id IS NOT NULL
+     AND (NEW.status = 'ready' OR (NEW.status = 'sent' AND NEW.approved_by IS NULL))
+BEGIN
+    SELECT RAISE(ABORT, 'prospect drafts need a human approver before send');
+END;
 
 -- Guardrail (plan §3): a ★ donor never gets an automated message. Enforced in the DB, not just the UI.
 CREATE TRIGGER IF NOT EXISTS star_needs_human_insert
@@ -140,7 +183,8 @@ BEGIN
 END;
 """
 
-TABLES = ["outreach_drafts", "research_facts", "duplicate_suggestions", "donor_scores", "gifts", "donors"]
+TABLES = ["outreach_drafts", "prospects", "icp_profile", "research_facts", "duplicate_suggestions",
+          "donor_scores", "gifts", "donors"]
 
 
 def connect(path: str | Path | None = None) -> sqlite3.Connection:
@@ -161,14 +205,81 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
 
 
 def create_schema(conn: sqlite3.Connection) -> None:
+    migrate_outreach_drafts(conn)
     conn.executescript(SCHEMA)
     conn.commit()
+
+
+def migrate_outreach_drafts(conn: sqlite3.Connection) -> bool:
+    """Upgrade an older donors.db in place: outreach_drafts gains prospect_id and donor_id becomes
+    nullable (SQLite can't alter a column constraint, so the table is rebuilt and its rows copied).
+    Returns True when a migration ran."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(outreach_drafts)")]
+    if not cols or "prospect_id" in cols:
+        return False
+    for (name,) in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'outreach_drafts'").fetchall():
+        conn.execute(f"DROP TRIGGER {name}")
+    conn.execute("DROP INDEX IF EXISTS idx_outreach_donor")
+    conn.execute("ALTER TABLE outreach_drafts RENAME TO outreach_drafts_pre_5b")
+    conn.executescript(SCHEMA)
+    keep = ", ".join(c for c in cols if c != "prospect_id")
+    conn.execute(f"INSERT INTO outreach_drafts ({keep}) SELECT {keep} FROM outreach_drafts_pre_5b")
+    conn.execute("DROP TABLE outreach_drafts_pre_5b")
+    conn.commit()
+    return True
 
 
 def drop_all(conn: sqlite3.Connection) -> None:
     for table in TABLES:
         conn.execute(f"DROP TABLE IF EXISTS {table}")
     conn.commit()
+
+
+
+# Phase 5B writers: the only code that writes icp_profile and prospects (icp_agent stays pure).
+def _name_key(name: str | None) -> str:
+    """Case- and punctuation-insensitive name, for excluding current donors from prospects."""
+    return "".join(ch for ch in (name or "").lower() if ch.isalnum())
+
+
+def save_icp(conn: sqlite3.Connection, profile: dict) -> int:
+    cur = conn.execute(
+        "INSERT INTO icp_profile (traits, stats, evidence) VALUES (?, ?, ?)",
+        (json.dumps(profile.get("traits") or []), json.dumps(profile.get("stats") or {}),
+         json.dumps(profile.get("evidence") or [])))
+    conn.commit()
+    return cur.lastrowid
+
+
+def save_prospects(conn: sqlite3.Connection, prospects: list[dict]) -> list[int]:
+    """Upsert by name. Status survives reruns (dismissed/drafted stay put); fit_score, traits,
+    facts and priority come from icp_agent as given. Names matching a current donor are dropped."""
+    donor_keys = {_name_key(r[0]) for r in conn.execute("SELECT full_name FROM donors")}
+    donor_keys |= {_name_key(r[0]) for r in conn.execute("SELECT org_name FROM donors WHERE org_name IS NOT NULL")}
+    ids = []
+    for p in prospects:
+        if not p.get("name") or _name_key(p["name"]) in donor_keys:
+            continue
+        values = (p.get("org_type"), p.get("city"), int(round(p.get("fit_score") or 0)),
+                  json.dumps(p.get("matched_traits") or []), json.dumps(p.get("facts") or []), p.get("priority"))
+        row = conn.execute("SELECT id FROM prospects WHERE name = ?", (p["name"],)).fetchone()
+        if row:
+            conn.execute("UPDATE prospects SET org_type = ?, city = ?, fit_score = ?, matched_traits = ?, "
+                         "facts = ?, priority = ? WHERE id = ?", (*values, row[0]))
+            ids.append(row[0])
+        else:
+            ids.append(conn.execute(
+                "INSERT INTO prospects (name, org_type, city, fit_score, matched_traits, facts, priority) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)", (p["name"], *values)).lastrowid)
+    conn.commit()
+    return ids
+
+
+def save_icp_run(conn: sqlite3.Connection, run: dict) -> dict:
+    """Write icp_agent.run_icp() output ({generated_at, icp, prospects}) in one call."""
+    return {"icp_id": save_icp(conn, run.get("icp") or {}),
+            "prospect_ids": save_prospects(conn, run.get("prospects") or [])}
 
 
 # SAMPLE seed: fictional, hand-built histories so scoring/dedupe/UI aren't blocked on ingest.
