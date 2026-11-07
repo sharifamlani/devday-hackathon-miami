@@ -206,11 +206,12 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
     # data's writers (feat/three-tabs) when they exist; complete=True only after a good read,
     # so a failed run never deletes an event
     w = data_writers(conn)
-    event_ids = {}
+    event_ids, stored_in_db = {}, False
     if w.get("save_events") and extraction_ok:
         try:
             saved = w["save_events"](conn, after_events, complete=True)
             event_ids = {event_key(e): i for e, i in zip(after_events, saved.get("ids") or [])}
+            stored_in_db = True
             conn.commit()
         except sqlite3.Error as ex:
             errors.append(f"save_events: {ex}")
@@ -221,6 +222,9 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
     drafts, work = {}, []
     for e in events["new"] + [c["event"] for c in events["changed"]]:
         eid = event_ids.get(event_key(e))
+        if stored_in_db and eid is None:              # data rejected it (no source, title or date): no invites anywhere
+            errors.append(f"event rejected by save_events, no invites drafted: {e.get('title')}")
+            continue
         try:
             chosen = audience(e, people, rationale=False)
             if eid and w.get("save_event_audience"):

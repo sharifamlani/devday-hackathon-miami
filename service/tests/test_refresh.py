@@ -116,3 +116,16 @@ def test_declined_gifts_are_not_loaded(tmp_path, monkeypatch):
     monkeypatch.setenv("DONORS_DB", str(db))
     _, gifts, _, _ = outreach_agent.load_donor(1)
     assert [g["amount"] for g in gifts] == [250]
+
+
+def test_event_rejected_by_save_events_gets_no_invites(monkeypatch):
+    conn = db_with([], [])
+    calls_saved = []
+    writers = {"save_events": lambda c, evs, complete: {"ids": [None, 7]},
+               "save_event_audience": lambda c, eid, chosen: None,
+               "save_event_draft": lambda c, eid, pid, inv: calls_saved.append((eid, pid))}
+    monkeypatch.setattr(r, "data_writers", lambda c: writers)
+    f, calls = fakes({"facts": [], "sources": {"website": "ok", "news": "ok"}}, [GMD, FIVE_K])
+    out = r.refresh(conn, URLS, "2026-11-08", PEOPLE, **f)
+    assert calls_saved == [(7, 2)] and calls["saved"] == []              # 5K drafted to the db; GMD nowhere, no JSON
+    assert any("rejected by save_events" in e and "Give Miami Day" in e for e in out["errors"])
