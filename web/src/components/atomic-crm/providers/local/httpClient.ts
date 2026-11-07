@@ -113,9 +113,12 @@ export const localApiMethods: DonorDeskMethods = {
   },
   getSourceLabel: async () => null,
 
+  // "Not built yet" may come as 200 null (preferred: no console error) or
+  // as 404 (PR #15 today, which Chromium logs as a console error).
   getIcp: async () => {
     try {
-      return parseIcp(await request<ApiIcpProfile>("/icp"));
+      const icp = await request<ApiIcpProfile | null>("/icp");
+      return icp ? parseIcp(icp) : null;
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) return null;
       throw error;
