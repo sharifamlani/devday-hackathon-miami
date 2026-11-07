@@ -511,3 +511,7 @@ enrich + outreach (in parallel) → UI wires to all → end-to-end smoke on the 
   `usual_cadence_days`, `overdue_ratio`, `reasons[]`, `points{}`, `pattern`, `give_miami_day{date, days_away}`.
 - **Sat Nov 7: demo date** `SCORE_AS_OF=2026-11-08` everywhere (scoring and outreach); day counts are
   computed, never typed in.
+- **Sat Nov 7: no sample figures to real orgs.** Real organization donors carry invented (SAMPLE) gift
+  histories, so drafts to them never cite gift amounts, dates or counts; they thank "your partnership" and
+  lead with a real Foundation fact. Donor rows expose `is_sample`; the UI shows a "Sample history" badge.
+  Fictional individuals may keep their sample figures.
