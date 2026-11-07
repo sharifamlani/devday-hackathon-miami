@@ -134,4 +134,49 @@ export interface ApiSnapshot {
   donors: ApiDonorRow[];
   donor_details: Record<string, ApiDonorDetail>;
   duplicates: ApiDuplicate[];
+  // Added with ICP + prospects; older snapshots omit them.
+  icp?: ApiIcpProfile | null;
+  prospects?: ApiProspect[];
+}
+
+/*
+ * ICP + prospects (docs/briefs/icp-and-prospects.md). The JSON columns are
+ * not pinned down yet, so their element types are loose here and parse.ts
+ * accepts the reasonable shapes (list or key→value map, string or parsed).
+ */
+
+export type ApiJson<T> = T | string | null | undefined;
+
+export interface ApiEvidence {
+  donor?: string | null;
+  donor_name?: string | null;
+  donor_id?: number | null;
+  fact?: string;
+  url?: string;
+  source_url?: string;
+}
+
+/** GET /icp (icp_profile row) */
+export interface ApiIcpProfile {
+  id: number;
+  traits: ApiJson<unknown>;
+  stats: ApiJson<unknown>;
+  evidence: ApiJson<ApiEvidence[]>;
+  created_at: string;
+}
+
+/** One item of GET /prospects (prospects row) */
+export interface ApiProspect {
+  id: number;
+  name: string;
+  org_type: string | null;
+  city: string | null;
+  fit_score: number | null;
+  matched_traits: ApiJson<unknown[]>;
+  facts: ApiJson<{ fact: string; url?: string; source_url?: string }[]>;
+  priority: string | null;
+  status: string;
+  created_at: string;
+  /** GET /prospects/{id}: drafts with prospect_id = id, newest first */
+  outreach_drafts?: ApiOutreachDraft[];
 }

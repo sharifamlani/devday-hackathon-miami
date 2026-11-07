@@ -466,17 +466,33 @@ Ingest writes rows into these SQLite tables. Scoring, enrichment, outreach and t
 order and merge readiness. It writes no feature code; it dispatches, reviews, verifies and integrates.
 Builders report to the lead and never merge their own PRs.
 
-| Agent (session) | Lane | Owns (and only these paths) | Reads | First deliverable |
+**Locked Sat Nov 7 (Sharif).** Demo runs on **Sharif's laptop**; it is also pushed to Vercel (see "Vercel"
+below). Carlos confirms the §13 fields.
+
+| Agent (session name) | Lane | Owns (and only these paths) | Branch / worktree | First deliverable |
 |---|---|---|---|---|
-| **CRM UI** | Front end | `web/` | §7 wireframes, §13 contract | Call-today list + donor drawer on the local API |
-| **Local database** | Data layer | `service/db.py`, `service/main.py` (all routes except the `/ingest` body), `data/answer_key.json` | §13 contract | `donors.db` created from §13; REST routes the UI and agents use |
-| **Enrich agent** | Research | `service/enrich_agent.py` | `donors` | Sourced `research_facts` for a real Miami org |
-| **Outreach agent** | Drafts | `service/outreach_agent.py`, `service/org_context.py` | `donors`, `donor_scores`, `research_facts`, §11 | A draft citing a real miamifoundation.org fact |
-| 🔒 **Carlos** (human) | Ingest | `service/ingest/`, `/ingest` route body | §13 contract | Messy CSV → `donors` + `gifts` |
-| ⚠ **Unassigned** | Scoring + dedupe | `service/score.py`, `service/tests/test_score.py`, `duplicate_suggestions` | `gifts` | **Most important feature: needs an owner** |
+| **Agent Phone** | Agent service frame | `service/main.py` app shell, `service/config.py`, `service/requirements.txt`, Agents SDK wiring | `feat/service` · `../dd-service` | Service starts; `/health` OK; one SDK call returns structured output |
+| **devday-hackathon-8b** | Local database **+ scoring + dedupe** | `service/db.py`, `service/routes_data.py`, `service/score.py`, `service/dedupe.py`, `service/tests/` | `feat/data` · `../dd-data` | `donors.db` from §13; data routes; score tests pass |
+| **devday-hackathon-42** | Enrich agent | `service/enrich_agent.py` | `feat/enrich` · `../dd-enrich` | ≥2 sourced facts for a real Miami org |
+| **devday-hackathon-86** | Outreach agent | `service/outreach_agent.py`, `service/org_context.py` | `feat/outreach` · `../dd-outreach` | Draft citing a dated miamifoundation.org fact |
+| **devday-hackathon-80** | CRM UI | `web/` | `feat/ui` · `../dd-ui` | Call-today list + donor drawer |
+| 🔒 **Carlos** (human) | Ingest | `service/ingest/`, `/ingest` route body | his own | Messy CSV → `donors` + `gifts` |
+| **Ideas** (this session) | Lead | `plan.md`, `ROADMAP.md`, `docs/` | `docs/*` | Assignments, demo script, reviews, merge order |
+
+**Scoring owner (decided):** the local database agent (8b). Scoring is plain logic over `gifts`, it sits
+next to the schema it reads, and it needs no AI. Split it out to its own session only if 8b falls behind.
+
+**Route split (to avoid two owners of one file):** Agent Phone owns `main.py` and mounts routers.
+8b writes `routes_data.py` as a FastAPI `APIRouter`. Carlos's `/ingest` lives in `service/ingest/router.py`.
+Enrich and outreach expose plain functions that Agent Phone wires to routes.
+
+**Vercel:** data is local SQLite on Sharif's laptop, which Vercel can't reach. So the Vercel build ships a
+**read-only snapshot**: the lead exports the finished database (donors, scores, research, drafts) to JSON,
+and the UI loads it when `VITE_DATA_MODE=snapshot`, with a "Cached sample" label. The live demo runs
+against the laptop (`VITE_DATA_MODE=local`). This also covers "precompute slow AI" for the stage.
 
 **Working rules for every agent**
-1. **One branch per agent, in its own git worktree** (`git worktree add ../dd-<lane> -b feat/<lane>`).
+1. **One branch per agent, in its own git worktree** (`git worktree add --no-track ../dd-<lane> -b feat/<lane> origin/main`, then `git push -u origin feat/<lane>`).
    Sessions sharing one folder would switch branches under each other.
 2. Touch only your paths. Anything outside them goes to the lead as a request.
 3. Build against the §13 contract. Contract changes go through Carlos + Sharif via the lead.
@@ -485,3 +501,63 @@ Builders report to the lead and never merge their own PRs.
 
 **Integration order (dependency):** Local database (schema + routes) → Carlos's ingest fills it → scoring →
 enrich + outreach (in parallel) → UI wires to all → end-to-end smoke on the demo laptop.
+
+### Contract amendments (lead decisions during the build)
+- **Sat Nov 7: `outreach_drafts.status`** = `draft` (★/big donor: needs a human) · `ready` (small donor,
+  may be sent) · `approved` (a human approved it) · `sent`. A DB trigger blocks `sent` on ★ donors without
+  `approved_by`. New columns: `subject`, `call_script`, `facts_used` (JSON list of `{fact, url}`). Found by
+  integration QA: `ready` crashed the old CHECK, and call scripts and citations were being dropped.
+- **Sat Nov 7: `why` key names** are the ones in `service/score.py`: `days_since_last_gift`,
+  `usual_cadence_days`, `overdue_ratio`, `reasons[]`, `points{}`, `pattern`, `give_miami_day{date, days_away}`.
+- **Sat Nov 7: demo date** `SCORE_AS_OF=2026-11-08` everywhere (scoring and outreach); day counts are
+  computed, never typed in.
+- **Sat Nov 7: no sample figures to real orgs.** Real organization donors carry invented (SAMPLE) gift
+  histories, so drafts to them never cite gift amounts, dates or counts; they thank "your partnership" and
+  lead with a real Foundation fact. Donor rows expose `is_sample`; the UI shows a "Sample history" badge.
+  Fictional individuals may keep their sample figures.
+- **For Carlos's ingest:** `is_sample` is true only when `source_row` is literally `SAMPLE`. If the sample
+  CSV you ingest should display as sample data, write `source_row = 'SAMPLE'` (or agree another marker with
+  the lead).
+
+---
+
+## 15. Onboarding: two screens → local context dataset (Sharif, Sat Nov 7 evening)
+
+**What the user does on first run:**
+
+| Screen | User action | What happens under the hood | Owner |
+|---|---|---|---|
+| **1. Upload your data** | Drops in messy files: the Excel export, notes (.md), Word docs | `POST /ingest` → Carlos's ingest agent extracts donors + gifts into the §13 fields → `donors.db` → scoring + duplicate suggestions run | 🔒 Carlos (agent) · Christian (screen) · 80 (data layer) |
+| **2. Tell us where you are online** | Enters URLs: website, X, LinkedIn, Instagram | `POST /context/run` → the **context agent** reads the website and each social profile, extracts dated, sourced facts tagged to the org's priorities → the **local context dataset** | context agent: 86 + social helper · routes: 90 · table: 8b |
+
+**The local context dataset** (SQLite, `data/donors.db`): `org_profile(id, name, website, x_url, linkedin_url,
+instagram_url, priorities JSON, voice JSON, updated_at)` and `org_context(id, source 'website'|'x'|'linkedin'|
+'instagram'|'news', url, posted_at, fact, quote, priority, captured_at)`. Routes: `POST /context/run`, `GET /context`,
+`GET /org-profile`. In the snapshot under `context`.
+
+**Who uses it:**
+- **Enricher / ICP + prospect finder (42):** the org's priorities and recent focus steer *which* new organizations it
+  looks for ("funds climate resilience in South Dade" → prospects that fund the same).
+- **Outreach (86):** drafts lead with the newest fitting fact from *any* source (a LinkedIn post from last week
+  beats a June newsletter), with the post URL and date cited.
+
+**Rules:** public information only, with every fact quote-verified and carrying its URL + date. Social media is
+read through official APIs when tokens exist (X API, Instagram Graph, LinkedIn Org API); otherwise from a cache of
+public posts. Never by logging in or getting around a bot wall. A blocked platform shows as "blocked," never faked.
+For the demo: the Miami Foundation's URLs, precomputed so the context step is instant on stage.
+
+### §15 amendment: the context agent runs live in the app (Sharif, Sat Nov 7 evening)
+The context agent runs **in real time during onboarding**, not as a manual step:
+1. **Live web research** via the OpenAI Agents SDK hosted web search: the org's website plus its public social
+   profiles and posts as indexed by search (e.g. `site:linkedin.com/company/<org>`, `site:x.com/<handle>`,
+   Instagram). Every fact comes back with its source URL and date and is quote-verified. This is legitimate search:
+   no logins, no bot-wall workarounds. (The direct fetch is blocked: X shows no text, LinkedIn needs a login,
+   Instagram hides captions, and miamifoundation.org serves a CAPTCHA to scripts. Findings in PR #19.)
+2. **"Connect your accounts" (official sign-in, OAuth):** an org can grant access to its own X / Instagram
+   Business / LinkedIn page, and the agent then pulls its own posts via the official APIs. Optional; adapters in
+   `service/social_context.py`.
+3. **Live progress:** `POST /context/run` starts a job; `GET /context/run/{job_id}` returns per-source status
+   (`searching` | `done n facts` | `blocked: reason`) for screen 2 to show live.
+4. **Stage safety:** the last successful run is cached, and the UI falls back to it (labeled cached) on timeout.
+
+**Scope cut (Sharif, Sat Nov 7 late evening): for the demo the context agent researches the WEBSITE ONLY.** Screen 2 still collects the Instagram, X and LinkedIn URLs and saves them to `org_profile`, shown as "saved, not connected". They are not fetched or integrated in the demo. Steps 1 (social search), 2 (account connection) and per-social progress above are post-demo.

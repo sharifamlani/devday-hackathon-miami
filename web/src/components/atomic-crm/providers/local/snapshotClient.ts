@@ -1,6 +1,13 @@
 import type { ApiSnapshot } from "./apiTypes";
 import { APPROVER_NAME, SNAPSHOT_URL } from "./config";
-import { parseDonorDetail, parseDonorRow, parseDuplicate } from "./parse";
+import {
+  parseDonorDetail,
+  parseDonorRow,
+  parseDuplicate,
+  parseIcp,
+  parseProspect,
+  parseProspectDetail,
+} from "./parse";
 import type { DonorDeskMethods } from "./types";
 
 /**
@@ -32,6 +39,12 @@ const detailOf = (snapshot: ApiSnapshot, id: number) => {
   const detail = snapshot.donor_details[String(id)];
   if (!detail) throw new Error(`Donor ${id} is not in the snapshot`);
   return detail;
+};
+
+const prospectOf = (snapshot: ApiSnapshot, id: number) => {
+  const prospect = snapshot.prospects?.find((p) => p.id === id);
+  if (!prospect) throw new Error(`Prospect ${id} is not in the snapshot`);
+  return prospect;
 };
 
 const READ_ONLY =
@@ -78,10 +91,14 @@ export const snapshotMethods: DonorDeskMethods = {
   draftOutreach: async () => {
     throw new Error(READ_ONLY);
   },
-  approveDraft: async (id, draftId, body) => {
-    const draft = detailOf(await loadSnapshot(), id).outreach_drafts.find(
-      (d) => d.id === draftId,
-    );
+  approveDraft: async (draftId, body) => {
+    const snapshot = await loadSnapshot();
+    const draft = [
+      ...Object.values(snapshot.donor_details),
+      ...(snapshot.prospects ?? []),
+    ]
+      .flatMap((owner) => owner.outreach_drafts ?? [])
+      .find((d) => d.id === draftId);
     if (!draft) throw new Error(`Draft ${draftId} is not in the snapshot`);
     Object.assign(draft, {
       body,
@@ -91,4 +108,24 @@ export const snapshotMethods: DonorDeskMethods = {
     });
   },
   getSourceLabel: async () => (await loadSnapshot()).meta.label,
+
+  getIcp: async () => {
+    const icp = (await loadSnapshot()).icp;
+    return icp ? parseIcp(icp) : null;
+  },
+  runIcp: async () => {
+    throw new Error(READ_ONLY);
+  },
+  getProspects: async () =>
+    ((await loadSnapshot()).prospects ?? [])
+      .map(parseProspect)
+      .sort((a, b) => b.fit_score - a.fit_score),
+  getProspect: async (id) =>
+    parseProspectDetail(structuredClone(prospectOf(await loadSnapshot(), id))),
+  draftProspectOutreach: async () => {
+    throw new Error(READ_ONLY);
+  },
+  dismissProspect: async (id) => {
+    prospectOf(await loadSnapshot(), id).status = "dismissed";
+  },
 };

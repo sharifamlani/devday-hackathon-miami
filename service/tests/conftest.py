@@ -1,0 +1,25 @@
+from datetime import date
+
+import pytest
+
+from service import db
+
+AS_OF = date(2026, 11, 7)   # hackathon Saturday, 12 days before Give Miami Day
+
+
+@pytest.fixture
+def conn():
+    c = db.connect(":memory:")
+    db.create_schema(c)
+    yield c
+    c.close()
+
+
+@pytest.fixture
+def db_file(tmp_path, monkeypatch):
+    """A rebuilt, seeded, scored db file that the routes read via $DONORS_DB."""
+    path = tmp_path / "donors.db"
+    monkeypatch.setenv("DONORS_DB", str(path))
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    db.rebuild(path, as_of=AS_OF)
+    return path

@@ -9,6 +9,9 @@ export const donorDeskKeys = {
   donors: [ROOT, "donors"] as const,
   donor: (id: number) => [ROOT, "donor", id] as const,
   duplicates: [ROOT, "duplicates"] as const,
+  icp: [ROOT, "icp"] as const,
+  prospects: [ROOT, "prospects"] as const,
+  prospect: (id: number) => [ROOT, "prospect", id] as const,
 };
 
 export const useDonors = () => {
@@ -88,12 +91,68 @@ export const useDraftOutreach = (id: number) => {
   });
 };
 
-export const useApproveDraft = (id: number) => {
+/** Approves any draft, donor or prospect. */
+export const useApproveDraft = () => {
   const dataProvider = useDonorDesk();
   const invalidateAll = useInvalidateAll();
   return useMutation({
     mutationFn: ({ draftId, body }: { draftId: number; body: string }) =>
-      dataProvider.approveDraft(id, draftId, body),
+      dataProvider.approveDraft(draftId, body),
+    onSuccess: invalidateAll,
+  });
+};
+
+/* ---------- ICP + prospects ---------- */
+
+export const useIcp = () => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: donorDeskKeys.icp,
+    queryFn: () => dataProvider.getIcp(),
+  });
+};
+
+export const useRunIcp = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: () => dataProvider.runIcp(),
+    onSettled: invalidateAll,
+  });
+};
+
+export const useProspects = () => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: donorDeskKeys.prospects,
+    queryFn: () => dataProvider.getProspects(),
+  });
+};
+
+export const useProspect = (id: number | null) => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: donorDeskKeys.prospect(id ?? -1),
+    queryFn: () => dataProvider.getProspect(id as number),
+    enabled: id != null,
+  });
+};
+
+export const useDraftProspectOutreach = (id: number) => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: () => dataProvider.draftProspectOutreach(id),
+    // Refetch on failure too: a timed-out draft falls back to the saved one.
+    onSettled: invalidateAll,
+  });
+};
+
+export const useDismissProspect = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: (id: number) => dataProvider.dismissProspect(id),
     onSuccess: invalidateAll,
   });
 };

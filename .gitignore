@@ -25,3 +25,7 @@ web/dist
 
 # Local MVP database (rebuilt from data/sample_donors.csv)
 data/*.db
+
+# Runtime agent output (research_cache.json is committed on purpose: precomputed demo data)
+data/research_facts.json
+data/outreach_drafts.json

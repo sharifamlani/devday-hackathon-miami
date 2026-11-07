@@ -18,7 +18,7 @@ import { PanelHeading } from "./ScoreWhyPanel";
  */
 export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
   const draftOutreach = useDraftOutreach(donor.id);
-  const approve = useApproveDraft(donor.id);
+  const approve = useApproveDraft();
   const draft = donor.draft;
   const [isEditing, setIsEditing] = useState(false);
   const [body, setBody] = useState(draft?.body ?? "");
