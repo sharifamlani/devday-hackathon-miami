@@ -1,0 +1,15 @@
+{
+  "name": "@devday-miami/stat-mcp-client",
+  "version": "0.1.0",
+  "description": "Server-side JavaScript client for the DevDay Miami stat-mcp service",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
