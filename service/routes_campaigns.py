@@ -289,11 +289,15 @@ def approve_small(campaign_id: int, approved_by: str | None = Body(None, embed=T
 
 @router.post("/campaigns/{campaign_id}/send")
 def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    """Approved messages go to the SIMULATED outbox: one outbox row each, the message becomes 'sent'.
-    No email or SMS provider is called; there isn't one."""
+    """Approved messages go out through outbound.deliver (dry run unless EMAIL_SEND=on / SMS_PROVIDER is set),
+    one outbox row each; the message becomes 'sent'. A failed delivery stays 'approved' and is reported."""
+    from service.outbound import deliver
+
     campaign_detail(conn, campaign_id)
-    sent, no_address = 0, []
+    sent, no_address, failed, any_real = 0, [], [], False
     sent_at = now()
+    # An outbox made before the provider columns can only record dry runs: never send for real into it
+    real_ok = "provider" in {r[1] for r in conn.execute("PRAGMA table_info(outbox)")}
     rows = conn.execute("""SELECT m.*, d.email, d.phone, d.full_name FROM campaign_messages m
                            JOIN donors d ON d.id = m.donor_id
                            WHERE m.campaign_id = ? AND m.status = 'approved' ORDER BY m.id""", (campaign_id,)).fetchall()
@@ -306,17 +310,33 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
                 no_address.append({"message_id": m["id"], "donor_name": m["full_name"],
                                    "reason": f"no {'email' if m['channel'] == 'email' else 'phone'} on file"})
                 continue
-            conn.execute("INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, "
-                         "simulated) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
-                         (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at))
+            if real_ok:
+                result = deliver(m["channel"], address, m["subject"], m["body"])
+            else:
+                result = {"provider": "dryrun", "status": "queued (dry run)", "simulated": True, "provider_id": None}
+            if result["status"].startswith("failed"):
+                failed.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["status"],
+                               "detail": result.get("detail")})
+                continue
+            if real_ok:
+                conn.execute("INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, "
+                             "sent_at, simulated, provider, delivery_status, provider_id) "
+                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                             (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at,
+                              int(result["simulated"]), result["provider"], result["status"], result["provider_id"]))
+            else:
+                conn.execute("INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, "
+                             "sent_at, simulated) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+                             (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at))
             conn.execute("UPDATE campaign_messages SET status = 'sent', sent_at = ? WHERE id = ?", (sent_at, m["id"]))
             sent += 1
+            any_real = any_real or not result["simulated"]
         left = conn.execute("SELECT COUNT(*) FROM campaign_messages WHERE campaign_id = ? AND status IN ('draft', 'approved')",
                             (campaign_id,)).fetchone()[0]
         if sent and not left:
             conn.execute("UPDATE campaigns SET status = 'sent' WHERE id = ?", (campaign_id,))
     detail = campaign_detail(conn, campaign_id)
-    return {"simulated": True, "sent": sent, "no_address": no_address,
+    return {"simulated": not any_real, "sent": sent, "no_address": no_address, "failed": failed,
             "not_approved": detail["counts"]["draft"], "campaign": detail}
 
 

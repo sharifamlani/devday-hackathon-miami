@@ -270,7 +270,10 @@ CREATE TABLE IF NOT EXISTS outbox (
     subject             TEXT,
     body                TEXT NOT NULL,
     sent_at             TEXT NOT NULL DEFAULT (datetime('now')),
-    simulated           INTEGER NOT NULL DEFAULT 1 CHECK (simulated = 1)   -- no real provider exists
+    simulated           INTEGER NOT NULL DEFAULT 1 CHECK (simulated IN (0, 1)),  -- 1 = dry run, nothing left
+    provider            TEXT NOT NULL DEFAULT 'dryrun',             -- dryrun | gmail | twilio (outbound.deliver)
+    delivery_status     TEXT NOT NULL DEFAULT 'queued (dry run)',   -- 'queued (dry run)' | 'sent'
+    provider_id         TEXT                                        -- the provider's message id, when sent
 );
 CREATE INDEX IF NOT EXISTS idx_outbox_donor ON outbox(donor_id);
 
