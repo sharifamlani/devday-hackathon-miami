@@ -317,6 +317,8 @@ ADDED_COLUMNS = {
     },
     "outreach_drafts": {"sms": "TEXT"},  # text-message version of an invite (events_agent)
     "org_profile": {"last_refreshed_at": "TEXT"},   # set by every successful save_context
+    # A declined or failed charge is kept on record but never counted in totals or scoring.
+    "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed'))"},
 }
 
 
@@ -740,10 +742,10 @@ def insert_donor(conn: sqlite3.Connection, donor: dict) -> int:
     cur = conn.execute(
         f"INSERT INTO donors ({', '.join(fields)}) VALUES ({', '.join('?' * len(fields))})", values)
     donor_id = cur.lastrowid
-    for amount, gift_date, channel in donor.get("gifts", []):
+    for amount, gift_date, channel, *rest in donor.get("gifts", []):     # optional 4th item: status
         conn.execute(
-            "INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row) VALUES (?, ?, ?, ?, 'SAMPLE')",
-            (donor_id, amount, gift_date, channel))
+            "INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row, status) VALUES (?, ?, ?, ?, 'SAMPLE', ?)",
+            (donor_id, amount, gift_date, channel, rest[0] if rest else "ok"))
     return donor_id
 
 

@@ -196,7 +196,7 @@ def run(conn: sqlite3.Connection, as_of: date | None = None) -> int:
     """Rescore every donor and replace donor_scores. Returns the number of donors scored."""
     as_of = as_of or default_as_of()
     gifts_by_donor: dict[int, list[dict]] = {}
-    for row in conn.execute("SELECT donor_id, amount, gift_date, channel FROM gifts"):
+    for row in conn.execute("SELECT donor_id, amount, gift_date, channel FROM gifts WHERE status = 'ok'"):
         gifts_by_donor.setdefault(row["donor_id"], []).append(dict(row))
 
     computed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")

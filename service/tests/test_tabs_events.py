@@ -267,3 +267,30 @@ def test_snapshot_people_events_and_stats_mirror_routes(db_file):
     assert snap["context_status"] == c.get("/context/status").json()
     keisha = next(p for p in snap["people"]["community"] if p["full_name"] == "Keisha Grant")
     assert snap["donor_details"][str(keisha["id"])]["full_name"] == "Keisha Grant"
+
+
+# ---- gift status ----------------------------------------------------------------------------------
+
+def test_declined_and_failed_gifts_are_shown_but_never_scored(db_file):
+    conn = db.connect(db_file)
+    maria = person_id(conn, "Maria Delgado")
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, status) VALUES (?, 1, '2026-11-01', 'pending')", (maria,))
+    # A declined 2026 Give Miami Day charge must not make her look like she already gave this year
+    conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, status) VALUES (?, 3000, '2026-11-02', "
+                 "'online', 'declined')", (maria,))
+    conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, status) VALUES (?, 99999, '2026-10-01', "
+                 "'online', 'failed')", (maria,))
+    conn.commit()
+    score.run(conn, AS_OF)
+    conn.close()
+    d = client().get(f"/donors/{maria}").json()
+    assert d["status"] == "lapsing" and d["why"]["gift_count"] == 4 and d["why"]["lifetime_total"] == 11000
+    statuses = {g["gift_date"]: g["status"] for g in d["gifts"]}
+    assert statuses["2026-11-02"] == "declined" and statuses["2026-10-01"] == "failed"
+    assert statuses["2025-11-20"] == "ok"
+
+
+def test_existing_gifts_default_to_ok(conn):
+    db.seed(conn)
+    assert {r[0] for r in conn.execute("SELECT DISTINCT status FROM gifts")} == {"ok"}
