@@ -12,7 +12,7 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 - **Roles:** spine = __ · presenter = __ · visuals = __ · data = __
 - **In flight:** —
-- **Next unblocked:** `codex login` (human); N3 shortlist criteria proxies; N8 pack; then K1 at opening
+- **Next unblocked:** `codex login` (human); N5 data-prober on idea D (990 grants) if the team leans fundraising; N8 pack; then K1 at opening
 
 ---
 
