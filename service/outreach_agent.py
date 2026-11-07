@@ -110,7 +110,7 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
     agent = Agent(
         name="OutreachAgent",
         instructions=INSTRUCTIONS,
-        model=os.getenv("OPENAI_MODEL_DEFAULT"),
+        model=bounded_model(),
         output_type=ModelDraft,
         model_settings=ModelSettings(reasoning=Reasoning(effort="medium")),
     )
@@ -212,6 +212,18 @@ def ask_for(big: bool, today: date) -> str:
     when = (f"when early giving opens {long_date(EARLY_GIVING_OPENS)}" if today < EARLY_GIVING_OPENS
             else f"by Give Miami Day, {long_date(GIVE_MIAMI_DAY)}")
     return f"a Give Miami Day gift at givemiamiday.org {when}."
+
+
+OPENAI_TIMEOUT_S, OPENAI_RETRIES = 90, 2
+
+
+def bounded_model():
+    """The default model on its own client with a 90 s timeout and 2 retries, so one stalled call
+    can't hang POST /outreach/{id} for the SDK's 600 s default (seen once in the pipeline)."""
+    from agents import OpenAIResponsesModel
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(timeout=OPENAI_TIMEOUT_S, max_retries=OPENAI_RETRIES)
+    return OpenAIResponsesModel(model=os.getenv("OPENAI_MODEL_DEFAULT"), openai_client=client)
 
 
 def is_big(donor: dict) -> bool:
