@@ -198,3 +198,5 @@ Minor (90): top-level `state` stays "done" when every source failed.
 | #28 feat/ui-onboarding | de6c306 | web/ only; 31/31; build:demo ok; 409/404 messages match #27's live responses; demo 0.86 s, 0 console errors | APPROVE |
 | #29 docs/three-classes-plan | 7d4c097 | docs only; Sat Nov 7 correct | APPROVE |
 | #30 fix/context-state | 7b61cf1 | 98 passed; unreachable site → state "failed"; cached/live MF → done; git status clean | APPROVE (note to 90: with no website, the fallback news row says "done") |
+| #31 fix/context-fallback-rows | fe06538 | combined with #32: 105 passed; X-only, another-org.org, example.org (cached) and unreachable all → failed with 0 Foundation facts; Foundation (incl. www + trailing slash) → done | APPROVE |
+| #32 fix/context-empty-site | 1ab958c | resolvable-but-empty site → failed, name null, clear error detail; agrees with #31 in the merged tree | APPROVE |
