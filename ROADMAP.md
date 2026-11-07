@@ -4,7 +4,7 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.5 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.6 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
@@ -121,7 +121,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 4.2 | Merge PR #8 (data + scoring) | Sharif | ✅ | Nov 7 · PR #8 `8ce6f95` | 3.1–3.5 |
 | 4.3 | Retarget PR #10 to `main`, then merge (pipeline, approve, snapshot) | Sharif | ✅ | Nov 7 · PR #10 `a6ca649` | 3.9–3.10 |
 | 4.4 | Merge PR #5 (enrich) and PR #7 (outreach) | Sharif | ✅ | Nov 7 · PR #5 `38eaea0` · PR #7 `2b2a921` | 3.6–3.8 |
-| 4.5 | Merge PR #12 (service frame); it imports the above, so merge it last | Sharif | ⏸ | — | 3.11 |
+| 4.5 | Merge PR #12 (service frame); it imports the above, so merge it last | lead (QA-gated) | ✅ | Nov 7 · `f1059de` | 3.11 |
 | 4.6 | Post-merge check on `main`: `pytest service/tests` green, `python -m service.pipeline` runs | 98 | ⏸ | — | `plan.md` §8 |
 
 ### Phase 5 — Front end
@@ -136,7 +136,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5.5 | Show "no giving history lost" on merge ("2 records → 1, all N gifts kept") | 80 | ⏸ | — | challenge #2 minimum |
 | 5.6 | Hide the atomic-crm Donors tab and other unused screens (if 5.1 = atomic-crm) | 80 | ⏸ | — | `plan.md` §12 |
 | 5.7 | Make the AI visible: label where the Agents SDK ran (research, draft) | 80 | ⏸ | — | rubric: use of OpenAI |
-| 5.8 | Merge PR #11 (or the chosen UI's PR) | Sharif | ⏸ | — | D14 |
+| 5.8 | Merge PR #11 (UI data layer + screens) | lead (QA-gated) | ✅ | Nov 7 · PR #11 | D14 |
 
 ### Phase 5B — Intelligent ICP, prospects, organization outreach
 **Goal:** "organizations that look like your best donors, and why" with sourced first-touch drafts. **Entry gate:** Phase 3. **Exit gate:** 6+ sourced prospects + drafts in the snapshot and the live API. **Status:** ⏳
@@ -152,6 +152,21 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5B.7 | Pipeline stage: ICP → prospects → drafts → snapshot | 8b | ⏸ | — | same |
 | 5B.8 | UI data layer for ICP/prospects; hand-off to Christian | 80 | ⏸ | — | same |
 | 5B.9 | QA: orgs only, every URL loads, no existing donors as prospects, drafts are `draft` | 98 | ⏸ | — | same |
+
+### Phase 5C — Onboarding: upload + URLs → context dataset
+**Goal:** two onboarding screens; a context agent builds the local context dataset that ICP and outreach use. **Entry gate:** Phase 4. **Exit gate:** entering the Foundation's URLs fills `org_context` from website + socials, and drafts/prospects cite it. **Status:** ⏸
+
+| # | Action | Owner | Status | Date · Commit | Source |
+|---|---|---|---|---|---|
+| 5C.1 | Screen 1 "Upload your data" (multi-file: .xlsx/.md/.docx) → `POST /ingest` | Christian (screen) · 80 (data layer) · Carlos (ingest) | ⏸ | — | `plan.md` §15 |
+| 5C.2 | Screen 2 "Where you are online" (website, X, LinkedIn, Instagram) → `POST /context/run` | Christian · 80 | ⏸ | — | `plan.md` §15 |
+| 5C.3 | Tables `org_profile` + `org_context`; `GET /context`, `GET /org-profile`; snapshot key `context` | 8b | ⏸ | — | `plan.md` §15 |
+| 5C.4 | Social module: official-API adapters + public cache; findings: direct fetch blocked on X/LinkedIn/IG | helper | ✅ | Nov 7 · `02ced45` (PR #19) | `plan.md` §15 |
+| 5C.5 | Context agent, **live in-app, website only (demo)**: OpenAI hosted web search over the website → dated, sourced, priority-tagged facts → `org_context`; official account connections optional | 86 | ⏳ | — | `plan.md` §15 amendment |
+| 5C.6 | Wire `POST /context/run` as a job + `GET /context/run/{job_id}` per-source progress; cached fallback | 90 | ⏸ | — | `plan.md` §15 amendment |
+| 5C.7 | ICP/prospect finder reads org priorities + recent focus from `org_context` | 42 | ⏸ | — | `plan.md` §15 |
+| 5C.8 | Outreach reads the newest fitting `org_context` fact from any source | 86 | ⏸ | — | `plan.md` §15 |
+| 5C.9 | Demo: the Miami Foundation's URLs precomputed; context step instant on stage | 8b (pipeline) | ⏸ | — | `plan.md` §15 |
 
 ### Phase 6 — Data and ingest
 **Goal:** the demo's donor data matches the challenge, and upload works. **Entry gate:** 1.6. **Exit gate:** upload → ranked list, 6/6 duplicates. **Status:** ⏸
@@ -232,6 +247,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 ## §6 Changelog
 
+- **v0.6 · Sat Nov 7, 2026 (evening):** PRs #12, #13, #11 merged on QA approval; fallback tag `fallback-pre-ui`; Vercel ship in progress. New Phase 5C: two-screen onboarding (upload data; enter URLs) → context agent → local context dataset used by ICP + outreach (`plan.md` §15).
 - **v0.5 · Sat Nov 7, 2026 (evening):** merged on QA approval: #4, #8, #10, #5, #7 (main `2b2a921`, 46 tests green). SQLite concurrency fix (7.2) in. Fictional unstructured donor inputs being generated (6.1 decided: fictional).
 - **v0.4 · Sat Nov 7, 2026 (evening):** 5.1 decided (atomic-crm + Christian's design, Christian integrates). New Phase 5B: intelligent ICP, prospect finder, organization outreach, deeper context (spec `docs/briefs/icp-and-prospects.md`). Merges now QA-gated, then merged on approval (Sharif).
 - **v0.3 · Sat Nov 7, 2026 (evening):** restructured into the living build plan (Phases 0–10, an owner per
