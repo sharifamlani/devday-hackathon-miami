@@ -30,3 +30,53 @@ Guardrails (every round): no invented figures PASS · no Press Forward total PAS
 | Q4 | outreach (86) | `today` defaults to the real date; score uses as_of 2026-11-08, so day counts disagree | open |
 | Q5 | enrich (42) | url_loads accepts any status < 400 (the lead saw a 406 on oicsfl.org); must require 200 | open |
 | Q6 | data (8b) | the ★ seed donor (Biscayne Harbor) is fictional, so research is empty in the drawer; seed the 4 real org donors that are in research_cache.json | open |
+
+## Round 2: Sat 2026-11-07, main + feat/data af541bc + feat/enrich 9ded6fb (unchanged) + feat/outreach d3298da (unchanged)
+
+`pytest service/tests`: 31 passed. Integration script: 32/33 PASS (after fixing my own trigger-message match).
+
+| Criterion (§9) | Change since round 1 | PASS/FAIL |
+|---|---|---|
+| Enrichment sourced | ★ DeLuca now has 4 sourced facts; miamifoundation.org still 202 to a script (browser check pending) | FAIL (links unverified) |
+| Drafts cite org news ≥ 3/3 | both drafts now save, with call_script + facts_used stored; 2 of 3 so far | FAIL (need 3) |
+| ★ never auto-sent | trigger now also refuses 'ready' for ★ (insert) | PASS |
+
+New check: no local branch tracks origin/main. FAIL: `qa/integration` (the lead's one-off QA worktree).
+
+| # | Owner | Status |
+|---|---|---|
+| Q1 | enrich (42) | open: no push yet. Maria Delgado got 0 facts this run only because the live search came back empty, not because of a code fix |
+| Q2 | data (8b) | **fixed** (8c3bce3, af541bc): 'ready' accepted, columns stored; outreach side (86) still to confirm its writes |
+| Q3, Q4 | outreach (86) | open: no push yet |
+| Q5 | enrich (42) | open: no push yet |
+| Q6 | data (8b) | **fixed** (222dbfa): 4 real orgs seeded, DeLuca ★ has research |
+
+## Round 3: Sat 2026-11-07, main + feat/data af541bc + feat/enrich c2f62a9 + feat/outreach 6ba5f17
+
+Merges are now done in a separate detached worktree (`../dd-qa-merge`); `dd-qa` stays on qa/checks.
+(The round-2 commit had landed on a throwaway branch and never reached origin; restored here.)
+`pytest service/tests`: 31 passed. Integration script: 43/45 PASS.
+
+| Criterion (§9) | Result | Evidence | PASS/FAIL |
+|---|---|---|---|
+| Call-today list ≤ 10 s on prod | no service/UI yet | — | NOT YET |
+| Duplicates 6/6, 0 false | 1/1 seed pair; merge 12 → 11 | /duplicates, /merge | PENDING (Carlos's sample + answer key) |
+| Ranking | Maria Delgado #1 (89); 31/31 tests | pytest, GET /donors | PASS |
+| Enrichment sourced, 100% working links | 0 facts on individuals; DeLuca 3, McDermott 3, all with URLs; 5 miamifoundation.org URLs 202 to a script | link check | FAIL until a real-browser check (Playwright busy in another session) |
+| Drafts cite org news ≥ 3/3 | 3/3 drafts saved, each with call_script + facts_used, numeric check passed | outreach_drafts rows 1–3 | PASS |
+| ★ never auto-sent | ★ → draft, non-★ → ready (from donor_scores, CLI too); trigger blocks ★ 'sent' unapproved and ★ 'ready' | trigger + CLI checks | PASS |
+| 0 console errors / 4xx-5xx | no UI yet | — | NOT YET |
+
+Guardrails PASS: figures, Press Forward, Sat Nov 14 / Thu Nov 19, no "12 days", 0 research on individuals.
+Smoke 5 PASS: `python -m service.outreach_agent 11 12` with DONORS_DB=scratch writes only to scratch.
+
+| # | Owner | Status |
+|---|---|---|
+| Q1 | enrich (42) | **fixed** c2f62a9: individuals return [] with no model call; 0 rows on individuals |
+| Q2 | data (8b) + outreach (86) | **fixed** 8c3bce3 / 6ba5f17 |
+| Q3 | outreach (86) | **fixed** 6ba5f17: DONORS_DB honoured (CLI wrote only to scratch) |
+| Q4 | outreach (86) | **fixed** 6ba5f17: today = as_of 2026-11-08 |
+| Q5 | enrich (42) | **fixed** in code (url_loads == 200); miamifoundation 202s still need a browser check |
+| Q6 | data (8b) | **fixed** 222dbfa |
+| Q7 | lead (Ideas) | open: local branch `qa/integration` (the lead's one-off QA worktree) tracks origin/main |
+| Q8 | outreach (86) | low: DEMO_CASES still hard-code Amazon and Knight as ★; real runs use donor_scores, but delete the demo cases or relabel them so reports don't disagree with the seed |

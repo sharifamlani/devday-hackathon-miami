@@ -31,6 +31,7 @@ for env in (REPO / ".env", REPO.parent / "devday_hackathon" / ".env"):
         load_dotenv(env)
         break
 
+sys.stdout.reconfigure(encoding="utf-8")
 RESULTS: list[tuple[str, bool, str]] = []
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
@@ -84,19 +85,26 @@ def main() -> int:
     check("a #1 donor and a star donor exist", top is not None and star is not None,
           f"#1={top['full_name'] if top else None} score={top['score'] if top else None}; "
           f"star={star['full_name'] if star else None}")
-    targets = [r for r in (top, star) if r is not None]
+    third = conn.execute("SELECT d.*, s.* FROM donors d JOIN donor_scores s ON s.donor_id=d.id "
+                         "WHERE d.donor_type='organization' AND s.is_star=0 ORDER BY s.score DESC LIMIT 1").fetchone()
+    targets = [r for r in (top, star, third) if r is not None]
 
     # --- enrich -> research_facts -------------------------------------------------------------
     from service import enrich_agent
     for r in targets:
         try:
-            facts = enrich_agent.enrich_donor(r["full_name"], r["org_name"], r["city"])
+            facts = enrich_agent.enrich_donor(r["full_name"], r["org_name"], r["city"], donor_type=r["donor_type"])
             wrote = enrich_agent.save_facts(r["donor_id"], facts, "qa")
             in_db = conn.execute("SELECT count(*) FROM research_facts WHERE donor_id=?", (r["donor_id"],)).fetchone()[0]
             check(f"enrich writes research_facts for {r['full_name']}", in_db == wrote,
                   f"{wrote} fact(s) returned, {in_db} row(s) in db")
-            check(f"enrich finds >=1 sourced fact for {r['full_name']} (drawer research not empty)", in_db >= 1,
-                  f"{in_db} fact(s); cache keys = {list(enrich_agent.read_cache())}")
+            if r["donor_type"] == "individual":
+                # Lead decision (Q1): individuals are fictional, so research must return nothing for them
+                check(f"enrich returns 0 facts for fictional individual {r['full_name']}", in_db == 0,
+                      f"{in_db} fact(s): {[f.fact[:80] for f in facts]}")
+            else:
+                check(f"enrich finds >=1 sourced fact for {r['full_name']} (drawer research not empty)", in_db >= 1,
+                      f"{in_db} fact(s); cache keys = {list(enrich_agent.read_cache())}")
         except Exception as e:
             check(f"enrich runs for {r['full_name']}", False, f"{type(e).__name__}: {e}")
 
@@ -127,6 +135,33 @@ def main() -> int:
             except Exception as e:
                 check(f"outreach saves to outreach_drafts for {r['full_name']}", False, f"{type(e).__name__}: {e}")
 
+    n_saved = conn.execute("SELECT count(DISTINCT donor_id) FROM outreach_drafts").fetchone()[0]
+    check(">= 3 drafts saved, each with call_script + facts_used",
+          n_saved >= 3 and not conn.execute("SELECT 1 FROM outreach_drafts WHERE call_script IS NULL OR facts_used IS NULL").fetchone(),
+          f"{n_saved} donor(s) with drafts")
+
+    # Smoke 5 + Q3: the CLI drafts from the db named by DONORS_DB, not data/donors.db, and takes
+    # star/tier from donor_scores: a ★ donor comes out 'draft', a non-★ org 'ready'
+    if not args.no_llm:
+        import os, subprocess, tempfile
+        scratch = Path(tempfile.mkdtemp()) / "qa.db"
+        db.rebuild(scratch)
+        before = conn.execute("SELECT count(*) FROM outreach_drafts").fetchone()[0]
+        ids = [str(r["donor_id"]) for r in (star, third) if r is not None]
+        p = subprocess.run([sys.executable, "-m", "service.outreach_agent", *ids], cwd=REPO,
+                           env=os.environ | {"DONORS_DB": str(scratch)}, capture_output=True, text=True, timeout=600)
+        sc = sqlite3.connect(scratch)
+        got = dict(sc.execute("SELECT o.donor_id, o.status FROM outreach_drafts o"))
+        stars = dict(sc.execute("SELECT donor_id, is_star FROM donor_scores"))
+        sc.close()
+        after = conn.execute("SELECT count(*) FROM outreach_drafts").fetchone()[0]
+        check("smoke 5: `python -m service.outreach_agent <id>...` writes to $DONORS_DB only",
+              p.returncode == 0 and len(got) == len(ids) and after == before,
+              f"exit {p.returncode}; scratch drafts {got}; default db {before}->{after}; {p.stderr.strip()[-160:]}")
+        check("CLI status follows donor_scores.is_star (★ -> draft, else ready)",
+              all(st == ("draft" if stars.get(d) else "ready") for d, st in got.items()),
+              f"{ {d: (st, stars.get(d)) for d, st in got.items()} }")
+
     # --- guardrails ---------------------------------------------------------------------------
     bad = conn.execute("SELECT o.id, o.status FROM outreach_drafts o JOIN donor_scores s ON s.donor_id=o.donor_id "
                        "WHERE s.is_star=1 AND o.status IN ('ready','sent')").fetchall()
@@ -135,13 +170,14 @@ def main() -> int:
     if star is not None:
         for label, sql, params in [
             ("insert", "INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'qa', 'sent')", (star["donor_id"],)),
+            ("insert ready", "INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'qa', 'ready')", (star["donor_id"],)),
         ]:
             try:
                 conn.execute(sql, params)
                 conn.rollback()
                 check(f"DB trigger blocks unapproved star send ({label})", False, "insert succeeded")
             except sqlite3.DatabaseError as e:
-                check(f"DB trigger blocks unapproved star send ({label})", "human approver" in str(e), str(e))
+                check(f"DB trigger blocks unapproved star send ({label})", "star donor" in str(e), str(e))
         cur = conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'qa', 'draft')",
                            (star["donor_id"],))
         try:
@@ -207,6 +243,19 @@ def main() -> int:
         check("GET /donors/999999 is 404", c.get("/donors/999999").status_code == 404)
     except Exception:
         check("routes run", False, traceback.format_exc().splitlines()[-1])
+
+    # --- every local branch (all worktrees share one .git): none may track origin/main ---------
+    import subprocess
+    refs = subprocess.run(["git", "for-each-ref", "--format=%(refname:short) %(upstream:short)", "refs/heads"],
+                          capture_output=True, text=True, cwd=REPO).stdout.splitlines()
+    on_main = [line.split()[0] for line in refs
+               if len(line.split()) == 2 and line.split()[1] == "origin/main" and line.split()[0] != "main"]
+    check("no local feature branch tracks origin/main", not on_main, f"tracking origin/main: {on_main}")
+
+    # --- whole db: no fictional individual carries research ----------------------------------
+    leaked = conn.execute("SELECT d.full_name, count(*) FROM research_facts f JOIN donors d ON d.id=f.donor_id "
+                          "WHERE d.donor_type='individual' GROUP BY d.id").fetchall()
+    check("0 research_facts on individual donors", not leaked, f"{[tuple(x) for x in leaked]}")
 
     fails = [n for n, ok, _ in RESULTS if not ok]
     print(f"\n{len(RESULTS) - len(fails)}/{len(RESULTS)} PASS")
