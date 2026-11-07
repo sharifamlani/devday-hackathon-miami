@@ -109,3 +109,7 @@ Real-browser link check (`qa/link_check.py`): 11/11 sources load (9 pages, 2 PDF
 | Q8 | outreach (86) | fixed 6f36336, re-verify next merged round |
 | Q9 | outreach (86) | **closed**: links load in a browser; the "WordPress feed" string was a label, not a fact |
 | Q10 | UI (80) + service (90) | FYI: a draft takes ~11 s. The drawer must show progress, or drafts must be pre-generated for the demo donors before going on stage |
+
+Q10 update (service, 90): pre-generation already exists. `python -m service.pipeline --top N` rebuilds the db and drafts the
+top N donors plus every ★ in advance; the lead picks N. /ingest mounts automatically once `service/ingest/router.py`
+exists (/health will then show ingest:true). QA will re-run the walk after the lead's pre-demo rebuild.
