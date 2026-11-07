@@ -4,9 +4,10 @@ final result: passed
 
 ## Scope and visual truth
 
-This report covers the new landing entry in the primary React app (`web/`), not the separate static Kindred or outreach-inbox prototypes. The existing repository-root QA report for the older standalone prototype is unchanged.
+This report covers the new landing entry in the primary React app (`web/`), not the separate static Kindred or outreach-inbox prototypes. The older standalone inbox QA report is archived separately at `docs/design/outreach-inbox-qa.md`. The repository-root report points to this current landing review.
 
-- Approved reference: `approved-reference.png`, 1672 × 941 pixels. White canvas, charcoal text/button, yellow/olive corner glows, very faded button backlight, and the user's final headline/subheadline. The subsequent explicit request adds a thin framed CSV drop area around the upload controls.
+- Component reference: `approved-upload-reference.png`, 1536 × 1024 pixels. The user selected this refined still: smaller charcoal button, slightly larger rounded frame, and lower-opacity outline. `upload-comparison.png` aligns its upload region with the live implementation at the same 432px frame width.
+- Approved page composition reference: `approved-reference.png`, 1672 × 941 pixels. White canvas, charcoal text/button, yellow/olive corner glows, very faded button backlight, and the user's final headline/subheadline. The subsequent explicit request adds a thin framed CSV drop area around the upload controls.
 - Implementation: `http://127.0.0.1:5174/`, using the existing `dev:demo` runtime.
 - Desktop: `desktop.png`, 1440 × 810 CSS/pixel viewport, device pixel ratio 1.
 - Phone: `mobile.png`, 390 × 844 CSS/pixel viewport, device pixel ratio 1.
@@ -20,13 +21,14 @@ This report covers the new landing entry in the primary React app (`web/`), not 
 1. Initial comparison found supporting text and CTA too small relative to the approved still. Increased the supporting line from 19px to 22px; CTA label from 18px to 22px, its height from 56px to 60px, and horizontal padding from 34px to 44px. Helper/sample text increased from 14px to 16px.
 2. Shifted the centered content group upward 10px after the scale adjustment. The final paired full-view and focused comparisons retain generous section spacing and all information within the viewport.
 3. Follow-up: added the requested 1px olive frame with an 18px radius around the upload controls, plus a drag-active treatment through the existing react-dropzone library. Rechecked all four viewports; the layout still fits without scrolling. This frame intentionally extends the supplied still in response to the user's request.
-4. Final comparison: no actionable P0/P1/P2 findings. The actual font glyphs and separately generated ambient backdrop vary slightly from the raster reference (P3).
+4. Selected-still follow-up: expanded frame width from 420px to 432px, increased inner whitespace, reduced its border to 25% olive opacity, removed the frame fill and button shadow, and made the centered CTA 44px high with 16px text and an 18px upload icon. The desktop frame measures 432 × 161px and the button approximately 227 × 44px. Phone frame padding adapts while the button keeps a 44px touch target.
+5. Final comparison: no actionable P0/P1/P2 findings. The actual font glyphs and separately generated ambient backdrop vary slightly from the raster reference (P3).
 
 ## Required fidelity surfaces
 
 - **Typography:** Avenir Next/Avenir with the app's locally bundled Inter fallback. Regular first line, semibold second line, correctly ordered and spelled copy, readable secondary controls. The headline remains two lines on desktop and tested phones. Text remains selectable.
 - **Spacing/layout:** one centered content group on a full white canvas, with a small wordmark, headline, supporting line, one primary action, helper, sample link and quiet process line. No app rail or dashboard is shown on the landing page. Desktop 1440 × 810 and 1280 × 720, and phones 390 × 844 and 375 × 667, all have document dimensions equal to viewport dimensions: no scrolling or clipped content at those sizes. Smaller or text-zoomed views can scroll rather than losing content.
-- **Colors/tokens:** white surface, charcoal typography/CTA, muted olive secondary text, generated yellow/olive corner light. The button backlight is deliberately a faint 8% yellow shadow. Focus outlines use a visible olive tone. The existing workspace theme is not restyled.
+- **Colors/tokens:** white surface, charcoal typography/CTA, muted olive secondary text, generated yellow/olive corner light. The landing upload button is crisp with no shadow; the frame is transparent with a 25% olive hairline. Focus/drag states retain a stronger border. Focus outlines use a visible olive tone. The existing workspace theme is not restyled.
 - **Image/assets:** the backdrop was generated with the built-in image tool from the approved reference; it contains no text, UI, shapes or center halo. The upload icon comes from the app's existing Lucide library. The layout does not replace imagery with CSS-drawn blobs or gradients.
 - **Copy/content:** exact user-approved headline “Less time on tasks. More time for people.” and subheadline “Your mission deserves more of your time.” Primary action remains “Upload donor data”; drop hint is “or drag and drop your CSV here”; sample action is “Try sample data”.
 
@@ -41,6 +43,13 @@ This report covers the new landing entry in the primary React app (`web/`), not 
 - Local-mode file chooser was exercised with a synthetic `donors.csv`: selection opens the dialog, shows the filename, and enables import without requiring the same file again. A `.txt` selection is rejected and leaves import disabled. The shared react-dropzone acceptance callback handles both drops and picker selection; OS-level file dragging was not separately automated.
 - Local-mode CSV input has an associated label and required-file validation; its submit/pending/error/success states use the existing typed `uploadFiles` client. A live ingest service was not available in this check, so a live local-file import is not claimed.
 - Browser warning/error logs checked: no entries reported during the verified snapshot flow.
+
+## Latest refinement verification
+
+- Re-captured `desktop.png`, `mobile.png`, and `upload-dialog.png`; refreshed full-page comparisons and added the normalized, readable `upload-comparison.png`. The component-only still has no full-page headline/footer; those remain grounded in the original approved page image.
+- Initial comparison passed: no actionable P0/P1/P2 drift. The implementation frame is about 5px taller at normalized scale, with small font-rasterization and outline-color differences (P3).
+- Rechecked no scrolling at 1440 × 810, 1280 × 720, 390 × 844, and 375 × 667. Snapshot dialog opens, Escape dismisses it and restores button focus, and sample-data entry reaches the existing workspace. Browser error/warning log is empty.
+- Rebuilt the production demo including TypeScript successfully. Upload parsing/ingestion behavior was not modified; previous provider/file-picker checks below remain historical evidence, not newly rerun tests.
 
 ## Automated checks
 
