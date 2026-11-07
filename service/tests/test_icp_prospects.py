@@ -178,3 +178,23 @@ def test_create_schema_adds_new_nullable_columns_to_an_existing_db(tmp_path):
     assert "recent_context" in {r[1] for r in conn.execute("PRAGMA table_info(icp_profile)")}
     assert conn.execute("SELECT name, fit_score FROM prospects").fetchone()[:] == ("Kept Prospect", 70)
     conn.close()
+
+
+def test_saving_a_prospect_draft_marks_it_drafted_from_any_writer(conn):
+    seeded(conn)
+    new_id, dismissed_id = db.save_prospects(conn, PROSPECTS[:2])
+    conn.execute("UPDATE prospects SET status = 'dismissed' WHERE id = ?", (dismissed_id,))
+    for pid in (new_id, dismissed_id):
+        conn.execute("INSERT INTO outreach_drafts (prospect_id, body) VALUES (?, 'intro')", (pid,))
+    status = dict(conn.execute("SELECT id, status FROM prospects").fetchall())
+    assert status == {new_id: "drafted", dismissed_id: "dismissed"}
+
+
+def test_create_schema_backfills_prospects_drafted_before_the_trigger(conn):
+    seeded(conn)
+    (pid,) = db.save_prospects(conn, PROSPECTS[:1])
+    conn.execute("DROP TRIGGER prospect_drafted_on_draft")              # a db from before the trigger
+    conn.execute("INSERT INTO outreach_drafts (prospect_id, body) VALUES (?, 'intro')", (pid,))
+    assert conn.execute("SELECT status FROM prospects WHERE id = ?", (pid,)).fetchone()[0] == "new"
+    db.create_schema(conn)
+    assert conn.execute("SELECT status FROM prospects WHERE id = ?", (pid,)).fetchone()[0] == "drafted"

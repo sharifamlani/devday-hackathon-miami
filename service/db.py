@@ -163,6 +163,15 @@ CREATE TABLE IF NOT EXISTS outreach_drafts (
 CREATE INDEX IF NOT EXISTS idx_outreach_donor ON outreach_drafts(donor_id);
 CREATE INDEX IF NOT EXISTS idx_outreach_prospect ON outreach_drafts(prospect_id);
 
+-- Saving a first-touch draft moves the prospect from 'new' to 'drafted', whoever writes it
+-- (pipeline, POST /prospects/{id}/outreach). A dismissed prospect stays dismissed.
+CREATE TRIGGER IF NOT EXISTS prospect_drafted_on_draft
+AFTER INSERT ON outreach_drafts
+WHEN NEW.prospect_id IS NOT NULL
+BEGIN
+    UPDATE prospects SET status = 'drafted' WHERE id = NEW.prospect_id AND status = 'new';
+END;
+
 -- Prospect first-touch drafts are always human-sent: never 'ready', never 'sent' without an approver.
 CREATE TRIGGER IF NOT EXISTS prospect_needs_human_insert
 BEFORE INSERT ON outreach_drafts
@@ -249,6 +258,9 @@ def create_schema(conn: sqlite3.Connection) -> None:
         for name, kind in columns.items():
             if name not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+    # Backfill for drafts saved before the prospect_drafted_on_draft trigger existed.
+    conn.execute("UPDATE prospects SET status = 'drafted' WHERE status = 'new' AND id IN "
+                 "(SELECT prospect_id FROM outreach_drafts WHERE prospect_id IS NOT NULL)")
     conn.commit()
 
 
