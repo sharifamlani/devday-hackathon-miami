@@ -559,3 +559,5 @@ The context agent runs **in real time during onboarding**, not as a manual step:
 3. **Live progress:** `POST /context/run` starts a job; `GET /context/run/{job_id}` returns per-source status
    (`searching` | `done n facts` | `blocked: reason`) for screen 2 to show live.
 4. **Stage safety:** the last successful run is cached, and the UI falls back to it (labeled cached) on timeout.
+
+**Scope cut (Sharif, Sat Nov 7 late evening): for the demo the context agent researches the WEBSITE ONLY.** Screen 2 still collects the Instagram, X and LinkedIn URLs and saves them to `org_profile`, shown as "saved, not connected". They are not fetched or integrated in the demo. Steps 1 (social search), 2 (account connection) and per-social progress above are post-demo.
