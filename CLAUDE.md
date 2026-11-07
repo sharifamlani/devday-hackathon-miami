@@ -1,9 +1,11 @@
-# CLAUDE.md: <EVENT NAME>
+# CLAUDE.md: DevDay Exchange Community Hackathon: Miami
 
 ## What this repo is
 
-Our entry for **<EVENT NAME>** (<date>, <venue>). The mandate, in the organizers' words:
-"<quote what they say they want>".
+Our entry for **DevDay Exchange Community Hackathon: Miami** (Sat–Sun Nov 7–8, 2026, The LAB Miami).
+The mandate, in the organizers' words: "teams take real problems from South Florida non-profits and
+turn them into working AI agents and tools those organizations can actually use on Monday. Not slide
+decks. Shipped software." Acceptance criteria: **Codex · OpenAI API · OpenAI Agents SDK**.
 
 The repo serves three things, in this order:
 
@@ -21,10 +23,10 @@ Anything that serves none of the three is out of scope.
 
 | | |
 |---|---|
-| **K / T0 / F / D** | |
-| **Demo** | length, live or recorded |
-| **Judging** | criteria, weights, peer vote? |
-| **Prizes** | which stack; sponsor tech that counts |
+| **K / T0 / F / D** | Sat 12 PM / ~12:30 PM (confirm) / Sun 3:30 PM / Sun 5–8 PM. Submissions Sun 4 PM |
+| **Demo** | length unknown (Q1) |
+| **Judging** | not published (Q3/Q4). 9 judges, 2 from The Miami Foundation's data + grants side |
+| **Prizes** | $1,000 / $500 / $250 API credits + 3 mo ChatGPT Pro; more TBA |
 
 ## Hard rules
 
@@ -39,6 +41,9 @@ Anything that serves none of the three is out of scope.
 7. **Lift working code, don't rewrite it** (`docs/hackathon-kit/tech-notes.md`).
 8. **Verify against the real system.** HTTP 200 isn't success. Walk production after every deploy.
 9. **Name the limits.** Never present a mock as live.
+10. **Product code is written in Codex** until a host answers `event-brief.md` Q9. Sibling DevDay
+    events banned Claude Code by name. Claude Code does research, docs, planning and verification.
+    Keep the Codex session(s) where the core was built.
 
 ## How we work fast
 
@@ -60,9 +65,10 @@ RETURN:    <the exact shape you want back>
 
 ## Models and keys
 
-`.env` holds the keys. Name the model inside the product in the README. If a prize needs an
-open-weight model, the judged path reads only that model's variable
-(`docs/hackathon-kit/playbooks/gemma4-integration.md`).
+`.env` holds the key and the four role-named tiers (`OPENAI_MODEL_DEFAULT` = gpt-6.1-sol, etc.).
+Name the model inside the product in the README. Traps (no `temperature`, reasoning is a setting,
+`agents` import name): `docs/hackathon-kit/playbooks/openai-integration.md`. Smoke:
+`.venv/Scripts/python.exe scripts/smoke-openai.py`.
 
 ## Working agreements
 

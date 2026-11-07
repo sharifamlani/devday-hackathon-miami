@@ -10,3 +10,4 @@ __pycache__/
 .playwright-mcp/
 # unrelated personal tooling (property/Gmail scripts), not part of the entry
 .packages/
+transcripts/

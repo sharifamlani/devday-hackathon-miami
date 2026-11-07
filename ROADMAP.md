@@ -1,4 +1,4 @@
-# ROADMAP: <EVENT NAME>
+# ROADMAP: DevDay Exchange Community Hackathon: Miami
 
 **Version:** v0.1
 **The shared "where are we?"** Flip each status cell in the same step as the work, with the time and
@@ -8,11 +8,11 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 ## §0: You are here
 
-**Phase:** night before · **K** = __ · **T0** = __ · **F** = __ · **D** = __
+**Phase:** night before → kickoff · **K** = Sat 12:00 PM · **T0** = ~12:30 PM (confirm) · **F** = Sun 3:30 PM · **Submit** = Sun 4:00 PM · **D** = Sun 5–8 PM
 
 - **Roles:** spine = __ · presenter = __ · visuals = __ · data = __
-- **In flight:**
-- **Next unblocked:**
+- **In flight:** —
+- **Next unblocked:** `codex login` (human); N3 shortlist criteria proxies; N8 pack; then K1 at opening
 
 ---
 
@@ -20,13 +20,13 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 | # | Row | Status |
 |---|---|---|
-| N1 | Repo from the kit; first push | ⏸ |
-| N2 | `docs/event-brief.md` from the listing **and the organizer's own source** | ⏸ |
+| N1 | Repo from the kit; first push | ✅ Nov 7 · local commits; remote pending |
+| N2 | `docs/event-brief.md` from the listing **and the organizer's own source** | ✅ Nov 7 · no organizer source exists; 9 sibling pages in `research/rules_check.md` |
 | N3 | `docs/idea-shortlist.md`: criteria at the top, 3 ideas scored, a fallback | ⏸ |
-| N4 | Every key proven with a real call | ⏸ |
+| N4 | Every key proven with a real call | ✅ Nov 7 · `scripts/smoke-openai.py` 7/7 |
 | N5 | Every API / dataset / device for the top 2 ideas probed (`data-prober`) | ⏸ |
-| N6 | Agents in `.claude/agents/`; subagents on sonnet | ⏸ |
-| N7 | Machine prep (`runbook.md`): no sleep, CLI current, auth, Playwright, stray node killed | ⏸ |
+| N6 | Agents in `.claude/agents/`; subagents on sonnet | ✅ agents present (identical to kit) |
+| N7 | Machine prep (`runbook.md`): no sleep, CLI current, auth, Playwright, stray node killed | ⏳ Codex CLI + Agents SDK installed; **`codex login` pending (human)** |
 | N8 | Packed: charger, hotspot tested, adapters, hardware | ⏸ |
 
 ## §2: Kickoff (K → T0)
@@ -75,4 +75,4 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 ## §6: Changelog
 
-- **<date time>**: <what shipped · what's now unblocked · what's now blocked>
+- **Nov 7, 2026 (pre-event)**: kit copied from creative-tech-buildathon; event brief + rules check written; OpenAI key + 4 tiers + Agents SDK proven (7/7); Codex CLI installed · unblocked: kickoff · blocked: `codex login`, problem statements (revealed at K)
