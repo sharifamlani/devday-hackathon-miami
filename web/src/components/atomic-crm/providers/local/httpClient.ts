@@ -8,6 +8,8 @@ import type {
   ApiMergeResult,
   ApiOrgProfile,
   ApiProspect,
+  ApiTarget,
+  ApiTargets,
 } from "./apiTypes";
 import { API_URL, APPROVER_NAME } from "./config";
 import { requireWebsite } from "./validate";
@@ -22,6 +24,7 @@ import {
   parseOrgProfile,
   parseProspect,
   parseProspectDetail,
+  parseTargets,
 } from "./parse";
 import type { DonorDeskMethods } from "./types";
 
@@ -127,6 +130,12 @@ export const localApiMethods: DonorDeskMethods = {
     });
   },
   getSourceLabel: async () => null,
+  getTargets: async (period) =>
+    parseTargets(
+      await request<ApiTargets | ApiTarget>(
+        period ? `/targets?period=${period}` : "/targets",
+      ),
+    ),
 
   // "Not built yet" may come as 200 null (preferred: no console error) or
   // as 404 (PR #15 today, which Chromium logs as a console error).

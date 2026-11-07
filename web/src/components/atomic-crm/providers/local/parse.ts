@@ -12,6 +12,8 @@ import type {
   ApiOrgProfile,
   ApiOutreachDraft,
   ApiProspect,
+  ApiTarget,
+  ApiTargets,
   ApiWhy,
 } from "./apiTypes";
 import type {
@@ -40,6 +42,8 @@ import type {
   ProspectStatus,
   ProspectSummary,
   ScoreFactor,
+  DonationTarget,
+  TargetsByPeriod,
 } from "./types";
 
 /**
@@ -634,4 +638,51 @@ export const parseIngestResult = (raw: unknown): IngestResult => {
     message: typeof obj.message === "string" ? obj.message : null,
     raw,
   };
+};
+
+/* ---------- Donation targets (issue #37) ---------- */
+
+export const parseTarget = (raw: ApiTarget): DonationTarget => ({
+  period: raw.period,
+  label: raw.label,
+  start: raw.start,
+  end: raw.end,
+  as_of: raw.as_of,
+  goal: raw.goal ?? null,
+  goal_is_sample: raw.goal_is_sample ?? true,
+  raised: raw.raised ?? 0,
+  percent: raw.percent ?? null,
+  days_left: raw.days_left,
+  donors_count: raw.donors_count ?? 0,
+  gifts_count: raw.gifts_count ?? 0,
+  by_channel: raw.by_channel ?? [],
+  new_donors: raw.new_vs_returning?.new ?? 0,
+  returning_donors: raw.new_vs_returning?.returning ?? 0,
+  new_amount: raw.new_vs_returning?.new_amount ?? null,
+  returning_amount: raw.new_vs_returning?.returning_amount ?? null,
+  give_miami_day: raw.give_miami_day
+    ? {
+        date: raw.give_miami_day.date,
+        days_until: raw.give_miami_day.days_until,
+        in_period: raw.give_miami_day.in_period ?? true,
+      }
+    : null,
+  top_donor_ids: raw.top_donor_ids ?? [],
+  donor_ids: raw.donor_ids ?? raw.top_donor_ids ?? [],
+});
+
+/** GET /targets (both periods), GET /targets?period= (one), or the snapshot key. */
+export const parseTargets = (
+  raw: ApiTargets | ApiTarget | null | undefined,
+): TargetsByPeriod => {
+  if (!raw) return {};
+  if ("period" in raw && typeof raw.period === "string") {
+    const one = raw as ApiTarget;
+    return { [one.period]: parseTarget(one) };
+  }
+  const both = raw as ApiTargets;
+  const out: TargetsByPeriod = {};
+  if (both.month) out.month = parseTarget(both.month);
+  if (both.quarter) out.quarter = parseTarget(both.quarter);
+  return out;
 };

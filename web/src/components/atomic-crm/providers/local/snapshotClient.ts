@@ -10,6 +10,7 @@ import {
   parseOrgProfile,
   parseProspect,
   parseProspectDetail,
+  parseTargets,
 } from "./parse";
 import type { DonorDeskMethods } from "./types";
 
@@ -121,6 +122,12 @@ export const snapshotMethods: DonorDeskMethods = {
     });
   },
   getSourceLabel: async () => (await loadSnapshot()).meta.label,
+  // Exported totals: an in-tab merge only moves gifts between donors, so the
+  // sums stay right (donors_count may be one high until the next export).
+  getTargets: async (period) => {
+    const all = parseTargets((await loadSnapshot()).targets);
+    return period ? { [period]: all[period] } : all;
+  },
 
   getIcp: async () => {
     const icp = (await loadSnapshot()).icp;

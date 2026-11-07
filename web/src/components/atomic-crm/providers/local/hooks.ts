@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDonorDesk } from "./index";
-import type { ContextRunInput } from "./types";
+import type { ContextRunInput, TargetPeriod } from "./types";
 
 const ROOT = "donor-desk";
 
@@ -15,6 +15,7 @@ export const donorDeskKeys = {
   prospect: (id: number) => [ROOT, "prospect", id] as const,
   context: [ROOT, "context"] as const,
   orgProfile: [ROOT, "org-profile"] as const,
+  targets: (period?: TargetPeriod) => [ROOT, "targets", period ?? "all"] as const,
 };
 
 export const useDonors = () => {
@@ -201,5 +202,16 @@ export const useOrgProfile = () => {
   return useQuery({
     queryKey: donorDeskKeys.orgProfile,
     queryFn: () => dataProvider.getOrgProfile(),
+  });
+};
+
+/* ---------- Donation targets (issue #37) ---------- */
+
+/** Raised vs. SAMPLE goal. Omit period for both (one request; toggle locally). */
+export const useTargets = (period?: TargetPeriod) => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: donorDeskKeys.targets(period),
+    queryFn: () => dataProvider.getTargets(period),
   });
 };

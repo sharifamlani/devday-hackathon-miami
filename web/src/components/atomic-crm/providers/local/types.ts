@@ -250,6 +250,42 @@ export interface MergeResult {
   merged_id: number;
 }
 
+/* ---------- Donation targets (issue #37) ---------- */
+
+export type TargetPeriod = "month" | "quarter";
+
+/** Raised vs. goal for one calendar month or quarter. Every number comes
+ *  from service/targets.py; goals are SAMPLE values from org_config.json. */
+export interface DonationTarget {
+  period: TargetPeriod;
+  label: string; // "November 2026", "Q4 2026"
+  start: string; // YYYY-MM-DD
+  end: string;
+  as_of: string;
+  goal: number | null; // null when no goal is configured
+  goal_is_sample: boolean;
+  raised: number;
+  percent: number | null; // of goal, one decimal; null without a goal
+  days_left: number;
+  donors_count: number;
+  gifts_count: number;
+  by_channel: { channel: string; amount: number }[]; // biggest first
+  new_donors: number; // first gift ever fell in this period
+  returning_donors: number;
+  new_amount: number | null;
+  returning_amount: number | null;
+  give_miami_day: {
+    date: string;
+    days_until: number;
+    in_period: boolean;
+  } | null; // null once it has passed this year
+  top_donor_ids: number[];
+  donor_ids: number[]; // everyone who gave in the period, biggest first
+}
+
+/** GET /targets: one entry per period the service returned. */
+export type TargetsByPeriod = Partial<Record<TargetPeriod, DonationTarget>>;
+
 /**
  * Donor Desk methods, added to the ra-core data provider as custom methods.
  * Writes resolve when the server is done; screens then refetch GET
@@ -282,4 +318,7 @@ export interface DonorDeskMethods {
   getOrgProfile(): Promise<OrgProfile | null>;
   /** "Cached sample" in snapshot mode; null when live. */
   getSourceLabel(): Promise<string | null>;
+  /** Raised vs. SAMPLE goal; both periods when period is omitted. Empty
+   *  ({}) for a snapshot exported before targets existed. */
+  getTargets(period?: TargetPeriod): Promise<TargetsByPeriod>;
 }
