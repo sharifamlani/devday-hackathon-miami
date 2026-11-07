@@ -344,6 +344,21 @@ def run_state(sources: dict) -> str:
     return "partial" if ok else "failed"
 
 
+def savable(result: dict, sources: dict) -> dict:
+    """The result with the route's per-source verdicts, so save_context replaces only sources that succeeded.
+
+    save_context replaces facts for sources marked ok/cached; a source build_context called "ok" but that found
+    nothing (or failed) must keep its earlier facts, so it is marked as an error here.
+    """
+    statuses = dict(result.get("sources") or {})
+    for source in ("website", "news"):
+        row = sources[source]
+        if row["status"] != "done":
+            why = row["detail"] or row["status"]
+            statuses[source] = why if why.startswith("error") else f"error: {why}"
+    return {**result, "sources": statuses}
+
+
 def with_user_urls(result: dict | None, urls: dict) -> dict | None:
     """What the user typed is always what's saved; a cached run supplies facts, never the org's URLs."""
     if not result or not isinstance(result.get("profile"), dict):
@@ -378,7 +393,6 @@ async def context_run(req: ContextRun) -> dict:
         result = with_user_urls(result, urls)
         state, cached, detail = "done", False, None
         served_from = "live" if req.refresh else "cache"
-        saved = await run_in_threadpool(persist_context, result)
     except Exception as e:  # timeout, model error, site error: fall back, never leave the screen hanging
         if isinstance(e, asyncio.TimeoutError):
             detail = f"website read took longer than {config.CONTEXT_DEADLINE_S:.0f} s"
@@ -386,11 +400,15 @@ async def context_run(req: ContextRun) -> dict:
             detail = f"{type(e).__name__}: {e}"
         log.warning("context run failed, serving cached context: %s", detail)
         result = with_user_urls(cached_context(req.website), urls)
-        state, cached, served_from, saved = "failed", True, "fallback", None
+        state, cached, served_from = "failed", True, "fallback"
 
     sources = source_progress(req, result, fallback=served_from == "fallback")
+    saved = None
     if served_from != "fallback":
         state = run_state(sources)
+        # A failed run saves nothing: a typo'd URL must not wipe the saved profile or facts
+        if state != "failed":
+            saved = await run_in_threadpool(persist_context, savable(result, sources))
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,

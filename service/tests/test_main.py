@@ -144,3 +144,40 @@ def test_source_ok_with_no_facts_counts_as_failed(db_file, monkeypatch, facts_fr
 
     assert body["state"] == state
     assert body["sources"]["news"] == {"status": "failed", "facts": 0, "detail": "error: no facts found"}
+
+
+def saved_state(c: TestClient) -> tuple:
+    profile = c.get("/org-profile").json()
+    facts = sorted((f["source"], f["fact"]) for f in c.get("/context").json())
+    return profile["name"], profile["website"], facts
+
+
+def test_failed_run_after_good_run_changes_nothing(db_file, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: context_result("ok", "ok"))
+    assert c.post("/context/run", json={"website": "https://example.org"}).json()["state"] == "done"
+    before = saved_state(c)
+
+    typo = {"profile": {"name": None}, "facts": [],
+            "sources": {"website": "error: DNS: exmaple.org not found", "news": "error: search found no pages"}}
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: typo)
+    body = c.post("/context/run", json={"website": "https://exmaple.org", "refresh": True}).json()
+
+    assert body["state"] == "failed" and body["saved"] is None
+    assert saved_state(c) == before == ("Test Org", "https://example.org", [("news", "news fact"),
+                                                                           ("website", "website fact")])
+
+
+def test_partial_run_replaces_only_sources_that_succeeded(db_file, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: context_result("ok", "ok"))
+    c.post("/context/run", json={"website": "https://example.org"})
+
+    fresh = context_result("ok", "ok")  # news claims ok but finds nothing this time
+    fresh["facts"] = [{**fresh["facts"][0], "fact": "new website fact", "url": "https://example.org/new"}]
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: fresh)
+    body = c.post("/context/run", json={"website": "https://example.org", "refresh": True}).json()
+
+    assert body["state"] == "partial"
+    assert body["saved"]["replaced_sources"] == ["website"]
+    assert saved_state(c)[2] == [("news", "news fact"), ("website", "new website fact")]
