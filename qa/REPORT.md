@@ -113,3 +113,18 @@ Real-browser link check (`qa/link_check.py`): 11/11 sources load (9 pages, 2 PDF
 Q10 update (service, 90): pre-generation already exists. `python -m service.pipeline --top N` rebuilds the db and drafts the
 top N donors plus every ★ in advance; the lead picks N. /ingest mounts automatically once `service/ingest/router.py`
 exists (/health will then show ingest:true). QA will re-run the walk after the lead's pre-demo rebuild.
+
+## Round 4: Sat 2026-11-07, main + feat/pipeline f41ffce (contains feat/data) + feat/enrich + feat/outreach + feat/service
+
+Merge clean. `pytest service/tests`: 44 passed. Integration: 47/48. Snapshot (`qa/snapshot_check.py --live`): 28/28.
+
+- Q8 **verified**: DEMO_CASES is gone (0 matches); the CLI drafts db ids only.
+- Org → draft rule **verified**: every organization draft (CLI, route, snapshot) is 'draft'; individuals 'ready'.
+- No invented gift amount appears in any real-org draft (integration + all 5 snapshot drafts).
+- `is_sample` is on every donor; the snapshot's meta label is "Cached sample".
+- Live :8000 /donors matches the snapshot exactly (order, score, ★, status) for 12 donors.
+
+| # | Owner | Status |
+|---|---|---|
+| Q8 | outreach (86) | **fixed**, verified |
+| Q11 | whoever owns `docs/roadmap-v03` | open: the local branch tracks origin/main |

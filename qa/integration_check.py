@@ -218,6 +218,12 @@ def main() -> int:
               not re.search(r"press forward[^.]*\$|\$[^.]*press forward", text, re.I))
         check(f"draft {donor_id}: weekdays match dates", not wrong_weekdays(text), str(wrong_weekdays(text)))
         check(f"draft {donor_id}: no hard-coded '12 days'", "12 days" not in text)
+        # Org donors are real organizations with invented gifts (§3): no invented amount may appear in their draft
+        dtype = conn.execute("SELECT donor_type FROM donors WHERE id=?", (donor_id,)).fetchone()[0]
+        if dtype == "organization":
+            amts = {f"{g['amount']:,.0f}" for g in gifts} | {f"{g['amount']:.0f}" for g in gifts}
+            shown = sorted(a for a in amts if re.search(rf"(?<![\d,]){re.escape(a)}(?![\d,])", text))
+            check(f"draft {donor_id} (real org): no invented gift amount in the text", not shown, f"shown: {shown}")
 
     code = "\n".join(p.read_text(encoding="utf-8") for p in (REPO / "service").rglob("*.py") if "tests" not in p.parts)
     check("service code has no hard-coded '12 days'", "12 days" not in code)
@@ -251,6 +257,9 @@ def main() -> int:
             check("POST /duplicates/{id}/merge merges", r.status_code == 200 and len(after) == len(rows) - 1,
                   f"{r.status_code}; donors {len(rows)} -> {len(after)}")
         check("GET /donors/999999 is 404", c.get("/donors/999999").status_code == 404)
+        check("every donor carries is_sample (SAMPLE label for the UI)",
+              all("is_sample" in d for d in after) and any(d["is_sample"] for d in after),
+              f"{sum(bool(d.get('is_sample')) for d in after)}/{len(after)} flagged")
     except Exception:
         check("routes run", False, traceback.format_exc().splitlines()[-1])
 
