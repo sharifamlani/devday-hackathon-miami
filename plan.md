@@ -25,7 +25,7 @@ why, in your own voice.*
 | 2 | **Dedupe** | iPhone-style: "We found this donor twice. Merge?" Answers "see each donor once" | Core |
 | 3 | **Gift tracking + propensity score** (*most important*) | Every gift has a date and amount. The score combines recency, frequency, amount and **gap since last gift vs. that donor's usual cadence**. It flags "lapsing" donors and ranks who to contact first | Core |
 | 4 | **Tiering** | Big vs. small donors; big-name sponsors get a ★ flag | Core |
-| 5 | **Org context** | The agent reads the nonprofit's website/blog (later: Drive/Outlook photos) to know what they did lately | Core |
+| 5 | **Org context** | **Decided (Sat): the Foundation's website is the only source for the demo** (miamifoundation.org news, newsletter, priorities pages; §11). Gmail integration (pulling stewardship history from the inbox) is the intended next source but is **not in demo scope** | Core |
 | 6 | **Value-based outreach** | Drafts lead with "here's what we did," never just "please give." Big donors: AI drafts, a human sends. Small/lapsed: automated email/text. Written in the org's voice | Core |
 | 7 | **Enrichment research agent** | Researches existing donors from public sources (employer, giving history, board seats, foundation ties) and adds that to the profile. Big-donor briefs go to staff | Core (Sharif) |
 | 8 | **ICP + new-donor finder** | From the enriched current donors, the agent builds an ideal donor profile, then researches **new** prospects who match it, with the reason for each | Stretch (after 1–7 work) |
@@ -56,7 +56,7 @@ this year; 23 days left in the year → call first."
 | (name) | Sample data + demo script |
 | (name) | Pitch + README |
 
-Team cap was discussed as 4 or 5 (confirm at the desk). Anni may join as the fifth.
+**Team cap is 4** (DeepStation email). Anni can advise but can't be on the submitted team.
 
 ## 5. File tree (locked: atomic-crm fork + Python service)
 
@@ -214,7 +214,7 @@ devday_hackathon/
       CRM exists:** CiviCRM, Twenty, EspoCRM, SuiteCRM and Frappe CRM are all AGPL or mixed, so excluded.
       If adopted, `web/` in §5 becomes the atomic-crm fork and the stack question below is settled.
 - [x] ~~Which real local orgs go in the sample list~~ → the Miami Foundation's publicly reported supporters (§11)
-- [ ] Team size (4 or 5) and who owns UI, data and pitch
+- [ ] Who owns UI, data and pitch (team cap is 4)
 - [ ] Confirm the persona framing with the team: we **demo as** the Foundation's fundraising staff; we do not
       claim the Foundation uses the tool. Opening line idea: "Imagine you're on Mike Rogers' philanthropy
       team, 12 days before Give Miami Day."
@@ -365,7 +365,7 @@ merge logic reference `deals` and `companies`, so we remove their screens and ke
 | Users admin, invitations | `CC/sales/*`, `supabase/functions/users` | Not needed | S |
 | Postmark email capture, MCP function | `supabase/functions/postmark/`, `supabase/functions/mcp/` | Irrelevant; don't deploy | S |
 | Settings, changelog, profile | `CC/settings/*`, `CC/misc/ChangelogPage.tsx` | Clutter | S |
-| **Upstream's `.claude/`, `CLAUDE.md`, `AGENTS.md`** | repo root | Their hooks (e.g. a migration-write blocker) would fight our workflow; our product code is written in Codex | S: delete on fork |
+| **Upstream's `.claude/`, `CLAUDE.md`, `AGENTS.md`** | repo root | Their hooks (e.g. a migration-write blocker) would fight our workflow; they would fight our Claude Code setup | S: delete on fork |
 | Husky + lint-staged | `.husky/`, `.lintstagedrc` | Pre-commit hooks may fail on Windows | S |
 | Telemetry | `CC/root/CRM.tsx` | Pass `disableTelemetry` | S |
 
