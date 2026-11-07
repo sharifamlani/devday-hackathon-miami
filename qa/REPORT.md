@@ -206,3 +206,4 @@ Minor (90): top-level `state` stays "done" when every source failed.
 `qa/service_check.py`: 24/24. `qa/snapshot_check.py --live`: 28/28; live /donors matches the snapshot exactly.
 DeLuca research: 3 rows, all distinct (the #14 fix holds live). Prospects 7, all 'drafted'; /icp 200; /org-profile = The Miami Foundation.
 No context probes for other sites were run on :8000: a failed run still overwrites the saved profile there (90's fix is pending).
+| #34 fix/context-no-save-on-fail | 335a1ba | combined with #33: 111 passed; after a good run, typo (cached and live), unreachable and X-only runs → failed, /org-profile and /context unchanged | APPROVE (decision for lead: X-only socials no longer saved, which conflicts with #27's "user URLs always saved") |
