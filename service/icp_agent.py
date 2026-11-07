@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from service import db
 import urllib.error
 import urllib.request
+from html import unescape
 
 from service.enrich_agent import clean_fact, read_cache as read_research_cache
 
@@ -65,19 +66,37 @@ def normalize(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
 
-def url_loads(url: str) -> bool:
-    """True only for a final HTTP 200 to a plain script request (Python's own User-Agent, no disguise).
+def page_text(url: str) -> str | None:
+    """The page's visible text, normalized, or None unless it answers a plain script request with HTTP 200.
 
-    Stricter than a browser: a site that turns scripts away is dropped rather than worked around,
-    so every kept URL also loads for curl and for QA's checks.
+    Python's own User-Agent, no disguise: a site that turns scripts away is dropped rather than worked
+    around, so every kept URL also loads for curl and for QA's checks. Non-HTML (PDFs) can't be
+    quote-checked, so it counts as None too.
     """
     if not url.startswith(("http://", "https://")):
-        return False
+        return None
     try:
         with urllib.request.urlopen(url, timeout=8) as response:
-            return response.status == 200
+            if response.status != 200 or "html" not in response.headers.get("Content-Type", ""):
+                return None
+            html = response.read(3_000_000).decode(response.headers.get_content_charset() or "utf-8", "replace")
     except (urllib.error.URLError, TimeoutError, ValueError):
-        return False
+        return None
+    html = re.sub(r"(?is)<(script|style|noscript)\b.*?</\1>", " ", html)
+    return normalize_text(unescape(re.sub(r"<[^>]+>", " ", html)))
+
+
+def normalize_text(text: str) -> str:
+    """Lower-case, straight quotes, plain dashes, single spaces: so a quote matches however it was typed."""
+    text = text.translate(str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+                                         "\u2013": "-", "\u2014": "-", "\u00a0": " "}))
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def quote_on_page(quote: str, text: str | None) -> bool:
+    """True when the quote (at least 6 words) appears verbatim on the page."""
+    q = normalize_text(quote).strip(" .\"'")
+    return bool(text) and len(q.split()) >= 6 and q in text
 
 
 def priority_hits(text: str) -> list[str]:
@@ -271,7 +290,8 @@ def build_icp(stats: dict, facts: list[dict]) -> dict:
 
 class ProspectFact(BaseModel):
     fact: str = Field(description="One short, specific, verifiable sentence")
-    url: str = Field(description="The exact page the fact came from")
+    url: str = Field(description="The exact page that states the fact")
+    quote: str = Field(description="6-30 words copied EXACTLY from that page that state the fact")
 
 
 class Prospect(BaseModel):
@@ -295,8 +315,9 @@ individual, never a government body, never one of the excluded current donors, a
 fundraiser that competes for the same donors (other community foundations, United Ways, federated campaigns).
 Favor organizations headquartered or with a major office in Miami-Dade, and organizations that fund what
 the Foundation has been doing RECENTLY (recent_focus: its own newest work, newest first).
-For each prospect give 2-3 facts about its public giving, community investment or causes, each with the
-exact URL of the page it came from. matched_traits lists which ICP traits it shares (sector, causes,
+For each prospect give 2-3 facts about its public giving, community investment or causes. Each fact cites
+the exact URL of the page that STATES it (a grants, news or community page, not a homepage that only
+links there) and a quote of 6-30 words copied exactly from that page; facts are checked against the page. matched_traits lists which ICP traits it shares (sector, causes,
 geography, foundation_priorities); priority is the Foundation priority it fits best.
 Never invent facts or URLs. Prefer sources that are plain public pages (news releases, grant pages, annual reports) over pages
 that block automated access. Return 12-14 prospects, best fit first.""",
@@ -392,11 +413,15 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False) ->
         candidates.append(p)
     urls = sorted({f.url for p in candidates for f in p.facts})
     with ThreadPoolExecutor(max_workers=12) as pool:
-        alive = dict(zip(urls, pool.map(url_loads, urls)))
+        pages = dict(zip(urls, pool.map(page_text, urls)))
+    retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     prospects = []
     for p in candidates:
-        facts = [{"fact": clean_fact(f.fact), "url": f.url} for f in p.facts if alive.get(f.url)]
+        # A fact stays only if its page loads AND states it: the quote must appear on that page
+        facts = [{"fact": clean_fact(f.fact), "url": f.url, "quote": f.quote, "via": "web search",
+                  "retrieved_at": retrieved_at}
+                 for f in p.facts if quote_on_page(f.quote, pages.get(f.url))]
         if len(facts) < MIN_FACTS:
             continue
         prospect = {"name": p.name, "org_type": p.org_type, "city": p.city,

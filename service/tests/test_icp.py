@@ -20,7 +20,8 @@ ICP = {
 
 def prospect(name, city="Miami", priority="Empower Youth & Families", facts=2, traits=("sector", "causes")):
     return Prospect(name=name, org_type="foundation", city=city, matched_traits=list(traits), priority=priority,
-                    facts=[ProspectFact(fact=f"Funds youth programs {i}.", url=f"https://{name[:3].lower()}/{i}")
+                    facts=[ProspectFact(fact=f"Funds youth programs {i}.", url=f"https://{name[:3].lower()}/{i}",
+                                        quote="The Foundation funds youth programs in Miami-Dade")
                            for i in range(facts)])
 
 
@@ -54,18 +55,23 @@ def test_fit_score_is_deterministic_and_ranks_geography():
 def test_find_prospects_excludes_donors_and_thin_or_dead_sources(tmp_path, monkeypatch):
     monkeypatch.setattr(icp_agent, "ICP_CACHE", tmp_path / "icp_cache.json")
     found = [prospect("Amazon, Inc."),                       # current donor (punctuation-insensitive)
-             prospect("Peacock Foundation"),
+             prospect("Peacock Foundation", facts=3),        # fact 3 cites a page that doesn't state it
              prospect("Peacock Foundation"),                 # duplicate
              prospect("Thin Co", facts=1),                   # fewer than 2 facts
              prospect("Dead Links Fund")]
     monkeypatch.setattr(icp_agent.Runner, "run_sync",
                         lambda agent, prompt: SimpleNamespace(final_output=SimpleNamespace(prospects=found)))
-    monkeypatch.setattr(icp_agent, "url_loads", lambda url: not url.startswith("https://dea"))
+    # Every live page states "funds youth programs in miami-dade" except the dead one and one page that
+    # loads but doesn't state its fact (the homepage problem)
+    page = "about us: the foundation funds youth programs in miami-dade and broward every year."
+    monkeypatch.setattr(icp_agent, "page_text", lambda url: None if url.startswith("https://dea")
+                        else "mission only" if url == "https://pea/2" else page)
 
     out = icp_agent.find_prospects(ICP, {"Amazon Inc"}, refresh=True)
     assert [p["name"] for p in out] == ["Peacock Foundation"]
     p = out[0]
-    assert p["status"] == "new" and len(p["facts"]) == 2
+    assert p["status"] == "new" and [f["url"] for f in p["facts"]] == ["https://pea/0", "https://pea/1"]
+    assert all(f["via"] == "web search" and f["retrieved_at"] and f["quote"] for f in p["facts"])
     assert p["fit_score"] == sum(p["fit_breakdown"].values())
 
 
@@ -118,3 +124,11 @@ def test_context_adds_recent_focus_and_matched_context():
     assert icp_agent.matched_context(youth, with_ctx) == [
         {"fact": "Funded South Dade youth scholarships.", "url": "https://mf/1", "posted_at": "2026-10-01"}]
     assert icp_agent.matched_context(youth, ICP) == []
+
+
+def test_quote_must_appear_on_the_page():
+    text = icp_agent.normalize_text("Grants support “youth and family programs” across Miami–Dade County.")
+    assert icp_agent.quote_on_page('support "youth and family programs" across Miami-Dade', text)
+    assert not icp_agent.quote_on_page("support adult education programs across Miami-Dade", text)
+    assert not icp_agent.quote_on_page("youth and family", text)             # too short to prove anything
+    assert not icp_agent.quote_on_page("support youth and family programs across", None)
