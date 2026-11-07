@@ -104,7 +104,6 @@ def outreach_targets(conn, top_n: int) -> list[int]:
 def stage_outreach(as_of: date, top_n: int, workers: int = 4) -> str:
     outreach_agent, org_context = load_stage("outreach")
     org_facts = org_context.load_org_facts()
-    outreach_agent.DB_PATH = db.db_path()          # save_draft writes where this pipeline points
 
     conn = db.connect()
     targets = outreach_targets(conn, top_n)

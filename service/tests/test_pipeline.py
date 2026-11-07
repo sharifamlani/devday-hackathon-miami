@@ -43,7 +43,6 @@ def stubs(monkeypatch):
     enrich.enrich_donor, enrich.save_facts = enrich_donor, save_facts
 
     outreach = types.ModuleType("service.outreach_agent")
-    outreach.DB_PATH = None
 
     def draft_outreach(donor, gifts, score_why, research_facts, org_facts, today=None):
         calls["drafted"].append((donor["full_name"], today, len(research_facts)))
@@ -54,7 +53,7 @@ def stubs(monkeypatch):
 
     def save_draft(donor_id, draft):
         import sqlite3
-        with sqlite3.connect(outreach.DB_PATH) as con:
+        with sqlite3.connect(db.db_path()) as con:
             con.execute("INSERT INTO outreach_drafts (donor_id, subject, body, call_script, facts_used, status) "
                         "VALUES (?, ?, ?, ?, ?, ?)", (donor_id, draft.subject, draft.body, draft.call_script,
                                                       json.dumps(draft.facts_used), draft.status))
