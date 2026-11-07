@@ -1,9 +1,9 @@
 {
  "meta": {
   "as_of": "2026-11-08",
-  "generated_at": "2026-11-07T21:10:56+00:00",
+  "generated_at": "2026-11-07T21:15:04+00:00",
   "label": "Cached sample",
-  "donor_count": 8,
+  "donor_count": 12,
   "source": "service/export_snapshot.py from data/donors.db"
  },
  "donors": [
@@ -142,6 +142,68 @@
    "score_as_of": "2026-11-08"
   },
   {
+   "id": 12,
+   "full_name": "McDermott Will & Schulte",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "McDermott Will & Schulte",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE gift history (invented); real organization; in-kind support valued in USD",
+   "source_row": "SAMPLE",
+   "score": 79,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "overdue_vs_cadence"
+    ],
+    "points": {
+     "urgency": 51.3,
+     "value": 17.4,
+     "frequency": 4.8,
+     "engagement": 5.6
+    },
+    "gift_count": 2,
+    "lifetime_total": 15000.0,
+    "largest_gift": 7500.0,
+    "last_gift": {
+     "date": "2025-03-11",
+     "amount": 7500.0,
+     "channel": "in-kind"
+    },
+    "days_since_last_gift": 607,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 1.67,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 3,
+     "month_name": "March",
+     "channel": "in-kind",
+     "years": [
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
    "id": 5,
    "full_name": "Robert Nguyen",
    "first_name": "Robert",
@@ -188,6 +250,70 @@
     "overdue_ratio": 2.34,
     "gave_this_year": true,
     "pattern": null,
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 11,
+   "full_name": "Frederick A. DeLuca Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Frederick A. DeLuca Foundation",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Field of Interest",
+   "notes": "SAMPLE gift history (invented); real organization; Shack-level star",
+   "source_row": "SAMPLE",
+   "score": 46,
+   "tier": "big",
+   "is_star": true,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "shack_society_level"
+    ],
+    "points": {
+     "urgency": 5.9,
+     "value": 25.0,
+     "frequency": 7.2,
+     "engagement": 8.0
+    },
+    "gift_count": 3,
+    "lifetime_total": 1050000.0,
+    "largest_gift": 400000.0,
+    "last_gift": {
+     "date": "2026-06-29",
+     "amount": 300000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 132,
+    "usual_cadence_days": 365,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.36,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 6,
+     "month_name": "June",
+     "channel": "check",
+     "years": [
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
     "days_left_in_year": 53,
     "give_miami_day": {
      "date": "2026-11-19",
@@ -306,6 +432,135 @@
      "channel": "check",
      "years": [
       2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 9,
+   "full_name": "John S. and James L. Knight Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "John S. and James L. Knight Foundation",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Field of Interest",
+   "notes": "SAMPLE gift history (invented); real organization",
+   "source_row": "SAMPLE",
+   "score": 44,
+   "tier": "big",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 1.5,
+     "value": 22.5,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 5,
+    "lifetime_total": 250000.0,
+    "largest_gift": 50000.0,
+    "last_gift": {
+     "date": "2026-10-05",
+     "amount": 50000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 34,
+    "usual_cadence_days": 365,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.09,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 10,
+     "month_name": "October",
+     "channel": "check",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08"
+  },
+  {
+   "id": 10,
+   "full_name": "Amazon",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Amazon",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE gift history (invented); real organization",
+   "source_row": "SAMPLE",
+   "score": 39,
+   "tier": "big",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence"
+    ],
+    "points": {
+     "urgency": 2.4,
+     "value": 21.2,
+     "frequency": 7.2,
+     "engagement": 8.0
+    },
+    "gift_count": 3,
+    "lifetime_total": 125000.0,
+    "largest_gift": 50000.0,
+    "last_gift": {
+     "date": "2026-09-14",
+     "amount": 50000.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 55,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.15,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 9,
+     "month_name": "September",
+     "channel": "online",
+     "years": [
       2024,
       2025,
       2026
@@ -706,6 +961,90 @@
    "research_facts": [],
    "outreach_drafts": []
   },
+  "12": {
+   "id": 12,
+   "full_name": "McDermott Will & Schulte",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "McDermott Will & Schulte",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": null,
+   "notes": "SAMPLE gift history (invented); real organization; in-kind support valued in USD",
+   "source_row": "SAMPLE",
+   "score": 79,
+   "tier": "mid",
+   "is_star": false,
+   "status": "lapsing",
+   "why": {
+    "status": "lapsing",
+    "reasons": [
+     "overdue_vs_cadence"
+    ],
+    "points": {
+     "urgency": 51.3,
+     "value": 17.4,
+     "frequency": 4.8,
+     "engagement": 5.6
+    },
+    "gift_count": 2,
+    "lifetime_total": 15000.0,
+    "largest_gift": 7500.0,
+    "last_gift": {
+     "date": "2025-03-11",
+     "amount": 7500.0,
+     "channel": "in-kind"
+    },
+    "days_since_last_gift": 607,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 1.67,
+    "gave_this_year": false,
+    "pattern": {
+     "month": 3,
+     "month_name": "March",
+     "channel": "in-kind",
+     "years": [
+      2024,
+      2025
+     ],
+     "gave_this_year": false
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 56,
+     "donor_id": 12,
+     "amount": 7500.0,
+     "gift_date": "2025-03-11",
+     "channel": "in-kind",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 55,
+     "donor_id": 12,
+     "amount": 7500.0,
+     "gift_date": "2024-03-12",
+     "channel": "in-kind",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
   "5": {
    "id": 5,
    "full_name": "Robert Nguyen",
@@ -813,6 +1152,101 @@
      "amount": 500.0,
      "gift_date": "2025-01-10",
      "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "11": {
+   "id": 11,
+   "full_name": "Frederick A. DeLuca Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Frederick A. DeLuca Foundation",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Field of Interest",
+   "notes": "SAMPLE gift history (invented); real organization; Shack-level star",
+   "source_row": "SAMPLE",
+   "score": 46,
+   "tier": "big",
+   "is_star": true,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "shack_society_level"
+    ],
+    "points": {
+     "urgency": 5.9,
+     "value": 25.0,
+     "frequency": 7.2,
+     "engagement": 8.0
+    },
+    "gift_count": 3,
+    "lifetime_total": 1050000.0,
+    "largest_gift": 400000.0,
+    "last_gift": {
+     "date": "2026-06-29",
+     "amount": 300000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 132,
+    "usual_cadence_days": 365,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.36,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 6,
+     "month_name": "June",
+     "channel": "check",
+     "years": [
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 54,
+     "donor_id": 11,
+     "amount": 300000.0,
+     "gift_date": "2026-06-29",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 53,
+     "donor_id": 11,
+     "amount": 350000.0,
+     "gift_date": "2025-06-30",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 52,
+     "donor_id": 11,
+     "amount": 400000.0,
+     "gift_date": "2024-06-28",
+     "channel": "check",
      "fund_type": null,
      "source_row": "seed"
     }
@@ -1186,6 +1620,215 @@
    "research_facts": [],
    "outreach_drafts": []
   },
+  "9": {
+   "id": 9,
+   "full_name": "John S. and James L. Knight Foundation",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "John S. and James L. Knight Foundation",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Field of Interest",
+   "notes": "SAMPLE gift history (invented); real organization",
+   "source_row": "SAMPLE",
+   "score": 44,
+   "tier": "big",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence",
+     "loyal_repeat_giver"
+    ],
+    "points": {
+     "urgency": 1.5,
+     "value": 22.5,
+     "frequency": 12.0,
+     "engagement": 8.0
+    },
+    "gift_count": 5,
+    "lifetime_total": 250000.0,
+    "largest_gift": 50000.0,
+    "last_gift": {
+     "date": "2026-10-05",
+     "amount": 50000.0,
+     "channel": "check"
+    },
+    "days_since_last_gift": 34,
+    "usual_cadence_days": 365,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.09,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 10,
+     "month_name": "October",
+     "channel": "check",
+     "years": [
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 48,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2026-10-05",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 47,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2025-10-01",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 46,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2024-10-01",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 45,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2023-10-02",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 44,
+     "donor_id": 9,
+     "amount": 50000.0,
+     "gift_date": "2022-10-03",
+     "channel": "check",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
+  "10": {
+   "id": 10,
+   "full_name": "Amazon",
+   "first_name": null,
+   "last_name": null,
+   "org_name": "Amazon",
+   "donor_type": "organization",
+   "email": null,
+   "emails_all": [],
+   "phone": null,
+   "city": "Miami",
+   "state": "FL",
+   "fund_type": "Designated",
+   "notes": "SAMPLE gift history (invented); real organization",
+   "source_row": "SAMPLE",
+   "score": 39,
+   "tier": "big",
+   "is_star": false,
+   "status": "on_track",
+   "why": {
+    "status": "on_track",
+    "reasons": [
+     "gave_recently_vs_cadence"
+    ],
+    "points": {
+     "urgency": 2.4,
+     "value": 21.2,
+     "frequency": 7.2,
+     "engagement": 8.0
+    },
+    "gift_count": 3,
+    "lifetime_total": 125000.0,
+    "largest_gift": 50000.0,
+    "last_gift": {
+     "date": "2026-09-14",
+     "amount": 50000.0,
+     "channel": "online"
+    },
+    "days_since_last_gift": 55,
+    "usual_cadence_days": 364,
+    "cadence_basis": "median_interval",
+    "overdue_ratio": 0.15,
+    "gave_this_year": true,
+    "pattern": {
+     "month": 9,
+     "month_name": "September",
+     "channel": "online",
+     "years": [
+      2024,
+      2025,
+      2026
+     ],
+     "gave_this_year": true
+    },
+    "days_left_in_year": 53,
+    "give_miami_day": {
+     "date": "2026-11-19",
+     "days_away": 11
+    },
+    "as_of": "2026-11-08"
+   },
+   "score_as_of": "2026-11-08",
+   "gifts": [
+    {
+     "id": 51,
+     "donor_id": 10,
+     "amount": 50000.0,
+     "gift_date": "2026-09-14",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 50,
+     "donor_id": 10,
+     "amount": 50000.0,
+     "gift_date": "2025-09-15",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    },
+    {
+     "id": 49,
+     "donor_id": 10,
+     "amount": 25000.0,
+     "gift_date": "2024-09-16",
+     "channel": "online",
+     "fund_type": null,
+     "source_row": "seed"
+    }
+   ],
+   "research_facts": [],
+   "outreach_drafts": []
+  },
   "2": {
    "id": 2,
    "full_name": "María Delgado-Ruiz",
@@ -1407,7 +2050,7 @@
    ],
    "confidence": 0.95,
    "status": "pending",
-   "created_at": "2026-11-07 21:10:56",
+   "created_at": "2026-11-07 21:15:04",
    "resolved_at": null,
    "donor_a": {
     "id": 1,
