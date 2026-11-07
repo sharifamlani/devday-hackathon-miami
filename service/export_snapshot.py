@@ -11,6 +11,7 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "prospects":  [...]          # == GET /prospects
       "prospect_details": {"<id>": {...}}  # == GET /prospects/{id}
       "context":    {"profile": GET /org-profile | null, "facts": GET /context}
+      "targets":    {"month": {...}, "quarter": {...}}  # == GET /targets (SAMPLE goals; donor_ids per period)
     }
 
     python -m service.export_snapshot                    # rescore as of the demo date, write web/public/snapshot.json
@@ -24,7 +25,7 @@ import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from service import dedupe, score
+from service import dedupe, score, targets
 from service.db import REPO_ROOT, connect, create_schema
 from service.routes_data import (get_donor, get_org_profile_or_none, get_prospect, latest_icp, list_context,
                                  list_donors, list_duplicates, list_prospects)
@@ -55,6 +56,7 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "prospects": (prospects := list_prospects(include_dismissed=False, conn=conn)),
         "prospect_details": {str(p["id"]): get_prospect(p["id"], conn) for p in prospects},
         "context": {"profile": get_org_profile_or_none(conn), "facts": list_context(conn)},
+        "targets": targets.compute_all(conn, as_of),
     }
 
 

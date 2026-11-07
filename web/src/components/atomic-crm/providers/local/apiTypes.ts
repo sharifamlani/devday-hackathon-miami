@@ -166,6 +166,7 @@ export interface ApiSnapshot {
   prospect_details?: Record<string, ApiProspect>; // == GET /prospects/{id}
   context?: ApiContext | null; // == GET /context (§15)
   org_profile?: ApiOrgProfile | null; // == GET /org-profile, if exported separately
+  targets?: ApiTargets | null; // == GET /targets (issue #37); older snapshots omit it
 }
 
 /*
@@ -296,3 +297,38 @@ export interface ApiContextRunSource {
   facts?: number;
   detail?: string | null; // block reason, or the saved URL for socials
 }
+
+/* ---------- Donation targets (issue #37, service/targets.py) ---------- */
+
+/** One period of GET /targets?period=month|quarter. Goals are SAMPLE values. */
+export interface ApiTarget {
+  period: "month" | "quarter";
+  label: string; // "November 2026", "Q4 2026"
+  start: string; // YYYY-MM-DD
+  end: string;
+  as_of: string;
+  goal: number | null;
+  goal_is_sample?: boolean;
+  raised: number;
+  percent: number | null;
+  days_left: number;
+  donors_count: number;
+  gifts_count: number;
+  by_channel: { channel: string; amount: number }[];
+  new_vs_returning: {
+    new: number;
+    returning: number;
+    new_amount?: number;
+    returning_amount?: number;
+  };
+  give_miami_day: {
+    date: string;
+    days_until: number;
+    in_period?: boolean;
+  } | null;
+  top_donor_ids: number[];
+  donor_ids?: number[]; // every donor who gave in the period, biggest first
+}
+
+/** GET /targets with no period: both. */
+export type ApiTargets = Partial<Record<"month" | "quarter", ApiTarget>>;
