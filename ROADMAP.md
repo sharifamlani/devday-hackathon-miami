@@ -20,7 +20,7 @@ commit SHA (`✅ 6:40 PM · abc1234`). Edit with targeted replacements, never a 
 
 | # | Row | Status |
 |---|---|---|
-| N1 | Repo from the kit; first push | ✅ Nov 7 · local commits; remote pending |
+| N1 | Repo from the kit; first push | ✅ Nov 7 · d671182 · pushed to github.com/sharifamlani/devday-hackathon-miami (private) |
 | N2 | `docs/event-brief.md` from the listing **and the organizer's own source** | ✅ Nov 7 · no organizer source exists; 9 sibling pages in `research/rules_check.md` |
 | N3 | `docs/idea-shortlist.md`: criteria at the top, 3 ideas scored, a fallback | ⏸ |
 | N4 | Every key proven with a real call | ✅ Nov 7 · `scripts/smoke-openai.py` 7/7 |
