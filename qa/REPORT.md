@@ -207,3 +207,4 @@ Minor (90): top-level `state` stays "done" when every source failed.
 DeLuca research: 3 rows, all distinct (the #14 fix holds live). Prospects 7, all 'drafted'; /icp 200; /org-profile = The Miami Foundation.
 No context probes for other sites were run on :8000: a failed run still overwrites the saved profile there (90's fix is pending).
 | #34 fix/context-no-save-on-fail | 335a1ba | combined with #33: 111 passed; after a good run, typo (cached and live), unreachable and X-only runs → failed, /org-profile and /context unchanged | APPROVE (decision for lead: X-only socials no longer saved, which conflicts with #27's "user URLs always saved") |
+| #35 fix/website-required | 91b7684 | web/ only; 33/33; build:demo ok; fetch is never called for "", "   " or null (stubbed-fetch test); snapshot client guarded too | APPROVE (browser network check once the onboarding screen exists) |
