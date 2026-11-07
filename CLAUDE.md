@@ -1,4 +1,8 @@
-# CLAUDE.md: DevDay Exchange Community Hackathon: Miami
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+**Event: DevDay Exchange Community Hackathon: Miami**
 
 ## What this repo is
 
@@ -27,6 +31,44 @@ Anything that serves none of the three is out of scope.
 | **Demo** | length unknown (Q1) |
 | **Judging** | not published (Q3/Q4). 9 judges, 2 from The Miami Foundation's data + grants side |
 | **Prizes** | $1,000 / $500 / $250 API credits + 3 mo ChatGPT Pro; more TBA |
+
+## Repo map
+
+There is **no application code yet**: the build starts at T0, after the nonprofit problem statements
+are revealed. The stack is chosen at K5. The kit's proven default is Next.js + TypeScript + pnpm on
+Vercel (`docs/hackathon-kit/tech-notes.md`), with the agent itself on the Python Agents SDK.
+
+| Path | Role |
+|---|---|
+| `docs/event-brief.md` | Source of truth for rules, schedule, judges, and the kickoff Q&A |
+| `docs/idea-shortlist.md`, `docs/demo-script.md` | Idea scoring, then the demo script that is the spec |
+| `ROADMAP.md` | Gate-by-gate status (N → K → B → F → A rows); flip a row in the same commit as the work |
+| `research/rules_check.md` | What 9 sibling DevDay events allow (tools, prep, team size) |
+| `docs/hackathon-kit/` | Lessons, runbook, playbooks and templates carried from past events. Edit `lessons-learned.md` after the event, not during |
+| `scripts/` | `smoke-openai.py` (key + tiers + Agents SDK), `verify-e2e.py` + `make-voice.ps1` (Playwright prod walk, adapt `CASES`/selectors per app) |
+| `.claude/agents/` | The 5 sprint subagents (gitignored; masters in `docs/hackathon-kit/agents/`) |
+| `.packages/`, `transcripts/` | Unrelated personal tooling / local notes, gitignored. Not part of the entry |
+
+## Commands
+
+```bash
+# Python env (uv); the SDK installs as openai-agents but imports as `agents`
+uv venv .venv && uv pip install --python .venv/Scripts/python.exe openai-agents python-dotenv
+
+# Prove key, all four model tiers, and an Agents SDK tool call + structured output (expect 7/7, exit 0)
+.venv/Scripts/python.exe scripts/smoke-openai.py
+
+# Codex CLI: the required coding tool (login is a human step)
+codex login status
+
+# Production walk after every deploy (see tech-notes.md "Adapting verify-e2e.py")
+python scripts/verify-e2e.py <voice-dir> https://<app>.vercel.app --shots <scratch>/shots
+
+# Deploy (manual, no CI)
+vercel --prod --yes
+```
+
+Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents SDK import.
 
 ## Hard rules
 
