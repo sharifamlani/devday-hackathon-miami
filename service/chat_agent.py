@@ -7,6 +7,7 @@ orgs, star and big donors need per-item approval there. Community outreach never
 """
 import json
 import os
+from datetime import date
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -39,7 +40,12 @@ Rules:
   until they approve the batch.
 - On the community tab, outreach is about programs and help only: never ask for a donation (intent check_in).
 - If a tool says data is not loaded yet, say so plainly.
-{selection}"""
+{first_turn}{selection}"""
+
+FIRST_TURN = """- This is the start of the conversation: before answering, call get_context and get_events. If any event
+  starts within 14 days of {today}, end your reply with the offer "Plan outreach for N upcoming events?"
+  (N = how many), naming them with their dates.
+"""
 
 
 @dataclass
@@ -277,12 +283,14 @@ def run_chat(message: str, tab: str, selection: list[int] | None = None, history
     picked = f"\nThe user has selected these people (ids): {ctx.selection}." if ctx.selection else ""
     if event_id is not None:
         picked += f"\nThe user is looking at event id {event_id}."
-    agent = Agent(name="CRM assistant",
-                  instructions=INSTRUCTIONS.format(tab=tab, role=TAB_ROLE.get(tab, tab), selection=picked),
-                  model=os.getenv("OPENAI_MODEL_DEFAULT"), tools=TOOLS,
-                  model_settings=ModelSettings(reasoning=Reasoning(effort="low")))
     turns = [{"role": h["role"], "content": h["content"]} for h in (history or [])[-12:]
              if h.get("role") in ("user", "assistant") and h.get("content")]
+    first = FIRST_TURN.format(today=os.getenv("SCORE_AS_OF") or date.today().isoformat()) if not turns else ""
+    agent = Agent(name="CRM assistant",
+                  instructions=INSTRUCTIONS.format(tab=tab, role=TAB_ROLE.get(tab, tab), selection=picked,
+                                                   first_turn=first),
+                  model=os.getenv("OPENAI_MODEL_DEFAULT"), tools=TOOLS,
+                  model_settings=ModelSettings(reasoning=Reasoning(effort="low")))
     result = Runner.run_sync(agent, turns + [{"role": "user", "content": message}], context=ctx, max_turns=8)
 
     batches = []

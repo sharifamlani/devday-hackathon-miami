@@ -105,7 +105,14 @@ def test_approved_item_without_an_address_is_blocked_not_sent(db_file):
 
 
 def test_refresh_now_without_the_refresh_lane_is_503(db_file):
-    assert TestClient(app).post("/context/refresh").status_code in (200, 503)
+    r = TestClient(app).post("/context/refresh")
+    assert r.status_code == 503 and r.json()["detail"] == "service.refresh has not landed on this build yet"
+
+
+def test_first_turn_asks_for_context_and_events_and_later_turns_do_not():
+    first = chat_agent.FIRST_TURN.format(today="2026-11-08")
+    assert "call get_context and get_events" in first and "within 14 days of 2026-11-08" in first
+    assert "Plan outreach for N upcoming events?" in first
 
 
 def test_daily_schedule_math():
