@@ -34,7 +34,7 @@ Anything that serves none of the three is out of scope.
 
 ## Team contacts
 
-Names, emails and the pending team email are in `TEAM_CONTEXT.md` at the repo root. It is gitignored:
+Names, emails and the pending team email are in `TEAM_CONTACTS.md` at the repo root. It is gitignored:
 never commit it, and never copy its contents into a tracked file.
 
 ## Repo map
