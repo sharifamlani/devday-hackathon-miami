@@ -103,7 +103,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     **The live call (the only call on stage).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate
     added as a donor for the demo, off-screen, after setup). About 10–13 s later the agent shows **Get context · Get
     events · Find people** ("1 people: Christian Gonzalez") and the card **Call sheet: Christian Gonzalez** (Phone
-    ***-***-(…), a **Call** button, GIVING "No gifts on record.", TALKING POINTS). Click the card's **Call**: the panel
+    (the full number), a **Call** button, GIVING "No gifts on record.", TALKING POINTS). Click the card's **Call**: the panel
     **Call Christian Gonzalez** opens in the card ("Your phone (…) rings first. When you pick up, Christian Gonzalez (…)
     is called and sees your number.", "Christian Gonzalez hears “Hello. This call is recorded for our notes.” before the
     call connects."), with **Cancel** / **Call**. Click the panel's **Call**: **Ringing your phone…**. Answer; Twilio's
