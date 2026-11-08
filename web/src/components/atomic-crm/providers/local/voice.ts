@@ -2,33 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { call } from "./endpoint";
 
-/* plan.md §21.5: call notes + file transcription (Agent Phone, B3), after-call actions + pledges (90b, B6). */
+/*
+ * plan.md §21.5: file transcription (Agent Phone, B3), after-call actions +
+ * pledges (90b, B6). Call notes are NOT here: Christian's calls.ts (#78)
+ * owns saving and listing them (POST/GET /calls).
+ */
 
 export interface TranscriptSegment {
   speaker: string; // "staff" | "contact" | a label
   text: string;
   start: number; // seconds
   end: number;
-}
-
-export interface CallNoteInput {
-  title: string;
-  folder: string;
-  transcript: string;
-  segments: TranscriptSegment[];
-  staff_name: string;
-  contact_name: string;
-  duration_s: number;
-}
-
-export interface CallNote {
-  id: number;
-  summary: string | null;
-  created_at: string;
-  // The list endpoint may echo the saved fields too.
-  title?: string;
-  folder?: string;
-  duration_s?: number;
 }
 
 export interface AfterCallAction {
@@ -50,17 +34,10 @@ export interface Pledge {
 }
 
 export const voiceKeys = {
-  callNotes: (personId: number) => ["donor-desk", "call-notes", personId] as const,
   pledges: (personId: number) => ["donor-desk", "pledges", personId] as const,
 };
 
 /* ---------- API ---------- */
-
-export const saveCallNote = (personId: number, input: CallNoteInput) =>
-  call<CallNote>("Saving the call note", "POST", `/people/${personId}/call-notes`, { body: input });
-
-export const getCallNotes = (personId: number) =>
-  call<CallNote[]>("Call notes", "GET", `/people/${personId}/call-notes`, { snapshotValue: [] });
 
 /** Upload a recording; returns speaker-labelled segments. */
 export const transcribeFile = (file: File) => {
@@ -86,26 +63,6 @@ export const getPledges = (personId: number) =>
   call<Pledge[]>("Pledges", "GET", `/people/${personId}/pledges`, { snapshotValue: [] });
 
 /* ---------- Hooks ---------- */
-
-export const useCallNotes = (personId: number | null) =>
-  useQuery({
-    queryKey: voiceKeys.callNotes(personId ?? -1),
-    queryFn: () => getCallNotes(personId as number),
-    enabled: personId != null,
-  });
-
-export const useSaveCallNote = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ personId, ...input }: CallNoteInput & { personId: number }) => saveCallNote(personId, input),
-    onSuccess: (_note, { personId }) =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: voiceKeys.callNotes(personId) }),
-        queryClient.invalidateQueries({ queryKey: ["donor-desk", "artifacts"] }),
-        queryClient.invalidateQueries({ queryKey: ["donor-desk", "home-summary"] }),
-      ]),
-  });
-};
 
 export const useTranscribeFile = () => useMutation({ mutationFn: transcribeFile });
 

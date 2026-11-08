@@ -7,7 +7,7 @@ import { getInterestTags, addInterest } from "./interests";
 import { getHomeSummary, getPeopleAttention, getTargetQuarters } from "./homeSummary";
 import { createTask, getTasks } from "./tasks";
 import { getArtifacts, getCalendarFeed } from "./calendarFeed";
-import { getCallNotes, saveCallNote } from "./voice";
+import { getPledges, proposeAfterCall } from "./voice";
 import { searchContext } from "./contextSearch";
 import { LIVE_ONLY } from "./endpoint";
 
@@ -24,24 +24,14 @@ describe("live-only endpoints in the snapshot build", () => {
     expect(await getTasks({ due: "today" })).toEqual([]);
     expect(await getCalendarFeed()).toEqual([]);
     expect(await getArtifacts()).toEqual([]);
-    expect(await getCallNotes(1)).toEqual([]);
+    expect(await getPledges(1)).toEqual([]);
     expect(await searchContext({ q: "x" })).toEqual([]);
   });
 
   it("writes refuse with the live-only message", async () => {
     await expect(createTask({ title: "x" })).rejects.toThrow(LIVE_ONLY);
     await expect(addInterest(1, { tag: "arts" })).rejects.toThrow(LIVE_ONLY);
-    await expect(
-      saveCallNote(1, {
-        title: "t",
-        folder: "f",
-        transcript: "",
-        segments: [],
-        staff_name: "s",
-        contact_name: "c",
-        duration_s: 0,
-      }),
-    ).rejects.toThrow(LIVE_ONLY);
+    await expect(proposeAfterCall(12)).rejects.toThrow(LIVE_ONLY);
   });
 
   it("never calls the network", () => {

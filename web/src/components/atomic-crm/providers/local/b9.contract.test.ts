@@ -7,9 +7,9 @@ import { acceptEnrichment, addInterest, enrichPreview, getInterestTags, getPerso
 import { getHomeSummary, getPeopleAttention, getTargetQuarters } from "./homeSummary";
 import { completeTask, createTask, deleteTask, generateTasks, getTasks, undo, updateTask } from "./tasks";
 import { getArtifacts, getCalendarFeed } from "./calendarFeed";
-import { applyAfterCall, getCallNotes, getPledges, proposeAfterCall, saveCallNote, transcribeFile } from "./voice";
+import { applyAfterCall, getPledges, proposeAfterCall, transcribeFile } from "./voice";
 import { searchContext } from "./contextSearch";
-import { resetMockTasks, MOCK } from "./mocks";
+import { resetMockTasks } from "./mocks";
 import type * as Config from "./config";
 import { runMock, type Method } from "./endpoint";
 
@@ -151,22 +151,6 @@ describe("voice (Agent Phone B3, 90b B6)", () => {
     expect(last()).toMatchObject({ method: "POST", path: "/transcribe/file" });
     expect((last().body as FormData).get("file")).toBeInstanceOf(File);
     expect(keysOf(result.segments[0])).toEqual(["end", "speaker", "start", "text"]);
-  });
-
-  it("POST/GET /people/{id}/call-notes", async () => {
-    const input = {
-      title: "Call with Maria",
-      folder: "Calls",
-      transcript: "Hi Maria…",
-      segments: MOCK.segments,
-      staff_name: "Dana",
-      contact_name: "Maria Delgado",
-      duration_s: 312,
-    };
-    const note = await saveCallNote(1, input);
-    expect(last()).toMatchObject({ method: "POST", path: "/people/1/call-notes", body: input });
-    expect(keysOf(note)).toEqual(["created_at", "id", "summary"]);
-    expect(await getCallNotes(1)).toHaveLength(1);
   });
 
   it("POST /call-notes/{id}/actions and /apply; GET /people/{id}/pledges", async () => {

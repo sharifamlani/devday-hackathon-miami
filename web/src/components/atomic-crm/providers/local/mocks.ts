@@ -12,7 +12,7 @@ import { registerMock } from "./endpoint";
 import type { AttentionPerson, HomeSummary, TargetQuarters } from "./homeSummary";
 import type { EnrichPreview, InterestTag, PersonInterest } from "./interests";
 import type { Task } from "./tasks";
-import type { AfterCallProposal, CallNote, Pledge, TranscriptSegment } from "./voice";
+import type { AfterCallProposal, Pledge, TranscriptSegment } from "./voice";
 
 export const MOCK = {
   interestTags: [
@@ -109,7 +109,6 @@ export const MOCK = {
     { speaker: "staff", text: "Hi Maria, it's Dana from the Foundation.", start: 0, end: 2.4 },
     { speaker: "contact", text: "Oh hi! I saw my card didn't go through.", start: 2.6, end: 5.1 },
   ] satisfies TranscriptSegment[],
-  callNote: { id: 12, summary: "Card expired; she'll update it this week and plans a Give Miami Day gift.", created_at: "2026-11-07T15:20:00Z" } satisfies CallNote,
   afterCall: {
     steps: ["Read the transcript", "Matched 2 commitments", "Checked the calendar"],
     actions: [
@@ -197,8 +196,6 @@ registerMock("POST", "/undo/{token}", () => ({ undone: true }));
 registerMock("GET", "/calendar", () => MOCK.calendar);
 registerMock("GET", "/artifacts", () => MOCK.artifacts);
 registerMock("POST", "/transcribe/file", () => ({ segments: MOCK.segments }));
-registerMock("POST", "/people/{id}/call-notes", () => MOCK.callNote);
-registerMock("GET", "/people/{id}/call-notes", () => [MOCK.callNote]);
 registerMock("POST", "/call-notes/{id}/actions", () => MOCK.afterCall);
 registerMock("POST", "/call-notes/{id}/apply", ({ body }) => ({
   applied: (body as { action_ids: (string | number)[] }).action_ids.map((id) => ({ id, type: MOCK.afterCall.actions.find((a) => a.id === id)?.type ?? "unknown", ref: null })),

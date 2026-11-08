@@ -84,9 +84,21 @@ describe("contract additions on existing types", () => {
       ["GET", "/targets/quarters"], ["GET", "/home/summary"], ["GET", "/people/attention?limit=6"],
       ["GET", "/tasks"], ["POST", "/tasks"], ["PATCH", "/tasks/1"], ["DELETE", "/tasks/1"], ["POST", "/tasks/generate"],
       ["GET", "/calendar"], ["GET", "/artifacts"], ["POST", "/undo/abc"], ["POST", "/transcribe/file"],
-      ["POST", "/people/1/call-notes"], ["GET", "/people/1/call-notes"], ["POST", "/call-notes/1/actions"],
+      ["POST", "/call-notes/1/actions"],
       ["POST", "/call-notes/1/apply"], ["GET", "/people/1/pledges"], ["GET", "/context/search?q=x"],
     ];
     for (const [method, path] of routes) expect(findMock(method, path), `${method} ${path}`).not.toBeNull();
+  });
+});
+
+describe("home feed adapter", () => {
+  it("maps every attention badge to the CRM tile's label and tone", async () => {
+    const { attentionTag } = await import("./homeFeed");
+    expect(attentionTag("card_failed")).toEqual({ label: "Card failed", tone: "alert" });
+    expect(attentionTag("late")).toEqual({ label: "Late", tone: "alert" });
+    expect(attentionTag("new")).toEqual({ label: "New", tone: "good" });
+    expect(attentionTag("thanked")).toEqual({ label: "Thanked", tone: "good" });
+    expect(attentionTag("not_yet")).toEqual({ label: "Not yet", tone: "quiet" });
+    expect(attentionTag("pledge_due")).toEqual({ label: "Pledge due", tone: "quiet" });
   });
 });

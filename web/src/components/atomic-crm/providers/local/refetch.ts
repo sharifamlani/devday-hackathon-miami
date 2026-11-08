@@ -35,7 +35,8 @@ export const SCOPE_KEYS: Record<RefetchScope, readonly (readonly unknown[])[]> =
   context: [[ROOT, "context"], [ROOT, "context-status"], [ROOT, "org-profile"]],
   artifacts: [[ROOT, "artifacts"]],
   interests: [[ROOT, "interests"], [ROOT, "interest-tags"]],
-  call_notes: [[ROOT, "call-notes"], [ROOT, "pledges"]],
+  // calls.ts (#78) keys its notes under ["donor-desk", "calls"].
+  call_notes: [[ROOT, "calls"], [ROOT, "pledges"]],
   campaigns: [["campaigns"], [ROOT, "batch"]],
 };
 
