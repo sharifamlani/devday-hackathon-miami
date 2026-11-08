@@ -19,6 +19,7 @@ import { SavedInBrowserHint } from "../misc/SavedInBrowserHint";
 import { NoteInputs } from "./NoteInputs";
 import { getCurrentDate } from "./utils";
 import { foreignKeyMapping } from "./foreignKeyMapping";
+import { PUBLIC_READ_ONLY, READ_ONLY_PREVIEW } from "../providers/local/config";
 
 export const NoteCreate = ({
   reference,
@@ -34,6 +35,12 @@ export const NoteCreate = ({
   const { identity } = useGetIdentity();
 
   if (!record || !identity) return null;
+  if (PUBLIC_READ_ONLY)
+    return (
+      <p className={cn("text-sm text-muted-foreground", className)}>
+        {READ_ONLY_PREVIEW}
+      </p>
+    );
 
   const defaultStatus = reference === "contacts" ? record.status : undefined;
 

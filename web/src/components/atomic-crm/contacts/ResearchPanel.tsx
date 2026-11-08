@@ -2,7 +2,7 @@ import { Check, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, PUBLIC_READ_ONLY } from "../providers/local/config";
 import type { DonorDetail } from "../providers/local/types";
 import { formatDay } from "./donorFormat";
 import { ENRICH_COPY, EnrichProposal, useEnrichReview } from "./EnrichReview";
@@ -23,7 +23,7 @@ export const ResearchPanel = ({
 }) => {
   const review = useEnrichReview(donor);
   const { isOrg, found, preview, accept, picked } = review;
-  const live = DATA_MODE === "local";
+  const live = DATA_MODE === "local" && !PUBLIC_READ_ONLY; // public mode refuses /enrich*
   return (
     <section
       aria-label="Enrichment"

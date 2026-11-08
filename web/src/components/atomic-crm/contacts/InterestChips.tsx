@@ -12,6 +12,7 @@ import {
   useRemoveInterest,
 } from "../providers/local/interests";
 import { SourceLink } from "./ResearchPanel";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 /* Interest areas (plan §21.2.6): 17 tags, each with confidence, evidence and a source.
    Chips open a popover rather than a hover tooltip, so the source link stays clickable
@@ -189,7 +190,7 @@ export const InterestAreasEditor = ({ personId }: { personId: number }) => {
               interest={interest}
               label={tagLabel(interest, labels)}
               removing={busy}
-              onRemove={() => remove.mutate({ personId, tag: interest.tag })}
+              onRemove={PUBLIC_READ_ONLY ? undefined : () => remove.mutate({ personId, tag: interest.tag })}
             />
           ))}
         </ul>
@@ -198,7 +199,7 @@ export const InterestAreasEditor = ({ personId }: { personId: number }) => {
           None yet. Enrich an organization, or add one your team knows about.
         </p>
       )}
-      {available.length > 0 && (
+      {available.length > 0 && !PUBLIC_READ_ONLY && (
         <form
           className="flex min-w-0 items-center gap-2"
           onSubmit={(e) => {

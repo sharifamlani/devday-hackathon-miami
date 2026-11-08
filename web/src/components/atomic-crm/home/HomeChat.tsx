@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
 import { type AskAnswer } from "../providers/local/ask";
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, PUBLIC_READ_ONLY } from "../providers/local/config";
 import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
 import { decide, sendToAgent, undoMergedPair, undoStep, useAgentChat } from "./agentChat";
@@ -193,14 +193,16 @@ export const FocusTaskCard = ({
             Draft email
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => onDone(task)}
-          className={cn(pill, "bg-surface hover:bg-accent")}
-        >
-          <Check className="size-4" aria-hidden="true" />
-          Mark done
-        </button>
+        {!PUBLIC_READ_ONLY && (
+          <button
+            type="button"
+            onClick={() => onDone(task)}
+            className={cn(pill, "bg-surface hover:bg-accent")}
+          >
+            <Check className="size-4" aria-hidden="true" />
+            Mark done
+          </button>
+        )}
       </div>
     </section>
   );

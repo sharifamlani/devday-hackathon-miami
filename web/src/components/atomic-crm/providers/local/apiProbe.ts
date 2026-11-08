@@ -38,3 +38,33 @@ export const probeAndFlag = async (
   target[FALLBACK_FLAG] = true;
   return true;
 };
+
+/**
+ * Public mode (the tunnel; docs/public-tunnel.md): the API refuses every write. main.tsx sets PUBLIC_FLAG before
+ * the app loads when GET /public-mode says enabled, and config.ts then sets PUBLIC_READ_ONLY, so screens hide
+ * their write controls. Keyed on "enabled" only, whatever the redaction setting. Unreadable means not public.
+ * Never throws.
+ */
+export const PUBLIC_FLAG = "__DONOR_DESK_PUBLIC_MODE__";
+
+export const probePublicMode = async (
+  mode: string | undefined,
+  apiUrl: string,
+  target: Record<string, unknown> = globalThis as unknown as Record<string, unknown>,
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs = PROBE_TIMEOUT_MS,
+): Promise<boolean> => {
+  if (mode !== "local" && mode !== "live") return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(`${apiUrl.replace(/\/$/, "")}/public-mode`, { signal: controller.signal });
+    const enabled = res.ok && ((await res.json()) as { enabled?: unknown }).enabled === true;
+    if (enabled) target[PUBLIC_FLAG] = true;
+    return enabled;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+};

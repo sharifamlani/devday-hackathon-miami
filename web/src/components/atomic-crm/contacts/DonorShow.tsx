@@ -35,6 +35,7 @@ import { TagsListEdit } from "./TagsListEdit";
 import { AutoMergeFlag } from "./AutoMergeFlag";
 import { AboutPanel } from "./AboutPanel";
 import { isNonGiver, TAB_ONE } from "./personTab";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 const TABS = ["overview", "notes", "tasks"] as const;
 type ProfileTab = (typeof TABS)[number];
@@ -146,15 +147,17 @@ const DonorShowContent = () => {
                 title="Tasks"
                 caption="Calls, thank-yous and follow-ups for this donor"
                 actions={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => setTaskOpen(true)}
-                  >
-                    <ListPlus aria-hidden />
-                    Add task
-                  </Button>
+                  PUBLIC_READ_ONLY ? undefined : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => setTaskOpen(true)}
+                    >
+                      <ListPlus aria-hidden />
+                      Add task
+                    </Button>
+                  )
                 }
               >
                 <ContactTasksList />
@@ -238,20 +241,24 @@ const ProfileHeader = ({
     </div>
     <div className="mt-4 flex flex-wrap gap-2">
       <PhoneCallButton donorId={record.id} />
-      <Button size="sm" className="rounded-full" onClick={onAddTask}>
-        <ListPlus aria-hidden />
-        Add task
-      </Button>
-      <Link
+      {!PUBLIC_READ_ONLY && (
+        <Button size="sm" className="rounded-full" onClick={onAddTask}>
+          <ListPlus aria-hidden />
+          Add task
+        </Button>
+      )}
+      {!PUBLIC_READ_ONLY && (
+        <Link
         to={`/campaigns/new?donors=${record.id}`}
         className={cn(
           buttonVariants({ size: "sm", variant: "outline" }),
           "rounded-full",
         )}
       >
-        <Megaphone aria-hidden />
-        Add to a campaign
-      </Link>
+          <Megaphone aria-hidden />
+          Add to a campaign
+        </Link>
+      )}
     </div>
   </header>
 );

@@ -31,6 +31,7 @@ import {
 } from "./homeData";
 import { useArtifactOwners } from "./artifactOwners";
 import { focusRing, tagTone, tile, tileTitle } from "./tile";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 /** What the panels without a snapshot source say instead of a false "all caught up". */
 export const LIVE_ONLY = "Live data appears when the service is connected.";
@@ -659,15 +660,17 @@ export const TasksTile = ({
         <span className="ml-auto text-xs text-muted-foreground">
           {tasks.length}
         </span>
-        <button
-          type="button"
-          onClick={onPlan}
-          aria-label="Add a task to today’s plan"
-          title="Add task"
-          className={roundIcon}
-        >
-          <Plus className="size-4" aria-hidden="true" />
-        </button>
+        {!PUBLIC_READ_ONLY && (
+          <button
+            type="button"
+            onClick={onPlan}
+            aria-label="Add a task to today’s plan"
+            title="Add task"
+            className={roundIcon}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+          </button>
+        )}
       </TileHead>
       {isPending ? (
         <Skeleton className="h-20 rounded-lg" />

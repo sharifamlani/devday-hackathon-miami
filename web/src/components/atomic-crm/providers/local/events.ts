@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { DATA_MODE } from "./config";
+import { DATA_MODE, PUBLIC_READ_ONLY } from "./config";
 import { call, qs } from "./endpoint";
 import { ApiError } from "./httpClient";
 import { undo } from "./tasks";
@@ -174,5 +174,5 @@ export const useUndoEvent = () => {
   return useMutation({ mutationFn: (token: string) => undo(token), onSuccess: refresh });
 };
 
-/** The snapshot (Vercel) build is read-only: hide Add / Edit. */
-export const EVENTS_READ_ONLY = DATA_MODE === "snapshot";
+/** The snapshot (Vercel) build and the public preview (public mode) are read-only: hide Add / Edit. */
+export const EVENTS_READ_ONLY = DATA_MODE === "snapshot" || PUBLIC_READ_ONLY;

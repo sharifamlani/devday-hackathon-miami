@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, PUBLIC_READ_ONLY } from "../providers/local/config";
 import type { DonorContact } from "../providers/local/crmDonors";
 import { useDonor } from "../providers/local/hooks";
 import { usePersonInterests } from "../providers/local/interests";
@@ -109,7 +109,7 @@ export const IssueAreas = ({
   const { data: interests } = usePersonInterests(personId);
   const labels = useTagLabels();
   const [note, setNote] = useState(false);
-  const live = DATA_MODE === "local";
+  const live = DATA_MODE === "local" && !PUBLIC_READ_ONLY; // public mode: read-only, like the snapshot
   return (
     <section aria-label="Issue areas" className="space-y-1.5">
       {editing && live ? (
@@ -170,7 +170,10 @@ export const DonorRowDetails = ({
   const [tagging, setTagging] = useState(false);
   const [enhanceNote, setEnhanceNote] = useState<string | null>(null);
   const review = useEnrichReview(donor);
-  const mode = enhanceMode(donor.donor_type, DATA_MODE === "local");
+  const mode = enhanceMode(
+    donor.donor_type,
+    DATA_MODE === "local" && !PUBLIC_READ_ONLY,
+  );
   // Enhance: orgs run the existing dry-run review; individuals (D6) get manual tagging;
   // the snapshot is read-only. Save to profile refetches the donor record (About + facts).
   const enhance = () => {
@@ -300,24 +303,28 @@ export const DonorRowDetails = ({
 
       <div className="flex flex-wrap gap-2">
         <PhoneCallButton donorId={donor.id} />
-        <Button
-          size="sm"
-          className="min-h-9 rounded-full"
-          onClick={() => setTaskOpen(true)}
-        >
-          <ListPlus aria-hidden />
-          Add task
-        </Button>
-        <Link
-          to={`/campaigns/new?donors=${donor.id}`}
-          className={cn(
-            buttonVariants({ size: "sm", variant: "outline" }),
-            "min-h-9 rounded-full",
-          )}
-        >
-          <Megaphone aria-hidden />
-          Add to a campaign
-        </Link>
+        {!PUBLIC_READ_ONLY && (
+          <Button
+            size="sm"
+            className="min-h-9 rounded-full"
+            onClick={() => setTaskOpen(true)}
+          >
+            <ListPlus aria-hidden />
+            Add task
+          </Button>
+        )}
+        {!PUBLIC_READ_ONLY && (
+          <Link
+            to={`/campaigns/new?donors=${donor.id}`}
+            className={cn(
+              buttonVariants({ size: "sm", variant: "outline" }),
+              "min-h-9 rounded-full",
+            )}
+          >
+            <Megaphone aria-hidden />
+            Add to a campaign
+          </Link>
+        )}
       </div>
       <TaskCreateSheet
         open={taskOpen}
