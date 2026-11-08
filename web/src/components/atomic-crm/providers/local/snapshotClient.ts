@@ -51,6 +51,15 @@ export const loadSnapshot = () => {
   return snapshotPromise;
 };
 
+/**
+ * Test seam: forget the cached snapshot so the next call re-fetches and gets a
+ * new snapshot object (and therefore an empty merge log). Lets tests isolate
+ * state without vi.resetModules, which vitest browser mode does not honor.
+ */
+export const __resetSnapshotForTests = () => {
+  snapshotPromise = null;
+};
+
 const detailOf = (snapshot: ApiSnapshot, id: number) => {
   const detail = snapshot.donor_details[String(id)];
   if (!detail) throw new Error(`Donor ${id} is not in the snapshot`);
