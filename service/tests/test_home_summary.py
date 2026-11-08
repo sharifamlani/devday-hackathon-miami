@@ -177,11 +177,15 @@ def test_empty_database_gives_zeros_and_generic_chips(tmp_path, monkeypatch):
 def test_failed_and_late_badges_match_the_keys_alerts_and_come_first(client, ids):
     rows = attention(client)
     by_key_id = {v: k for k, v in ids.items()}
-    alerted = {(by_key_id[r["id"]], r["badge"]) for r in rows if r["badge"] in ("failed", "late")}
+    # "skipped" is a failed-kind alert whose giving resumed (Rafael): the key still calls it "failed".
+    kind = {"failed": "failed", "skipped": "failed", "late": "late"}
+    alerted = {(by_key_id[r["id"]], kind[r["badge"]]) for r in rows if r["badge"] in kind}
     assert alerted == {(a["donor_id"], a["kind"]) for a in KEY["gift_alerts_expected"]}
-    order = ["failed", "late", "new", "not_yet", "thanked"]
-    positions = [order.index(r["badge"]) for r in rows]
-    assert positions == sorted(positions)
+    # One of each badge in turn: the first rows are all different badges, failed first.
+    present = list(dict.fromkeys(r["badge"] for r in rows))
+    assert [r["badge"] for r in rows[: len(present)]] == present
+    order = ["failed", "skipped", "late", "new", "not_yet", "thanked"]
+    assert present == sorted(present, key=order.index)
     assert rows[0]["badge"] == "failed"
 
 
@@ -190,12 +194,12 @@ def test_row_shape_initials_and_one_badge_per_person(client):
     assert set(rows[0]) == {"id", "name", "initials", "line", "badge"}
     assert len({r["id"] for r in rows}) == len(rows)
     for r in rows:
-        assert r["line"] and r["badge"] in ("failed", "late", "new", "thanked", "not_yet")
+        assert r["line"] and r["badge"] in ("failed", "skipped", "late", "new", "thanked", "not_yet")
         assert r["initials"] == r["initials"].upper() and 1 <= len(r["initials"]) <= 2
     hye = next(r for r in rows if r["name"] == "Hye-jin Park")
     assert hye["initials"] == "HP" and hye["badge"] == "failed" and "didn't go through" in hye["line"]
     rafael = next(r for r in rows if r["name"] == "Rafael Quintero")
-    assert rafael["badge"] == "failed" and rafael["line"].startswith("Skipped a monthly gift")
+    assert rafael["badge"] == "skipped" and rafael["line"].startswith("Skipped a monthly gift")
     assert any(r["badge"] == "late" and "days late" in r["line"] for r in rows)
 
 
@@ -258,7 +262,9 @@ def test_thanked_needs_a_thank_you_sent_this_quarter(client, conn):
     got = {r["id"]: r for r in rows}
     assert got[thanked]["badge"] == "thanked" and got[thanked]["line"] == f"Thank-you sent {AS_OF:%b} {AS_OF.day}"
     assert last_quarter not in got and wrong_intent not in got
-    assert rows[-1]["id"] == thanked and thanked not in flagged           # thanked sorts last
+    assert thanked not in flagged
+    # Badges take turns, so a thanked donor shows near the top instead of after every alert.
+    assert [r["badge"] for r in rows].index("thanked") < len({r["badge"] for r in rows})
 
 
 # ---- due dates carry their year when it isn't this year (QA: "due Nov 21 (717 days late)" read as the future)

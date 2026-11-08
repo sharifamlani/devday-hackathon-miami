@@ -210,7 +210,8 @@ describe("home data: tasks from GET /tasks", () => {
 describe("home data: CRM badges from GET /people/attention", () => {
   it("names the service's 'failed' badge and passes the rest to attentionTag", () => {
     expect(crmTag("failed")).toEqual({ label: "Card failed", tone: "alert" });
-    expect(crmTag("late")).toEqual({ label: "Late", tone: "alert" });
+    expect(crmTag("late")).toEqual({ label: "Late", tone: "warn" });
+    expect(crmTag("skipped")).toEqual({ label: "Skipped", tone: "warn" });
     expect(crmTag("not_yet")).toEqual({ label: "Not yet", tone: "quiet" });
     expect(crmTag("new").tone).toBe("good");
   });
