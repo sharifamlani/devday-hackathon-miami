@@ -58,6 +58,9 @@ Rules:
   with their ids and the topic; it shows what we sent them before, what we did since (sourced facts X, Y, Z) and
   what's coming. Say in one line what the email will lead with; draft only when the user clicks Draft or asks
   (then draft_email for those ids with fact_urls = the card's fact links, so the emails cite only those).
+  An email for ONE named person ("prep / write an email for <person>"): skip prep_email; find_people, then
+  draft_email([id], thank_you if they gave in the last 90 days else check_in), then send(batch_id) so the Send
+  card shows the draft itself. Nothing goes until they click Send. Say in one line what it leads with.
   An event prep task: who is invited and what to prepare.
 - Enrich protocol ("enrich / research <person>"): call enrich_person. List each proposed fact with its source and
   each proposed interest tag, then ask whether to save them; save only the ones the user agrees to, with
@@ -1511,6 +1514,16 @@ def send_summary(batch_id: int, message_ids: list[int] | None = None) -> str | N
     return f"Send {what} to {who}" + (f" ({' · '.join(notes)})" if notes else "")
 
 
+def send_preview(batch_id: int, message_ids: list[int] | None = None, limit: int = 3) -> list[dict]:
+    """The drafts a Send card would send (to, subject, body), so the card shows the email itself."""
+    rows = query("SELECT m.id, m.subject, m.body, d.full_name FROM campaign_messages m JOIN donors d ON d.id = m.donor_id "
+                 "WHERE m.campaign_id = ? AND m.status IN ('draft', 'approved') ORDER BY m.id", (batch_id,))
+    if message_ids:
+        chosen = {int(i) for i in message_ids}
+        rows = [r for r in rows if r["id"] in chosen]
+    return [{"to": r["full_name"], "subject": r["subject"], "body": r["body"]} for r in rows[:limit]]
+
+
 def send_notes(rows: list[dict]) -> list[str]:
     """What will hold some messages back, said before Send instead of after (the send rules in routes_campaigns):
     star / big / organization messages need individual approval, a missing address can't be sent, flagged ones
@@ -1536,7 +1549,10 @@ def approval_items(interruptions) -> list[dict]:
     out = []
     for i in interruptions or []:
         args = output_data(i.arguments)
-        out.append({"call_id": i.call_id, "tool": i.name, "args": args, "summary": approval_summary(i.name, args)})
+        item = {"call_id": i.call_id, "tool": i.name, "args": args, "summary": approval_summary(i.name, args)}
+        if i.name == "send" and args.get("batch_id") is not None:
+            item["preview"] = send_preview(args["batch_id"], args.get("message_ids"))
+        out.append(item)
     return out
 
 

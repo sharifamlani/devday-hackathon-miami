@@ -915,3 +915,13 @@ def test_a_city_the_user_names_reaches_the_identity_check(db_file, monkeypatch):
     pid = invoke("add_contact", full_name="Example Civic Fund", donor_type="organization")["person_id"]
     invoke("enrich_person", person_id=pid, city="New York", state="NY")
     assert seen[0][2] == "New York" and seen[0][5] == "NY"
+
+
+def test_a_send_card_shows_the_drafted_email(db_file):
+    """Sharif: "Prep an email for Priya Raman" must show the draft itself on the Send card, not just a name."""
+    pid = one(db_file, "SELECT id FROM donors WHERE contact_type = 'giver' ORDER BY id LIMIT 1")["id"]
+    out = invoke("draft_email", person_ids=[pid], intent="check_in")
+    batch = out.get("batch_id") or out.get("id") or out["batch"]["id"]
+    preview = ca.send_preview(batch)
+    assert len(preview) == 1 and preview[0]["body"] and preview[0]["to"]
+    assert "An email for ONE named person" in ca.INSTRUCTIONS

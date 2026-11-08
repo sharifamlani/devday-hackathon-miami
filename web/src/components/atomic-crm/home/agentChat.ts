@@ -41,6 +41,8 @@ export type AgentApproval = {
   args: Record<string, unknown>;
   /** One plain line from the service ("Call Maria Delgado at +1 (305) 555-0101"); absent = show the args. */
   summary?: string | null;
+  /** A Send card's drafts (to, subject, body): the card shows the email itself before anyone clicks Send. */
+  preview?: { to: string; subject: string | null; body: string }[];
 };
 
 export type AgentMessage =

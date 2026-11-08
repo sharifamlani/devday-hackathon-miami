@@ -360,6 +360,13 @@ export const ApprovalCard = ({
     {(approval.summary || argLine(approval.args)) && (
       <p className="mt-0.5 text-muted-foreground">{approval.summary || argLine(approval.args)}</p>
     )}
+    {approval.preview?.map((m, i) => (
+      <div key={i} data-testid="send-preview" className="mt-2 rounded-lg border border-border bg-background p-2.5">
+        <p className="text-xs text-muted-foreground">To {m.to}</p>
+        {m.subject && <p className="mt-0.5 font-semibold">{m.subject}</p>}
+        <p className="mt-1 max-h-56 overflow-y-auto whitespace-pre-wrap">{m.body}</p>
+      </div>
+    ))}
     {!decided && (
       <div className="mt-2 flex flex-wrap gap-2">
         <button
