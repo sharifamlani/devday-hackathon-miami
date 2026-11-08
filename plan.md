@@ -1911,7 +1911,7 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
 | 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
 | 4c | Call sheet | Click the **Call Hye-jin Park** task row | steps incl. **Prep call**, a call sheet + a draft, **Mark done?** (~28 s). The call sheet's **Call** opens the call controls inside that chat card, not a pop-up (#248); **Call** stays disabled until the phone setup is ready, so don't press it unless the phone call is part of the run |
-| 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the transcript streams in (~10 s), the summary and **Suggested next steps** (~4 s); once #210 is in: the after-call card proposes the tasks and the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") → **Apply** writes them |
+| 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the transcript streams in (~10 s), the summary and **Suggested next steps** (~4 s); once #210 is in: the after-call card proposes the tasks and the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") → **Apply selected** writes the ticked ones |
 | 4e | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
 | 4f | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
 | 4g | CRM + Enhance | Type *"Add the Knight Foundation as a contact."*; **CRM** heading → expand the Knight row → **Enhance** → **Save to profile** | **Enhancing…**, sourced interest tags (cached: under 1 s) |
@@ -1919,8 +1919,8 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | 5 | Close | Presenter says the closing line | the dashboard |
 
 If #210 has merged, the Live transcript demo call (4d) is with Hye-jin Park: her failed $40 gift, then an RSVP to
-the Give Miami 5K, then the after-call card and **Apply**; `docs/demo-script.md` carries the words. Before #210 the
-demo call is the scripted one (Rosa), and the beat ends at the summary and suggested next steps.
+the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-script.md` carries the words. Before
+#210 the card still appears but isn't tied to a donor; stop at the summary.
 
 ### 22.3. T-minus checklist (laptop operator)
 - [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
@@ -1997,7 +1997,7 @@ fallback before T-30.
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
 | 4c Call sheet | over 40 s | "It's writing a call sheet and a draft from her record." Move on when the draft shows. |
-| 4d Call + after-call | the transcript or summary stalls, or **Apply** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
+| 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
 | 4e Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
 | 4f Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
 | 4g Enhance | slow (cache miss) | "It's reading the public web; every tag will carry its source." Skip **Save to profile** if over 30 s. |
