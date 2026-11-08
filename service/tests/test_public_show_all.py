@@ -66,6 +66,13 @@ def test_every_read_needs_the_vercel_origin(client):
         assert client.get(p, headers={"Origin": "https://evil.example"}).status_code == 403, p
 
 
+def test_phone_routes_stay_private(client):
+    """The call preview carries the real STAFF_PHONE (.env) and GET /phone/calls/{id} can write: never public."""
+    public_mode.set_enabled(True)
+    assert client.get("/phone/preview?donor_id=3", headers=H).status_code == 403
+    assert client.get("/phone/calls/x", headers=H).status_code == 403
+
+
 def test_writes_stay_refused(client):
     public_mode.set_enabled(True)
     for method, path in [("patch", "/people/1"), ("put", "/people/1"), ("post", "/tasks"), ("post", "/crm/tasks"),

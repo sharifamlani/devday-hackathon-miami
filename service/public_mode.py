@@ -89,8 +89,9 @@ def group_of(path: str) -> str | None:
 
 
 def allowed(method: str, path: str) -> bool:
-    if method == "GET" and not redacting():      # PUBLIC_SHOW_ALL: every read, still no writes
-        return True
+    if method == "GET" and not redacting() and not path.startswith("/phone/"):
+        return True     # PUBLIC_SHOW_ALL: every read, still no writes. /phone/* stays out: the preview carries the real
+                        # STAFF_PHONE from .env, and GET /phone/calls/{id} can mark a stale call failed
     return any(m == method and rx.match(path) for m, rx in ALLOW)
 
 
