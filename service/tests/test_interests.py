@@ -223,3 +223,11 @@ def test_undo_raises_value_error_for_unknown_or_reused_tokens(db_file):
     with pytest.raises(ValueError):
         interests.undo(conn, token)                                   # unknown
     conn.close()
+
+
+def test_tag_slugs_needs_no_database():
+    """after_call_agent calls interests.tag_slugs() with no connection."""
+    slugs = interests.tag_slugs()
+    assert slugs == interests.TAG_SLUGS and len(slugs) == 17
+    slugs.append("x")                                                   # a copy: callers can't change the constant
+    assert len(interests.TAG_SLUGS) == 17

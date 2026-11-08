@@ -84,6 +84,11 @@ SourceType = Literal["board_seat", "named_gift", "named_fund", "statement", "eve
 SUBTAG_LABELS = {"k12": "K-12", "stem": "STEM", "higher_ed": "Higher education", "ocean_coral": "Ocean & coral"}
 
 
+def tag_slugs() -> list[str]:
+    """The 17 tag slugs, in order. No database needed (other agents use it to constrain their output)."""
+    return list(TAG_SLUGS)
+
+
 def subtag_label(slug: str) -> str:
     return SUBTAG_LABELS.get(slug, slug.replace("_", " ").capitalize())
 
