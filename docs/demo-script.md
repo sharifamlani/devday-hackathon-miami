@@ -31,7 +31,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    (`give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`,
    `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`,
    `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`; not `answer_key.json` or `_README.md`) → **Bring your
-   donor list.** → **Import donor data**.) A full-screen processing view takes over: the
+   donor list.** → **Import donor data**; it takes .csv, .xlsx, .docx, .md and .txt.) A full-screen processing view takes over: the
    **gatherly** wordmark, folders shuffling into a box, **Bringing your data together.** with a progress bar ("Reading
    files and recognizing accounts."), then **Everything's in place.** ("Ready for your next step."). About 8 s
    after the click the results:
@@ -42,8 +42,9 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    with **Review matches**. Say: "19 exact copies merged automatically; 9 look-alikes wait for you." Don't click
    **Review matches** on stage: it pauses setup and opens the donor list (the
    close calls come back in step 13). Click **Create organization profile**.
-3. **Step 2, "Your organization."** (the **gatherly** wordmark and "Start with your website."; this screen shows no step label) Type
-   `miamifoundation.org` in the **Website** field (placeholder **yourorganization.org**) and click **Continue**
+3. **Step 2, "Your organization."** (the **gatherly** wordmark and "Start with your website."; this screen shows no step label)
+   **Organization name** is required and already reads **The Miami Foundation** ("Prefilled for this demo. Change it to
+   research another organization."): leave it. Type `miamifoundation.org` in the **Website** field (placeholder **yourorganization.org**) and click **Continue**
    (skip **+ Add social links**: they're saved, not read). The dashboard opens in under 2 s.
 4. **The dashboard opens at once; the agent reads in the background.** There's no waiting screen: "It reads the
    site and news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing."
@@ -58,7 +59,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      duplicates to review.** · **Review**; **Next event: Give Miami Day — Early Giving opens, in 6 days (Nov 14).** ·
      **Open calendar**;
    - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
-     card (e.g. **14 sourced facts · Copy for a grant report**);
+     card (e.g. **14 sourced facts · Copy for a grant report**; its panel also has **Refresh research**: don't click it
+     on stage, and don't read its "Last refreshed" time aloud, it shows UTC);
    - the calendar tile (**November · Nov 8 – 14**): a week grid with coloured event blocks for the events the agent
      found on the Foundation's site during setup (Sat 14 **Give Miami Day — Early Giving opens**; next week Sun 15 **The
      Give Miami 5K** at 8:00 AM and the Post-Race Festival at 8:30 AM, Thu 19 **Give Miami Day**). Sun 15 is in next
@@ -68,15 +70,15 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    - **Tasks** (e.g. 18; the heading opens the full list), grouped: **Donor outreach** (e.g. 6: failed cards, late
      gifts, a new donor), **Donor records** (e.g. 9 possible duplicates), **Preparation** (one per upcoming event);
    - the **CRM** tile (its heading opens the donor database): **Find a donor** and the donors needing attention with
-     their badges (**Card failed**, **Late**, **New**);
+     their badges (**Card failed**, **Skipped**, **Late**, **New**);
    - **Files & drafts** (campaigns and invites the agents drafted);
    - the greeting **Good afternoon, Denise.** (**Good evening, Denise.** after 6 PM; Denise is the demo staff persona);
    - **Ask the agent…** with three suggestion chips above it (e.g. **Enrich <the newest donor>**, **Who's late on a
      usual gift?**, **Plan next week**; for the first ~25 s they read **Add your first donors / Who should I thank this
      week? / Plan next week**, then settle once the website read lands). A chip only fills the box; press **Send** to run it. Or type, or say it with
      the mic.
-   The tile headings open their panels beside the chat. The icon rail on the left holds **Live transcript** and
-   **Open Ask sidebar**.
+   The tile headings open their panels beside the chat. The workspace controls hold **Live transcript** and the
+   avatar menu; Home has no Ask button (the chat is on the page; other pages keep **Open Ask sidebar**).
 6. **Home chat agent.** First the duplicates, while the briefing is still on screen: on the briefing line **9
    possible duplicates to review.** click **Review** (it opens the inbox, with the duplicates banner), then **Ask the
    agent to fix**: the agent works the duplicates in the chat (about 6 s; 5.8 s in T1), and merging still waits for a
@@ -146,7 +148,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     panel at about 0:20–0:25 on the timer. The card works through **Getting the recording…**, **Transcribing…**,
     **Summarizing…** and **Suggesting follow-ups…**, then about 25 s later **✓ Saved to the call notes** with the **Summary** (1–3 short bullets) and,
     when something actionable was said, **Suggested follow-ups**, each with its own **Apply**. Don't click **Call** twice,
-    and don't close the card or reload while it says **Connected**. If the call drops, the transcript is empty, or Twilio
+    and don't close the card or reload while it says **Connected**. After **Hang up**, a new call reads **Another call is
+    in progress** for about a minute while the last one is summarized: don't start a second call then. If the call drops, the transcript is empty, or Twilio
     errors: "Calls go through Twilio; here's the sheet and the demo call instead," and do the fallback demo call below.
     **Fallback only, if Twilio fails: the demo call** (not in the run otherwise; Sharif: "We're not calling Hye-jin").
     Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
@@ -159,7 +162,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     (**RSVP goes to: The Give Miami 5K · Sun, Nov 15**) and a context note (e.g. her new card). Tick what to
     keep and click **Apply selected**: "A call becomes tasks and an RSVP, and nothing is written until staff click
     Apply selected." (Or ask a question in **Ask about this call**.)
-12. **Dictation.** **Open Ask sidebar** and use **Dictate** to speak a question instead of typing it (**Stop
+12. **Dictation.** In **Ask the agent…** press the mic (**Dictate**) and speak a question instead of typing it (**Stop
     dictation** to finish; it needs the live service and a microphone: test it before going on stage).
 13. **Duplicates review.** Click the **CRM** tile's heading: the banner reads **9 possible duplicates found** with
     **Review merges →** and **Ask the agent to fix**; click **Review merges →**. (Step 6 already used the briefing's **Review** → **Ask the agent to fix** to hand the duplicates to the
