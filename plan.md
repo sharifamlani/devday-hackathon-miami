@@ -1208,3 +1208,14 @@ Framework: **OpenAI Agents SDK + assistant-ui** (no LangGraph server, no rewrite
 LangGraph Platform-style server or Next.js; CopilotKit does not list the Agents SDK as a backend. Do not use:
 agent-chat-ui, vercel/ai-elements (deprecated end of Nov 2026), the ChatKit widget, `gemilive` as a dependency,
 browser-direct Gemini with a long-lived key.
+
+### 20.12 Decisions (Sharif, Sat Nov 7 night) and dispatch
+- **Plan approved; wave 1 dispatched.**
+- **Demo call:** Sharif owns the call script and cast. B7 (demo seed) is on hold until he hands it over; B6 (after-call
+  agent) is still built.
+- **Demo runs on the laptop** (local service). The public Vercel URL stays the read-only snapshot; no tunnel.
+- **Example organization: The Miami Foundation.** #76 (Tidepath persona switch) is not merged. Data stays fictional
+  and is labeled sample wherever figures appear.
+- **Integration with Christian's UI:** Sharif drives it. Christian messages the team when the first UI draft is
+  ready; then build → integrate → test runs on one loop (shipping flywheel). The lead does not send Christian docs.
+- Still open: Q4 gauge on sample data (0.5% of goal).
