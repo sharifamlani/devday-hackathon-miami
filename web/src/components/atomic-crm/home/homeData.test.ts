@@ -187,6 +187,16 @@ describe("home data: tasks from GET /tasks", () => {
     expect(tasksFromApi(undefined)).toEqual([]);
   });
 
+  it("keeps overdue and undated open tasks, drops only done ones, whatever the kind", () => {
+    const list = tasksFromApi([
+      task(1, { due: "2026-11-06" }),
+      task(2, { due: null, kind: "prep" }),
+      task(3, { due: "2026-11-08", done: true }),
+      task(4, { due: "2026-11-08", kind: "follow_up" }),
+    ]);
+    expect(list.map((t) => t.id)).toEqual([1, 2, 4]);
+  });
+
   it("names the kind and links Draft email only for person tasks", () => {
     expect(kindLabel("call")).toBe("Call");
     expect(kindLabel("prep")).toBe("Prep");
