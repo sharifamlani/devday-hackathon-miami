@@ -137,8 +137,12 @@ describe("donorTags", () => {
 
 describe("contact details", () => {
   it("shows the full email on the laptop and masks it in the snapshot build", () => {
-    expect(contactEmail("maria.delgado@example.com", "local")).toBe("maria.delgado@example.com");
-    expect(contactEmail("maria.delgado@example.com", "snapshot")).toBe("m•••@example.com");
+    expect(contactEmail("maria.delgado@example.com", "local")).toBe(
+      "maria.delgado@example.com",
+    );
+    expect(contactEmail("maria.delgado@example.com", "snapshot")).toBe(
+      "m•••@example.com",
+    );
     expect(contactEmail("noatsign", "snapshot")).toBe("•••");
   });
 
@@ -159,7 +163,9 @@ describe("contact details", () => {
   });
 
   it("leaves values that are already masked alone in the snapshot build", () => {
-    expect(contactEmail("r***@example.com", "snapshot")).toBe("r***@example.com");
+    expect(contactEmail("r***@example.com", "snapshot")).toBe(
+      "r***@example.com",
+    );
     expect(contactPhone("***-***-0101", "snapshot")).toBe("***-***-0101");
   });
 });
@@ -191,6 +197,31 @@ describe("giving", () => {
       { year: "2025", total: 3500, count: 2 },
       { year: "2023", total: 2500, count: 1 },
     ]);
+  });
+
+  it("leaves a declined charge out of every total (Hye-jin Park: lifetime $480, last gift Sep 10)", () => {
+    const ok = (gift_date: string, amount: number) => ({
+      amount,
+      gift_date,
+      status: "ok",
+    });
+    const summary = givingSummary([
+      { amount: 40, gift_date: "2026-10-10", status: "declined" },
+      ok("2026-09-10", 40),
+      ok("2026-08-10", 40),
+      ok("2026-07-10", 40),
+      ok("2026-06-10", 40),
+      ok("2025-11-20", 120),
+      ok("2024-11-21", 100),
+      ok("2023-11-16", 100),
+    ]);
+    expect(summary).toMatchObject({
+      lifetime: 480,
+      count: 7,
+      last_gift_date: "2026-09-10",
+      last_gift_amount: 40,
+    });
+    expect(summary.by_year[0]).toEqual({ year: "2026", total: 160, count: 4 });
   });
 
   it("handles a donor with no gifts", () => {
@@ -340,6 +371,27 @@ const detail = (over: Partial<RawDonorDetail> = {}): RawDonorDetail => ({
 });
 
 describe("details", () => {
+  it("ignores declined charges for the thank-you check and the first gift", () => {
+    const base = detail();
+    const declined = (id: number, gift_date: string) => ({
+      id,
+      donor_id: base.id,
+      amount: 40,
+      gift_date,
+      channel: null,
+      fund_type: null,
+      status: "declined",
+    });
+    const withDeclined = detail({
+      gifts: [
+        ...(base.gifts ?? []),
+        declined(901, "2026-11-01"),
+        declined(902, "2024-01-01"),
+      ],
+    });
+    expect(extrasFromDetail(withDeclined)).toEqual(extrasFromDetail(base));
+  });
+
   it("finds the thank-you, the drafts awaiting approval and the first gift", () => {
     expect(extrasFromDetail(detail())).toEqual({
       thanked_at: "2026-10-03T09:00:00Z",

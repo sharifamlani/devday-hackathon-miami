@@ -31,9 +31,11 @@ NEW_DONOR_DAYS = 30
 BADGE_ORDER = ("failed", "late", "new", "not_yet", "thanked")   # also the priority when a donor fits several
 
 
-def _short_date(iso: str) -> str:
+def _short_date(iso: str, today: date | None = None) -> str:
+    """'Nov 21', or 'Nov 21, 2024' when the year isn't today's: without it, a due date two years back read
+    as a future date ("due Nov 21 (717 days late)")."""
     d = date.fromisoformat(iso[:10])
-    return f"{d.strftime('%b')} {d.day}"
+    return f"{d.strftime('%b')} {d.day}" + ("" if today is None or d.year == today.year else f", {d.year}")
 
 
 def _initials(name: str, donor_type: str | None) -> str:
@@ -145,29 +147,29 @@ def attention(conn: sqlite3.Connection, today: date, limit: int = 6) -> list[dic
     for a in alerts:
         who = (a["cadence"] or "").replace("_gmd", " Give Miami Day")
         if a["kind"] == "failed" and a["last_gift"] and a["last_gift"] > a["expected_date"]:
-            line = f"Skipped a {who or 'regular'} gift around {_short_date(a['expected_date'])}"
+            line = f"Skipped a {who or 'regular'} gift around {_short_date(a['expected_date'], today)}"
         elif a["kind"] == "failed":
-            line = f"{who.capitalize() + ' gift' if who else 'Gift'} due {_short_date(a['expected_date'])} didn't go through"
+            line = f"{(who[:1].upper() + who[1:]) + ' gift' if who else 'Gift'} due {_short_date(a['expected_date'], today)} didn't go through"
             if a["last_gift"]:
-                line += f"; last good gift {_short_date(a['last_gift'])}"
+                line += f"; last good gift {_short_date(a['last_gift'], today)}"
         else:
-            line = f"{who.capitalize()} giver, due {_short_date(a['expected_date'])} ({a['days_late']} days late)"
+            line = f"{(who[:1].upper() + who[1:])} giver, due {_short_date(a['expected_date'], today)} ({a['days_late']} days late)"
         take(a["kind"], a["donor_id"], line)
 
     cutoff = (today - timedelta(days=NEW_DONOR_DAYS)).isoformat()
     for donor_id, s in sorted(stats.items(), key=lambda kv: (kv[1]["first_date"], kv[0]), reverse=True):
         if s["first_date"] > cutoff:
-            take("new", donor_id, f"First gift ${s['first_amount']:,.0f} on {_short_date(s['first_date'])}")
+            take("new", donor_id, f"First gift ${s['first_amount']:,.0f} on {_short_date(s['first_date'], today)}")
 
     year_start = date(today.year, 1, 1).isoformat()
     lapsed = sorted(((d, s) for d, s in stats.items() if s["last_date"] < year_start),
                     key=lambda ds: (-ds[1]["lifetime"], ds[0]))
     for donor_id, s in lapsed:
         take("not_yet", donor_id,
-             f"Gave ${s['lifetime']:,.0f} before; nothing yet in {today.year}. Last gift {_short_date(s['last_date'])}")
+             f"Gave ${s['lifetime']:,.0f} before; nothing yet in {today.year}. Last gift {_short_date(s['last_date'], today)}")
 
     for donor_id, sent in sorted(_thanked(conn, today).items(), key=lambda kv: (kv[1], kv[0]), reverse=True):
-        take("thanked", donor_id, f"Thank-you sent {_short_date(sent)}")
+        take("thanked", donor_id, f"Thank-you sent {_short_date(sent, today)}")
 
     out = []
     for badge in BADGE_ORDER:
