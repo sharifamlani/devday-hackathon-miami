@@ -4,13 +4,19 @@ import { Link } from "react-router";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useCampaigns } from "../providers/local/hooks";
+import { useCampaigns, useOutbox } from "../providers/local/hooks";
 import { formatStamp, intentLabel, pillButton } from "./campaignFormat";
-import { ChannelLabel, LinkPill, PageShell, SimulatedNote } from "./campaignUi";
+import { ChannelLabel, LinkPill, PageShell } from "./campaignUi";
+import { SendModeNote } from "./SendModeNote";
+import { TONE_CLASS, campaignOutcomeLabel } from "./sendLabels";
 
 /** /campaigns: every campaign with its approval progress. */
 export const CampaignList = () => {
   const { data: campaigns, isPending, error } = useCampaigns();
+  const { data: outbox } = useOutbox();
+
+  const sentLabel = (id: number) =>
+    campaignOutcomeLabel((outbox ?? []).filter((o) => o.campaign_id === id));
 
   return (
     <PageShell
@@ -34,7 +40,7 @@ export const CampaignList = () => {
         </>
       }
     >
-      <SimulatedNote className="rounded-[18px] bg-card p-4" />
+      <SendModeNote className="rounded-[18px] bg-card p-4" />
       {isPending ? (
         <Skeleton className="h-32 w-full rounded-[22px]" />
       ) : error ? (
@@ -61,11 +67,11 @@ export const CampaignList = () => {
                     className={cn(
                       "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
                       c.status === "sent"
-                        ? "bg-good text-good-foreground"
+                        ? TONE_CLASS[sentLabel(c.id).tone]
                         : "bg-brand-soft text-brand-soft-foreground",
                     )}
                   >
-                    {c.status === "sent" ? "Sent (simulated)" : "In review"}
+                    {c.status === "sent" ? sentLabel(c.id).text : "In review"}
                   </span>
                 </span>
                 <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">

@@ -157,6 +157,32 @@ def test_send_calls_the_single_delivery_hook_once_per_message(client, monkeypatc
     assert len(client.get("/outbox").json()) == 2
 
 
+def test_outbox_and_send_report_what_really_happened(client, monkeypatch):
+    """Fake adapter only: nothing real is sent. The API must expose provider / simulated / delivery_status."""
+    from service import routes_campaigns
+    c = client.post("/campaigns", json={"donor_ids": [1], "intent": "check_in", "channel": "email"}).json()
+    assert client.post(f"/campaigns/{c['id']}/approve-small").status_code == 200
+    r = client.post(f"/campaigns/{c['id']}/send").json()          # default adapter: dry run
+    assert r["simulated"] is True and r["providers"] == {"dryrun": 1}
+    row = client.get("/outbox").json()[0]
+    assert (row["provider"], row["simulated"], row["delivery_status"]) == ("dryrun", True, "queued (dry run)")
+
+    c2 = client.post("/campaigns", json={"donor_ids": [1, 3], "intent": "thank_you", "channel": "email"}).json()
+    client.post(f"/campaigns/{c2['id']}/approve-small")
+
+    def fake_gmail(channel, to, subject, body):
+        if to.startswith("jcarter"):
+            return {"provider": "gmail", "status": "failed: HttpError", "simulated": False, "delivered": False}
+        return {"provider": "gmail", "status": "sent", "simulated": False, "delivered": True, "provider_id": "gm-1"}
+
+    monkeypatch.setattr(routes_campaigns, "deliver", fake_gmail)
+    r2 = client.post(f"/campaigns/{c2['id']}/send").json()
+    assert r2["simulated"] is False and r2["sent"] == 1 and r2["providers"] == {"gmail": 1}
+    assert r2["failed"][0]["provider"] == "gmail" and r2["failed"][0]["reason"] == "failed: HttpError"
+    real = client.get(f"/outbox?campaign_id={c2['id']}").json()
+    assert [(o["provider"], o["simulated"], o["delivery_status"], o["provider_id"]) for o in real] ==         [("gmail", False, "sent", "gm-1")]
+
+
 def test_text_campaign_masks_phone_and_stays_under_320(client):
     c = client.post("/campaigns", json={"donor_ids": [1, 9, 11], "intent": "re_engage", "channel": "text"}).json()
     assert all(len(m["body"]) <= ca.SMS_MAX and m["subject"] is None for m in c["messages"])

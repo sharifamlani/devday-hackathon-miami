@@ -89,14 +89,28 @@ export interface ApproveSmallResult {
   flagged: number;
 }
 
+/** Who handled a message: "dryrun" delivers nothing; the rest are real providers. */
+export type OutboxProvider = "dryrun" | "gmail" | "twilio" | "linq";
+
 export interface SendCampaignResult {
-  simulated: true;
+  /** True only when nothing real was delivered (every sent message was a dry run). */
+  simulated: boolean;
   sent: number;
+  /** Sent messages per provider, e.g. { gmail: 2 } or { dryrun: 3 }. Absent on older services. */
+  providers?: Record<string, number>;
   no_address: { message_id: number; donor_name: string; reason: string }[];
+  /** Provider refused the send; the message stays approved. reason is "failed: <why>". */
+  failed?: {
+    message_id: number;
+    donor_name: string;
+    reason: string;
+    detail?: string | null;
+    provider?: string;
+  }[];
   not_approved: number;
 }
 
-/** One row of the simulated outbox, which is also the contact log. */
+/** One row of the outbox, which is also the contact log. */
 export interface OutboxEntry {
   id: number;
   campaign_id: number | null;
@@ -109,7 +123,12 @@ export interface OutboxEntry {
   subject: string | null;
   body: string;
   sent_at: string;
-  simulated: true;
+  /** True for a dry run: logged, not delivered. */
+  simulated: boolean;
+  provider?: OutboxProvider | string;
+  /** "queued (dry run)" | "sent" | "failed: <why>" */
+  delivery_status?: string;
+  provider_id?: string | null;
 }
 
 export interface CampaignMethods {
@@ -123,7 +142,7 @@ export interface CampaignMethods {
   ): Promise<CampaignMessage>;
   /** Bulk-approves only drafts that need no individual approval and have no flags. */
   approveSmallDrafts(campaignId: number): Promise<ApproveSmallResult>;
-  /** Approved messages go to the SIMULATED outbox. Nothing leaves the laptop. */
+  /** Approved messages go through the delivery hook: a dry run unless Gmail/SMS sending is switched on. */
   sendCampaign(campaignId: number): Promise<SendCampaignResult>;
   getOutbox(): Promise<OutboxEntry[]>;
 }
