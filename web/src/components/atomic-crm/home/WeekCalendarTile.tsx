@@ -35,6 +35,35 @@ const tone = (event: CalendarItem) =>
       ? "call"
       : "campaign";
 
+const kindNames: Record<string, [string, string]> = {
+  call: ["call", "calls"],
+  review: ["review", "reviews"],
+  email: ["email", "emails"],
+  prep: ["prep", "preps"],
+  event: ["event", "events"],
+};
+
+/**
+ * A day's untimed items for the "All day" row: one block per kind ("5 calls", "9 reviews"), so a busy
+ * day stays readable in a narrow column; a lone item keeps its own title. Order: events, then by size.
+ */
+export const allDayGroups = (items: CalendarItem[]) => {
+  const byKind = new Map<string, CalendarItem[]>();
+  for (const item of items) {
+    const key = item.kind === "event" ? "event" : item.task_kind ?? "other";
+    byKind.set(key, [...(byKind.get(key) ?? []), item]);
+  }
+  return [...byKind.entries()]
+    .sort(([a, x], [b, y]) => (a === "event" ? -1 : b === "event" ? 1 : y.length - x.length))
+    .map(([key, group]) => ({
+      items: group,
+      label:
+        group.length === 1
+          ? group[0].title
+          : `${group.length} ${(kindNames[key] ?? ["item", "items"])[1]}`,
+    }));
+};
+
 /** Seven-day service feed. Missing times stay in the all-day row; none are invented. */
 export const WeekCalendarTile = ({
   today,
@@ -71,13 +100,14 @@ export const WeekCalendarTile = ({
     index: number,
     timedEvent: boolean,
     group: CalendarItem[] = [event],
+    label?: string,
   ) => (
     <button
       key={`${event.ref ?? event.title}-${index}`}
       type="button"
       className={`home-calendar-event ${tone(event)}`}
       title={`${group.map((item) => item.title).join("; ")} · ${formatDate(event.date.slice(0, 10))}${event.time ? ` · ${event.time}` : " · All day"}`}
-      aria-label={`${group.length > 1 ? `${group.length} events: ` : ""}${group.map((item) => item.title).join("; ")}, ${formatDate(event.date.slice(0, 10))}, ${event.time ?? "all day"}`}
+      aria-label={`${group.length > 1 ? `${label ?? `${group.length} events`}: ` : ""}${group.map((item) => item.title).join("; ")}, ${formatDate(event.date.slice(0, 10))}, ${event.time ?? "all day"}`}
       onClick={() => setSelected(group)}
       style={
         timedEvent
@@ -89,7 +119,7 @@ export const WeekCalendarTile = ({
       }
     >
       {timedEvent && <time>{event.time?.slice(0, 5)}</time>}
-      <span>{group.length > 1 ? `${group.length} events` : event.title}</span>
+      <span>{label ?? (group.length > 1 ? `${group.length} events` : event.title)}</span>
     </button>
   );
   return (
@@ -162,12 +192,12 @@ export const WeekCalendarTile = ({
         <>
           {allDay.length > 0 && (
             <div className="home-week-all-day">
-              <span>all day</span>
+              <span>All day</span>
               {days.map((day) => (
                 <div key={day}>
-                  {allDay
-                    .filter((event) => event.date.slice(0, 10) === day)
-                    .map((event, i) => eventButton(event, i, false))}
+                  {allDayGroups(allDay.filter((event) => event.date.slice(0, 10) === day)).map((g, i) =>
+                    eventButton(g.items[0], i, false, g.items, g.label),
+                  )}
                 </div>
               ))}
             </div>

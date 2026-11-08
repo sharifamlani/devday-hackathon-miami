@@ -203,9 +203,9 @@ const OrganizationListLayout = () => {
             : "No organizations yet. Organization donors and the organizations people give through show up here."}
         </div>
       ) : (
-        <ul className="grid gap-3 @min-[560px]:grid-cols-2 @min-[900px]:grid-cols-3">
+        <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 @min-[560px]:grid-cols-2 @min-[900px]:grid-cols-3">
           {data.map((org) => (
-            <li key={org.id}>
+            <li key={org.id} className="min-w-0">
               <Link
                 to={`/companies/${org.id}/show`}
                 className={cn(

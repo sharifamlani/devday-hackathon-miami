@@ -13,6 +13,7 @@ import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
 import type { DonorDetail } from "../providers/local/types";
 import { TaskCreateSheet } from "../tasks/TaskCreateSheet";
+import { PhoneCallButton } from "../voice/PhoneCallButton";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { ContactTasksList } from "./ContactTasksList";
 import {
@@ -30,6 +31,8 @@ import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
 import { TagsListEdit } from "./TagsListEdit";
+import { AutoMergeFlag } from "./AutoMergeFlag";
+import { isNonGiver, TAB_ONE } from "./personTab";
 
 const TABS = ["overview", "notes", "tasks"] as const;
 type ProfileTab = (typeof TABS)[number];
@@ -172,7 +175,7 @@ const ProfileHeader = ({
 }) => (
   <header className={cn(tileClass, "p-4 sm:p-5")}>
     <div className="flex flex-wrap items-start gap-4">
-      <InitialsAvatar name={record.full_name} size="lg" />
+      <InitialsAvatar name={record.full_name ?? [record.first_name, record.last_name].filter(Boolean).join(" ")} size="lg" />
       <div className="min-w-0 flex-1">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {record.is_star && (
@@ -182,21 +185,33 @@ const ProfileHeader = ({
             </span>
           )}
           {record.full_name}
+          <span className="ml-2 inline-flex align-middle">
+            <AutoMergeFlag
+              personId={record.id}
+              name={record.full_name}
+              autoMerged={record.auto_merged}
+              mergedFrom={record.merged_from}
+            />
+          </span>
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {[
             record.donor_type === "organization"
               ? "Organization"
               : "Individual",
-            `${tierLabel[record.tier]} donor`,
-            statusLabel[record.donor_status],
+            ...(isNonGiver(record.contact_type)
+              ? [TAB_ONE[record.contact_type]]
+              : [
+                  `${tierLabel[record.tier]} donor`,
+                  statusLabel[record.donor_status],
+                ]),
             record.city,
           ]
             .filter(Boolean)
             .join(" · ")}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <DonorTagList tags={record.status_tags} />
+          <DonorTagList tags={record.status_tags ?? []} />
           {record.is_sample && <SampleHistoryBadge />}
         </div>
       </div>
@@ -215,6 +230,7 @@ const ProfileHeader = ({
       </div>
     </div>
     <div className="mt-4 flex flex-wrap gap-2">
+      <PhoneCallButton donorId={record.id} />
       <Button size="sm" className="rounded-full" onClick={onAddTask}>
         <ListPlus aria-hidden />
         Add task
@@ -258,9 +274,9 @@ const Overview = ({
         hideGifts
         className={cn(tileClass, "space-y-3 p-4 sm:p-5")}
       >
-        {record.reasons.length > 0 && (
+        {(record.reasons ?? []).length > 0 && (
           <ul className="flex flex-wrap gap-1.5" aria-label="Score reasons">
-            {record.reasons.map((reason) => (
+            {(record.reasons ?? []).map((reason) => (
               <li
                 key={reason}
                 className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
@@ -341,9 +357,9 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
       caption="What they support, with the source for each"
     >
       <InterestAreasEditor personId={record.id} />
-      {record.interests.length > 0 && (
+      {(record.interests ?? []).length > 0 && (
         <p className="text-xs text-muted-foreground">
-          From the uploaded list: {record.interests.join(", ")}
+          From the uploaded list: {(record.interests ?? []).join(", ")}
         </p>
       )}
     </ProfileSection>

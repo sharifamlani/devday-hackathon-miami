@@ -26,11 +26,12 @@ const useInvalidateAll = () => {
 };
 
 /** One tab's people, plus the count for every tab (for the tab badges). */
-export const usePeople = (tab: Tab) => {
+export const usePeople = (tab: Tab, enabled = true) => {
   const dataProvider = useDonorDesk();
   return useQuery({
     queryKey: crmKeys.people(tab),
     queryFn: () => dataProvider.getPeople(tab),
+    enabled,
   });
 };
 
@@ -109,7 +110,8 @@ export const useChat = (context: ChatContext) => {
   const pendingBatch: SendBatch | null =
     [...messages]
       .reverse()
-      .find((m) => m.batch && !resolvedBatches.includes(m.batch.id))?.batch ?? null;
+      .find((m) => m.batch && !resolvedBatches.includes(m.batch.id))?.batch ??
+    null;
 
   return {
     messages,

@@ -87,7 +87,7 @@ async def propose(donor: dict, refresh: bool) -> dict:
     try:
         return await asyncio.wait_for(run_in_threadpool(
             enrich_full, donor["full_name"], donor.get("org_name"), donor.get("city"),
-            donor.get("donor_type"), refresh), ENRICH_TIMEOUT_S)
+            donor.get("donor_type"), refresh, donor.get("state"), donor.get("email")), ENRICH_TIMEOUT_S)
     except asyncio.TimeoutError:
         raise HTTPException(504, f"enrichment took longer than {ENRICH_TIMEOUT_S} s; try again")
 
