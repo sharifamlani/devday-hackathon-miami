@@ -94,15 +94,27 @@ export const confidentMatch = (
  * title has distinctive words that weren't said.
  */
 export type RsvpCheck = { event: CrmEvent | null; mismatch: boolean };
-const NAME_WORDS = /[a-z]{5,}/g;
+// Short words matter here: "5k", "day", "give", "race" are what tell "The Give Miami 5K" from
+// "Give Miami Day" or the 5K's Post-Race Festival (a4's review). Only filler words are ignored.
+const NAME_WORDS = /[a-z0-9]{2,}/g;
+const FILLER = new Set(["the", "and", "with", "for", "of", "on", "at", "in", "to", "an", "a"]);
+const words = (text: string) => (foldName(text).match(NAME_WORDS) ?? []).filter((w) => !FILLER.has(w));
+/** The day of the month said aloud ("the 15th", "November 15"), if any. */
+const spokenDay = (text: string): number | null => {
+  const m = foldName(text).match(/\b(\d{1,2})(?:st|nd|rd|th)\b/) ?? foldName(text).match(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})\b/);
+  return m ? Number(m[1]) : null;
+};
 export const checkRsvp = (action: AfterCallAction, events: CrmEvent[] | undefined): RsvpCheck | null => {
   if (action.type !== "rsvp_event" || !events) return null;
   const id = Number(action.payload.event_id);
   const event = events.find((e) => e.id === id) ?? null;
   if (!event) return { event: null, mismatch: true };
-  const said = new Set(foldName(action.evidence ?? action.label).match(NAME_WORDS) ?? []);
-  const unsaid = (foldName(event.title).match(NAME_WORDS) ?? []).filter((w) => !said.has(w));
-  return { event, mismatch: unsaid.length > 0 };
+  const spoken = action.evidence ?? action.label;
+  const said = new Set(words(spoken));
+  const unsaid = words(event.title).filter((w) => !said.has(w));
+  const day = spokenDay(spoken);
+  const otherDay = day != null && new Date(event.starts_at).getDate() !== day;
+  return { event, mismatch: unsaid.length > 0 || otherDay };
 };
 
 const eventDate = (startsAt: string) =>

@@ -22,7 +22,7 @@ vi.mock("../providers/local/voice", () => ({
   useAfterCall: () => ({ apply: { mutate: api.mutate } }),
 }));
 
-const { AfterCallCard, confidentMatch, foldName, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
+const { AfterCallCard, checkRsvp, confidentMatch, foldName, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
 
 const ROSA: AfterCallProposal = {
   steps: ["Read the call", "Matched the Beach Cleanup on Sat Nov 21"],
@@ -338,6 +338,33 @@ describe("an RSVP shows where it will really write (the 5K can be missing from s
     await new Promise((r) => setTimeout(r, 50));
     expect(ticks(screen)).toEqual([false, true]); // their choice stands; the warning still shows
     await expect.element(screen.getByText("check it’s the right event", { exact: false })).toBeVisible();
+  });
+});
+
+describe("checkRsvp tells same-named events apart (a4's review)", () => {
+  const said = "And put me down for the Give Miami 5K on the 15th.";
+  const rsvp = (eventId: number) =>
+    ({ id: "r", type: "rsvp_event", label: "RSVP", payload: { event_id: eventId }, evidence: said }) as const;
+  const ev = (id: number, title: string, starts_at: string) =>
+    ({ id, title, starts_at }) as unknown as Parameters<typeof checkRsvp>[1] extends (infer T)[] | undefined ? T : never;
+  const calendar = [
+    ev(1, "The Give Miami 5K", "2026-11-15T08:00"),
+    ev(2, "The Give Miami 5K Post-Race Festival, a Party with a Purpose!", "2026-11-15T08:30"),
+    ev(4, "Give Miami Day", "2026-11-19T00:00"),
+    ev(5, "The Give Miami 5K", "2026-12-06T08:00"),
+  ];
+
+  it("the 5K said on the 15th matches the 5K on the 15th", () => {
+    expect(checkRsvp(rsvp(1), calendar)?.mismatch).toBe(false);
+  });
+  it("Give Miami Day is flagged: 'day' wasn't said (and it's the 19th)", () => {
+    expect(checkRsvp(rsvp(4), calendar)?.mismatch).toBe(true);
+  });
+  it("the Post-Race Festival is flagged: 'post', 'race', 'festival'... weren't said", () => {
+    expect(checkRsvp(rsvp(2), calendar)?.mismatch).toBe(true);
+  });
+  it("the right name on another date is flagged by the spoken day", () => {
+    expect(checkRsvp(rsvp(5), calendar)?.mismatch).toBe(true);
   });
 });
 
