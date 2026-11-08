@@ -33,12 +33,12 @@ export const FAMILY_COLORS: Record<Family, { bg: string; fg: string }> = {
   outreach: { bg: "var(--alert)", fg: "var(--alert-foreground)" },
 };
 
-/** The staff's own outreach plan (outreach/outreachPlan.ts): ink, so it reads apart from events. */
+/** Dated tasks (the outreach plan, the agent's tasks): ink, so they read apart from events. */
 export const PLAN_COLORS = {
   bg: "var(--primary)",
   fg: "var(--primary-foreground)",
 };
-export const PLAN_LABEL = "Your outreach plan";
+export const PLAN_LABEL = "Tasks";
 
 interface KindRule {
   family: Family;

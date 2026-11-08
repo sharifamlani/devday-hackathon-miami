@@ -17,7 +17,7 @@ import { useHomeData } from "../providers/local/homeFeed";
 import { useCompleteTask } from "../providers/local/tasks";
 import { isIsoDate, toIsoDate } from "../outreach/dates";
 import { DayPlanner } from "../outreach/DayPlanner";
-import { useOutreachPlan } from "../outreach/outreachPlan";
+import { useOutreachPlan } from "../outreach/usePlan";
 import { recommendOutreach } from "../outreach/recommend";
 import { FindDonorDialog } from "./FindDonorDialog";
 import {
