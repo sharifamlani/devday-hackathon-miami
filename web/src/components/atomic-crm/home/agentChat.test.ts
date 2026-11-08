@@ -144,7 +144,7 @@ describe("agent chat: a stream that fails part-way", () => {
     const reply = agentChatMessages()[1];
     if (reply.role !== "assistant") throw new Error("no reply");
     expect(reply.steps.filter((s) => s.status === "running")).toHaveLength(0);
-    expect(reply.steps.find((s) => s.call_id === "t2")).toMatchObject({ status: "error", summary: "no result" });
+    expect(reply.steps.find((s) => s.call_id === "t2")).toMatchObject({ status: "error", summary: "connection lost" });
     expect(reply.streaming).toBeUndefined();
     expect(refetch).toHaveBeenCalled();                 // create_task finished before the error
   });
@@ -167,7 +167,7 @@ describe("agent chat: a stream that fails part-way", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);          // a tool started: no retry through POST /chat
     const reply = agentChatMessages()[1];
     if (reply.role !== "assistant") throw new Error("no reply");
-    expect(reply.steps).toEqual([expect.objectContaining({ call_id: "t1", status: "error", summary: "no result" })]);
+    expect(reply.steps).toEqual([expect.objectContaining({ call_id: "t1", status: "error", summary: "connection lost" })]);
     expect(reply.streaming).toBeUndefined();
   });
 });
@@ -299,7 +299,7 @@ describe("agent chat: the last conversation survives a reload", () => {
         approvals: [], runId: null, streaming: true },
     ]));
     const loaded = loadSavedChat();
-    expect(loaded[1]).toMatchObject({ streaming: undefined, steps: [expect.objectContaining({ status: "error", summary: "no result" })] });
+    expect(loaded[1]).toMatchObject({ streaming: undefined, steps: [expect.objectContaining({ status: "error", summary: "connection lost" })] });
   });
 });
 

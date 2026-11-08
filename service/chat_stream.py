@@ -28,13 +28,20 @@ def call_id_of(raw) -> str | None:
     return getattr(raw, "call_id", None) or getattr(raw, "id", None)
 
 
+def fallback_line(steps: list[dict]) -> str:
+    """A sentence for a run that ended with no words of its own: the last step, or a retry hint."""
+    last = next((s["summary"] for s in reversed(steps) if s.get("summary")), None)
+    return f"{last[0].upper()}{last[1:]}." if last else "I didn't finish that. Try again."
+
+
 async def map_events(controller, result, ctx: ca.ChatContext, spec: dict) -> None:
     """Drain one streamed run into the assistant-stream controller."""
-    open_calls, steps = {}, []
+    open_calls, steps, said = {}, [], False
     async for event in result.stream_events():
         if event.type == "raw_response_event":
             if getattr(event.data, "type", "") == "response.output_text.delta":
                 controller.append_text(event.data.delta)
+                said = said or bool((event.data.delta or "").strip())
         elif event.type == "run_item_stream_event" and event.name == "tool_called":
             raw = event.item.raw_item
             call_id = call_id_of(raw)
@@ -66,6 +73,8 @@ async def map_events(controller, result, ctx: ca.ChatContext, spec: dict) -> Non
         controller.add_data({"type": "approvals", "run_id": run_id, "approvals": approvals})
     for tool in open_calls.values():          # anything left unanswered (e.g. max turns): close its card
         tool.set_response({"status": "error", "summary": "no result"}, is_error=True)
+    if not said and not approvals:            # the agent always ends with a sentence
+        controller.append_text(fallback_line(steps))
     if ctx.batches:
         from service import routes_campaigns as rc
         from service import db

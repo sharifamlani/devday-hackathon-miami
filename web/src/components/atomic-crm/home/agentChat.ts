@@ -87,7 +87,7 @@ export const loadSavedChat = (): AgentMessage[] => {
         : {
             ...m,
             streaming: undefined,
-            steps: (m.steps ?? []).map((st) => (st.status === "running" ? { ...st, status: "error" as const, summary: "no result" } : st)),
+            steps: (m.steps ?? []).map((st) => (st.status === "running" ? { ...st, status: "error" as const, summary: LOST_STEP } : st)),
           },
     );
   } catch {
@@ -228,6 +228,10 @@ export const applyStreamLine = (reply: Assistant, line: string, argsText: Map<st
 };
 
 /** What POST /chat would say for a run paused on cards with no words of its own (service: "Waiting for you: …"). */
+/** A reply cut off mid-tool (the connection dropped): say so instead of a silent red step. */
+export const LOST_STEP = "connection lost";
+export const LOST_LINE = "Connection lost before I finished. Try again.";
+
 export const waitingLine = (approvals: AgentApproval[]) =>
   approvals.length === 1
     ? `${WAITING_PREFIX}${approvals[0].summary || approvals[0].tool.replace(/_/g, " ")}.`
@@ -293,10 +297,14 @@ export const sendToAgent = async (text: string, refetch: Refetch) => {
   /** Close the reply on every path: no card left spinning, streaming off, and the screens refetched for the
    *  writes that did finish (a task written before an error must still show up). */
   function finish() {
+    // A step still running when the stream ends means the connection dropped mid-tool (e.g. a service restart)
+    const dropped = reply.steps.some((s) => s.status === "running");
     reply = {
       ...reply,
-      text: reply.approvals.length && !reply.text.trim() ? waitingLine(reply.approvals) : reply.text,
-      steps: reply.steps.map((s) => (s.status === "running" ? { ...s, status: "error", summary: "no result" } : s)),
+      text: reply.approvals.length && !reply.text.trim()
+        ? waitingLine(reply.approvals)
+        : dropped && !reply.text.trim() ? LOST_LINE : reply.text,
+      steps: reply.steps.map((s) => (s.status === "running" ? { ...s, status: "error", summary: LOST_STEP } : s)),
       streaming: undefined,
     };
     show();
