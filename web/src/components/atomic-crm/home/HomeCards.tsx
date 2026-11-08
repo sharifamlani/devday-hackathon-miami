@@ -207,6 +207,7 @@ export const GlanceTile = ({
   const show = (n: number | null) => (isPending || n == null ? "—" : String(n));
   return (
     <section
+      data-tour="glance"
       aria-labelledby={headingId}
       aria-busy={isPending}
       className={cn(tile, "p-4")}
@@ -274,6 +275,7 @@ export const CrmTile = ({
   const headingId = useId();
   return (
     <section
+      data-tour="crm"
       aria-labelledby={headingId}
       className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
     >
@@ -493,6 +495,7 @@ export const TasksTile = ({
   const headingId = useId();
   return (
     <section
+      data-tour="tasks"
       aria-labelledby={headingId}
       className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
     >

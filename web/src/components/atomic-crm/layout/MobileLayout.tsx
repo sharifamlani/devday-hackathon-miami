@@ -13,6 +13,7 @@ import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import { MobileNavigation } from "./MobileNavigation";
 import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
 import { PullToRefresh } from "./PullToRefresh";
+import { OnboardingGate } from "../onboarding/OnboardingGate";
 
 export const MobileLayout = ({ children }: { children: ReactNode }) => {
   useConfigurationLoader();
@@ -53,6 +54,7 @@ const MobileShell = ({ children }: { children: ReactNode }) => {
         <ProjectsSidebar />
       </div>
       {sidebarOpen && <AskSidebar docked={false} />}
+      <OnboardingGate />
     </>
   );
 };
