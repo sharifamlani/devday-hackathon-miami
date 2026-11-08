@@ -207,7 +207,13 @@ export const AskSidebar = ({
   // (closing runs inside a view transition, after the page behind it stops being inert).
   const close = () => {
     const trigger = voice ? VOICE_TRIGGER_ID : ASK_TRIGGER_ID;
-    session.closeSidebar(() => document.getElementById(trigger)?.focus());
+    // Home has no Ask button (the chat is on the page): focus falls back to the chat box there.
+    session.closeSidebar(() =>
+      (
+        document.getElementById(trigger) ??
+        document.querySelector<HTMLElement>('[data-tour="composer"] input')
+      )?.focus(),
+    );
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

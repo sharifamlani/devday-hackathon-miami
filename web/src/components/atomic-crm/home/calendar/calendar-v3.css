@@ -55,3 +55,23 @@
   .cal3-count[data-on]::after { content: "•"; font-size: 14px; }
   .cal3-row { grid-template-columns: 56px 10px minmax(0, 1fr) 28px 28px; }
 }
+
+/* The week grid / day view (home/WeekGrid.tsx), roomier than the Home tile. */
+.cal3-grid {
+  --cal-gutter: 36px;
+  margin: 4px 0 16px;
+}
+.cal3-grid .home-cal-scroll,
+.cal3-grid .home-cal-grid[data-detailed] .home-cal-scroll {
+  max-height: 360px;
+}
+.cal3-grid .home-cal-event {
+  font-size: 12px;
+}
+.cal3-cell[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+/* Day cells line up over the grid's day columns (past the hour gutter). */
+.cal3-strip {
+  padding-left: 36px;
+}
