@@ -30,7 +30,7 @@ import {
   useEvent,
   useEvents,
 } from "../providers/local/crmHooks";
-import { useDonors } from "../providers/local/hooks";
+import { useDonors, useTargets } from "../providers/local/hooks";
 import { useCalendarFeed } from "../providers/local/calendarFeed";
 import { DATA_MODE } from "../providers/local/config";
 import { TABS, TAB_LABELS } from "../providers/local/crmTypes";
@@ -40,7 +40,13 @@ import type {
   Tab,
 } from "../providers/local/crmTypes";
 import { calendarMarks } from "../home/homeData";
-import { addDays, formatDayShort, monthOf, toIsoDate } from "../outreach/dates";
+import {
+  addDays,
+  formatDayShort,
+  fromIsoDate,
+  monthOf,
+  toIsoDate,
+} from "../outreach/dates";
 import { DayPlanner } from "../outreach/DayPlanner";
 import { recommendOutreach } from "../outreach/recommend";
 import type { OutreachPlanItem } from "../outreach/outreachPlan";
@@ -155,7 +161,9 @@ export const CalendarPage = ({
   const donors = useDonors();
   const plan = useOutreachPlan();
   useLiveTaskRefresh();
-  const today = toIsoDate(new Date());
+  // "Today" is the service's as-of date (the demo runs as of Nov 8), like the home board.
+  const targets = useTargets();
+  const today = targets.data?.quarter?.as_of ?? toIsoDate(new Date());
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [planDate, setPlanDate] = useState<string | null>(null);
@@ -371,6 +379,7 @@ export const CalendarPage = ({
                 views={["month"]}
                 defaultView="month"
                 date={shownDate}
+                getNow={() => fromIsoDate(today)}
                 onNavigate={setDate}
                 onSelectEvent={(e) =>
                   e.task ? setTaskId(e.task.id) : setSelectedId(e.id as number)
