@@ -49,8 +49,8 @@ export const TOOL_SCOPES: Record<string, RefetchScope[]> = {
   remove_interest: ["interests", "people"],
   accept_enrichment: ["interests", "people"],
   log_gift: ["people", "targets", "summary"],
-  merge_duplicate: ["people", "summary"],
-  dismiss_duplicate: ["people", "summary"],
+  merge_duplicate: ["people", "summary", "tasks", "calendar"],   // the generator retires/creates tasks (3a)
+  dismiss_duplicate: ["people", "summary", "tasks", "calendar"],   // the generator retires/creates tasks (3a)
   add_calendar_item: ["calendar", "summary"],
   move_calendar_item: ["calendar", "summary"],
   delete_calendar_item: ["calendar", "summary"],

@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import type { NoteDestination } from "./callNotes";
 import { listServerCallNotes } from "../providers/local/calls";
+import { useDonors } from "../providers/local/hooks";
 import { DATA_MODE } from "../providers/local/config";
 import {
   proposeAfterCall,
@@ -39,14 +41,66 @@ const RETRY_MS = 700;
 
 type Phase = "reading" | "ready" | "applying" | "applied" | "discarded" | "error";
 
+type MatchedPerson = NonNullable<AfterCallProposal["person"]>;
+
+/**
+ * One proposal per note: React StrictMode mounts the card twice in development, and each
+ * /actions is a model call. A failed request is dropped so Try again asks afresh.
+ */
+const proposals = new Map<string, Promise<AfterCallProposal>>();
+export const proposeOnce = (noteId: string, fresh = false): Promise<AfterCallProposal> => {
+  if (fresh || !proposals.has(noteId)) {
+    proposals.set(
+      noteId,
+      proposeAfterCall(noteId).catch((e: unknown) => {
+        proposals.delete(noteId);
+        throw e;
+      }),
+    );
+  }
+  return proposals.get(noteId)!;
+};
+export const forgetProposals = () => proposals.clear();
+
+/** Case, accents and spacing folded: "Rosa  Martínez" and "rosa martinez" are the same name. */
+export const foldName = (name: string) =>
+  name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * The agent's matched person becomes the note's donor only on a full-name match (first and last,
+ * folded) with who the call was with, and only when exactly one donor has that name. A first-name
+ * match once attached a "Rosa Delgado" call to Rosa Elena Martinez; two "Rosa Martinez" records
+ * before a merge would be a coin toss. Anything else leaves the chip empty for staff to choose.
+ */
+export const confidentMatch = (
+  person: AfterCallProposal["person"],
+  contactName: string | null | undefined,
+  donors: { id: number; full_name: string | null }[] | undefined,
+): person is MatchedPerson => {
+  if (!person?.full_name || !contactName || !donors) return false;
+  const name = foldName(person.full_name);
+  if (name.split(" ").length < 2 || name !== foldName(contactName)) return false;
+  const same = donors.filter((d) => d.full_name && foldName(d.full_name) === name);
+  return same.length === 1 && same[0].id === person.id;
+};
+
+/** The note's destinations with the matched donor added, unless a donor is already set. */
+export const withMatchedDonor = (destinations: NoteDestination[], person: MatchedPerson): NoteDestination[] =>
+  destinations.some((d) => d.kind === "donor")
+    ? destinations
+    : [...destinations, { kind: "donor", id: String(person.id), label: person.full_name ?? "" }];
+
 export const AfterCallCard = ({
   noteId,
   contactName,
+  onMatchedPerson,
   retryMs = RETRY_MS,
 }: {
   noteId: string;
   /** Shown until the agent names the person it matched. */
   contactName?: string | null;
+  /** Called once with the agent's matched person when it agrees with contactName. */
+  onMatchedPerson?: (person: MatchedPerson) => void;
   retryMs?: number;
 }) => {
   const { apply } = useAfterCall();
@@ -56,10 +110,21 @@ export const AfterCallCard = ({
   const [result, setResult] = useState<AfterCallResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const live = useRef(true);
+  // Only the newest request may fill the card, and never once the person has changed a tick:
+  // a late or duplicate response must not undo their choices (IT lane: 1 run in 3 re-ticked all).
+  const latest = useRef(0);
+  const edited = useRef(false);
+  const onMatched = useRef(onMatchedPerson);
+  onMatched.current = onMatchedPerson;
+  const donors = useDonors();
+  const matchChecked = useRef(false);
 
   useEffect(() => {
-    live.current = true;
+    // Once the person has changed a tick, their card stands: no reset, no new request.
+    if (edited.current) return;
+    let cancelled = false; // per run: StrictMode's first run must not land after the second starts
+    const seq = ++latest.current;
+    const stale = () => cancelled || seq !== latest.current;
     let tries = 0;
     let timer: number | undefined;
     const saved = async () => (await listServerCallNotes()).some((n) => n.id === noteId);
@@ -71,15 +136,16 @@ export const AfterCallCard = ({
           await new Promise((resolve) => {
             timer = window.setTimeout(resolve, retryMs);
           });
-          if (!live.current) return;
+          if (stale()) return;
         }
-        const p = await proposeAfterCall(noteId);
-        if (!live.current) return;
+        if (stale()) return; // a superseded run must not even ask (each /actions is a model call)
+        const p = await proposeOnce(noteId, attempt > 0);
+        if (stale() || edited.current) return;
         setProposal(p);
         setTicked(new Set(p.actions.map((a) => a.id)));
         setPhase("ready");
       } catch (e) {
-        if (!live.current) return;
+        if (stale() || edited.current) return;
         setError(e instanceof Error ? e.message : "The agent couldn't read this call.");
         setPhase("error");
       }
@@ -88,10 +154,19 @@ export const AfterCallCard = ({
     setError(null);
     void read();
     return () => {
-      live.current = false;
+      cancelled = true;
       window.clearTimeout(timer);
     };
+    // contactName is read once per proposal; a later change must not ask the model again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId, attempt, retryMs]);
+
+  // Pre-fill the note's donor once, when both the proposal and the donor list are in.
+  useEffect(() => {
+    if (matchChecked.current || !proposal || !donors.data) return;
+    matchChecked.current = true;
+    if (confidentMatch(proposal.person, contactName, donors.data)) onMatched.current?.(proposal.person);
+  }, [proposal, donors.data, contactName]);
 
   const name = proposal?.person?.first_name || proposal?.person?.full_name || contactName || null;
   const title = name ? `Agent · from your call with ${name}` : "Agent · from your call";
@@ -100,13 +175,15 @@ export const AfterCallCard = ({
   const skipped = new Map(result?.skipped.map((s) => [s.id, s.why]));
   const locked = phase !== "ready";
 
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    edited.current = true;
     setTicked((t) => {
       const next = new Set(t);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
 
   const onApply = () => {
     const ids = actions.filter((a) => ticked.has(a.id)).map((a) => a.id);
@@ -160,22 +237,11 @@ export const AfterCallCard = ({
 
       {proposal && phase !== "reading" && phase !== "error" && (
         <>
-          {proposal.steps.length > 0 && (
-            <ul aria-label="What the agent did" className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {proposal.steps.map((s) => (
-                <li key={s} className="flex items-center gap-1">
-                  <Check className="size-3.5 text-[#2f8f5b]" aria-hidden />
-                  {s}
-                </li>
-              ))}
-            </ul>
-          )}
-
           {actions.length === 0 ? (
             <p className="text-muted-foreground" role="status">
               Nothing to do from this call.
             </p>
-          ) : (
+          ) : phase === "discarded" ? null : (
             <ul aria-label="Proposed actions" className="space-y-2">
               {actions.map((a: AfterCallAction) => {
                 const done = appliedIds.has(a.id);

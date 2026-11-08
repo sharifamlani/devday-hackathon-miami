@@ -181,6 +181,7 @@ def dismiss_duplicate(suggestion_id: int, conn: sqlite3.Connection = Depends(get
         dedupe.dismiss(conn, suggestion_id)
     except LookupError as e:
         raise HTTPException(404, str(e))
+    tasks.generate_safely(conn, "dismiss")   # its review task retires (3a)
     return {"suggestion_id": suggestion_id, "status": "dismissed"}
 
 
