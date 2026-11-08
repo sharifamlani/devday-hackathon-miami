@@ -177,16 +177,17 @@ def attention(conn: sqlite3.Connection, today: date, limit: int = 6) -> list[dic
 
     # One of each badge in turn (BADGE_ORDER), then the next of each: the tile's 6 rows show a mix.
     out = []
-    queues = {b: list(picked[b]) for b in BADGE_ORDER}
-    while any(queues.values()):
+    turn = 0   # index into every badge's list; stops as soon as `limit` rows are in
+    while len(out) < limit and any(turn < len(picked[b]) for b in BADGE_ORDER):
         for badge in BADGE_ORDER:
-            if not queues[badge]:
+            if turn >= len(picked[badge]) or len(out) >= limit:
                 continue
-            donor_id, line = queues[badge].pop(0)
+            donor_id, line = picked[badge][turn]
             d = donors[donor_id]
             out.append({"id": donor_id, "name": d["full_name"], "initials": _initials(d["full_name"], d["donor_type"]),
                         "line": line, "badge": badge})
-    return out[:limit]
+        turn += 1
+    return out
 
 
 @router.get("/people/attention")
