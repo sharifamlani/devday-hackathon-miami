@@ -1233,6 +1233,7 @@ browser-direct Gemini with a long-lived key.
 [4. Dashboard] gauge, today at a glance, CRM list, task card, calendar, artifacts, agent chat:
    every panel reads the context dataset + people/gifts; the agent answers from the same tables
 ```
+> **Superseded by §22 (onboarding after #264):** step 3 no longer has its own screen; step 2's Continue opens the dashboard and the site is read in the background.
 - Step 3 shows live progress (sources being read, facts found), then lands on the dashboard; no button press needed.
 - The daily refresh re-runs step 3 and re-generates tasks.
 - Build mapping: step 1 exists (ingest adapter); step 2 screen is Christian's (from draft #70); step 3 backend exists
@@ -1465,6 +1466,7 @@ then, in the agent chat (not in the mockup; added for the demo):
 ```
 
 #### 21.3.6 Onboarding
+> **Superseded by §22 (onboarding after #264):** step 3 no longer has its own screen; step 2's Continue opens the dashboard and the site is read in the background.
 ```
 Step 1 Upload                         Step 2 Your organization           Step 3 Building your context
 +-------------------------------+    +----------------------------+     +-------------------------------+

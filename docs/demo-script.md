@@ -33,7 +33,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    **kindred** wordmark, folders shuffling into a box, **Bringing your data together.** with a progress bar ("Reading
    files and recognizing accounts."), then **Everything's in place.** ("Ready for your next step."). Then the results:
    **Your donor data is ready.** "A clearer picture of your people." with the tiles **77 Accounts recognized** and
-   **<N> Duplicates removed** (the exact matches merged on upload), and "**9 possible matches still need review.**"
+   **<N> Duplicates removed** (the exact matches merged on upload; if the count isn't available the tile reads
+   **Duplicate check complete**), and "**9 possible matches still need review.**"
    with **Review matches**. Don't click **Review matches** on stage: it pauses setup and opens the donor list (the
    close calls come back in step 13). Click **Create organization profile**.
 3. **Step 2, "Your organization."** (**Step 2 of 2**, the **kindred** wordmark, "Start with your website.") Type
