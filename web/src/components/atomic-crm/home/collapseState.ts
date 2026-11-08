@@ -2,7 +2,8 @@ import { useCallback, useSyncExternalStore } from "react";
 
 /** Which overview tiles are folded to their title row, remembered in this browser. */
 export const TILE_COLLAPSE_KEY = "donordesk.home.collapsed";
-export type TileKey = "q4" | "calendar" | "tasks" | "crm" | "files";
+export type TileKey =
+  "q4" | "calendar" | "calendarDays" | "tasks" | "crm" | "files";
 
 const listeners = new Set<() => void>();
 let cache: Record<string, boolean> | null = null;

@@ -61,6 +61,8 @@ export interface PlacedEvent {
   /** Side-by-side lanes when blocks overlap, as in a calendar app. */
   lane: number;
   lanes: number;
+  /** Events whose blocks overlap share a cluster (the week view shows a cluster as one block). */
+  cluster: number;
 }
 
 /** One day's timed events in lanes: overlapping blocks share the column width. */
@@ -74,13 +76,17 @@ export const placeDay = (events: GridEvent[]): PlacedEvent[] => {
   const placed: PlacedEvent[] = [];
   let cluster: PlacedEvent[] = [];
   let clusterEnd = -1;
+  let clusterId = -1;
   const closeCluster = () => {
     const lanes = Math.max(1, ...cluster.map((p) => p.lane + 1));
     for (const p of cluster) p.lanes = lanes;
     cluster = [];
   };
   for (const item of timed) {
-    if (item.start >= clusterEnd) closeCluster();
+    if (item.start >= clusterEnd) {
+      closeCluster();
+      clusterId += 1;
+    }
     const taken = new Set(
       cluster
         .filter((p) => p.start + BLOCK_MINUTES > item.start)
@@ -88,13 +94,24 @@ export const placeDay = (events: GridEvent[]): PlacedEvent[] => {
     );
     let lane = 0;
     while (taken.has(lane)) lane += 1;
-    const p = { ...item, lane, lanes: 1 };
+    const p = { ...item, lane, lanes: 1, cluster: clusterId };
     cluster.push(p);
     placed.push(p);
     clusterEnd = Math.max(clusterEnd, item.start + BLOCK_MINUTES);
   }
   closeCluster();
   return placed;
+};
+
+/** Placed events grouped by cluster, in time order. */
+const clusters = (placed: PlacedEvent[]) => {
+  const groups: PlacedEvent[][] = [];
+  for (const p of placed) {
+    const last = groups[groups.length - 1];
+    if (last && last[0].cluster === p.cluster) last.push(p);
+    else groups.push([p]);
+  }
+  return groups;
 };
 
 const longDate = (date: string) =>
@@ -117,6 +134,9 @@ const nowMinutes = () => {
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes();
 };
+
+/** The browser's own date, YYYY-MM-DD: the demo's "today" can be a fixed service date. */
+const localDate = () => new Date().toLocaleDateString("en-CA");
 
 /**
  * Hour grid for one or more days (the Home tile's week and day views): an all-day row, hour lines,
@@ -154,7 +174,9 @@ export const TimeGrid = ({
     ...inRange.map((e) => startMinutes(e.time) ?? Infinity),
   );
   const now = nowMinutes();
-  const showNow = days.includes(today) && now >= start && now <= end;
+  const showNow =
+    today === localDate() && days.includes(today) && now >= start && now <= end;
+  const range = days.join(",");
 
   // Open on the first event (or 9a), not at midnight.
   useEffect(() => {
@@ -164,7 +186,8 @@ export const TimeGrid = ({
       ? Math.floor(firstTimed / 60) * 60
       : DEFAULT_START;
     el.scrollTop = ((anchor - start) / 60) * HOUR_PX;
-  }, [firstTimed, start, days]);
+    // Only when the viewed days or the window change, never on an unrelated re-render.
+  }, [firstTimed, start, range]);
 
   const block = (event: GridEvent, date: string, key: string) => (
     <button
@@ -226,30 +249,59 @@ export const TimeGrid = ({
               data-today={day === today || undefined}
               style={{ gridColumn: col + 2 }}
             >
-              {placeDay(byDay(day)).map((p, n) => (
-                <div
-                  key={`${p.event.ref ?? p.event.title}-${n}`}
-                  className="home-cal-slot"
-                  style={{
-                    top: ((p.start - start) / 60) * HOUR_PX + 1,
-                    height: (BLOCK_MINUTES / 60) * HOUR_PX - 2,
-                    // Day view: overlapping blocks side by side. Week view's columns are narrow, so a later
-                    // block cascades over the earlier one (indented) and both titles stay readable.
-                    ...(detailed
-                      ? {
-                          left: `calc(${(p.lane / p.lanes) * 100}% + 1px)`,
-                          width: `calc(${100 / p.lanes}% - 2px)`,
-                        }
-                      : {
-                          left: `calc(${p.lane * 22}% + 1px)`,
-                          width: `calc(${100 - p.lane * 22}% - 2px)`,
-                          zIndex: p.lane + 1,
-                        }),
-                  }}
-                >
-                  {block(p.event, day, "b")}
-                </div>
-              ))}
+              {detailed
+                ? placeDay(byDay(day)).map((p, n) => (
+                    <div
+                      key={`${p.event.ref ?? p.event.title}-${n}`}
+                      className="home-cal-slot"
+                      style={{
+                        top: ((p.start - start) / 60) * HOUR_PX + 1,
+                        height: (BLOCK_MINUTES / 60) * HOUR_PX - 2,
+                        // Day view: overlapping blocks side by side.
+                        left: `calc(${(p.lane / p.lanes) * 100}% + 1px)`,
+                        width: `calc(${100 / p.lanes}% - 2px)`,
+                      }}
+                    >
+                      {block(p.event, day, "b")}
+                    </div>
+                  ))
+                : clusters(placeDay(byDay(day))).map((group, n) => (
+                    // Week view: columns are narrow, so overlapping events share one block ("2 events");
+                    // tapping it opens the day view, where each has its own block.
+                    <div
+                      key={`${group[0].event.ref ?? group[0].event.title}-${n}`}
+                      className="home-cal-slot"
+                      style={{
+                        top: ((group[0].start - start) / 60) * HOUR_PX + 1,
+                        height:
+                          ((group[group.length - 1].start +
+                            BLOCK_MINUTES -
+                            group[0].start) /
+                            60) *
+                            HOUR_PX -
+                          2,
+                        left: 1,
+                        right: 1,
+                      }}
+                    >
+                      {group.length === 1 ? (
+                        block(group[0].event, day, "b")
+                      ) : (
+                        <button
+                          type="button"
+                          data-kind={eventKind(group[0].event)}
+                          className={cn("home-cal-event", focusRing)}
+                          aria-label={`${group.length} events: ${group.map((p) => describe(p.event, day)).join("; ")}`}
+                          title={group.map((p) => p.event.title).join("\n")}
+                          onClick={() => onOpenEvent(day)}
+                        >
+                          {group.map((p, i) => (
+                            <span key={i}>{p.event.title}</span>
+                          ))}
+                        </button>
+                      )}
+                    </div>
+                  ))}
               {showNow && day === today && (
                 <i
                   aria-hidden="true"

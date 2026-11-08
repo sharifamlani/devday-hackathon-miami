@@ -100,6 +100,42 @@ describe("TimeGrid", () => {
       .toHaveAttribute("data-kind", "fundraising");
   });
 
+  it("overlapping events share one block in the week, each still named; tapping opens that day", async () => {
+    const onOpen = vi.fn();
+    const screen = await render(
+      <TimeGrid
+        days={WEEK}
+        today="2026-11-08"
+        events={[
+          ev("The Give Miami 5K", WEEK[0], "08:00"),
+          ev("Post-Race Festival", WEEK[0], "08:30"),
+        ]}
+        onOpenEvent={onOpen}
+      />,
+    );
+    const group = screen.getByRole("button", {
+      name: /^2 events: The Give Miami 5K/,
+    });
+    await expect.element(group).toBeVisible();
+    expect(group.element().textContent).toContain("Post-Race Festival");
+    await group.click();
+    expect(onOpen).toHaveBeenCalledWith("2026-11-15");
+  });
+
+  it("draws the now line only when the shown today is the browser's real date", async () => {
+    await render(
+      <TimeGrid
+        days={WEEK}
+        today="2026-11-15"
+        events={[]}
+        onOpenEvent={() => {}}
+      />,
+    );
+    // 2026-11-15 isn't the machine's date in CI, so no marker.
+    if (new Date().toLocaleDateString("en-CA") !== "2026-11-15")
+      expect(document.querySelector(".home-cal-now")).toBeNull();
+  });
+
   it("the day view shows one column with times on the blocks", async () => {
     const screen = await render(
       <TimeGrid

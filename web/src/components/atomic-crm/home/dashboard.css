@@ -723,3 +723,47 @@
   font-size: 12px;
   font-weight: 600;
 }
+/* "By day": the agenda under the grid, folded on its own like a Tasks folder. */
+.home-cal-days {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.home-cal-days-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.home-cal-days-toggle svg {
+  transition: transform var(--motion-base) var(--ease-move);
+}
+.home-cal-days[data-collapsed] .home-cal-days-toggle svg {
+  transform: rotate(-90deg);
+}
+.home-cal-days[data-collapsed] > .tile-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.home-cal-days .home-agenda-list {
+  max-height: 220px;
+  padding-top: 4px;
+}
+.home-cal-dot {
+  --ev: #8a63c9;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ev);
+}
+.home-cal-dot[data-kind="fundraising"] {
+  --ev: #d1435b;
+}
+.home-cal-dot[data-kind="stewardship"] {
+  --ev: #2f9e6f;
+}
+.home-cal-dot[data-kind="community"] {
+  --ev: #3b82c4;
+}

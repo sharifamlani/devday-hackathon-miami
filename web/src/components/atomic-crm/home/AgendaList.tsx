@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Link } from "react-router";
 import { zoomClick } from "./workspaceView";
 import { requestAddEvent } from "../calendar/calendarFocus";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { tile, focusRing } from "./tile";
 import { CollapseToggle, TileBody } from "./TileCollapse";
 import { useTileCollapsed } from "./collapseState";
-import { TimeGrid } from "./WeekGrid";
+import { eventKind, TimeGrid } from "./WeekGrid";
 
 const LIST_DAYS = 14;
 
@@ -21,6 +21,8 @@ export interface AgendaRow {
   time: string;
   label: string;
   byAgent: boolean;
+  /** Event type, for the color dot that matches the grid's blocks. */
+  kind: string;
 }
 export interface AgendaDay {
   date: string;
@@ -101,6 +103,7 @@ export const agendaDays = (
     time: minutes(i.time) == null ? "All day" : clock(minutes(i.time)!),
     label: i.title,
     byAgent: i.source === "agent",
+    kind: eventKind(i),
   });
   if (today >= start && today <= end && !byDate.has(today))
     byDate.set(today, []);
@@ -135,6 +138,8 @@ export const AgendaList = ({
   const headingId = useId();
   const bodyId = useId();
   const [collapsed, toggle] = useTileCollapsed("calendar");
+  const [daysFolded, toggleDays] = useTileCollapsed("calendarDays");
+  const daysId = useId();
   const [offset, setOffset] = useState(0);
   /** null = the week; a date = that day's view. */
   const [day, setDay] = useState<string | null>(null);
@@ -293,7 +298,8 @@ export const AgendaList = ({
               days={day ? [day] : strip.map((d) => d.date)}
               today={today}
               events={feed.data ?? []}
-              onOpenEvent={onOpenDay}
+              // Week: a block opens that day's view; day view: it opens the day plan.
+              onOpenEvent={day ? onOpenDay : setDay}
               detailed={!!day}
             />
             {day && (
@@ -310,6 +316,68 @@ export const AgendaList = ({
                 Nothing scheduled this week.
               </p>
             )}
+          </div>
+        )}
+        {!feed.isPending && !feed.error && days.length > 0 && (
+          // The day-by-day list under the grid, folded on its own (remembered, like the tiles).
+          <div
+            className="home-cal-days"
+            data-collapsed={daysFolded || undefined}
+          >
+            <button
+              type="button"
+              className={cn(
+                "home-project-toggle home-cal-days-toggle",
+                focusRing,
+              )}
+              aria-expanded={!daysFolded}
+              aria-controls={daysId}
+              onClick={toggleDays}
+            >
+              <ChevronDown size={14} aria-hidden="true" />
+              By day
+            </button>
+            <TileBody id={daysId} collapsed={daysFolded}>
+              <div className="home-agenda-list">
+                {days.map((d) => (
+                  <div
+                    key={d.date}
+                    className="home-agenda-day"
+                    data-day={d.date}
+                  >
+                    <h3>
+                      {dayHeading(d.date, today)}
+                      {d.rows.length === 0 && " — nothing scheduled"}
+                    </h3>
+                    <ul>
+                      {d.rows.map((row) => (
+                        <li key={row.key}>
+                          <button
+                            type="button"
+                            className={cn("home-agenda-row", focusRing)}
+                            title={`${row.label}${row.byAgent ? " (added by agent)" : ""}`}
+                            onClick={() => setDay(d.date)}
+                          >
+                            <i
+                              aria-hidden="true"
+                              className="home-cal-dot"
+                              data-kind={row.kind}
+                            />
+                            <time>{row.time}</time>
+                            <span>{row.label}</span>
+                            {row.byAgent && (
+                              <i role="img" aria-label="added by agent">
+                                🤖
+                              </i>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </TileBody>
           </div>
         )}
       </TileBody>
