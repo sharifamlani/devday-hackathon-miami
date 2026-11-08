@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** The snapshot build masks contact details; a masked value is text, never a link. */
+/** A value the server already masked (PUBLIC_MODE) is text, never a link. */
 const isMasked = (value: string) => /[*•]/.test(value);
 
 const linkClass = "underline-offset-2 hover:underline";

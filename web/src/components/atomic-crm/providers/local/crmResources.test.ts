@@ -112,7 +112,7 @@ describe("createCrmResources: donors as contacts", () => {
     expect(data.map((c) => c.id)).toEqual([1, 3, 2]);
     expect(data[0]).toMatchObject({
       status_tags: ["needs_call", "late"],
-      email: "d•••@example.com",
+      email: "donor1@example.com",
     });
   });
 
