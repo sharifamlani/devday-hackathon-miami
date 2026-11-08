@@ -51,9 +51,10 @@ Rules:
   then the person's; the call is recorded with a spoken notice and saved as a call note afterwards.
 - For event outreach use plan_event_outreach: it makes one batch per event; report each event's drafts and
   who needs individual approval.
-- "Who should I call / contact / reach out to / thank today?": also call find_people (status lapsing, then due;
-  they come back ranked by score), next to tasks and alerts. For each person you name, say why in a few words
-  and add their saved next step when next_step isn't null ("next step: <next_step>").
+- "Who should I call / contact / reach out to / thank today?": call get_call_list and keep its order. It is the
+  Home screen's attention list (failed gifts, then late, then new donors to welcome), then lapsing givers by
+  score. For each person say why in a few words, add "next step: <next_step>" when next_step isn't null, and when
+  phone_on_file is false say "no phone saved; email instead".
 - "Work on this task: ... (task #N)" means do the work, not describe it: call get_task(N), then get_person for its
   person, then take the next step yourself. Call/email task about a late or failed gift: draft_email (or
   draft_sms if they give by text) with intent re_engage; a welcome: intent thank_you. Never send; say the
@@ -355,6 +356,48 @@ def build_brief(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
     d = donor[0]
     d["why"] = json.loads(d["why"] or "{}").get("reasons", [])
     return {"person": d, "recent_gifts": gifts, "facts": facts}
+
+
+# The call list's order: the Home attention badges worth a call, then lapsing givers (routes_home.BADGE_ORDER).
+CALL_BADGES = ("failed", "late", "new")
+
+
+@function_tool
+def get_call_list(ctx: RunContextWrapper[ChatContext], limit: int = 8) -> dict:
+    """Who to call or contact today, in the CRM's own order: the Home attention list first (a failed gift, then
+    late, then a new donor to welcome), then lapsing givers by score. Each: id, full_name, badge (failed | late | new |
+    lapsing), why, next_step (the giver's next open task, or null) and phone_on_file."""
+    from service import routes_home, score
+    t = tasks_module()
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        people = [{"id": a["id"], "full_name": a["name"], "badge": a["badge"], "why": a["line"]}
+                  for a in routes_home.attention(conn, score.default_as_of(), 50) if a["badge"] in CALL_BADGES]
+        seen = {p["id"] for p in people}
+        for r in conn.execute("SELECT d.id, d.full_name FROM donors d JOIN donor_scores s ON s.donor_id = d.id "
+                              "WHERE s.status = 'lapsing' AND COALESCE(d.contact_type, 'giver') = 'giver' "
+                              "ORDER BY s.score DESC, d.id"):
+            if r["id"] not in seen:
+                people.append({"id": r["id"], "full_name": r["full_name"], "badge": "lapsing",
+                               "why": "lapsing: past their usual time to give"})
+        people = people[:max(1, min(limit, 25))]
+        info = {r["id"]: r for r in conn.execute(
+            f"SELECT id, phone, contact_type FROM donors WHERE id IN ({', '.join('?' * len(people)) or 'NULL'})",
+            [p["id"] for p in people])}
+        for p in people:
+            p["contact_type"] = info[p["id"]]["contact_type"] if p["id"] in info else None
+            p["phone_on_file"] = bool(p["id"] in info and (info[p["id"]]["phone"] or "").strip())
+        if t is not None:
+            t.with_next_steps(conn, people)
+        else:
+            for p in people:
+                p["next_step"] = None
+        for p in people:
+            p.pop("contact_type", None)
+        return {"people": people, "count": len(people)}
+    finally:
+        conn.close()
 
 
 @function_tool
@@ -785,7 +828,8 @@ def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
 
 TOOLS = [
     # reads
-    find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_calendar, get_task, get_tasks,
+    find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_call_list, get_calendar,
+    get_task, get_tasks,
     get_call_notes, build_brief, community_stats,
     # writes (each returns an undo_token)
     update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
