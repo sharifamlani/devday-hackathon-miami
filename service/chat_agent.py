@@ -53,6 +53,10 @@ Rules:
 - When the user shares something about a person (a conversation, family, plans, preferences: "I talked to
   Rafael..."), call update_donor_summary with their words, then confirm "Updated <first name>'s summary". If the
   tool says no one or several people match, ask who they meant; never guess or write it to someone else.
+- Enrich protocol ("enrich / research <person>"): call enrich_person. List each proposed fact with its source and
+  each proposed interest tag, then ask whether to save them; save only the ones the user agrees to, with
+  accept_enrichment(person_id, fact_ids, tags). Nothing is saved before that. If it found nothing (an individual:
+  no live web research; or an uncertain identity), say why in one line.
 - Call protocol: "call <person>", "phone <person>" or a call task -> call prep_call, and nothing that dials. Its
   sheet has the Call button; that button is how the user calls. Say in a line or two who they are and the
   suggested points; never add facts the sheet does not have. Use call_person only when, after seeing the sheet,
@@ -678,6 +682,33 @@ def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_
     return interest_write(accept)
 
 
+@function_tool
+def enrich_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
+    """Research a person or organization from public, professional sources (the donor page's Enrich): proposes
+    facts with their sources and interest tags. Writes nothing; save the ones the user agrees to with
+    accept_enrichment(person_id, fact_ids, tags). Individuals aren't researched live (D6); the note says so."""
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as Timeout
+    from service import enrich_agent, routes_interests
+    rows = query("SELECT id, full_name, org_name, city, state, email, donor_type FROM donors WHERE id = ?", (person_id,))
+    if not rows:
+        return {"error": f"person {person_id} not found"}
+    d = rows[0]
+    # The research runs its own agent, which can't share this run's event loop: give it a worker thread
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        job = pool.submit(enrich_agent.enrich_full, d["full_name"], d["org_name"], d["city"], d["donor_type"],
+                          False, d["state"], d["email"])
+        try:
+            result = job.result(timeout=routes_interests.ENRICH_TIMEOUT_S)
+        except Timeout:
+            return {"error": f"the research took longer than {routes_interests.ENRICH_TIMEOUT_S} s; try again"}
+    routes_interests.PROPOSALS[person_id] = result           # what accept_enrichment saves from
+    return {"person_id": person_id, "full_name": d["full_name"], "identity_match": result.get("identity_match"),
+            "facts": [{"id": f["id"], "fact": f["fact"], "source_url": f["source_url"]} for f in result.get("facts", [])],
+            "interests": [{"tag": i["tag"], "label": i.get("label"), "confidence": i.get("confidence"),
+                           "evidence": i.get("evidence")} for i in result.get("interests", [])],
+            "note": result.get("notes")}
+
+
 @function_tool(needs_approval=True)
 def merge_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int, keep_id: int | None = None) -> dict:
     """Merge a suggested duplicate pair into one person. Needs the user's approval; Undo splits them again."""
@@ -1068,7 +1099,7 @@ TOOLS = [
     get_task, get_tasks,
     get_call_notes, build_brief, community_stats, prep_call,
     # writes (each returns an undo_token)
-    update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, resolve_duplicates, rsvp_event,
+    update_person, add_contact, add_interest, remove_interest, enrich_person, accept_enrichment, dismiss_duplicate, resolve_duplicates, rsvp_event,
     create_task, update_task, complete_task, add_calendar_item, add_event, move_event, delete_event, move_calendar_item, get_after_call_actions,
     apply_after_call_actions, update_donor_summary,
     draft_email, draft_sms, plan_event_outreach, undo,
@@ -1141,6 +1172,12 @@ def summarize(output) -> str:
         return f"error: {data['error']}"
     if data.get("summary_updated"):                                                # update_donor_summary
         return f"Updated {data.get('first_name') or data.get('full_name')}'s summary"
+    if "identity_match" in data and "facts" in data and "interests" in data:     # enrich_person
+        nf, ni = len(data["facts"]), len(data["interests"])
+        if not nf and not ni:
+            return f"{data['full_name']}: nothing to propose" + (f" ({data['note']})" if data.get("note") else "")
+        return (f"researched {data['full_name']}: {nf} fact{'s' if nf != 1 else ''}, {ni} interest tag"
+                f"{'s' if ni != 1 else ''} proposed (nothing saved yet)")
     if isinstance(data.get("card"), dict) and data["card"].get("kind") == "call_sheet":
         from service import call_sheet
         return call_sheet.summary_line(data["card"])
