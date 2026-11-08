@@ -1635,7 +1635,6 @@
       "fund_type": "Unrestricted",
       "notes": "Local business, Give Miami Day sponsor.",
       "names_as_written": [
-        "Tamarind Quay",
         "Tamarind Quay Hardware LLC",
         "Tamarind Quay Hardware, LLC",
         "Tamarind Quay Hdwe, L.L.C.",
@@ -1675,7 +1674,7 @@
         {
           "file": "board_retreat_notes.md",
           "location": "line 11",
-          "name_as_written": "Tamarind Quay",
+          "name_as_written": "Tamarind Quay Hardware, LLC",
           "kind": "mention"
         }
       ],
@@ -2086,7 +2085,7 @@
         {
           "file": "board_retreat_notes.md",
           "location": "line 11",
-          "name_as_written": "Tamarind Quay",
+          "name_as_written": "Tamarind Quay Hardware, LLC",
           "kind": "mention"
         }
       ]
@@ -5560,7 +5559,7 @@
         {
           "file": "board_retreat_notes.md",
           "location": "line 11",
-          "name_as_written": "Tamarind Quay",
+          "name_as_written": "Tamarind Quay Hardware, LLC",
           "kind": "mention"
         }
       ]
