@@ -112,6 +112,7 @@ Sending is a **dry run** by default: email goes out only with `EMAIL_SEND=on` an
 
 ## Credits and licenses
 
+- **Built with Claude Code and Codex;** the OpenAI API and the OpenAI Agents SDK run throughout the product.
 - **Atomic CRM** by Marmelab (MIT): the web app's base (`web/LICENSE.md`).
 - **assistant-stream** from the assistant-ui project (MIT): streams the chat agent's replies (`service/chat_stream.py`).
 - **Google live-api-web-console** (Apache-2.0): the browser audio recorder files in `web/.../voice/audio/` and
