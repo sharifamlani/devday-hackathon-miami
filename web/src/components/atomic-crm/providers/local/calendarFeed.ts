@@ -10,7 +10,10 @@ export interface CalendarItem {
   title: string;
   kind: "event" | "task";
   source: string | null;
-  ref: string | number | null; // event id or task id
+  ref: string | number | null; // "event:3" / "task:12"
+  /** Tasks only: the task's kind (call | email | review | prep) and whether it's done. */
+  task_kind?: string | null;
+  done?: boolean;
 }
 
 export interface Artifact {
@@ -26,10 +29,19 @@ export const calendarKeys = {
 };
 
 export const getCalendarFeed = (from?: string, to?: string) =>
-  call<CalendarItem[]>("The calendar", "GET", `/calendar${qs({ from, to })}`, { snapshotValue: [] });
+  call<CalendarItem[]>("The calendar", "GET", `/calendar${qs({ from, to })}`, {
+    snapshotValue: [],
+    snapshot: (s) =>
+      (s.calendar as CalendarItem[] | undefined)?.filter(
+        (item) => (!from || item.date >= from) && (!to || item.date <= to),
+      ),
+  });
 
 export const getArtifacts = () =>
-  call<Artifact[]>("Artifacts", "GET", "/artifacts", { snapshotValue: [] });
+  call<Artifact[]>("Artifacts", "GET", "/artifacts", {
+    snapshotValue: [],
+    snapshot: (s) => s.artifacts as Artifact[] | undefined,
+  });
 
 /** Events and tasks in one list, for the calendar and the mini calendar. */
 export const useCalendarFeed = (from?: string, to?: string) =>

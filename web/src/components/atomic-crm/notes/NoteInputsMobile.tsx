@@ -12,6 +12,7 @@ import { FileInputPreview } from "@/components/admin/file-input";
 import { useFormContext, useWatch } from "react-hook-form";
 
 import { contactOptionText } from "../misc/ContactOption";
+import { SavedInBrowserHint } from "../misc/SavedInBrowserHint";
 import { AttachmentField } from "./AttachmentField";
 import { foreignKeyMapping } from "./foreignKeyMapping";
 import { validateNoteOrAttachmentRequired } from "./noteModel";
@@ -64,6 +65,7 @@ export const NoteInputsMobile = ({
       <div className="px-4">
         <AttachmentPreviewsMobile />
         <AttachButton />
+        <SavedInBrowserHint className="pb-4" />
       </div>
     </div>
   );

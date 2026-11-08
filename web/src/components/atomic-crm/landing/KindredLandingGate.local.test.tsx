@@ -1,3 +1,4 @@
+import { act } from "react";
 import { render } from "vitest-browser-react";
 
 import { onboardingStore } from "../onboarding/onboardingState";
@@ -32,6 +33,22 @@ describe("KindredLandingGate (local mode)", () => {
         <p>the board</p>
       </KindredLandingGate>,
     );
+    await expect.element(screen.getByText("the board")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Try sample data" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("stays on the board when setup finishes in this page load, though /donors was empty at mount", async () => {
+    getDonors.mockResolvedValue([]);
+    const screen = await render(
+      <KindredLandingGate>
+        <p>the board</p>
+      </KindredLandingGate>,
+    );
+    await expect.element(screen.getByText("the board")).toBeVisible();
+    // Onboarding step 1 imported the files; finishing flips setup to done.
+    act(() => finishSetup());
     await expect.element(screen.getByText("the board")).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Try sample data" }))

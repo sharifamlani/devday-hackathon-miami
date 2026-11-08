@@ -21,6 +21,7 @@ POST /context/refresh        "Refresh now": starts a background context + calend
                              the same pass runs daily at REFRESH_DAILY_AT (HH:MM) when set
      (campaign routes)       service/routes_campaigns.py: /campaigns, /outbox (the single send log)
      (call notes)            service/routes_calls.py: POST /calls/summarize, POST /calls, GET /calls
+     (Donors tab CRM)        service/routes_crm.py: /crm/contact_notes, /crm/tasks, /crm/tags, /crm/contacts
 POST /agent/ping             one tiny Agents SDK call with structured output (proves key + SDK)
      (ingest routes)         service/ingest/router.py, mounted when Carlos's lane is present
 """
@@ -50,6 +51,7 @@ from pydantic import BaseModel, Field
 from service import db
 from service.routes_ask import router as ask_router
 from service.routes_calls import router as calls_router
+from service.routes_crm import router as crm_router
 from service.routes_data import router as data_router
 from service.routes_targets import router as targets_router
 
@@ -72,6 +74,9 @@ app.include_router(ask_router)  # POST /ask (issue #36)
 from service.routes_tasks import router as tasks_router  # noqa: E402  (§21 B11/B12)
 app.include_router(tasks_router)
 app.include_router(calls_router)  # live transcript call notes: /calls, /calls/summarize
+app.include_router(crm_router)  # the Donors tab's notes, tasks and tags: /crm/...
+from service.routes_voice import router as voice_router  # noqa: E402  (B3: /transcribe/live, /transcribe/file)
+app.include_router(voice_router)
 
 def module_present(name: str) -> bool:
     try:
@@ -483,9 +488,10 @@ async def capped(what: str, seconds: float, fn, *args, **kwargs):
 
 @app.post("/chat")
 async def chat(req: ChatRequest) -> dict:
-    """{reply, tab, steps: [{tool, args, summary, status}], pending_batch: {id, title, items} | null}.
+    """{reply, tab, steps: [{tool, args, summary, status, undo_token}], run_id, approvals, pending_batch, batches}.
 
-    The model can draft a batch; it cannot send. A human sends with POST /send.
+    Edits apply at once (each step carries an undo_token for POST /undo/{token}). Sends, merges and deletes pause
+    the run: approvals lists them, and POST /chat/approve resumes it after a person decides.
     """
     from service.chat_agent import SCREEN_TAB, run_chat
 
@@ -496,6 +502,48 @@ async def chat(req: ChatRequest) -> dict:
     selection = req.selection or ([screen.person_id] if screen.person_id is not None else [])
     return await capped("chat", config.CHAT_DEADLINE_S, run_chat, req.message, tab, selection,
                         [t.model_dump() for t in req.history], screen.event_id)
+
+
+@app.post("/chat/stream")
+async def chat_stream(req: ChatRequest):
+    """POST /chat, streamed to assistant-ui (assistant-stream data stream): text deltas, one tool-call part per
+    step (result has summary + undo_token), and a data chunk {type: "approvals", run_id, approvals} when the
+    run pauses for approval (resume with POST /chat/approve)."""
+    from service.chat_agent import SCREEN_TAB
+    from service.chat_stream import stream_chat
+
+    if not config.HAS_OPENAI_KEY:
+        raise HTTPException(503, "OPENAI_API_KEY is not set in .env")
+    screen = req.context or ChatScreen()
+    tab = req.tab or SCREEN_TAB[screen.screen]
+    selection = req.selection or ([screen.person_id] if screen.person_id is not None else [])
+    return stream_chat(req.message, tab, selection, [t.model_dump() for t in req.history], screen.event_id)
+
+
+class ApprovalDecision(BaseModel):
+    call_id: str
+    approve: bool
+
+
+class ApproveRequest(BaseModel):
+    run_id: str
+    approved_by: str = Field(min_length=1, max_length=120)
+    approvals: list[ApprovalDecision] = Field(default_factory=list,
+                                              description="One per pending call; any left out is declined")
+
+
+@app.post("/chat/approve")
+async def chat_approve(req: ApproveRequest) -> dict:
+    """Resume a run paused on approval cards. Same response shape as POST /chat."""
+    from service.chat_agent import resume_chat
+
+    if not req.approved_by.strip():
+        raise HTTPException(422, "approved_by must name a person")
+    try:
+        return await capped("chat", config.CHAT_DEADLINE_S, resume_chat, req.run_id,
+                            {d.call_id: d.approve for d in req.approvals}, req.approved_by.strip())
+    except KeyError as e:
+        raise HTTPException(404, str(e))
 
 
 class SendChoice(BaseModel):
