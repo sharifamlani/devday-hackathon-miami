@@ -718,7 +718,7 @@ describe("the dashboard card's copy", () => {
 describe("plainError", () => {
   it("turns a network failure into something to act on", () => {
     expect(plainError(new TypeError("Failed to fetch"), "x")).toContain(
-      "couldn't reach the Donor Desk service",
+      "couldn't reach the Gatherly service",
     );
     expect(plainError(new Error("Upload isn't available yet."), "x")).toBe(
       "Upload isn't available yet.",

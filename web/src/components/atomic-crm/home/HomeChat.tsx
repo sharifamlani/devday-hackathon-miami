@@ -117,7 +117,7 @@ export const FocusTaskCard = ({
               ? "Live data appears when the service is connected."
               : hasData
                 ? "No tasks left for today. Ask the agent below what to do next."
-                : "Add your donor files with the + below and Donor Desk lines up today’s tasks."}
+                : "Add your donor files with the + below and Gatherly lines up today’s tasks."}
           </p>
         )}
       </section>

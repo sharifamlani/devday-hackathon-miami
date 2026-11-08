@@ -146,7 +146,7 @@ const StepsScreen = ({
       className="onb-screen"
       role="dialog"
       aria-modal="true"
-      aria-label="Set up Donor Desk"
+      aria-label="Set up Gatherly"
       aria-describedby={progressId}
       aria-busy={busy || undefined}
       tabIndex={-1}
@@ -165,7 +165,7 @@ const StepsScreen = ({
                 <ChevronLeft aria-hidden="true" size={18} />
               </button>
             ) : null}
-            <span className="onb-wordmark">Donor Desk</span>
+            <span className="onb-wordmark">gatherly</span>
             <span className="onb-spacer" />
             <button
               type="button"

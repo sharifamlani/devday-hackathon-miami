@@ -220,11 +220,11 @@ export const nextStepPrompt = (label: string, donorName: string | null) =>
     ? `After my call with ${donorName}: ${label}. Help me do this.`
     : `After my call: ${label}. Help me do this.`;
 
-/** "Saved to Rosa Delgado, Give Miami Day and added to your Donor Desk context." */
+/** "Saved to Rosa Delgado, Give Miami Day and added to your Gatherly context." */
 export const savedConfirmation = (destinations: NoteDestination[]) =>
   destinations.length
-    ? `Saved to ${destinations.map((d) => d.label).join(", ")} and added to your Donor Desk context.`
-    : "Added to your Donor Desk context. Pick a donor, group or project to file it.";
+    ? `Saved to ${destinations.map((d) => d.label).join(", ")} and added to your Gatherly context.`
+    : "Added to your Gatherly context. Pick a donor, group or project to file it.";
 
 /** "Call with Rosa Delgado" or "Call notes · Nov 7". */
 export const defaultNoteTitle = (donorName: string | null, date: Date) =>

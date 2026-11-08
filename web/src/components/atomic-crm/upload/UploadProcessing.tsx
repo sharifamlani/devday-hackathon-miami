@@ -92,7 +92,7 @@ export const UploadProcessing = ({
       {demo && (
         <p className="upload-demo">Animation preview · sample results</p>
       )}
-      <p className="upload-wordmark">kindred</p>
+      <p className="upload-wordmark">gatherly</p>
       {ready && summary ? (
         <div className="upload-receipt">
           <span className="upload-success-mark">

@@ -442,8 +442,8 @@ export const FilesStep = ({
         <p className="onb-status" data-tone="good">
           Sample data · This preview already has the example files loaded
           {existing ? `: ${plural(existing, "person", "people")}` : ""}. Every
-          name and amount is made up. Importing your own files needs the Donor
-          Desk service.
+          name and amount is made up. Importing your own files needs the Gatherly
+           service.
         </p>
       ) : showReceipt && imported ? (
         <ImportReceipt
@@ -577,8 +577,8 @@ export const FilesStep = ({
 
           {!files.length && existing > 0 && (
             <p className="onb-note">
-              You already have {plural(existing, "person", "people")} in Donor
-              Desk. Add more files or continue.
+              You already have {plural(existing, "person", "people")} in Gatherly.
+              Add more files or continue.
             </p>
           )}
         </>
@@ -734,7 +734,7 @@ export const OrganizationStep = ({
       }}
     >
       <div className="onb-org-body">
-        <p className="onb-org-wordmark">kindred</p>
+        <p className="onb-org-wordmark">gatherly</p>
         <h2 id={`${id}-title`} ref={frame.headingRef} tabIndex={-1}>
           Your organization.
         </h2>
@@ -1057,7 +1057,7 @@ export const ContextStep = ({
         : phase.phase === "receipt"
           ? `${receiptLine(phase.receipt)}. Go to the dashboard when you're ready.`
           : phase.phase === "welcome"
-            ? "Welcome to Donor Desk."
+            ? "Welcome to Gatherly."
             : phase.phase === "slow"
               ? "Reading your website is taking longer than usual. It goes on in the background; you can continue to the dashboard."
               : phase.message;
@@ -1080,7 +1080,7 @@ export const ContextStep = ({
   const title =
     phase.phase === "welcome" ? (
       <>
-        Welcome to <strong>Donor Desk.</strong>
+        Welcome to <strong>Gatherly.</strong>
       </>
     ) : phase.phase === "receipt" ? (
       <>
@@ -1110,7 +1110,7 @@ export const ContextStep = ({
       : previewOnly
         ? "It's read-only, so nothing new is read. Your dashboard shows what's already in this preview."
         : phase.phase === "error"
-          ? "You can still use Donor Desk and run it again later."
+          ? "You can still use Gatherly and run it again later."
           : phase.phase === "slow"
             ? "Reading your website is taking longer than usual. We'll keep reading in the background, and new facts appear on your dashboard when it's done."
             : phase.phase === "receipt"

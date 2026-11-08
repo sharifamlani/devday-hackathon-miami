@@ -186,10 +186,10 @@ describe("formatting helpers", () => {
         { kind: "project", id: "4", label: "Give Miami Day" },
       ]),
     ).toBe(
-      "Saved to Rosa Delgado, Give Miami Day and added to your Donor Desk context.",
+      "Saved to Rosa Delgado, Give Miami Day and added to your Gatherly context.",
     );
     expect(savedConfirmation([])).toBe(
-      "Added to your Donor Desk context. Pick a donor, group or project to file it.",
+      "Added to your Gatherly context. Pick a donor, group or project to file it.",
     );
   });
 

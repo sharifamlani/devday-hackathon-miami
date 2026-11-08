@@ -12,7 +12,7 @@ import {
 const snapshot = () =>
   structuredClone(snapshotJson) as unknown as ApiSnapshotWithAsk;
 
-describe("Ask Donor Desk in snapshot mode", () => {
+describe("Ask Gatherly in snapshot mode", () => {
   it("has a precomputed answer for every example question", () => {
     const examples = snapshot().ask_examples ?? [];
     expect(examples.map((e) => e.question)).toEqual([...EXAMPLE_QUESTIONS]);

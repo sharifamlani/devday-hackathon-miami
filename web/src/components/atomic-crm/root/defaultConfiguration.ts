@@ -10,7 +10,7 @@ export const defaultLightModeLogo = lightModeLogo;
 
 export const defaultCurrency = "USD";
 
-export const defaultTitle = "Donor Desk";
+export const defaultTitle = "Gatherly";
 
 export const defaultCompanySectors = [
   { value: "communication-services", label: "Communication Services" },

@@ -227,7 +227,7 @@ export const KindredLanding = ({
             </Badge>
           </div>
         )}
-        <p className="kindred-wordmark">kindred</p>
+        <p className="kindred-wordmark">gatherly</p>
         <h1 id="kindred-heading" className="kindred-headline">
           <span>Less time on tasks.</span>
           <strong>More time for people.</strong>
