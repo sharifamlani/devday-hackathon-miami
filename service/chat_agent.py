@@ -577,7 +577,7 @@ def apply_after_call_actions(ctx: RunContextWrapper[ChatContext], call_note_id: 
     if aca is None:
         return {"error": "after-call actions are not available yet"}
     try:
-        return with_conn(aca.apply, call_note_id, action_ids)
+        return with_conn(aca.apply_actions, call_note_id, action_ids, actor="agent")
     except LookupError as e:
         return {"error": str(e)}
     except Exception as e:  # another lane's failure: tell the user plainly instead of a raw tool error

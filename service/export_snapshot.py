@@ -21,9 +21,17 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "campaigns_demo": {"label", "campaigns": [GET /campaigns/{id}], "outbox": [], "drafts": {...}}
                      # #38: one precomputed sample campaign + template drafts per donor (no API, no writes)
       "ask_examples": [...]        # Ask Donor Desk: rules answers to ask_agent.EXAMPLE_QUESTIONS
+      plan.md §21 home (live-only routes, read from here by the snapshot build):
+      "home_summary": {...}        # == GET /home/summary
+      "people_attention": [...]    # == GET /people/attention?limit=50 (the UI slices)
+      "tasks": [...]               # == GET /tasks minus the Donors tab's private tasks (the UI filters from/to/person)
+      "tasks_today": [...]         # == GET /tasks?due=today, same exclusion (and home_summary.tasks_today counts it)
+      "calendar": [...]            # == GET /calendar, same exclusion (whole range; the UI filters from/to)
+      "artifacts": [...]           # == GET /artifacts, minus call notes (they stay on the laptop)
+      "target_quarters": {...}     # == GET /targets/quarters
     }
 
-Never exported: the Donors tab's notes, tasks and tags (crm_* tables, routes_crm.py). They are private staff
+Never exported: the Donors tab's notes, tasks and tags (crm_* tables and tasks rows with tasks.crm, routes_crm.py). They are private staff
 notes; in snapshot mode the browser keeps its own in localStorage, tied to meta.snapshot_id: a hash of every
 donor's id and name, so re-exporting the same donors keeps them and a snapshot whose ids mean other donors
 starts clean.
@@ -84,6 +92,33 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "targets": targets.compute_all(conn, as_of),
         "campaigns_demo": campaigns_snapshot(conn),
         "ask_examples": snapshot_examples(conn, as_of_values[-1] if as_of_values else as_of),
+        **home_snapshot(conn, as_of),
+    }
+
+
+def home_snapshot(conn, as_of: date | None) -> dict:
+    """The home board's live-only routes (plan.md §21), from the same functions the routes call.
+
+    Runs the task generator first: it is idempotent, and the pipeline's sample DB otherwise has no tasks.
+    Call-note artifacts are left out, like donor_details' call_notes: transcripts never go public.
+    """
+    from service import tasks
+    from service.routes_home import attention, home_summary
+
+    today = as_of or score.default_as_of()
+    tasks.generate(conn, today)
+    # The Donors tab's tasks are private staff records (like crm notes): never in the public snapshot, not
+    # even as a count. Generated and agent tasks stay.
+    tasks_today = tasks.list_tasks(conn, due="today", as_of=today, public_only=True)
+    summary = {**home_summary(as_of=today, conn=conn), "tasks_today": sum(1 for t in tasks_today if not t["done"])}
+    return {
+        "home_summary": summary,
+        "people_attention": attention(conn, today, 50),
+        "tasks": tasks.list_tasks(conn, as_of=today, public_only=True),
+        "tasks_today": tasks_today,
+        "calendar": tasks.calendar(conn, None, None, public_only=True),
+        "artifacts": [a for a in tasks.artifacts(conn, 50) if a.get("kind") != "call_note"],
+        "target_quarters": targets.quarters(conn, today),
     }
 
 

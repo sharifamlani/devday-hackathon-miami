@@ -148,10 +148,20 @@ def test_writes_not_on_this_build_say_so(db_file):
     import importlib.util
     if importlib.util.find_spec("service.interests") is None:                # until 42's PR #88 lands
         assert "not available yet" in invoke("add_interest", person_id=1, tag="arts_culture")["error"]
-    if "rsvp" not in {r[1] for r in sqlite3.connect(db_file).execute("PRAGMA table_info(event_audience)")}:
-        assert "not available yet" in invoke("rsvp_event", event_id=1, person_id=1, rsvp="yes")["error"]
-    if importlib.util.find_spec("service.after_call_agent") is None:                # until 86's PR #90 lands
-        assert "not available yet" in invoke("apply_after_call_actions", call_note_id="c1", action_ids=["a"])["error"]
+    # B6 (#90) switched these on: event_audience.rsvp exists and after_call_agent.apply_actions is there
+
+
+def test_rsvp_and_after_call_tools_are_live(db_file):
+    from service import db as _db
+    c = _db.connect(db_file)
+    eid = c.execute("INSERT INTO events (title, starts_at, source_url) VALUES ('Beach Cleanup (SAMPLE)', '2026-11-21', "
+                    "'https://example.org/beach')").lastrowid
+    c.execute("INSERT INTO event_audience (event_id, person_id, reason) VALUES (?, 1, 'test')", (eid,))
+    c.commit(); c.close()
+    got = invoke("rsvp_event", event_id=eid, person_id=1, rsvp="yes")
+    assert got.get("rsvp") == "yes" and got.get("undo_token")
+    undo(got["undo_token"])
+    assert "no call note" in invoke("apply_after_call_actions", call_note_id="c1", action_ids=["a"])["error"]
 
 
 def test_reads_return_rows(db_file):

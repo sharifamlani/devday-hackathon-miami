@@ -2,19 +2,19 @@ import { useMemo, useState } from "react";
 import { useGetIdentity } from "ra-core";
 import { useSearchParams } from "react-router";
 
-import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { DonorDrawer } from "../contacts/DonorDrawer";
 import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
 import { useEvents } from "../providers/local/crmHooks";
-import {
-  useCampaigns,
-  useDonors,
-  useDuplicates,
-  useTargets,
-} from "../providers/local/hooks";
+import { useCampaigns, useDonors, useTargets } from "../providers/local/hooks";
 import { eventDays } from "../calendar/planLayer";
 import { computeDayMarks } from "../outreach/calendarMonth";
-import { daysBetween, isIsoDate, toIsoDate } from "../outreach/dates";
+import { isIsoDate, toIsoDate } from "../outreach/dates";
 import { DayPlanner } from "../outreach/DayPlanner";
 import { useOutreachPlan } from "../outreach/outreachPlan";
 import { recommendOutreach } from "../outreach/recommend";
@@ -22,8 +22,6 @@ import { useCallNotes } from "../voice/callNotes";
 import { FindDonorDialog } from "./FindDonorDialog";
 import {
   ArtifactsTile,
-  CrmTile,
-  GlanceTile,
   Q4ProgressTile,
   TasksTile,
   WeekTile,
@@ -31,7 +29,6 @@ import {
 import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
 import {
   agendaLines,
-  attentionDonors,
   buildTasks,
   donorFacts,
   draftEmailHref,
@@ -43,27 +40,15 @@ import {
   weekDays,
   type HomeTask,
 } from "./homeData";
-import { tile } from "./tile";
+import "./dashboard.css";
 
-/**
- * Board height at three columns: the viewport under the header and the
- * shell's 16px padding. Adjust here if the shell header changes height.
- */
-const BOARD_HEIGHT = "@min-[1081px]:h-full";
-
-/**
- * Home ("/"): a three-column board. Left: quarter progress, today at a
- * glance and the CRM tile. Center: the focused task and a chat with the
- * agent (the shared Ask session). Right: this week, today's tasks and
- * artifacts. It drops to two columns when the side panels squeeze it and to
- * one on phones. `?plan=YYYY-MM-DD` (or `?plan=today`) opens that day's
- * outreach plan; the full calendar is /calendar.
+/** White conversation canvas with a compact overview on the left.
+ * Task actions remain available in a dialog selected from the project list.
  */
 export const HomePage = () => {
   const today = toIsoDate(new Date());
   const { identity } = useGetIdentity();
   const donors = useDonors();
-  const duplicates = useDuplicates();
   const targets = useTargets();
   const campaigns = useCampaigns();
   const events = useEvents();
@@ -72,6 +57,7 @@ export const HomePage = () => {
   const [params, setParams] = useSearchParams();
   const [donorId, setDonorId] = useState<number | null>(null);
   const [findOpen, setFindOpen] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(
@@ -171,6 +157,7 @@ export const HomePage = () => {
     else setDismissed((prev) => new Set(prev).add(task.key));
     const next = tasks.filter((t) => t.key !== task.key)[0] ?? null;
     setSelectedKey(next?.key ?? null);
+    setTaskOpen(false);
     setStatus(
       `Marked done: ${task.title}.${next ? ` Next: ${next.title}.` : ""}`,
     );
@@ -188,96 +175,16 @@ export const HomePage = () => {
   const loading = donors.isPending || targets.isPending;
 
   return (
-    <div className="@container h-full">
+    <div className="home-design @container h-full">
       <p role="status" aria-live="polite" className="sr-only">
         {status}
       </p>
-      <div
-        className={cn(
-          "grid grid-cols-1 gap-3",
-          "@min-[721px]:grid-cols-[252px_minmax(0,1fr)]",
-          "@min-[1081px]:min-h-[600px] @min-[1081px]:grid-cols-[264px_minmax(0,1fr)_286px]",
-          BOARD_HEIGHT,
-        )}
-      >
-        {/* Left */}
-        <div className="order-2 flex min-h-0 flex-col gap-3 @min-[721px]:order-none">
+      <div className="home-board">
+        <aside aria-label="Workspace overview" className="home-overview">
           <Q4ProgressTile
             target={targets.data?.quarter}
             isPending={targets.isPending}
           />
-          <GlanceTile
-            today={today}
-            atRisk={
-              donors.data
-                ? donors.data.filter((d) => d.status === "lapsing").length
-                : null
-            }
-            duplicates={duplicates.data ? duplicates.data.length : null}
-            tasks={tasks.length}
-            gmdDays={Math.max(0, daysBetween(today, gmd))}
-            isPending={loading}
-          />
-          <CrmTile
-            donors={attentionDonors(donorList)}
-            isPending={donors.isPending}
-            error={donors.error}
-            onFind={() => setFindOpen(true)}
-            onOpenDonor={setDonorId}
-          />
-        </div>
-
-        {/* Center */}
-        <section
-          aria-label="Focus and agent"
-          className={cn(
-            tile,
-            "order-1 flex min-h-[560px] flex-col @min-[721px]:order-none",
-            "@min-[721px]:h-[calc(100dvh-6.5rem)] @min-[1081px]:h-auto @min-[1081px]:min-h-0",
-          )}
-        >
-          <div className="px-[22px] pt-5">
-            <h1 className="mb-3.5 text-[28px] leading-tight font-normal tracking-[-0.02em]">
-              {greeting(new Date().getHours())}
-              {name ? (
-                <>
-                  , <b className="font-bold">{name}.</b>
-                </>
-              ) : (
-                "."
-              )}
-            </h1>
-            <FocusTaskCard
-              task={focus}
-              index={focusIndex}
-              total={tasks.length}
-              facts={focusFacts(focus)}
-              draftHref={
-                focus
-                  ? draftEmailHref(
-                      focus,
-                      focus.donorId != null
-                        ? donorById.get(focus.donorId)
-                        : undefined,
-                    )
-                  : null
-              }
-              onDone={markDone}
-              isPending={loading}
-            />
-          </div>
-          <AgentThread />
-          <Composer onUploadList={() => setImportOpen(true)} />
-        </section>
-
-        {/* Right */}
-        <div
-          className={cn(
-            "order-3 flex min-h-0 flex-col gap-3",
-            "@min-[721px]:order-none @min-[721px]:col-span-full @min-[721px]:grid @min-[721px]:grid-cols-3 @min-[721px]:items-start",
-            "@min-[1081px]:col-span-1 @min-[1081px]:flex @min-[1081px]:items-stretch",
-          )}
-        >
           <WeekTile
             today={today}
             days={weekDays(today)}
@@ -288,13 +195,65 @@ export const HomePage = () => {
           <TasksTile
             tasks={tasks}
             selectedKey={focus?.key ?? null}
-            onSelect={setSelectedKey}
+            onSelect={(key) => {
+              setSelectedKey(key);
+              setTaskOpen(true);
+            }}
             onPlan={() => openDay(today)}
             isPending={donors.isPending}
           />
           <ArtifactsTile notes={notes} campaigns={campaignList} />
-        </div>
+        </aside>
+
+        {/* Center */}
+        <section
+          aria-label="Agent"
+          data-tour="chat"
+          className="home-conversation"
+        >
+          <div className="home-greeting">
+            <h1 className="mb-3.5 text-[28px] leading-tight font-normal tracking-[-0.02em]">
+              {greeting(new Date().getHours())}
+              {name ? (
+                <>
+                  , <b className="font-bold">{name}.</b>
+                </>
+              ) : (
+                "."
+              )}
+            </h1>
+          </div>
+          <AgentThread />
+          <Composer onUploadList={() => setImportOpen(true)} />
+        </section>
       </div>
+      <Dialog open={taskOpen && !!focus} onOpenChange={setTaskOpen}>
+        <DialogContent className="home-task-dialog">
+          <DialogTitle className="sr-only">Task details</DialogTitle>
+          <DialogDescription className="sr-only">
+            Review the task and choose your next action.
+          </DialogDescription>
+          <FocusTaskCard
+            task={focus}
+            index={focusIndex}
+            total={tasks.length}
+            facts={focusFacts(focus)}
+            draftHref={
+              focus
+                ? draftEmailHref(
+                    focus,
+                    focus.donorId != null
+                      ? donorById.get(focus.donorId)
+                      : undefined,
+                  )
+                : null
+            }
+            onAction={() => setTaskOpen(false)}
+            onDone={markDone}
+            isPending={loading}
+          />
+        </DialogContent>
+      </Dialog>
 
       <DayPlanner
         date={planDate}
