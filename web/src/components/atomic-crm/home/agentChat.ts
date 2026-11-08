@@ -60,7 +60,7 @@ export const useAgentChat = () =>
       return () => listeners.delete(l);
     },
     () => state,
-    () => state, // server snapshot: renderToString (WorkspaceSidebar.render.test) needs one
+    () => state, // server snapshot: renderToString (the render tests) needs one
   );
 
 export type Refetch = (scopes?: RefetchScope[]) => unknown;

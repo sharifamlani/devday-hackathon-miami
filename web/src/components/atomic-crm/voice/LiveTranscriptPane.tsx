@@ -52,6 +52,7 @@ import {
 } from "./summarize";
 import { micTranscriptSource, usesGeminiCaptions } from "./geminiTranscriptSource";
 import { labelSpeakers, takeRecording } from "./speakerLabels";
+import { AfterCallCard, afterCallAvailable } from "./AfterCallCard";
 import {
   DEMO_FALLBACK_DONOR,
   demoCallScript,
@@ -945,6 +946,7 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
                   />
                   {savedConfirmation(draft.destinations)}
                 </p>
+                {afterCallAvailable() && <AfterCallCard key={draft.noteId} noteId={draft.noteId} contactName={donorName} />}
               </>
             )}
           </div>
