@@ -27,6 +27,10 @@ export const APPROVAL_BUTTONS: Record<string, { yes: string; no: string }> = {
 };
 const DEFAULT_BUTTONS = { yes: "Approve", no: "Decline" };
 
+/** A decided card's title: a merge reads Merged / Kept separate; anything else Approved / Declined. */
+const decidedTitle = (tool: string, approved: boolean) =>
+  tool === "merge_duplicate" ? (approved ? "Merged" : "Kept separate") : approved ? "Approved" : "Declined";
+
 const chip = cn(
   "inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-[13px] font-semibold transition-colors",
   focusRing,
@@ -255,7 +259,7 @@ export const ApprovalCard = ({
     )}
   >
     <p className="font-semibold">
-      {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}
+      {handled ?? (!decided ? "Needs your approval" : decidedTitle(approval.tool, Boolean(decision)))}
       {/* the summary already says what ("Send thank-you email to …"); the bare tool name only without one */}
       {!approval.summary && `: ${toolLabel(approval.tool)}`}
     </p>
