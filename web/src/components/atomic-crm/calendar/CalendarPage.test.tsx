@@ -3,16 +3,20 @@ import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CoreAdminContext } from "ra-core";
 
-import type {
-  CrmEvent,
-  CrmEventDetail,
-} from "../providers/local/crmTypes";
+import type { CrmEvent, CrmEventDetail } from "../providers/local/crmTypes";
 import { CalendarPage } from "./CalendarPage";
 
 // Fixtures: the Miami Foundation's three Give Miami events (dates per its site).
 const EVENTS: CrmEvent[] = [
   ev(1, "Early giving opens", "2026-11-14T09:00:00", "Online", 12, 9),
-  ev(2, "Give Miami 5K", "2026-11-15T07:30:00", "Maurice A. Ferré Park", 30, 20),
+  ev(
+    2,
+    "Give Miami 5K",
+    "2026-11-15T07:30:00",
+    "Maurice A. Ferré Park",
+    30,
+    20,
+  ),
   ev(3, "Give Miami Day", "2026-11-19T00:00:00", "Everywhere in Miami", 80, 50),
 ];
 
@@ -31,6 +35,10 @@ function ev(
     ends_at: null,
     place,
     audience: "Givers, Neighbors",
+    status: "upcoming",
+    kind: null,
+    rationale: null,
+    batch_id: null,
     source: "miamifoundation.org",
     source_url: `https://miamifoundation.org/events/${id}`,
     audience_count,
@@ -97,7 +105,9 @@ describe("CalendarPage", () => {
     await expect
       .element(screen.getByRole("button", { name: "Give Miami 5K" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Maurice A. Ferré Park")).toBeVisible();
+    await expect
+      .element(screen.getByText("Maurice A. Ferré Park"))
+      .toBeVisible();
     await expect.element(screen.getByText("20 drafts ready")).toBeVisible();
     await expect
       .element(screen.getByText("Context updated today 7:00 AM"))
@@ -116,8 +126,12 @@ describe("CalendarPage", () => {
       .element(screen.getByRole("button", { name: "Give Miami 5K" }))
       .toBeVisible();
 
-    await screen.getByRole("button", { name: "Fundraising", exact: true }).click();
-    expect(screen.getByRole("button", { name: "Early giving opens" }).all()).toHaveLength(0);
+    await screen
+      .getByRole("button", { name: "Fundraising", exact: true })
+      .click();
+    expect(
+      screen.getByRole("button", { name: "Early giving opens" }).all(),
+    ).toHaveLength(0);
     await expect
       .element(screen.getByRole("button", { name: "Give Miami 5K" }))
       .toBeVisible();
@@ -137,7 +151,9 @@ describe("CalendarPage", () => {
     const screen = await mount(EVENTS, plan);
 
     await screen.getByRole("button", { name: "Give Miami 5K" }).click();
-    await expect.element(screen.getByText("Sample invite (1 drafts ready)")).toBeVisible();
+    await expect
+      .element(screen.getByText("Sample invite (1 drafts ready)"))
+      .toBeVisible();
     await screen.getByRole("button", { name: "Review" }).click();
 
     await expect.element(screen.getByText("batch-42")).toBeVisible();

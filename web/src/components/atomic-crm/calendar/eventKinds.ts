@@ -138,9 +138,11 @@ export interface KindInfo {
   lead: string | null;
 }
 
-/** Read `event_kind` (not yet on CrmEvent's type) off an event. */
+/** Read the event's kind (CrmEvent.kind, parsed from the API's event_kind; raw event_kind also accepted). */
 export const kindInfo = (event: CrmEvent): KindInfo => {
-  const raw = (event as CrmEvent & { event_kind?: string | null }).event_kind;
+  const raw =
+    event.kind ??
+    (event as CrmEvent & { event_kind?: string | null }).event_kind;
   const key = (raw ?? "").toLowerCase().replace(/[_-]+/g, " ");
   if (!key) return { family: "events", lead: null };
   const hit = RULES.find((r) => r.match.test(key));
