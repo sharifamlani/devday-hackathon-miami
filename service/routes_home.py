@@ -2,7 +2,8 @@
 
 GET /home/summary           {gifts_at_risk, duplicates, tasks_today, next_event {title, date, days},
                             reached_today, suggestions[3]}
-GET /people/attention?limit=6   [{id, name, initials, line, badge}] ordered failed, late, new, not_yet, thanked
+GET /people/attention?limit=6   [{id, name, initials, line, badge}], one of each badge in turn (failed, skipped, late,
+                                 new, not_yet, thanked), so a short list shows a mix rather than only alerts
 
 Both take ?as_of=YYYY-MM-DD (default $SCORE_AS_OF or the demo date, like scoring and targets). Pure Python over
 SQLite, no LLM. tasks_today reads service/tasks.py (the list GET /tasks?due=today serves); reached_today adds
@@ -28,7 +29,7 @@ from service.routes_data import get_conn
 router = APIRouter(tags=["home"])
 
 NEW_DONOR_DAYS = 30
-BADGE_ORDER = ("failed", "late", "new", "not_yet", "thanked")   # also the priority when a donor fits several
+BADGE_ORDER = ("failed", "skipped", "late", "new", "not_yet", "thanked")   # also the priority when a donor fits several
 
 
 def _short_date(iso: str, today: date | None = None) -> str:
@@ -148,6 +149,9 @@ def attention(conn: sqlite3.Connection, today: date, limit: int = 6) -> list[dic
         who = (a["cadence"] or "").replace("_gmd", " Give Miami Day")
         if a["kind"] == "failed" and a["last_gift"] and a["last_gift"] > a["expected_date"]:
             line = f"Skipped a {who or 'regular'} gift around {_short_date(a['expected_date'], today)}"
+            # A missed month that giving resumed after: "skipped", not a failed card.
+            take("skipped", a["donor_id"], line)
+            continue
         elif a["kind"] == "failed":
             line = f"{(who[:1].upper() + who[1:]) + ' gift' if who else 'Gift'} due {_short_date(a['expected_date'], today)} didn't go through"
             if a["last_gift"]:
@@ -171,13 +175,19 @@ def attention(conn: sqlite3.Connection, today: date, limit: int = 6) -> list[dic
     for donor_id, sent in sorted(_thanked(conn, today).items(), key=lambda kv: (kv[1], kv[0]), reverse=True):
         take("thanked", donor_id, f"Thank-you sent {_short_date(sent, today)}")
 
+    # One of each badge in turn (BADGE_ORDER), then the next of each: the tile's 6 rows show a mix.
     out = []
-    for badge in BADGE_ORDER:
-        for donor_id, line in picked[badge]:
+    turn = 0   # index into every badge's list; stops as soon as `limit` rows are in
+    while len(out) < limit and any(turn < len(picked[b]) for b in BADGE_ORDER):
+        for badge in BADGE_ORDER:
+            if turn >= len(picked[badge]) or len(out) >= limit:
+                continue
+            donor_id, line = picked[badge][turn]
             d = donors[donor_id]
             out.append({"id": donor_id, "name": d["full_name"], "initials": _initials(d["full_name"], d["donor_type"]),
                         "line": line, "badge": badge})
-    return out[:limit]
+        turn += 1
+    return out
 
 
 @router.get("/people/attention")

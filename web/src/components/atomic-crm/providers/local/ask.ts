@@ -363,7 +363,7 @@ const CONTACT_TASKS = new Set([
   "welcome",
   "thank_you",
 ]);
-const ATTENTION_LATE = new Set(["late", "failed", "card_failed"]);
+const ATTENTION_LATE = new Set(["late", "skipped", "failed", "card_failed"]);
 
 interface ChipSnapshot {
   people_attention?: { id: number; badge: string }[];

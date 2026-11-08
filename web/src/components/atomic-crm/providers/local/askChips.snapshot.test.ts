@@ -23,7 +23,7 @@ describe("home suggestion chips on the snapshot build", () => {
     const alerts = (
       snap as unknown as { people_attention: { id: number; badge: string }[] }
     ).people_attention
-      .filter((p) => ["late", "failed", "card_failed"].includes(p.badge))
+      .filter((p) => ["late", "skipped", "failed", "card_failed"].includes(p.badge))
       .map((p) => p.id);
     const answer = askSnapshot(snap, "Who’s late on a usual gift?"); // curly apostrophe still matches
     expect(answer.donor_ids).toEqual(

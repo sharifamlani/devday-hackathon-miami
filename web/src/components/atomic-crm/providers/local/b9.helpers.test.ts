@@ -107,7 +107,8 @@ describe("home feed adapter", () => {
   it("maps every attention badge to the CRM tile's label and tone", async () => {
     const { attentionTag } = await import("./homeFeed");
     expect(attentionTag("card_failed")).toEqual({ label: "Card failed", tone: "alert" });
-    expect(attentionTag("late")).toEqual({ label: "Late", tone: "alert" });
+    expect(attentionTag("late")).toEqual({ label: "Late", tone: "warn" });
+    expect(attentionTag("skipped")).toEqual({ label: "Skipped", tone: "warn" });
     expect(attentionTag("new")).toEqual({ label: "New", tone: "good" });
     expect(attentionTag("thanked")).toEqual({ label: "Thanked", tone: "good" });
     expect(attentionTag("not_yet")).toEqual({ label: "Not yet", tone: "quiet" });

@@ -44,7 +44,9 @@ export type AttentionTone = "alert" | "warn" | "good" | "quiet";
 const BADGES: Record<string, { label: string; tone: AttentionTone }> = {
   failed: { label: "Card failed", tone: "alert" }, // what the service sends
   card_failed: { label: "Card failed", tone: "alert" },
-  late: { label: "Late", tone: "alert" },
+  // A missed month that giving resumed after, and a usual gift that's late: amber, not red.
+  skipped: { label: "Skipped", tone: "warn" },
+  late: { label: "Late", tone: "warn" },
   new: { label: "New", tone: "good" },
   thanked: { label: "Thanked", tone: "good" },
   not_yet: { label: "Not yet", tone: "quiet" },
