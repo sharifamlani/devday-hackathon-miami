@@ -38,12 +38,23 @@
 | C2 | **Duplicate review:** 6/6 sample duplicate groups found; staff approve each merge; gift history is kept on the survivor. | Givers → Review duplicates | ✅ #65 |
 | C2 | **Late gifts found in time:** Park and Quintero failed, Salinas/Brandt/Veloria late, all flagged on the sample data. | gift alerts | ~ backend merged (#48); no screen reads it yet |
 
-**Transcription model: Google (Sharif, Sat Nov 7 night).** Transcription runs on Google's Gemini API with the
-`GEMINI_API_KEY` already in `.env`: the Gemini Live API (input-audio transcription) for the live transcript, or a
-Gemini Flash call (`GOOGLE_FLASH_MODEL`) on each audio chunk if Live is not ready in time. It sits behind one
-`transcribe()` function, so OpenAI `gpt-4o-transcribe` can stand in as the fallback. The call summary and
-save-to-profile step stay on the OpenAI Agents SDK, so the OpenAI work stays visible to judges. Google Cloud
-Speech-to-Text (Chirp) is not used: it needs a GCP project and service account we don't have set up.
+**Transcription model: Google Gemini 3.5 Transcribe (Sharif, Sat Nov 7 night).** Checked against Google's docs:
+
+| | Live (during the call) | Recorded (after the call, phone stretch) |
+|---|---|---|
+| Model ID | `gemini-3.5-transcribe-live` | `gemini-3.5-transcribe` |
+| Call | Live API WebSocket, `client.aio.live.connect(...)` with `input_audio_transcription` | `client.interactions.create(...)` (not `generate_content`) |
+| Audio | raw 16-bit PCM, 16 kHz mono, ~100 ms chunks | webm, opus, mp3, wav, m4a and more; up to 1 h |
+| Output | interim text while speaking, final text at each pause | full text; speaker labels (up to 8, verbatim mode) |
+| Limits | 10-minute session; no speaker labels | 30 min with speaker labels |
+| Price | free tier; paid ~$0.009/min | free tier; paid ~$0.005/min |
+
+Both work with the `GEMINI_API_KEY` already in `.env` (no Google Cloud project). The browser never sees the
+key: the service mints a short-lived token (`client.auth_tokens.create`) or relays the audio itself.
+`mode="SMART"` drops filler words for the saved note; a custom vocabulary of donor and program names helps
+accuracy. The call summary and save-to-profile step stay on the OpenAI Agents SDK, so the OpenAI work stays
+visible to judges. Free-tier audio may be used by Google to improve its products, so real donor calls need
+the paid tier.
 
 ## 3. UI wireframes
 
@@ -157,7 +168,7 @@ agent's 3-line summary (interests, next step).
 ## 4. Build order for what is still open
 
 1. Home layout (3.2): Christian owns the UI, so this goes to him as a request, not a branch of ours.
-2. Voice-first panel (3.3): Google Gemini transcription, OpenAI agent summary, save-to-profile.
+2. Voice-first panel (3.3): `gemini-3.5-transcribe-live`, OpenAI agent summary, save-to-profile.
 3. Enrich button on the profile (3.4), wired to the existing enrichment agent.
 4. Wire `GET /alerts` into the money-raised card and to-do list (backend already merged in #48).
 5. Stretch: Community impact snapshot (P5); payout-change hold (P7) stays a named limit.
@@ -196,10 +207,44 @@ agent's 3-line summary (interests, next step).
 
 | Option | How it works | Effort | Demo risk |
 |---|---|---|---|
-| **A. Laptop mic (build this)** | 🎙 opens the panel; the browser records; `POST /transcribe` sends audio chunks to Google Gemini (Live API, or Flash per chunk), so the transcript fills in every few seconds. Save writes an atomic-crm **note** on the chosen person (notes with attachments already exist), plus a 3-line agent summary. A phone call on speaker next to the laptop works the same way. | ~2 h | low: no telephony, works offline from webhooks |
-| **B. Real phone call (stretch)** | Staff dial our Twilio number from their phone (or click "Call" and Twilio rings their phone first), then Twilio bridges to the donor with recording on. When the call ends, Twilio's recording webhook hands the audio to the same Gemini transcribe + save step. | ~3 h on top of A | medium: needs a public URL for Twilio's webhook (a tunnel to the laptop), a voice-capable number, and a trial account only reaches verified numbers |
+| **A. Laptop mic (build this)** | 🎙 opens the panel; the browser records; audio streams to `gemini-3.5-transcribe-live`, so words appear as staff speak. Save writes an atomic-crm **note** on the chosen person (notes with attachments already exist), plus a 3-line agent summary. A phone call on speaker next to the laptop works the same way. | ~2 h | low: no telephony, works offline from webhooks |
+| **B. Real phone call (stretch)** | Staff dial our Twilio number from their phone (or click "Call" and Twilio rings their phone first), then Twilio bridges to the donor with recording on. When the call ends, Twilio's recording webhook hands the recording to `gemini-3.5-transcribe` (with speaker labels), then the same save step. | ~3 h on top of A | medium: needs a public URL for Twilio's webhook (a tunnel to the laptop), a voice-capable number, and a trial account only reaches verified numbers |
 
 Guardrails for B: **Florida requires every party's consent to record a call**, so the call opens with a spoken
 "this call is recorded" notice before bridging. A person makes the call; no AI voice speaks (the
-no-AI-calls rule stands). A live transcript during a phone call (Twilio media streams → Gemini Live)
+no-AI-calls rule stands). A live transcript during a phone call (Twilio media streams → `gemini-3.5-transcribe-live`)
 is post-demo.
+
+## 7. Context database (onboarding → agents → continuous refresh)
+
+Onboarding captures the organization's context into the local SQLite database; every agent reads from it;
+a refresh job keeps it current. Most of this is on main already.
+
+```
+[Onboarding step 2: website (required) + X / LinkedIn / Instagram links]
+        |
+        v
+  org_profile (name, website, social links)
+        |
+  context agent: website + news (live hosted search), socials (public posts via search;
+        |        official APIs once tokens exist), each fact with its source URL
+        v
+  org_context (facts) ---> events ---> event_audience ---> event_drafts
+        |                                                        ^
+        +--> chat agent tools: get_context, get_events, get_alerts
+        +--> outreach + campaign agents (success stories in every draft)
+        |
+  daily refresh (REFRESH_DAILY_AT) re-reads every source, adds new facts and events,
+  re-drafts invites; each run logged in context_refresh_log
+```
+
+| Piece | On main | Missing |
+|---|---|---|
+| Tables: `org_profile`, `org_context`, `events`, `event_audience`, `event_drafts`, `context_refresh_log` | ✅ `service/db.py` | — |
+| Context agent: website + news, sourced facts | ✅ `/context/run`, `org_context.py` | — |
+| Social links saved with the profile | ✅ `x_url`, `linkedin_url`, `instagram_url` | — |
+| Social posts read | ~ `social_context.py`: public posts via search; official APIs only once tokens exist | X / Meta / LinkedIn tokens (post-demo); never faked, an unread source is labeled |
+| Agents read the database | ✅ chat tools `get_context`, `get_events`, `get_alerts` | — |
+| Continuous refresh | ✅ `/context/refresh` + in-process daily loop | **set `REFRESH_DAILY_AT` on the demo laptop**; show "last refreshed" on screen |
+| Onboarding screen that writes it | ~ draft #70 only | **Christian adopts #70** (step 1 upload, step 2 website + socials, live context progress) |
+| Call notes feed context | — | stretch: a saved voice note about the organization adds a fact to `org_context` |
