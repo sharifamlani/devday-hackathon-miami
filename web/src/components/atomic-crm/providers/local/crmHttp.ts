@@ -49,22 +49,30 @@ interface RefreshJobState {
 /** How often and how long to poll the pass (tests set pollMs to 0). */
 export const refreshTiming = { pollMs: 2000, waitMs: 5 * 60_000 };
 
-/** Poll the background pass until it stops; a failed pass says why. Returns the finished job. */
-const waitForRefresh = async (job: RefreshJobState | null): Promise<RefreshJobState | null> => {
+/**
+ * Poll the background pass until it stops. A failed or still-running pass is an answer, not an exception:
+ * ra-core's data provider logs every rejected call to the console, and a refused refresh ("no website saved
+ * yet") isn't a bug. Returns the finished job and, if it didn't succeed, the sentence to show.
+ */
+const waitForRefresh = async (
+  job: RefreshJobState | null,
+): Promise<{ job: RefreshJobState | null; problem: string | null }> => {
   const deadline = Date.now() + refreshTiming.waitMs;
   let current = job;
   while (current?.status === "refreshing") {
     if (Date.now() > deadline) {
-      throw new Error("The refresh is still running. Check back in a few minutes.");
+      return { job: current, problem: "The refresh is still running. Check back in a few minutes." };
     }
     await new Promise((resolve) => setTimeout(resolve, refreshTiming.pollMs));
     current = await request<RefreshJobState>("/context/refresh");
   }
   if (current?.status === "failed") {
-    throw new Error(`The refresh failed: ${current.detail ?? "no detail from the service"}.`);
+    return {
+      job: current,
+      problem: `The refresh failed: ${current.detail ?? "no detail from the service"}.`,
+    };
   }
-
-  return current;
+  return { job: current, problem: null };
 };
 
 const guard = async <T>(feature: string, call: () => Promise<T>): Promise<T> => {
@@ -150,8 +158,9 @@ export const crmHttpMethods: CrmMethods = {
       if (response && (response.last_refreshed_at || response.refreshed_at)) {
         return parseContextStatus(response);
       }
-      const finished = await waitForRefresh(response);
+      const { job: finished, problem } = await waitForRefresh(response);
       const status = parseContextStatus(await request<ApiContextStatus>("/context/status"));
+      if (problem) return { ...status, refresh_error: problem };
       // "done" can still mean the site or news couldn't be read: say so instead of showing success
       const unread = finished?.changes?.facts?.failed_sources ?? [];
       return unread.length ? { ...status, unread_sources: unread } : status;
