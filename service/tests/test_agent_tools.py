@@ -327,3 +327,48 @@ def test_rsvp_step_reads_like_a_sentence():
                          "event_title": "Beach Cleanup", "starts_at": "2026-11-21", "undo_token": "t"}) == \
         "RSVP: Rosa Delgado → Beach Cleanup (Sat Nov 21), attending"
     assert ca.summarize({"event_id": 3, "person_id": 7, "rsvp": "no"}) == "RSVP: person 7 → event 3, not attending"
+
+
+def lapsed_and_tagged(db_file) -> tuple[int, int]:
+    """Two givers: one whose last gift is 3 days old, one 60 days old with interests on file and from Enrich."""
+    conn = sqlite3.connect(db_file)
+    try:
+        recent, lapsed = [r[0] for r in conn.execute(
+            "SELECT id FROM donors WHERE contact_type = 'giver' ORDER BY id LIMIT 2")]
+        conn.execute("DELETE FROM gifts WHERE donor_id IN (?, ?)", (recent, lapsed))
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 50, '2026-11-05', 'online')",
+                     (recent,))
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 50, '2026-09-09', 'online')",
+                     (lapsed,))
+        conn.execute("UPDATE donors SET interests = ? WHERE id = ?", (json.dumps(["kids program"]), lapsed))
+        db.create_schema(conn)
+        conn.execute("INSERT INTO donor_interests (donor_id, tag, confidence, evidence, source_url, source_type, set_by) "
+                     "VALUES (?, 'environment', 'high', 'Sponsored the Biscayne Bay cleanup', 'https://example.org/bay', "
+                     "'event_sponsor', 'agent')", (lapsed,))
+        conn.commit()
+    finally:
+        conn.close()
+    return recent, lapsed
+
+
+def test_find_people_filters_by_days_since_last_gift_and_interest(db_file):
+    recent, lapsed = lapsed_and_tagged(db_file)
+    people = {p["id"]: p for p in invoke("find_people", no_gift_in_days=7, limit=50)["people"]}
+    assert lapsed in people and recent not in people
+    assert people[lapsed]["last_gift_date"] == "2026-09-09"
+    assert set(people[lapsed]["interests"]) >= {"kids program", "environment"}
+    tagged = invoke("find_people", interest="environment", limit=50)["people"]
+    assert [p["id"] for p in tagged] == [lapsed]
+
+
+def test_campaign_drafts_are_given_the_donors_interests(db_file):
+    from service import routes_campaigns as rc
+    _, lapsed = lapsed_and_tagged(db_file)
+    conn = db.connect()
+    try:
+        _, _, _, research = rc.load_donor(conn, lapsed)
+    finally:
+        conn.close()
+    text = " ".join(f["fact"] for f in research)
+    assert "kids program" in text and "Biscayne Bay cleanup" in text
+    assert any(f["source_url"] == "https://example.org/bay" for f in research)
