@@ -311,3 +311,6 @@ Pipeline: devday-hackathon-20 = the Integrate + Test Wheel (ports 8000/5173/8101
 | #151 integration-wheel (re-check) | c9cf238 | ports/CORS/PID verification/lock all PASS; spare-port walk 12/13 (33 givers, 131 / $1,367,535, 5 at-risk); --reset lacks --state-dir (could stop the live TEST service); step 6c approval-card selector never found the button | CHANGES |
 | #151 integration-wheel (re-check 2) | b0b4df3 | refused reset on spare ports with the shared state dir → exit 2, TEST untouched; 6c now waits for the pending card; the live 6c run in progress | pending 6c |
 | #150 agent tools fix | 9af105c | campaign 79.5 s → 34.7 s; chat 4-7 s; lapsing 15 = db, 200-day filter = SQL; interest filter exact, unknown → none; approval gates sends; undo ok; AgentCards UI not browser-walked (→ IT step 5) | APPROVE |
+| #123 composer dictation (3c) | edd5f06 | Dictate in the home composer: words in 2.5-2.8 s, appends, Esc restores, send → agent task, 0 db rows from dictation; 390 ok; snapshot mic disabled "needs the live service" | APPROVE |
+
+Possible main issue: #116 Ask-prompt dictation stays "listening" with no text (fake mic), also with #123 reverted; the same WAV works on home → real-mic check on the LIVE app requested (owner: voice lane).
