@@ -1886,7 +1886,7 @@ No UI or code changes: this section only orders what is already on main.
        |  a agent chat streams ("Plan next week")      |
        |  b duplicates in chat (Review -> inbox ->     |
        |    Ask the agent to fix)                      |
-       |  c call sheet (task row: Call Hye-jin Park)   |
+       |  c live call: "Call Christian Gonzalez"       |
        |  d transcript -> after-call card -> Apply     |
        |  e calendar v3 (next week -> 5K ⓘ -> batch)   |
        |  f Impact & story (Copy for a grant report)   |
@@ -1911,7 +1911,7 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | 3 | Dashboard | **Go to the dashboard**, **Not now** on the tour card | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
 | 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
-| 4c | Call sheet | Click the **Call Hye-jin Park** task row | steps incl. **Prep call**, a call sheet + a draft, **Mark done?** (~28 s). The call sheet's **Call** opens the call controls inside that chat card, not a pop-up (#248); **Call** stays disabled until the phone setup is ready, so don't press it unless the phone call is part of the run |
+| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* → his call sheet → **Call** inside the card ("Rings your phone first, then the donor's.") → answer the staff phone → keep it under 30 s → **Hang up** | **Ringing your phone…** → **Calling Christian Gonzalez…** (his phone rings; the recording notice plays) → **Connected · recording** → after **Hang up**: **Getting the recording…**, **Transcribing…**, **Summarizing…**, **Suggesting follow-ups…** → **Saved to the call notes**, the **Summary** and **Suggested follow-ups**, each with its own **Apply** (the in-card call has no **Apply selected**; that's the Live transcript card in 4d) |
 | 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the scripted call with Hye-jin Park streams in (~10 s); the summary and **Suggested next steps** (~4 s); the after-call card proposes a card-update task, the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") and a context note → **Apply selected** writes the ticked ones |
 | 4e | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
 | 4f | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
@@ -1922,8 +1922,15 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 The Live transcript demo call (4d) is with Hye-jin Park (#210): her failed $40 gift, then an RSVP to the Give Miami
 5K, then the after-call card and **Apply selected**; `docs/demo-script.md` step 11 carries the words.
 
-**4c (pending):** a live call to Christian, details TBD. It will replace or follow the call-sheet beat (the call sheet's
-**Call** dials from inside the card, then the after-call card) once the lead sends the details.
+**4c, the live call.** Christian Gonzalez is a teammate added as a donor on LIVE only. His real number never goes in
+a committed doc: write "his verified number". The T-30 reset empties LIVE's db, and anyone added before onboarding
+would break the empty start (setup treats existing people as "already set up"). So **the IT lane adds him off-screen
+during step 3 (the dashboard tour)**, in its own terminal, never on the projector:
+`cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" -c "from service import db, agent_writes; c = db.connect(); print(agent_writes.add_contact(c, 'Christian Gonzalez', phone='<his verified number>')[0]); c.commit()"`.
+Then it checks `curl -s "http://localhost:8001/phone/preview?donor_id=<his id>"` → `"ready": true` before the
+presenter reaches 4c. If it's not ready, 4c is skipped for 4d (fallback below). The staff phone (`STAFF_PHONE`) rings
+first, so the person answering it is part of the call. Labels are from the code (`phone.ts` `statusLabel`,
+`PhoneCallInline`); 54's live test call confirms them.
 
 ### 22.3. T-minus checklist (laptop operator)
 - [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
@@ -1962,6 +1969,11 @@ The Live transcript demo call (4d) is with Hye-jin Park (#210): her failed $40 g
       `local` for `VITE_DATA_MODE` (`vercel env rm` the old values first);
       (3) `vercel --prod --yes`.
       Write down which state it's in.
+- [ ] **T-15 (phone, IT lane):** LIVE's `.env` has the five call settings, checked without printing their values:
+      `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^(PHONE_CALLS|TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|STAFF_PHONE|SEND_ALLOWLIST)=' | % { $_.Line.Split('=')[0] }`
+      must print all five names; `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^PHONE_CALLS=on'`
+      must match; `SEND_ALLOWLIST` must include his verified number. (The `/phone/preview` check for Christian comes
+      after he's added, during step 3; see 4c.)
 - [ ] **T-10 (mic):** open **Live transcript** (it should show **Listening**), then **Open Ask sidebar** →
       **Dictate** → **Stop dictation**. Grant the browser mic permission.
 - [ ] **T-5 (screen):** browser zoom 110%, notifications off, DevTools console open on a second screen; close other
@@ -2032,7 +2044,7 @@ fallback before T-30.
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
-| 4c Call sheet | over 40 s | "It's writing a call sheet and a draft from her record." Move on when the draft shows. |
+| 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do 4d (the Live transcript demo call). |
 | 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
 | 4e Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
 | 4f Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |

@@ -98,7 +98,17 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     **Invites · Open batch**. **Open batch** (about 3 s) opens the event's campaign page (e.g. **The Give Miami 5K ·
     Nov 15 · 12 people**) with **Approve all small-donor drafts** and **Send approved messages**; nothing is sent until
     someone approves it.
-11. **A call, transcribed.** Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
+11. **A call, transcribed.**
+    **Live call (the run's choice).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate added as a
+    donor for the demo, off-screen, after setup). The agent answers with his call sheet; click **Call** inside the card
+    ("Rings your phone first, then the donor's."). The staff phone rings first (**Ringing your phone…**): answer it and
+    you hear "Calling Christian Gonzalez. Please hold."; then **Calling Christian Gonzalez…**, his phone rings and he
+    hears the recording notice; **Connected · recording**. Keep it under 30 s (the Twilio trial balance is low), then
+    **Hang up**. The card works through **Getting the recording…**, **Transcribing…**, **Summarizing…** and
+    **Suggesting follow-ups…**, then shows **Saved to the call notes**, the **Summary** and **Suggested follow-ups**,
+    each with its own **Apply**. If it doesn't connect or Twilio errors: "Calls go through Twilio; here's the sheet and
+    the demo call instead," and do the demo call below.
+    **Demo call.** Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
     **Live transcript** in the rail: the panel
     opens on **Listening** with **Demo call**, **Generate summary** and **Pause**. **Demo call** plays a scripted call
     with **Hye-jin Park**, a donor from the sample data (about 10 s): Denise from The Miami Foundation calls about her $40
