@@ -20,12 +20,21 @@ scripts/live_stack.ps1 start  -Stack all            # both stacks
 scripts/live_stack.ps1 status                       # OK/DOWN per part, our PID, the port's listener
 scripts/live_stack.ps1 restart -Stack all -Only service   # after a merge that touches service/
 scripts/live_stack.ps1 reset  -Stack test           # stop TEST service, delete its runtime data, start it empty
+
+# A QA copy on spare ports, with its own worktree and state dir. A web port other than 5173/5174 is passed to the
+# service as CORS_ORIGINS (service/config.py), so the walk's requests and the dictation WebSocket are allowed.
+scripts/live_stack.ps1 start -Stack test -TestServicePort 8199 -TestWebPort 5199 -TestRoot C:\path\to\worktree -StateDir C:\path\to\state
+python scripts/e2e_demo_path.py --reset --web http://localhost:5199 --api http://127.0.0.1:8199 --db C:\path\to\worktree\data\donors.db
+python scripts/e2e_demo_path.py --only 1,2 --web http://localhost:5173 --api http://127.0.0.1:8001 --db C:\Users\Shari\dd-live-main\data\donors.db   # reload LIVE after a reset
 ```
 
-`reset` keeps `data/ingest_cache/` warm (as on stage) and restores tracked caches from git. LIVE is reset only with
-`-Stack live`, on Sharif's or the lead's ask; after a LIVE reset, reload the 8 sample files through the app.
-The script kills only PIDs it recorded in `C:\Users\Shari\dd-live-state\pids.json` (with their child trees). A
-reserved port held by another process is reported, never killed. Logs: `C:\Users\Shari\dd-live-state\logs\`.
+Defaults: `-LiveServicePort 8001 -LiveWebPort 5173 -TestServicePort 8101 -TestWebPort 5174`. LIVE moved off :8000
+because an orphaned process from another session holds it. `reset` keeps `data/ingest_cache/` warm (as on stage) and
+restores tracked caches from git. LIVE is reset only with `-Stack live`, on Sharif's or the lead's ask; after a LIVE
+reset, reload the 8 sample files through the app (`--only 1,2` above). The script kills only PIDs it recorded in
+`C:\Users\Shari\dd-live-state\pids.json` (with their child trees), and only while the process name and start time still
+match what it recorded, so a reused PID is reported, never killed. Writes to `pids.json` hold `pids.lock` and land
+through a temp file + rename. A reserved port held by another process is reported, never killed. Logs: `C:\Users\Shari\dd-live-state\logs\`.
 
 ## The loop
 
@@ -51,7 +60,7 @@ From an empty TEST db, at 1440×900, then 390×844 for step 11:
 | 1 | upload the 8 files in `data/sample_inputs/` (not `answer_key.json` / `_README.md`) | Givers count on screen = `GET /people` |
 | 2 | website step, `miamifoundation.org` → dashboard | dialog closes, open tasks ≥ 1; events ≥ 4 (INFO until e6's events PR) |
 | 3 | Donors list and tabs | "N donors" and the Givers tab = `GET /people` giver; Neighbors/Community INFO |
-| 4 | "Review merges →" → "Merge ✓" on every pair | 33 givers; 131 gifts = $1,367,535 in the db (`answer_key.json`) |
+| 4 | "Review merges →" → "Merge ✓" on every pair | 33 givers; 131 gifts = $1,367,535 in the db (`answer_key.json`). Row 4b (68 people: neighbor 20 / community 15) is INFO under the Givers-first scope |
 | 5 | home | "N gifts at risk" = `/home/summary` = 5; duplicates = summary; task rows present |
 | 6 | chat | a question → step cards naming real donors; "add a task" → +1, Undo → back; an email → approval card → "Approved … (dry run)", 0 sent |
 | 7 | click a task | "Work on this task: …" → Get task, Get person → "Mark done?" |
@@ -60,7 +69,13 @@ From an empty TEST db, at 1440×900, then 390×844 for step 11:
 | 10 | dictation | mic button present; without a mic a visible error line |
 | 11 | phone width | no horizontal overflow at 390 on home, donors, inbox |
 
-Every step also fails on a console error or an HTTP ≥ 400 response. Verdicts:
+Every step also fails on a console error or an HTTP ≥ 400 response.
+
+**Data leaves the laptop:** the walk uploads the fictional sample files and asks the live agent questions, so sample
+data goes to the OpenAI API (ingest, context, chat, Enrich), and Enrich searches the public web for the real Knight
+Foundation. No real donor data is used.
+
+Verdicts:
 
 - **PASS / FAIL**: the product did or didn't do it. Givers flows decide the run (Sharif's scope call, Nov 8).
 - **INFO**: reported, never fails the run (Neighbors/Community, known gaps the lead accepted).
