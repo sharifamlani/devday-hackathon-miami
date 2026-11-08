@@ -8,8 +8,8 @@ from service import chat_agent as ca, db, tasks
 
 def setup(db_file, names=("Ana Ruiz", "Ben Cole", "Cara Diaz")):
     conn = sqlite3.connect(db_file)
-    ids = [conn.execute("INSERT INTO donors (full_name, donor_type) VALUES (?, 'individual')", (n,)).lastrowid
-           for n in names]
+    ids = [conn.execute("INSERT INTO donors (full_name, donor_type, email) VALUES (?, 'individual', ?)",
+                        (n, n.split()[0].lower() + "@example.org")).lastrowid for n in names]
     batch = conn.execute("INSERT INTO campaigns (name, intent, channel) VALUES ('GMD thanks', 'thank_you', 'email')"
                          ).lastrowid
     msgs = [conn.execute("INSERT INTO campaign_messages (campaign_id, donor_id, channel, body) VALUES (?, ?, 'email', 'x')",
@@ -52,3 +52,28 @@ def test_merge_and_delete_cards_name_the_records(db_file):
     assert ca.approval_summary("delete_task", {"task_id": task["id"]}) == "Delete task: Call Liz"
     assert ca.approval_summary("delete_calendar_item", {"ref": f"task:{task['id']}"}) == "Delete calendar item: Call Liz"
     assert ca.approval_summary("delete_calendar_item", {"ref": "event:3"}) is None
+
+
+def test_a_batch_card_says_up_front_what_will_be_held_back(db_file):
+    """QA (#174): orgs/stars needing individual approval and missing addresses showed only after Send."""
+    ids, batch, msgs = setup(db_file, names=("Ana Ruiz", "Ben Cole", "Cara Diaz", "Dev Shah"))
+    conn = sqlite3.connect(db_file)
+    conn.execute("UPDATE campaign_messages SET needs_individual_approval = 1 WHERE id IN (?, ?)", (msgs[0], msgs[1]))
+    conn.execute("UPDATE donors SET email = NULL WHERE id = ?", (ids[2],))
+    conn.execute("UPDATE campaign_messages SET flags = '[\"mentions an amount\"]' WHERE id = ?", (msgs[3],))
+    conn.commit()
+    conn.close()
+    assert ca.approval_summary("send", {"batch_id": batch}) == (
+        "Send thank-you emails to Ana Ruiz +3 more (2 need individual approval · 1 has no email · 1 flagged)")
+    assert ca.approval_summary("send", {"batch_id": batch, "message_ids": [msgs[0]]}) == (
+        "Send thank-you email to Ana Ruiz (1 needs individual approval)")
+
+
+def test_a_text_batch_counts_missing_phones(db_file):
+    ids, batch, msgs = setup(db_file, names=("Eva Lin", "Finn Roy"))
+    conn = sqlite3.connect(db_file)
+    conn.execute("UPDATE campaign_messages SET channel = 'text' WHERE campaign_id = ?", (batch,))
+    conn.execute("UPDATE donors SET phone = '305-555-0101' WHERE id = ?", (ids[0],))
+    conn.commit()
+    conn.close()
+    assert ca.approval_summary("send", {"batch_id": batch}) == "Send thank-you texts to Eva Lin +1 more (1 has no phone)"
