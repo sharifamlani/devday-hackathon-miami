@@ -347,6 +347,7 @@ def model_write(donor: dict, gifts: list[dict], why: dict | None, research: list
     from agents import Agent, ModelSettings, Runner
     from openai.types.shared import Reasoning
 
+    oa.load_dotenv(oa.REPO_ROOT / ".env")       # the model client needs the key, whoever called first
     big = needs_individual_approval(donor)
     hide = oa.hides_gifts(donor)
     ask = (oa.ask_for(big, today) if intent == "re_engage" and not is_beneficiary(donor) else "none: no ask of any kind.")
