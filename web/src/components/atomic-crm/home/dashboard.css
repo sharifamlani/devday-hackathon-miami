@@ -8,7 +8,9 @@
   grid-template-columns: 288px minmax(0, 1fr);
   gap: 24px;
   height: 100%;
-  min-height: 580px;
+  /* No height floor: on a short window the columns scroll inside the frame
+     instead of the whole page moving up over a blank area. */
+  min-height: 0;
 }
 .home-overview {
   display: flex;
@@ -165,10 +167,14 @@
     transform: scaleX(1);
   }
 }
+/* Reduced motion: the OS setting unless "Full motion" is chosen, or "Reduce motion". */
 @media (prefers-reduced-motion: reduce) {
-  .home-composer-bloom {
+  :root:not([data-motion="full"]) .home-composer-bloom {
     animation: none;
   }
+}
+:root[data-motion="reduce"] .home-composer-bloom {
+  animation: none;
 }
 .home-project-toggle {
   display: flex;

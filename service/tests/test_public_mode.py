@@ -20,6 +20,21 @@ def client(db_file):
     return TestClient(app)
 
 
+@pytest.fixture
+def instant_agents(monkeypatch):
+    """The rate-limit tests measure the limiter, not the model: with a real key, 21 chat calls take ~100 s, the
+    first requests leave the 60 s window and the 21st is allowed (and each run spends money). Stub both agents so
+    every request answers at once, key or no key."""
+    from service import chat_agent, config, routes_ask
+
+    async def no_plan(question, as_of):
+        return None, "stub", None, None
+
+    monkeypatch.setattr(config, "HAS_OPENAI_KEY", True)
+    monkeypatch.setattr(chat_agent, "run_chat", lambda *a, **k: {"reply": "stub", "steps": [], "approvals": []})
+    monkeypatch.setattr(routes_ask, "plan_for", no_plan)
+
+
 def preflight(c, path="/chat"):
     return c.options(path, headers={"Origin": VERCEL, "Access-Control-Request-Method": "POST"})
 
@@ -54,7 +69,7 @@ def test_ws_origin_check_follows_the_switch():
     assert not origin_allowed(VERCEL)
 
 
-def test_21st_chat_request_in_a_minute_is_429(client):
+def test_21st_chat_request_in_a_minute_is_429(client, instant_agents):
     public_mode.set_enabled(True)
     codes = [client.post("/chat", json={"message": "hi"}, headers={"Origin": VERCEL}).status_code for _ in range(21)]
     assert 429 not in codes[:20] and codes[20] == 429
@@ -63,7 +78,7 @@ def test_21st_chat_request_in_a_minute_is_429(client):
     assert client.get("/people", headers={"Origin": VERCEL}).status_code == 200   # other routes are not limited
 
 
-def test_rate_limit_is_per_client_ip(client):
+def test_rate_limit_is_per_client_ip(client, instant_agents):
     public_mode.set_enabled(True)
     for _ in range(20):
         client.post("/ask", json={"question": "x"}, headers={"CF-Connecting-IP": "1.1.1.1", "Origin": VERCEL})
@@ -71,7 +86,7 @@ def test_rate_limit_is_per_client_ip(client):
     assert client.post("/ask", json={"question": "x"}, headers={"CF-Connecting-IP": "2.2.2.2", "Origin": VERCEL}).status_code != 429
 
 
-def test_rate_limit_off_when_public_mode_off(client):
+def test_rate_limit_off_when_public_mode_off(client, instant_agents):
     codes = {client.post("/chat", json={"message": "hi"}).status_code for _ in range(25)}
     assert 429 not in codes
 

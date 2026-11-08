@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Link } from "react-router";
 import { zoomClick } from "./workspaceView";
 import {
@@ -192,33 +192,38 @@ export const AgendaList = ({
       });
   };
   return (
-    <section className={cn(tile, "home-agenda")} aria-labelledby={headingId}>
+    <section
+      data-zoom-source="calendar"
+      className={cn(tile, "home-agenda")}
+      aria-labelledby={headingId}
+    >
       <div className="home-calendar-heading">
         <div>
           <h2 id={headingId}>
             <Link
               to="/calendar"
               onClick={zoomClick("calendar")}
-              className={focusRing}
+              className={cn(
+                "-mx-1 rounded-sm px-1 hover:underline hover:underline-offset-4 hover:decoration-2",
+                focusRing,
+              )}
               title="Open full calendar"
+              aria-label="Open full calendar"
             >
               {month}
             </Link>
+            <kbd
+              aria-hidden="true"
+              className="ml-2 hidden align-baseline font-sans text-[11px] font-normal text-muted-foreground md:inline"
+            >
+              Alt+C
+            </kbd>
           </h2>
           <p className="text-xs text-muted-foreground" aria-live="polite">
             {weekRange(start)}
           </p>
         </div>
         <div className="home-calendar-tools">
-          <Link
-            to="/calendar"
-            onClick={zoomClick("calendar")}
-            aria-label="Open full calendar"
-            title="Open full calendar"
-            className={cn("grid place-items-center", focusRing)}
-          >
-            <ArrowUpRight size={14} aria-hidden="true" />
-          </Link>
           <button
             type="button"
             aria-label="Previous week"

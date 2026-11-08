@@ -636,8 +636,12 @@
     padding: 13px;
   }
 }
+/* Reduced motion: the OS setting unless "Full motion" is chosen, or "Reduce motion". */
 @media (prefers-reduced-motion: reduce) {
-  .inbox-donor-row {
+  :root:not([data-motion="full"]) .inbox-donor-row {
     transition: none;
   }
+}
+:root[data-motion="reduce"] .inbox-donor-row {
+  transition: none;
 }

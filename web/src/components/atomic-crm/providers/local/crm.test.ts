@@ -511,15 +511,18 @@ describe("context status (plan.md §17 amendment)", () => {
     expect(status.unread_sources).toEqual(["website", "news"]);
   });
 
-  it("refresh reports a failed pass with the service's detail, and stops polling", async () => {
+  it("refresh reports a failed pass with the service's detail as an answer, not a thrown error", async () => {
+    // ra-core logs every rejected data-provider call to the console; a refused refresh isn't a bug
     refreshTiming.pollMs = 0;
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ status: "refreshing" })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "failed", detail: "site unreachable" })));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "failed", detail: "no website saved yet" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ last_refreshed_at: null })));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(crmHttpMethods.refreshContext()).rejects.toThrow("The refresh failed: site unreachable.");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const status = await crmHttpMethods.refreshContext();
+    expect(status.refresh_error).toBe("The refresh failed: no website saved yet.");
+    expect(paths(fetchMock).map((p) => p[0])).toEqual(["/context/refresh", "/context/refresh", "/context/status"]);
   });
 
   it("explains a status route that hasn't landed", async () => {

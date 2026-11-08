@@ -101,6 +101,21 @@ describe("CalendarPage Refresh now", () => {
       .toBeVisible();
   });
 
+  it("shows a refused pass's reason from the answer (no thrown error, so no console error)", async () => {
+    const { screen } = mount(async () => ({
+      refreshing: false,
+      label: "x",
+      refresh_error: "The refresh failed: no website saved yet: run onboarding first.",
+    }));
+    const ui = await screen;
+
+    await ui.getByRole("button", { name: "Refresh now" }).click();
+    await expect
+      .element(ui.getByRole("alert"))
+      .toHaveTextContent("The refresh failed: no website saved yet: run onboarding first.");
+    await expect.element(ui.getByRole("button", { name: "Refresh now" })).toBeEnabled();
+  });
+
   it("says why a failed pass failed, and keeps the events on screen", async () => {
     const { screen } = mount(() => Promise.reject(new Error("The refresh failed: site unreachable.")));
     const ui = await screen;

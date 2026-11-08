@@ -388,6 +388,8 @@ export interface ContextStatus {
   label: string;
   /** After Refresh now: sources the pass couldn't read (e.g. ["website", "news"]). */
   unread_sources?: string[];
+  /** After Refresh now: why the pass didn't finish ("The refresh failed: no website saved yet…"). */
+  refresh_error?: string;
 }
 
 export interface CrmMethods {

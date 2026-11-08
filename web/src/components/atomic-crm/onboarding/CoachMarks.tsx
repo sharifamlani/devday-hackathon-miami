@@ -9,12 +9,13 @@ import {
   type TourStop,
 } from "./tour";
 import { useFocusTrap } from "./useFocusTrap";
+import { prefersReducedMotion } from "@/lib/motion";
 
 const PAD = 6; // breathing room around the highlighted element
 
+/** The "Reduce motion" choice, falling back to the OS setting. */
 const reducedMotion = () =>
-  typeof window !== "undefined" &&
-  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  typeof window !== "undefined" && prefersReducedMotion();
 
 /**
  * Coach marks over the real homepage: dims the page, rings the current

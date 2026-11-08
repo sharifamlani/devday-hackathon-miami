@@ -50,7 +50,7 @@ async def map_events(controller, result, ctx: ca.ChatContext, spec: dict) -> Non
                 summary = "deleted: " + summary.split(": ", 1)[-1]
             step = {"tool": tool_name or None, "call_id": call_id,
                     "summary": summary, "status": "error" if summary.startswith("error") else "done",
-                    "undo_token": data.get("undo_token")}
+                    "undo_token": data.get("undo_token"), "card": data.get("card")}
             steps.append(step)
             if call_id in open_calls:
                 open_calls.pop(call_id).set_response({**step, "result": data}, is_error=step["status"] == "error")
