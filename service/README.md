@@ -21,7 +21,7 @@ CORS allows the Vite dev servers on `localhost:5173` and `localhost:5174`.
 | Route | What it does | Model call |
 |---|---|---|
 | `GET /health` | ok, model tier, key loaded, as-of date, db path, whether ingest is mounted | no |
-| `GET /donors`, `GET /donors/{id}` | donors by score; one donor with gifts, score why, facts, drafts | no |
+| `GET /donors`, `GET /donors/{id}` | donors by score; one donor with gifts, score why, facts, drafts, and its 5 newest `call_notes` | no |
 | `GET /duplicates`, `POST /duplicates/{id}/merge`, `/dismiss` | duplicate review | no |
 | `POST /score/run` | rescore everyone (`?as_of=YYYY-MM-DD`) | no |
 | `POST /enrich/{id}` | research agent: sourced public facts, saved to `research_facts`. Cached orgs return instantly; individuals return `[]` by policy. `?refresh=true` researches live | `OPENAI_MODEL_DEFAULT` + web search |
@@ -32,12 +32,32 @@ CORS allows the Vite dev servers on `localhost:5173` and `localhost:5174`.
 | `POST /prospects/{id}/outreach` | first-touch draft for a prospect, always status `draft` | `OPENAI_MODEL_DEFAULT` |
 | `POST /context/run` | context agent reads the org's website + social profiles, saved via `db.save_context`. Cached unless `"refresh": true` | `OPENAI_MODEL_DEFAULT` |
 | `GET /org-profile`, `GET /context` | the saved local context dataset (`routes_data.py`; `?source=`) | no |
+| `POST /calls/summarize` | live transcript summary, see [Call notes](#call-notes) | `OPENAI_MODEL_FAST`, else rules |
+| `POST /calls`, `GET /calls` | save a call note (upsert by id); list them newest first | no |
 | `POST /agent/ping` | one Agents SDK call with structured output (`{ok, echo}`) | `OPENAI_MODEL_FAST` |
 | `POST /ingest` | Carlos's `service/ingest/router.py`, mounted only when present | Carlos's agent |
 
 Agent routes are capped at 90 s per model call with 2 retries, and 120 s per route. On a timeout they return
 `504 {"error": "agent_timeout", "detail", ...}` with the cached result (`cached_draft`, `cached_icp` or
 `cached_context`). A route whose lane hasn't landed yet returns `503 "... has not landed on this build yet"`.
+
+## Call notes
+
+`service/routes_calls.py`, for the live transcript pane (`web/.../voice/callNotes.ts` has the same shapes in camelCase):
+
+| Route | Body / query | Returns |
+|---|---|---|
+| `POST /calls/summarize` | `{title, transcript: [{speaker: "you" \| "them", name, text, at}], notes, donor_id?}` | `{summary: [str], next_steps: [str], source: "model" \| "rules", detail}` |
+| `POST /calls` | `{id?, title, created_at?, duration_sec, destinations: [{kind: "donor" \| "group" \| "project", id, label}], transcript, notes, summary, next_steps}` | the saved row (`id` is generated when omitted; `created_at` is stored as UTC ISO) |
+| `GET /calls` | `?donor_id=&project_id=&limit=` (default 50) | saved rows, newest call first |
+
+With a key, the summary is one Agents SDK run on `OPENAI_MODEL_FAST` with a strict `CallSummary` output, no
+tools, capped at `CALLS_DEADLINE_S` (20 s). It sees only the transcript, the notes and the donor's own record, and
+plain code rejects any dollar amount or date it wrote that those don't hold. Without a key, on a timeout, a model
+error or a rejected answer, a deterministic rules summary answers (who spoke, how long, their key lines quoted, the
+lines where someone committed to a follow-up), with the reason in `detail`. Tracing omits the transcript text, and
+the service never logs it. A donor destination must be an existing donor (else 422). Notes live in the `call_notes`
+table; the Vercel snapshot never includes them (`donor_details[*].call_notes` is always `[]`).
 
 ## Onboarding screens (plan.md §15)
 

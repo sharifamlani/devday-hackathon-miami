@@ -34,7 +34,7 @@ export const MobileNavigation = () => {
   return (
     <nav
       aria-label={translate("crm.navigation.label")}
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[15px]"
+      className="fixed right-0 bottom-0 left-0 z-50 px-4 pb-[max(8px,env(safe-area-inset-bottom))]"
       style={{
         paddingBottom:
           isPwa && isWebiOS
@@ -42,7 +42,7 @@ export const MobileNavigation = () => {
             : undefined,
       }}
     >
-      <div className="flex min-h-[65px] items-center justify-around gap-1 px-2 py-1.5">
+      <div className="tile flex min-h-[65px] items-center justify-around gap-1 rounded-[26px] px-1.5 py-1.5 shadow-[0_8px_30px_#2427281a] backdrop-blur-[15px] [--tile:color-mix(in_srgb,var(--card)_94%,transparent)]">
         <NavigationButton
           href="/"
           Icon={House}
@@ -83,7 +83,7 @@ export const MobileNavigation = () => {
             className={cn(
               navButton,
               sidebar.open
-                ? "bg-primary text-brand dark:text-primary-foreground"
+                ? "bg-strong text-brand"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
           >
@@ -118,7 +118,7 @@ const NavigationButton = ({
     className={cn(
       navButton,
       isActive
-        ? "bg-primary text-brand dark:text-primary-foreground"
+        ? "bg-strong text-brand"
         : "text-muted-foreground hover:bg-accent hover:text-foreground",
     )}
   >

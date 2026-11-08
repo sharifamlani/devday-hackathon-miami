@@ -1,52 +1,83 @@
 import { useMemo, useState } from "react";
-import { CalendarPlus } from "lucide-react";
-import { Link, useSearchParams } from "react-router";
+import { useGetIdentity } from "ra-core";
+import { useSearchParams } from "react-router";
 
+import { cn } from "@/lib/utils";
 import { DonorDrawer } from "../contacts/DonorDrawer";
-import { useCampaigns, useDonors, useTargets } from "../providers/local/hooks";
+import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
+import { useEvents } from "../providers/local/crmHooks";
+import {
+  useCampaigns,
+  useDonors,
+  useDuplicates,
+  useTargets,
+} from "../providers/local/hooks";
+import { eventDays } from "../calendar/planLayer";
 import { computeDayMarks } from "../outreach/calendarMonth";
-import {
-  formatDayShort,
-  isIsoDate,
-  monthOf,
-  toIsoDate,
-  type MonthRef,
-} from "../outreach/dates";
+import { daysBetween, isIsoDate, toIsoDate } from "../outreach/dates";
 import { DayPlanner } from "../outreach/DayPlanner";
-import { MonthGrid, MonthLegend } from "../outreach/MonthGrid";
-import { itemsOn, useOutreachPlan } from "../outreach/outreachPlan";
+import { useOutreachPlan } from "../outreach/outreachPlan";
 import { recommendOutreach } from "../outreach/recommend";
+import { useCallNotes } from "../voice/callNotes";
+import { FindDonorDialog } from "./FindDonorDialog";
 import {
-  CampaignProgressCard,
-  GlanceCard,
-  GoalGaugeCard,
-  RecommendedCard,
+  ArtifactsTile,
+  CrmTile,
+  GlanceTile,
+  Q4ProgressTile,
+  TasksTile,
+  WeekTile,
 } from "./HomeCards";
+import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
 import {
-  draftsAwaiting,
-  featuredCampaign,
+  agendaLines,
+  attentionDonors,
+  buildTasks,
+  donorFacts,
+  draftEmailHref,
+  firstName,
   giveMiamiDay,
   goalEnds,
   greeting,
-  needsCall,
   toRecCampaigns,
+  weekDays,
+  type HomeTask,
 } from "./homeData";
+import { tile } from "./tile";
 
 /**
- * Home ("/"): today at a glance, the outreach-days calendar, the quarter goal,
- * campaign progress and the outreach agent's recommendations, laid out like
- * the Be.run dashboard in the Kindred look. `?plan=YYYY-MM-DD` (or
- * `?plan=today`) opens that day's outreach plan. The full calendar is /calendar.
+ * Board height at three columns: the viewport under the header and the
+ * shell's 16px padding. Adjust here if the shell header changes height.
+ */
+const BOARD_HEIGHT = "@min-[1081px]:h-full";
+
+/**
+ * Home ("/"): a three-column board. Left: quarter progress, today at a
+ * glance and the CRM tile. Center: the focused task and a chat with the
+ * agent (the shared Ask session). Right: this week, today's tasks and
+ * artifacts. It drops to two columns when the side panels squeeze it and to
+ * one on phones. `?plan=YYYY-MM-DD` (or `?plan=today`) opens that day's
+ * outreach plan; the full calendar is /calendar.
  */
 export const HomePage = () => {
   const today = toIsoDate(new Date());
+  const { identity } = useGetIdentity();
   const donors = useDonors();
+  const duplicates = useDuplicates();
   const targets = useTargets();
   const campaigns = useCampaigns();
+  const events = useEvents();
   const plan = useOutreachPlan();
+  const notes = useCallNotes();
   const [params, setParams] = useSearchParams();
-  const [month, setMonth] = useState<MonthRef>(() => monthOf(today));
   const [donorId, setDonorId] = useState<number | null>(null);
+  const [findOpen, setFindOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [status, setStatus] = useState("");
 
   const planParam = params.get("plan");
   const planDate =
@@ -59,153 +90,229 @@ export const HomePage = () => {
   };
 
   const gmd = giveMiamiDay(targets.data, today);
+  const donorList = useMemo(() => donors.data ?? [], [donors.data]);
   const campaignList = useMemo(() => campaigns.data ?? [], [campaigns.data]);
+  const eventList = useMemo(() => eventDays(events.data ?? []), [events.data]);
+  const donorById = useMemo(
+    () => new Map(donorList.map((d) => [d.id, d])),
+    [donorList],
+  );
 
+  const recommend = (limit: number) =>
+    recommendOutreach(donorList, {
+      today,
+      plan: plan.items,
+      campaigns: toRecCampaigns(campaignList),
+      giveMiamiDay: gmd,
+      limit,
+    });
   const recommendations = useMemo(
+    () => recommend(6),
+    // recommend reads exactly these
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [donorList, today, plan.items, campaignList, gmd],
+  );
+
+  const tasks = useMemo(
     () =>
-      recommendOutreach(donors.data ?? [], {
+      buildTasks({
         today,
         plan: plan.items,
-        campaigns: toRecCampaigns(campaignList),
-        giveMiamiDay: gmd,
-        limit: 6,
+        recommendations,
+        donors: donorList,
+        dismissed,
       }),
-    [donors.data, today, plan.items, campaignList, gmd],
+    [today, plan.items, recommendations, donorList, dismissed],
   );
+  const focusIndex = Math.max(
+    0,
+    tasks.findIndex((t) => t.key === selectedKey),
+  );
+  const focus = tasks[focusIndex] ?? null;
 
   const marks = useMemo(
     () =>
       computeDayMarks({
         plan: plan.items,
         campaignEnds: goalEnds(targets.data),
+        events: eventList,
         giveMiamiDay: gmd,
       }),
-    [plan.items, targets.data, gmd],
+    [plan.items, targets.data, eventList, gmd],
+  );
+  const agenda = useMemo(
+    () =>
+      agendaLines({
+        today,
+        events: eventList,
+        plan: plan.items,
+        giveMiamiDay: gmd,
+      }),
+    [today, eventList, plan.items, gmd],
   );
 
-  const quarter = targets.data?.quarter;
-  const todayCount = itemsOn(plan.items, today).filter((i) => !i.done).length;
+  const focusFacts = (task: HomeTask | null): string[] => {
+    if (!task) return [];
+    if (task.donorId != null) {
+      const donor = donorById.get(task.donorId);
+      return donor ? donorFacts(donor) : [];
+    }
+    const campaign = campaignList.find((c) => c.id === task.campaignId);
+    return campaign
+      ? [
+          `${campaign.counts.draft} ${campaign.counts.draft === 1 ? "draft" : "drafts"} waiting`,
+          `${campaign.counts.total} recipients`,
+        ]
+      : [];
+  };
+
+  const markDone = (task: HomeTask) => {
+    if (task.planItemId) plan.update(task.planItemId, { done: true });
+    else setDismissed((prev) => new Set(prev).add(task.key));
+    const next = tasks.filter((t) => t.key !== task.key)[0] ?? null;
+    setSelectedKey(next?.key ?? null);
+    setStatus(
+      `Marked done: ${task.title}.${next ? ` Next: ${next.title}.` : ""}`,
+    );
+  };
+
   const dayNotes = (date: string) => [
     ...(date === gmd ? ["Give Miami Day"] : []),
     ...goalEnds(targets.data)
       .filter((end) => end.date === date)
       .map((end) => `${end.label} ends`),
+    ...eventList.filter((e) => e.date === date).map((e) => e.label),
   ];
 
+  const name = firstName(identity?.fullName);
+  const loading = donors.isPending || targets.isPending;
+
   return (
-    <div className="flex flex-col gap-6 pb-10">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-[-0.8px] sm:text-3xl">
-          {greeting(new Date().getHours())}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Here’s your outreach for {formatDayShort(today)}
-          {todayCount > 0
-            ? ` · ${todayCount} ${todayCount === 1 ? "person" : "people"} planned today`
-            : ""}
-          .
-        </p>
-      </header>
-
-      <div className="grid gap-6 xl:grid-cols-12">
-        <div className="xl:col-span-7">
-          <GlanceCard
-            isPending={
-              donors.isPending || targets.isPending || campaigns.isPending
-            }
-            figures={{
-              raised: quarter?.raised ?? null,
-              raisedLabel: quarter?.label ?? null,
-              needCall: donors.data
-                ? donors.data.filter(needsCall).length
-                : null,
-              drafts: campaigns.data ? draftsAwaiting(campaigns.data) : null,
-            }}
+    <div className="@container h-full">
+      <p role="status" aria-live="polite" className="sr-only">
+        {status}
+      </p>
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-3",
+          "@min-[721px]:grid-cols-[252px_minmax(0,1fr)]",
+          "@min-[1081px]:min-h-[600px] @min-[1081px]:grid-cols-[264px_minmax(0,1fr)_286px]",
+          BOARD_HEIGHT,
+        )}
+      >
+        {/* Left */}
+        <div className="order-2 flex min-h-0 flex-col gap-3 @min-[721px]:order-none">
+          <Q4ProgressTile
+            target={targets.data?.quarter}
+            isPending={targets.isPending}
           />
-        </div>
-
-        <section
-          aria-label="Outreach calendar"
-          className="rounded-[24px] bg-primary p-5 text-primary-foreground sm:p-6 xl:col-span-5 dark:bg-card dark:text-card-foreground"
-        >
-          <MonthGrid
-            title="Your outreach days"
-            month={month}
-            onMonthChange={setMonth}
-            marks={marks}
+          <GlanceTile
             today={today}
-            selected={planDate}
-            onSelectDay={openDay}
+            atRisk={
+              donors.data
+                ? donors.data.filter((d) => d.status === "lapsing").length
+                : null
+            }
+            duplicates={duplicates.data ? duplicates.data.length : null}
+            tasks={tasks.length}
+            gmdDays={Math.max(0, daysBetween(today, gmd))}
+            isPending={loading}
           />
-          <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-            <MonthLegend />
-            <div className="flex flex-wrap gap-2">
-              <Link
-                to="/calendar"
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-current/30 px-4 text-sm font-medium hover:bg-current/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                Open calendar
-              </Link>
-              <button
-                type="button"
-                onClick={() => openDay(today)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-4 text-sm font-medium text-brand-foreground hover:bg-brand/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <CalendarPlus className="size-4" aria-hidden="true" />
-                Plan today
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <div className="grid gap-6 md:grid-cols-2 xl:col-span-5 xl:grid-cols-1">
-          <GoalGaugeCard target={quarter} isPending={targets.isPending} />
-          <CampaignProgressCard
-            campaign={featuredCampaign(campaignList)}
-            isPending={campaigns.isPending}
-          />
-        </div>
-
-        <div className="xl:col-span-7">
-          <RecommendedCard
-            recommendations={recommendations}
+          <CrmTile
+            donors={attentionDonors(donorList)}
             isPending={donors.isPending}
             error={donors.error}
+            onFind={() => setFindOpen(true)}
             onOpenDonor={setDonorId}
-            onPlan={(rec) =>
-              plan.add({
-                date: rec.date,
-                donor_id: rec.donor_id,
-                campaign_id: rec.campaign_id,
-                label: rec.label,
-                note: rec.reason,
-                source: "agent",
-              })
-            }
           />
+        </div>
+
+        {/* Center */}
+        <section
+          aria-label="Focus and agent"
+          className={cn(
+            tile,
+            "order-1 flex min-h-[560px] flex-col @min-[721px]:order-none",
+            "@min-[721px]:h-[calc(100dvh-6.5rem)] @min-[1081px]:h-auto @min-[1081px]:min-h-0",
+          )}
+        >
+          <div className="px-[22px] pt-5">
+            <h1 className="mb-3.5 text-[28px] leading-tight font-normal tracking-[-0.02em]">
+              {greeting(new Date().getHours())}
+              {name ? (
+                <>
+                  , <b className="font-bold">{name}.</b>
+                </>
+              ) : (
+                "."
+              )}
+            </h1>
+            <FocusTaskCard
+              task={focus}
+              index={focusIndex}
+              total={tasks.length}
+              facts={focusFacts(focus)}
+              draftHref={
+                focus
+                  ? draftEmailHref(
+                      focus,
+                      focus.donorId != null
+                        ? donorById.get(focus.donorId)
+                        : undefined,
+                    )
+                  : null
+              }
+              onDone={markDone}
+              isPending={loading}
+            />
+          </div>
+          <AgentThread />
+          <Composer onUploadList={() => setImportOpen(true)} />
+        </section>
+
+        {/* Right */}
+        <div
+          className={cn(
+            "order-3 flex min-h-0 flex-col gap-3",
+            "@min-[721px]:order-none @min-[721px]:col-span-full @min-[721px]:grid @min-[721px]:grid-cols-3 @min-[721px]:items-start",
+            "@min-[1081px]:col-span-1 @min-[1081px]:flex @min-[1081px]:items-stretch",
+          )}
+        >
+          <WeekTile
+            today={today}
+            days={weekDays(today)}
+            marks={marks}
+            agenda={agenda}
+            onOpenDay={openDay}
+          />
+          <TasksTile
+            tasks={tasks}
+            selectedKey={focus?.key ?? null}
+            onSelect={setSelectedKey}
+            onPlan={() => openDay(today)}
+            isPending={donors.isPending}
+          />
+          <ArtifactsTile notes={notes} campaigns={campaignList} />
         </div>
       </div>
 
       <DayPlanner
         date={planDate}
         onClose={() => openDay(null)}
-        donors={(donors.data ?? [])
+        donors={donorList
           .map((d) => ({ id: d.id, name: d.full_name }))
           .sort((a, b) => a.name.localeCompare(b.name))}
         campaigns={campaignList.map((c) => ({ id: c.id, name: c.name }))}
-        recommendations={
-          planDate
-            ? recommendOutreach(donors.data ?? [], {
-                today,
-                plan: plan.items,
-                campaigns: toRecCampaigns(campaignList),
-                giveMiamiDay: gmd,
-                limit: 12,
-              })
-            : []
-        }
+        recommendations={planDate ? recommend(12) : []}
         dayNotes={planDate ? dayNotes(planDate) : []}
       />
+      <FindDonorDialog
+        open={findOpen}
+        onOpenChange={setFindOpen}
+        donors={donorList}
+        onOpenRecord={setDonorId}
+      />
+      <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
       <DonorDrawer donorId={donorId} onClose={() => setDonorId(null)} />
     </div>
   );
