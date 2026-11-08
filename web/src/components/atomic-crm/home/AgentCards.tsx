@@ -1,8 +1,11 @@
-import { Check, CircleAlert, Clock, Loader2, Undo2, X } from "lucide-react";
+import { useState } from "react";
+import { Check, CircleAlert, Clock, Loader2, Phone, Undo2, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { AgentApproval, AgentStep, MergedPair } from "./agentChat";
-import { PhoneCallButton } from "../voice/PhoneCallButton";
+import { Button } from "@/components/ui/button";
+import { DATA_MODE } from "../providers/local/config";
+import { PhoneCallInline } from "../voice/PhoneCallDialog";
 import { focusRing } from "./tile";
 
 /** "create_task" → "Create task". */
@@ -73,6 +76,9 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 /** The agent's call sheet: who they are, their giving, and what to say, with the Call button (or why there is none). */
 export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
   const r = sheet.relationship;
+  // The call runs inside this card, not in a dialog over the page (Sharif). Local mode only: the laptop places it.
+  const [calling, setCalling] = useState(false);
+  const canCall = sheet.has_phone && DATA_MODE === "local";
   return (
     <li data-testid="call-sheet" className="rounded-xl border border-border bg-card px-3 py-2 text-[13px]">
       <div className="flex items-start gap-2">
@@ -85,8 +91,14 @@ export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
             {sheet.has_phone ? `Phone ${sheet.phone_masked}` : "No phone number on file"}
           </p>
         </div>
-        {sheet.has_phone && <PhoneCallButton donorId={sheet.person_id} />}
+        {canCall && !calling && (
+          <Button size="sm" className="rounded-full" onClick={() => setCalling(true)}>
+            <Phone aria-hidden />
+            Call
+          </Button>
+        )}
       </div>
+      {calling && <PhoneCallInline donorId={sheet.person_id} onClose={() => setCalling(false)} />}
       <Section title="Giving">
         {r.gift_count === 0 ? (
           <p>No gifts on record.</p>

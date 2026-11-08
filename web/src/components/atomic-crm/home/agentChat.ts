@@ -402,8 +402,25 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
     });
     const again = new Set((r.approvals ?? []).map((a) => a.call_id));
     const onScreen = new Set<string>();
+    // A decided card's result fills in its own placeholder step (by call_id) instead of a second row below.
+    const results = new Map(
+      (r.steps ?? []).filter((st) => st.call_id && st.status !== "awaiting_approval").map((st) => [st.call_id as string, st]),
+    );
+    const placed = new Set<string>();
+    const filled = state.messages.map((x) => {
+      if (x.role !== "assistant" || !x.steps.some((st) => st.call_id && results.has(st.call_id))) return x;
+      return {
+        ...x,
+        steps: x.steps.map((st) => {
+          const res = st.call_id ? results.get(st.call_id) : undefined;
+          if (!res) return st;
+          placed.add(st.call_id as string);
+          return { ...st, summary: res.summary, status: res.status, undo_token: res.undo_token, card: res.card };
+        }),
+      };
+    });
     // Cards still waiting anywhere in the thread follow the run to its new id.
-    const messages = state.messages.map((x) => {
+    const messages = filled.map((x) => {
       if (x.role !== "assistant" || allDecided(x)) return x;
       const waiting = x.approvals.filter((a) => x.decisions?.[a.call_id] === undefined && again.has(a.call_id));
       waiting.forEach((a) => onScreen.add(a.call_id));
@@ -415,7 +432,11 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
     const extra = {
       ...reply,
       approvals: reply.approvals.filter((a) => !onScreen.has(a.call_id)),
-      steps: reply.steps.filter((st) => !(st.status === "awaiting_approval" && st.call_id && onScreen.has(st.call_id))),
+      steps: reply.steps.filter(
+        (st) =>
+          !(st.call_id && placed.has(st.call_id)) &&
+          !(st.status === "awaiting_approval" && st.call_id && onScreen.has(st.call_id)),
+      ),
     };
     if (!extra.approvals.length && extra.text.startsWith(WAITING_PREFIX)) extra.text = "";
     const show = extra.text || extra.steps.length || extra.approvals.length;

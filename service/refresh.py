@@ -181,12 +181,34 @@ def data_writers(conn) -> dict:
     return found
 
 
+def event_hints(events: list[dict]) -> list[dict]:
+    """Events found before, as hints for the next search ("<title> on <date> at <place>"). A hint is never
+    evidence: every event still needs a search-returned URL and the page check."""
+    return [{"fact": f"{e['title']} on {(e.get('starts_at') or '')[:10]}" + (f" at {e['place']}" if e.get("place") else ""),
+             "posted_at": None} for e in events if e.get("title") and e.get("starts_at")]
+
+
+def keep_known(found: list[dict], known: list[dict], as_of: str | None = None) -> list[dict]:
+    """One hosted search sometimes misses an event it found before (a live run found 3 of the 4 Give Miami
+    events). A single miss must never drop an upcoming event already on the calendar, so this read's events
+    plus every known upcoming event it didn't return. (A truly cancelled event now needs staff to remove it.)"""
+    as_of = as_of or os.environ.get("SCORE_AS_OF") or date.today().isoformat()
+    kept = list(found)
+    for k in known:
+        if ((k.get("starts_at") or "")[:10] >= as_of and k.get("source_url") and k.get("status") != "cancelled"
+                and match(k, kept) is None):          # same rule as the diff: a moved event isn't a miss
+            kept.append({f: v for f, v in k.items() if f not in ("id", "status")})
+    return kept
+
+
 def save_found_events(conn, events: list[dict]) -> tuple[dict, bool]:
     """Store events found in a successful read through data's save_events (complete=True: nothing is
-    removed unless this read found events). Returns ({event key: id or None}, stored_in_db)."""
+    removed unless this read found events), plus every known upcoming event this read missed (keep_known).
+    Returns ({event key: id or None}, stored_in_db)."""
     w = data_writers(conn)
     if not events or not w.get("save_events"):
         return {}, False
+    events = keep_known(events, stored_events(conn, ""))   # a re-run that misses one never drops it
     saved = w["save_events"](conn, events, complete=True)
     conn.commit()
     return {event_key(e): i for e, i in zip(events, saved.get("ids") or [])}, True
@@ -371,7 +393,9 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
     before_events = stored_events(conn, host)
     with ThreadPoolExecutor(max_workers=2) as pool:
         ctx_job = pool.submit(build, urls, refresh=True)
-        ev_job = pool.submit(extract, before_facts, refresh=True, website=urls.get("website"))
+        # the stored events go in as hints too, so a known event is looked for by name on every run
+        ev_job = pool.submit(extract, list(before_facts) + event_hints(before_events), refresh=True,
+                             website=urls.get("website"))
         try:
             result = ctx_job.result()
         except Exception as e:                        # the whole context run failed: keep everything
@@ -383,6 +407,11 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
             if not extraction_ok:
                 errors.append("events: none found this run; calendar left as it was")
                 after_events = before_events
+            else:
+                missed = len(keep_known(after_events, before_events, as_of)) - len(after_events)
+                if missed:
+                    errors.append(f"events: this read missed {missed} known upcoming event(s); kept them")
+                after_events = keep_known(after_events, before_events, as_of)
         except Exception as e:
             errors.append(f"events: {type(e).__name__}: {e}")
             after_events, extraction_ok = before_events, False

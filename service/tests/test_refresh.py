@@ -78,14 +78,40 @@ def test_source_failure_removes_nothing():
     assert conn.execute("SELECT COUNT(*) FROM org_context").fetchone()[0] == 1        # good data kept
 
 
-def test_new_event_is_drafted_and_a_vanished_one_removed_only_after_a_good_read():
+def test_new_event_is_drafted_and_a_missed_known_one_is_kept():
+    # One search can miss an event it found before (3 of 4, Nov 8): a miss never drops a known upcoming event.
     conn = db_with([], [GMD])
     pet = {"title": "Puppy Day", "starts_at": "2026-11-21", "ends_at": None, "place": None,
            "source_url": "https://miamifoundation.org/pups/", "audience_hint": "community"}
     f, calls = fakes({"facts": [], "sources": {"website": "ok", "news": "ok"}}, [pet])
     out = r.refresh(conn, URLS, "2026-11-08", PEOPLE, **f)
-    assert out["events"]["new"] == ["Puppy Day"] and out["events"]["removed"] == ["Give Miami Day"]
-    assert calls["saved"] == [("Puppy Day", 2)]
+    assert out["events"]["new"] == ["Puppy Day"] and out["events"]["removed"] == []
+    assert calls["saved"] == [("Puppy Day", 2)]                                   # no re-draft for the kept one
+    assert any("missed 1 known upcoming event" in e for e in out["errors"])
+
+
+def test_a_search_that_misses_the_5k_keeps_it_and_hints_every_known_event():
+    conn = db_with([], [GMD, FIVE_K])
+    seen_hints = []
+    f, calls = fakes({"facts": [], "sources": {"website": "ok", "news": "ok"}}, [GMD])
+    real_extract = f["extract"]
+
+    def extract(facts, refresh, website):
+        seen_hints.extend(h["fact"] for h in facts)
+        return real_extract(facts, refresh, website)
+    f["extract"] = extract
+    out = r.refresh(conn, URLS, "2026-11-08", PEOPLE, **f)
+    assert out["events"]["removed"] == [] and out["events"]["new"] == []
+    assert "The Give Miami 5K on 2026-11-15 at Maurice A. Ferre Park" in seen_hints
+    assert calls["invites"] == []
+
+
+def test_keep_known_skips_past_cancelled_and_sourceless_events():
+    past = dict(GMD, title="Last year's gala", starts_at="2025-11-19")
+    cancelled = dict(FIVE_K, title="Cancelled walk", status="cancelled")
+    nosource = dict(GMD, title="Rumored event", starts_at="2026-12-01", source_url=None)
+    kept = r.keep_known([], [past, cancelled, nosource, dict(FIVE_K, id=7, status="upcoming")], "2026-11-08")
+    assert [e["title"] for e in kept] == ["The Give Miami 5K"] and "id" not in kept[0]
 
 
 def test_same_event_with_new_punctuation_or_citing_page_is_not_a_change():

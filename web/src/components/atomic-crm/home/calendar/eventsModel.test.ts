@@ -112,3 +112,9 @@ describe("briefing focus", () => {
     expect(weekOffsetFor(TODAY, "2026-11-07")).toBe(-1);
   });
 });
+
+describe("emptyForm", () => {
+  it("starts a new event timed, so the time fields show without an extra click", () => {
+    expect(emptyForm("2026-11-12")).toMatchObject({ allDay: false, start: "09:00" });
+  });
+});

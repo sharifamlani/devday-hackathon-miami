@@ -69,8 +69,7 @@ describe("CalendarV3 (live, against the contract mocks)", () => {
 
     await ui.getByLabelText("Title *").fill("Board coffee");
     await ui.getByLabelText("Date *").fill("2026-11-12");
-    await ui.getByLabelText("All day").click();
-    await ui.getByLabelText("Start").fill("08:00");
+    await ui.getByLabelText("Start").fill("08:00"); // a new event starts timed
     await ui.getByLabelText("Place").fill("Coral Room");
     await ui.getByRole("button", { name: "Save event" }).click();
     await expect.element(ui.getByText("Board coffee").first()).toBeVisible();

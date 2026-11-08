@@ -244,6 +244,16 @@ describe("apiPersistence (local mode)", () => {
     return { req, calls };
   };
 
+  it("asks for nothing in public mode, which refuses /crm (private staff notes)", async () => {
+    const { req, calls } = fakeRequest();
+    const loaded = await apiPersistence(req, async () => true).load();
+    expect(calls).toEqual([]);
+    expect(loaded.contact_notes).toEqual([]);
+    expect(loaded.tasks).toEqual([]);
+    expect(loaded.tags).toEqual([]);
+    expect(loaded.overlays.size).toBe(0);
+  });
+
   it("reads every page of every resource and the donor overlays", async () => {
     const page = (resource: string, n: number) =>
       `/crm/${resource}?sort=id&order=ASC&page=${n}&per_page=1000`;

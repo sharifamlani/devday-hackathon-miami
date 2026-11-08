@@ -1,6 +1,8 @@
 """Event step cards read as sentences, and the reply after an approval card says what happened (calendar v3)."""
 import json
+import os
 
+import pytest
 from fastapi.testclient import TestClient
 
 from service import chat_agent as ca, db
@@ -10,6 +12,7 @@ EVENT = {"id": 6, "title": "Board meeting", "starts_at": "2026-11-10T15:00", "en
          "event_kind": "other", "notes": None, "source": "agent", "source_url": None, "status": None,
          "audience_hint": None, "undo_token": "event-6"}
 DECLINED = "Tool execution was not approved."
+needs_key = pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="the streamed run and the approval round trip run the model")
 
 
 def test_event_writes_read_as_sentences():
@@ -67,6 +70,7 @@ def test_a_reply_that_already_says_what_happened_is_kept(db_file):
     assert ca.with_outcome(paused, {"c1": True}, shown)["reply"] == "Waiting for you: Send 1 email."  # paused again
 
 
+@needs_key
 def test_live_streamed_event_cards_and_the_approved_delete(db_file):
     """S1 + S2 through the real routes: the streamed add shows a readable step; an approved delete removes the
     event and the reply doesn't talk as if it were still waiting."""
