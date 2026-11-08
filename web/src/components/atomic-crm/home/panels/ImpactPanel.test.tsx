@@ -147,12 +147,13 @@ describe("ImpactPanel", () => {
     ).toHaveLength(11);
   });
 
-  it("header, Q4 line with sample goal, and refresh time", () => {
+  it("header, Q4 line (no sample-goal label), and refresh time", () => {
     const html = view();
     expect(html).toContain("Impact & story");
     expect(html).toContain("Last refreshed Nov 8, 10:06 AM");
     expect(html).toContain("$98,815");
-    expect(html).toContain("of $150,000 (sample goal)");
+    expect(html).toContain("of $150,000");
+    expect(html).not.toContain("(sample goal)");
     expect(html).toContain("66%");
   });
 
@@ -209,7 +210,7 @@ describe("ImpactPanel", () => {
 
   it("S4: the grant summary holds the Q4 line, 3 facts with URLs, and zip/program counts", () => {
     const text = grantSummary({ quarter, facts, stats });
-    expect(text).toContain("Q4 2026: $98,815 of $150,000 (sample goal) (66%)");
+    expect(text).toContain("Q4 2026: $98,815 of $150,000 (66%)");
     expect(text).toContain("- Fact number 2 (https://example.org/story-2)");
     expect(text).toContain("- Fact number 3 (https://example.org/story-3)");
     expect(text).toContain("- Fact number 4 (https://example.org/story-4)");
