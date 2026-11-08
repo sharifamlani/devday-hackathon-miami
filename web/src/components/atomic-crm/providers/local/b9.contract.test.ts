@@ -154,10 +154,10 @@ describe("voice (Agent Phone B3, 90b B6)", () => {
   });
 
   it("POST /call-notes/{id}/actions and /apply; GET /people/{id}/pledges", async () => {
-    const proposal = await proposeAfterCall(12);
+    const proposal = await proposeAfterCall("12");
     expect(keysOf(proposal)).toEqual(["actions", "steps"]);
     expect(keysOf(proposal.actions[0])).toEqual(["id", "label", "payload", "type"]);
-    const applied = await applyAfterCall(12, ["a1"]);
+    const applied = await applyAfterCall("12", ["a1"]);
     expect(last()).toMatchObject({ path: "/call-notes/12/apply", body: { action_ids: ["a1"] } });
     expect(applied.applied[0]).toEqual({ id: "a1", type: "create_task", ref: null });
     expect(keysOf((await getPledges(1))[0])).toEqual(["amount", "expected_by", "status"]);

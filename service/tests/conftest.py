@@ -23,3 +23,11 @@ def db_file(tmp_path, monkeypatch):
     monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
     db.rebuild(path, with_seed=True, as_of=AS_OF)
     return path
+
+
+@pytest.fixture(autouse=True)
+def no_live_events_search(monkeypatch):
+    """/context/run starts the events agent's live web search next to the website read. Tests never go
+    online: it's off unless a test sets ONBOARDING_EVENTS=on (and stands in extract_events). No import here:
+    importing service.events_agent would bypass tests that swap in a fake module."""
+    monkeypatch.setenv("ONBOARDING_EVENTS", "off")

@@ -33,7 +33,13 @@ import type {
 import { formatStamp, intentLabel, pillButton } from "./campaignFormat";
 import { ChannelLabel, LinkPill, PageShell } from "./campaignUi";
 import { SendModeNote } from "./SendModeNote";
-import { TONE_CLASS, outboxLabel, sendSummary } from "./sendLabels";
+import {
+  TEXT_TONE_CLASS,
+  TONE_CLASS,
+  campaignCounterSegments,
+  outboxLabel,
+  sendSummary,
+} from "./sendLabels";
 
 const SMS_MAX = 320;
 
@@ -76,6 +82,7 @@ const Review = ({ campaign }: { campaign: CampaignDetail }) => {
   const [approved, setApproved] = useState<ApproveSmallResult | null>(null);
   const [sent, setSent] = useState<SendCampaignResult | null>(null);
   const { counts } = campaign;
+  const { data: outbox } = useOutbox();
 
   return (
     <PageShell
@@ -86,8 +93,15 @@ const Review = ({ campaign }: { campaign: CampaignDetail }) => {
           <ChannelLabel channel={campaign.channel} />
           <span>Created {formatStamp(campaign.created_at)}</span>
           <span>
-            {counts.total} messages · {counts.approved} approved · {counts.sent}{" "}
-            sent
+            {campaignCounterSegments(
+              counts,
+              outbox?.filter((o) => o.campaign_id === campaign.id),
+            ).map((seg, i) => (
+              <span key={seg.text} className={TEXT_TONE_CLASS[seg.tone]}>
+                {i ? " · " : ""}
+                {seg.text}
+              </span>
+            ))}
             {counts.skipped ? ` · ${counts.skipped} skipped` : ""}
           </span>
         </span>
