@@ -5,9 +5,10 @@
  */
 
 export const TOUR_IDS = [
-  "progress",
+  "overview",
   "calendar",
   "tasks",
+  "crm",
   "projects",
   "composer",
   "voice",
@@ -21,17 +22,17 @@ export interface TourStop {
   body: string;
 }
 
-/** In the homepage's order: the left column top to bottom, the agent, then the header buttons. */
+/** In the homepage's order: the workspace rail top to bottom, the agent, then live transcript and Ask. */
 export const TOUR_STOPS: TourStop[] = [
   {
-    id: "progress",
-    title: "Q4 progress",
-    body: "What you've raised this quarter against your goal, and the days left.",
+    id: "overview",
+    title: "Overview",
+    body: "Q4 progress against your goal, and today at a glance: gifts at risk, possible duplicates and tasks.",
   },
   {
     id: "calendar",
-    title: "This week",
-    body: "Events and Give Miami Day on a week view. Pick a day to plan who to reach out to.",
+    title: "Calendar",
+    body: "This week's events and Give Miami Day. Pick a day to plan who to reach out to.",
   },
   {
     id: "tasks",
@@ -39,9 +40,14 @@ export const TOUR_STOPS: TourStop[] = [
     body: "Today's calls, thank-yous and reviews. Open one to see why it matters and what to do next.",
   },
   {
+    id: "crm",
+    title: "Donors",
+    body: "Find a donor, see who needs attention, and open the full Donors and Organizations lists.",
+  },
+  {
     id: "projects",
     title: "Projects",
-    body: "Campaigns and saved work, grouped so you can pick up where you left off.",
+    body: "Campaigns, saved Ask questions and donor lists like Needs attention, in one place.",
   },
   {
     id: "composer",

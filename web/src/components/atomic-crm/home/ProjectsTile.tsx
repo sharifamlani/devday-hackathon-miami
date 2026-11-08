@@ -52,7 +52,7 @@ export const ProjectsTile = () => {
       items: EXAMPLE_QUESTIONS.map((q, i) => ({
         key: String(i),
         title: q,
-        to: `/ask?${new URLSearchParams({ q })}`,
+        to: "/",
         icon: MessageCircleQuestion,
         count: undefined,
         question: q,
@@ -99,11 +99,7 @@ export const ProjectsTile = () => {
     ),
   }));
   return (
-    <section
-      data-tour="projects"
-      className={cn(tile, "home-shortcuts")}
-      aria-labelledby={headingId}
-    >
+    <section className={cn(tile, "home-shortcuts")} aria-labelledby={headingId}>
       <h2 id={headingId}>Projects</h2>
       <div className="home-shortcut-search">
         <Search size={14} aria-hidden="true" />

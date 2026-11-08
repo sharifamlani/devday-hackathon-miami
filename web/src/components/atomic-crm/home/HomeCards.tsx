@@ -80,11 +80,7 @@ export const Q4ProgressTile = ({
   const filled =
     percent == null ? 0 : Math.min(Math.max(percent, 0), 100) / 100;
   return (
-    <section
-      data-tour="progress"
-      aria-labelledby={headingId}
-      className={cn(tile, "p-4")}
-    >
+    <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
       <TileHead
         id={headingId}
         title={target ? `${target.label} outreach` : "Quarter progress"}
@@ -317,7 +313,7 @@ export const CrmTile = ({
     >
       <TileHead id={headingId} title="CRM">
         <Link
-          to="/contacts"
+          to="/?workspace=donors"
           className={cn(
             "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
             focusRing,

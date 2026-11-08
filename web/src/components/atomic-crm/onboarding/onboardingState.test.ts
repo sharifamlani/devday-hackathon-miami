@@ -16,8 +16,11 @@ import {
   shouldShowBackground,
   socialFieldValue,
   socialUrlFromField,
+  websiteFieldChange,
   websiteFieldValue,
   websiteFromSaved,
+  websiteInputText,
+  websitePrefix,
   normalizeSocialUrl,
   normalizeUrl,
   onboardingReducer,
@@ -97,6 +100,14 @@ describe("onboardingReducer", () => {
       step: 1,
       files: { people: 68, gifts: 113 },
     });
+  });
+
+  it("adopt (the service already has people) completes without offering the tour", () => {
+    const state = reduce(initialOnboarding(), { type: "adopt" });
+    expect(state.status).toBe("completed");
+    expect(state.completedAt).toBe(NOW);
+    expect(state.tourOffer).toBe("dismissed");
+    expect(shouldAutoShow(state, "/", null)).toBe(false);
   });
 
   it("finish completes and offers the tour once", () => {
@@ -364,23 +375,24 @@ describe("migrating v2 progress", () => {
 });
 
 describe("onboardingStore persistence", () => {
-  let mem: ReturnType<typeof memoryStorage>;
+  // The tests run in a real browser, where `window` can't be redefined: use its own localStorage, cleared
+  // around each test so nothing leaks between tests (or into other files).
   beforeEach(() => {
-    mem = memoryStorage();
-    vi.stubGlobal("window", {
-      localStorage: mem.storage,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    });
+    window.localStorage.clear();
     onboardingStore.forget();
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    window.localStorage.clear();
+    onboardingStore.forget();
+  });
 
   it("writes every change under the versioned key and reads it back after a reload", () => {
     onboardingStore.dispatch({ type: "start" }, { open: true });
     onboardingStore.dispatch({ type: "next" });
     expect(onboardingStore.get().open).toBe(true);
-    expect(JSON.parse(mem.map.get(ONBOARDING_STORAGE_KEY)!)).toMatchObject({
+    expect(
+      JSON.parse(window.localStorage.getItem(ONBOARDING_STORAGE_KEY)!),
+    ).toMatchObject({
       version: 3,
       step: 1,
     });
@@ -587,9 +599,40 @@ describe("validateLinks", () => {
 });
 
 describe("the fields as typed, with grey prefixes", () => {
-  it("the website field drops a pasted scheme and shows saved links without it", () => {
+  it("an explicit http:// survives the field and comes back as http://", () => {
+    expect(websiteFieldValue("HTTP://old-site.org/about")).toBe(
+      "http://old-site.org/about",
+    );
+    expect(websitePrefix("http://old-site.org")).toBe("http://");
+    expect(websiteInputText("http://old-site.org")).toBe("old-site.org");
+    // Typing after the prefix keeps the field's scheme; typing a scheme or clearing resets it.
+    expect(websiteFieldChange("http://old-site.org", "old-site.org/x")).toBe(
+      "http://old-site.org/x",
+    );
+    expect(websiteFieldChange("http://old-site.org", "https://new.org")).toBe(
+      "new.org",
+    );
+    expect(websiteFieldChange("http://old-site.org", "")).toBe("");
+    expect(websiteFieldChange("", "yourorg.org")).toBe("yourorg.org");
+    // Saved http link → field → link: still http.
+    const saved = { ...EMPTY_LINKS, website: "http://old-site.org/" };
+    expect(fieldsFromLinks(saved).website).toBe("http://old-site.org");
+    expect(
+      validateLinks(linksFromFields(fieldsFromLinks(saved))).links.website,
+    ).toBe("http://old-site.org/");
+    expect(checkField("website", "http://old-site.org")).toBeNull();
+  });
+
+  it("no scheme typed means https://", () => {
+    expect(websitePrefix("yourorg.org")).toBe("https://");
+    expect(
+      linksFromFields({ ...EMPTY_LINKS, website: "yourorg.org" }).website,
+    ).toBe("https://yourorg.org");
+  });
+
+  it("the website field drops a pasted https:// and shows saved links without it", () => {
     expect(websiteFieldValue("https://yourorg.org")).toBe("yourorg.org");
-    expect(websiteFieldValue("HTTP://yourorg.org/about")).toBe(
+    expect(websiteFieldValue("HTTPS://yourorg.org/about")).toBe(
       "yourorg.org/about",
     );
     expect(websiteFromSaved("https://miamifoundation.org/")).toBe(

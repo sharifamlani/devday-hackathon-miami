@@ -71,7 +71,9 @@ import {
   socialFieldValue,
   useOnboarding,
   validateLinks,
-  websiteFieldValue,
+  websiteFieldChange,
+  websiteInputText,
+  websitePrefix,
   type ContextSummary,
   type FilesSummary,
   type LinkErrors,
@@ -723,7 +725,7 @@ export const OrganizationStep = ({
         id={`${id}-website`}
         data-autofocus=""
         label="Website"
-        prefix={FIELD_PREFIX.website}
+        prefix={websitePrefix(fields.website)}
         type="text"
         inputMode="url"
         autoComplete="url"
@@ -732,9 +734,11 @@ export const OrganizationStep = ({
         required
         aria-required
         placeholder="yourorg.org"
-        value={fields.website}
+        value={websiteInputText(fields.website)}
         error={errors.website}
-        onChange={(e) => set("website", websiteFieldValue(e.target.value))}
+        onChange={(e) =>
+          set("website", websiteFieldChange(fields.website, e.target.value))
+        }
         onBlur={() => blur("website")}
         hint={
           LIVE

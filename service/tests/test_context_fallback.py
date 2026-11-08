@@ -123,3 +123,58 @@ def test_refresh_falls_back_to_the_foundation_before_onboarding():
                            save=lambda *a: None)
 
     assert built[0]["website"] == refresh_module.FOUNDATION_URLS["website"]
+
+
+def full_profile(c: TestClient) -> dict:
+    return c.get("/org-profile").json() or {}
+
+
+def test_timeout_for_another_org_forgets_the_previous_orgs_context(db_file, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: good_result("Old Org"))
+    assert c.post("/context/run", json={"website": "https://example.org"}).json()["state"] == "done"
+    assert full_profile(c)["priorities"] == ["Generate Prosperity"]
+
+    monkeypatch.setattr(config, "CONTEXT_DEADLINE_S", 0.05)
+    monkeypatch.setattr(org_context, "build_context", slow)
+    body = c.post("/context/run", json={"website": "https://another-org.org"}).json()
+
+    assert body["served_from"] == "fallback" and body["facts"] == []
+    assert body["saved"]["cleared_previous_org"] is True
+    profile = full_profile(c)
+    assert profile["website"] == "https://another-org.org"
+    assert profile["name"] is None and profile["priorities"] == [] and profile["voice"] == {}
+    assert profile["source_status"] == {}
+    assert c.get("/context").json() == []                     # no Old Org facts under the new URL
+
+
+def test_timeout_for_the_same_host_keeps_its_context(db_file, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: good_result("Same Org"))
+    c.post("/context/run", json={"website": "https://example.org"})
+
+    monkeypatch.setattr(config, "CONTEXT_DEADLINE_S", 0.05)
+    monkeypatch.setattr(org_context, "build_context", slow)
+    body = c.post("/context/run", json={"website": "https://www.example.org/donate"}).json()   # www + path: same host
+
+    assert body["saved"]["cleared_previous_org"] is False
+    profile = full_profile(c)
+    assert profile["website"] == "https://www.example.org/donate"
+    assert profile["name"] == "Same Org" and profile["priorities"] == ["Generate Prosperity"]
+    assert len(c.get("/context").json()) == 2
+
+
+def test_partial_live_run_for_another_org_keeps_none_of_the_old_facts(db_file, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: good_result("Old Org"))
+    c.post("/context/run", json={"website": "https://example.org"})
+
+    fresh = good_result("New Org")                               # news fails for the new org
+    fresh["facts"] = [{**fresh["facts"][0], "url": "https://new-org.org/about", "fact": "new org fact"}]
+    fresh["sources"] = {"website": "ok", "news": "error: search timed out"}
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: fresh)
+    body = c.post("/context/run", json={"website": "https://new-org.org"}).json()
+
+    assert body["state"] == "partial"
+    assert [(f["source"], f["fact"]) for f in c.get("/context").json()] == [("website", "new org fact")]
+    assert full_profile(c)["name"] == "New Org"

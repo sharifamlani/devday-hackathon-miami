@@ -13,21 +13,22 @@ describe("tour stops", () => {
   });
 
   it("skips targets that are missing or have no box", () => {
-    const present = new Set(["ask", "progress", "tasks"]);
+    const present = new Set(["ask", "overview", "tasks"]);
     const hidden = new Set(["tasks"]); // display:none → no client rects
     const found = availableStops(TOUR_STOPS, (id) =>
       present.has(id)
         ? { getClientRects: () => ({ length: hidden.has(id) ? 0 : 1 }) }
         : null,
     );
-    expect(found.map((s) => s.id)).toEqual(["progress", "ask"]);
+    expect(found.map((s) => s.id)).toEqual(["overview", "ask"]);
   });
 
-  it("follows the homepage: left column, the agent, then the header buttons", () => {
+  it("follows the homepage: the workspace rail, the agent, then live transcript and Ask", () => {
     expect(TOUR_STOPS.map((s) => s.id)).toEqual([
-      "progress",
+      "overview",
       "calendar",
       "tasks",
+      "crm",
       "projects",
       "composer",
       "voice",

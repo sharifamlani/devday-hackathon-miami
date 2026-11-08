@@ -162,6 +162,7 @@ export type OnboardingAction =
   | { type: "update"; patch: OnboardingPatch }
   | { type: "finishLater" }
   | { type: "finish" }
+  | { type: "adopt" }
   | { type: "reset" };
 
 export const onboardingReducer = (
@@ -200,6 +201,14 @@ export const onboardingReducer = (
         status: "completed",
         completedAt: now(),
         tourOffer: state.tourOffer ?? "pending",
+      });
+    case "adopt":
+      // The service already has people (set up in another browser): done, no tour card on someone else's stage.
+      return stamp({
+        ...state,
+        status: "completed",
+        completedAt: state.completedAt ?? now(),
+        tourOffer: state.tourOffer ?? "dismissed",
       });
     case "reset":
       return initialOnboarding();
@@ -585,13 +594,37 @@ const PROFILE_HOST: Record<SocialPlatform, string> = {
   instagram: "www.instagram.com",
 };
 
-/** A pasted "https://…" loses its scheme: the field already shows https://. */
-export const websiteFieldValue = (input: string) =>
-  input.trimStart().replace(/^https?:\/\//i, "");
+/**
+ * The website field's value keeps a scheme only when it isn't the default:
+ * "https://…" is stored bare (the prefix already says https://), "http://…"
+ * stays "http://…" so an HTTP-only site is read over HTTP.
+ */
+export const websiteFieldValue = (input: string) => {
+  const value = input.trimStart();
+  if (/^https:\/\//i.test(value)) return value.slice("https://".length);
+  if (/^http:\/\//i.test(value))
+    return `http://${value.slice("http://".length)}`;
+  return value;
+};
 
-/** A saved URL shown after the prefix: "https://yourorg.org/" → "yourorg.org". */
+/** What the user typed after the prefix, keeping the field's current scheme unless they typed one. */
+export const websiteFieldChange = (current: string, typed: string) => {
+  if (/^https?:\/\//i.test(typed.trimStart()) || !typed)
+    return websiteFieldValue(typed);
+  return current.startsWith("http://") ? `http://${typed}` : typed;
+};
+
+/** The grey prefix before the website field: the scheme it will use. */
+export const websitePrefix = (field: string) =>
+  field.startsWith("http://") ? "http://" : "https://";
+
+/** The text inside the website input, after its prefix. */
+export const websiteInputText = (field: string) =>
+  field.startsWith("http://") ? field.slice("http://".length) : field;
+
+/** A saved URL as the field holds it: "https://yourorg.org/" → "yourorg.org", "http://x.org/" → "http://x.org". */
 export const websiteFromSaved = (url: string) =>
-  websiteFieldValue(url).replace(/^([^/]+)\/$/, "$1");
+  websiteFieldValue(url).replace(/^((?:http:\/\/)?[^/]+)\/$/, "$1");
 
 const looksLikeUrl = (value: string) =>
   /^[a-z][a-z0-9+.-]*:\/\//i.test(value) || /^[^\s/@]+\.[^\s/@]+\//.test(value);
@@ -804,6 +837,8 @@ export const useOnboarding = () => {
       () => dispatch({ type: "finish" }, { open: false }),
       [],
     ),
+    /** The live service already has people: mark setup done here too (no tour offer). */
+    adopt: useCallback(() => dispatch({ type: "adopt" }, { open: false }), []),
     /** Forget everything; setup shows again on the next homepage visit. */
     reset: useCallback(
       () => dispatch({ type: "reset" }, { open: false, tour: false }),

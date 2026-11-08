@@ -357,6 +357,15 @@ const MobileAdmin = (
           <Route path="/outbox" element={<OutboxList />} />
           <Route path="/ask" element={<AskPage />} />
           <Route path="/inbox" element={<CallToday />} />
+          {/* The desktop layout pads its pages; on a phone the calendar brings its own gutter. */}
+          <Route
+            path="/calendar"
+            element={
+              <div className="px-4 pt-4">
+                <CalendarPage />
+              </div>
+            }
+          />
         </CustomRoutes>
         {/* The same responsive Donors screens as desktop; a note opens full
             screen on a phone (Atomic CRM's mobile note page). */}
