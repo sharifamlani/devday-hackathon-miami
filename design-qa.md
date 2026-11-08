@@ -1,3 +1,9 @@
+## Direct dashboard handoff — follow-up
+
+final result: passed
+
+The organization form no longer shows “Step 2 of 3.” Continue opens the dashboard immediately, without the context receipt/welcome page or an initial tour prompt. Website processing retains save/task/slow-read/error handling after the form unmounts. Full local journey verified with no console errors; 88 targeted tests, typecheck, changed-file lint and demo build passed. Evidence: `docs/design/upload-flow/handoff-preview.png`. See the updated organization QA for details.
+
 # Latest design QA — organization setup
 
 final result: passed

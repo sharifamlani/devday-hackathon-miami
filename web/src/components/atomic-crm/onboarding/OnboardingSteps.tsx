@@ -818,7 +818,6 @@ export const OrganizationStep = ({
         <button className="onb-org-finish" type="button" onClick={finishLater}>
           Finish later
         </button>
-        <p className="onb-org-step">Step 2 of 3</p>
       </div>
     </form>
   );

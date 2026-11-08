@@ -1049,12 +1049,6 @@
 .onb-org-finish {
   margin-top: 20px;
 }
-.onb-org-step {
-  margin: 28px 0 0;
-  font-size: clamp(12px, 1vw, 15px);
-  line-height: 1.5;
-  color: #62676a;
-}
 .onb-org-form button:focus-visible {
   outline: 2px solid #9aa283;
   outline-offset: 4px;
@@ -1080,9 +1074,6 @@
   }
   .onb-org-actions {
     padding-top: 20px;
-  }
-  .onb-org-step {
-    margin-top: 18px;
   }
 }
 

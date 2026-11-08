@@ -1,6 +1,6 @@
 # Donor upload flow
 
-Connects the existing Kindred landing upload to centered processing, compact import results, and the redesigned organization-profile card. The same processing UI is used by first-run file imports. Organization setup follows the approved still: a compact white card, a faint yellow/green haze inside its top edge, a website field, optional social links and a black Continue button.
+Connects the existing Kindred landing upload to centered processing, compact import results, and the redesigned organization-profile card. The same processing UI is used by first-run file imports. Organization setup follows the approved still: a compact white card, a faint yellow/green haze inside its top edge, a website field, optional social links and a black Continue button. Continue opens the dashboard immediately; the old context receipt/welcome page and the organization step-count footer are removed. Website research and task generation finish in the background.
 
 ![Landing → processing → results → organization profile](./preview.png)
 
@@ -31,6 +31,7 @@ The preview uses sample counts and sends no files. Its profile button opens the 
 - [Processing](./02-loading.png)
 - [Results](./03-results.png)
 - [Organization setup](./04-organization.png)
+- [Direct dashboard handoff](./05-dashboard.png)
 - [Organization card QA](./organization-qa.md)
 - [Approved organization still](./approved-organization.png)
 - [Original upload QA](./design-qa.md)
