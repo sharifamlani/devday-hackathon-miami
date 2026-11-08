@@ -72,11 +72,45 @@ type ChatResponse = {
 
 type State = { messages: AgentMessage[]; pending: boolean; error: string | null };
 
-let state: State = { messages: [], pending: false, error: null };
+/** The last conversation, kept for this tab so a reload doesn't lose the thread and its Undo buttons. */
+export const CHAT_STORAGE_KEY = "donor-desk-agent-chat";
+
+/** The saved thread, if any: nothing left streaming or spinning (a reload ended those runs). */
+export const loadSavedChat = (): AgentMessage[] => {
+  try {
+    const raw = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(CHAT_STORAGE_KEY);
+    const saved = raw ? (JSON.parse(raw) as AgentMessage[]) : [];
+    if (!Array.isArray(saved)) return [];
+    return saved.map((m) =>
+      m.role !== "assistant"
+        ? m
+        : {
+            ...m,
+            streaming: undefined,
+            steps: (m.steps ?? []).map((st) => (st.status === "running" ? { ...st, status: "error" as const, summary: "no result" } : st)),
+          },
+    );
+  } catch {
+    return [];
+  }
+};
+
+const saveChat = (messages: AgentMessage[]) => {
+  try {
+    if (typeof sessionStorage === "undefined") return;
+    if (messages.length) sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-20)));
+    else sessionStorage.removeItem(CHAT_STORAGE_KEY);
+  } catch {
+    /* private mode or full storage: the thread just isn't kept */
+  }
+};
+
+let state: State = { messages: loadSavedChat(), pending: false, error: null };
 const listeners = new Set<() => void>();
 
 const set = (next: Partial<State>) => {
   state = { ...state, ...next };
+  if (next.messages) saveChat(state.messages);
   listeners.forEach((l) => l());
 };
 
@@ -194,8 +228,10 @@ export const applyStreamLine = (reply: Assistant, line: string, argsText: Map<st
 };
 
 /** What POST /chat would say for a run paused on cards with no words of its own (service: "Waiting for you: …"). */
-const waitingLine = (approvals: AgentApproval[]) =>
-  `${WAITING_PREFIX}${approvals.map((a) => a.summary || a.tool.replace(/_/g, " ")).join("; ")}.`;
+export const waitingLine = (approvals: AgentApproval[]) =>
+  approvals.length === 1
+    ? `${WAITING_PREFIX}${approvals[0].summary || approvals[0].tool.replace(/_/g, " ")}.`
+    : `${WAITING_PREFIX}${approvals.length} decisions on the cards above.`; // each card already says what it does
 
 export const sendToAgent = async (text: string, refetch: Refetch) => {
   const message = text.trim();
@@ -315,6 +351,14 @@ export const undoMergedPair = async (msgIndex: number, stepIndex: number, pairIn
  */
 export const WAITING_PREFIX = "Waiting for you: ";
 
+/** What a decided card's "waiting for your approval" step says until the run's own result arrives. */
+export const decidedLabel = (tool: string, approve: boolean) =>
+  ({
+    merge_duplicate: approve ? "merging" : "kept separate",
+    send: approve ? "sending" : "not sent",
+    call_person: approve ? "calling" : "not called",
+  })[tool] ?? (approve ? "approved" : "declined");
+
 /** True once every card in this message has an answer (or the run was already handled). */
 export const allDecided = (m: AssistantMessage) =>
   Boolean(m.handled) || m.approvals.every((a) => m.decisions?.[a.call_id] !== undefined);
@@ -336,7 +380,12 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
   const answered = (x: typeof m): typeof m => {
     const next = { ...x, decisions: { ...x.decisions, ...fresh } };
     const done = allDecided(next);
-    return { ...next, decided: done, text: done && x.text.startsWith(WAITING_PREFIX) ? "" : x.text };
+    const open = next.approvals.filter((a) => next.decisions?.[a.call_id] === undefined);
+    const steps = next.steps.map((st) =>
+      st.call_id && st.call_id in fresh ? { ...st, status: "done" as const, summary: decidedLabel(st.tool, fresh[st.call_id]) } : st,
+    );
+    const text = !x.text.startsWith(WAITING_PREFIX) ? x.text : done || !open.length ? "" : waitingLine(open);
+    return { ...next, steps, decided: done, text };
   };
   set({
     messages: state.messages.map((x, i) => (i === msgIndex ? answered(m) : x)),
