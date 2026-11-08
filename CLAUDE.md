@@ -109,12 +109,19 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
     data contract in `plan.md` §13; contract changes need Carlos + Sharif.
 14. **No Supabase.** Data is local SQLite (`data/donors.db`, gitignored) behind the local Python API.
 15. **All data is displayed publicly. Don't ask (Sharif, Sun Nov 8: "THE ANSWER IS YES").** The public site
-    (Vercel → tunnel → `PUBLIC_MODE=1 PUBLIC_SHOW_ALL=1` service) shows everything: contacts, call notes, transcripts,
+    (Vercel → tunnel → the :8401 service on LIVE's database) shows everything: contacts, call notes, transcripts,
     staff notes, tasks, donor summaries. That includes teammates added for the demo, such as Christian's verified
     phone. **Update (Sharif, Sun Nov 8 ~1:55 PM): "Everything needs to go live."** The public site is fully functional:
     writes, agent actions and real calls are allowed (the public service runs without `PUBLIC_MODE`; `SEND_ALLOWLIST`
     limits who can be dialed). Don't re-raise "should this be public?" or "should the public site be writable?". The
     T-30 stage reset restores the data. Still never commit secrets or real contact data into tracked files.
+16. **The tunnel stays open PERMANENTLY until Sharif says otherwise (Sharif, Sun Nov 8 ~4:00 PM).** The public
+    service (:8401 behind the cloudflared tunnel, fully writable, request logging on) and the Vercel site stay up,
+    through the T-30 reset and the demo. Nobody stops it, switches it off for the demo or makes it read-only
+    without Sharif's explicit word. The only allowed break is the ~1 min pause for the T-30 reset (the Windows file
+    lock): stop, reset, re-arm, and no longer (Sharif: "1 min pause, no further"). Because the public site writes
+    into LIVE's database, test lanes never run onboarding, Try sample data, Upload or "Set up again" against the
+    public URL, :8401, :5173 or :8001. First-run flows run only on your own stack.
 
 ## The development flywheel (CRITICAL, Sharif, Sun Nov 8)
 
