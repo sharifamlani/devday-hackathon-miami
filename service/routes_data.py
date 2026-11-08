@@ -36,7 +36,7 @@ from datetime import date, datetime, timezone
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from service import dedupe, score
+from service import dedupe, score, tasks
 from service import db
 from service.db import connect, create_schema
 
@@ -152,6 +152,7 @@ def merge_duplicate(suggestion_id: int, keep_id: int | None = Body(None, embed=T
     except ValueError as e:
         raise HTTPException(409, str(e))
     score.run(conn)
+    tasks.generate_safely(conn, "merge")   # alerts move with the gifts: stale calls retire, new ones appear
     result["donor"] = get_donor(result["kept_donor_id"], conn)
     return result
 
@@ -165,6 +166,7 @@ def undo_merge(merge_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> d
     except ValueError as e:
         raise HTTPException(409, str(e))
     score.run(conn)
+    tasks.generate_safely(conn, "merge undo")
     return {**result, "donor": get_donor(result["kept_id"], conn), "restored": get_donor(result["restored_id"], conn)}
 
 

@@ -1,15 +1,9 @@
 # Donor Desk dashboard reference
 
-`index.html` is the standalone design prototype approved in the design review.
-Open it directly or serve this directory. Its donor names, numbers, chat replies,
-and actions are illustrative; changes reset on reload.
+`index.html` is the latest standalone mockup from the design review. Its donor names, figures, responses, and calendar event times are illustrative. Open it directly or serve this directory; changes reset on reload.
 
-The connected app implementation lives in `web/src/components/atomic-crm/home/`.
-It uses the existing data hooks and app actions rather than the mock data here.
+The connected React implementation lives in `web/src/components/atomic-crm/home/`. It keeps the current service integration and reads actual calendar, task, campaign, and target data. Events without times appear in the all-day row. Nearby timed events share a block that opens their complete details.
 
-Final direction: white canvas, borderless frosted tiles with centered yellow,
-Q4 semicircle with the percentage underneath, calendar/tasks/files stacked on the
-left, compact collapsible task groups, task details on demand, rounded pale-yellow
-messages, and a white composer with a yellow/green bloom only when Send is activated.
-Upper navigation, theme toggle, reached-today text, summary/CRM tiles, central task
-card, and the earlier-conversation label are absent from the dashboard.
+The overview stacks Q4, calendar, tasks, Projects, and files. A neutral toggle beside Q4 hides or restores the entire column, while voice, Ask, and account controls remain at the bottom left. The rail is 40px wide. The Q4 percentage nests inside its arch; the home wordmark, date, meeting-notes button, summary tile, and CRM tile are absent.
+
+`reference.png` shows the latest approved mockup. `implemented.png` and `mobile.png` show the React app with its existing labeled sample data. The React calendar uses the current service week, rather than the standalone mockup’s fixed sample dates.
