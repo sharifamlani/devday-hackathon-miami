@@ -62,6 +62,8 @@ app.add_middleware(
 )
 app.include_router(data_router)
 app.include_router(targets_router)
+from service.routes_home import router as home_router  # noqa: E402  (B13: home summary + attention list)
+app.include_router(home_router)
 from service.routes_campaigns import router as campaigns_router  # noqa: E402  (#38: simulated outbox only)
 app.include_router(campaigns_router)
 app.include_router(ask_router)  # POST /ask (issue #36)

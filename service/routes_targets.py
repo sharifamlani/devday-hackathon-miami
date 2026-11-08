@@ -32,10 +32,9 @@ Period = Literal["month", "quarter"]
 @router.get("/targets")
 def get_targets(period: Period | None = Query(None), as_of: date | None = Query(None),
                 conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    reached = targets.reached_today(conn, as_of)
     if period is None:
-        return {p: {**t, "reached_today": reached} for p, t in targets.compute_all(conn, as_of).items()}
-    return {**targets.compute(conn, period, as_of), "reached_today": reached}
+        return targets.compute_all(conn, as_of)
+    return targets.compute(conn, period, as_of)
 
 
 @router.get("/targets/quarters")

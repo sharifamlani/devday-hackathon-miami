@@ -13,7 +13,7 @@ overridden for one period by a "2026-11" (month) or "2026-Q4" (quarter) key.
      "donors_count": 2, "gifts_count": 2, "by_channel": [{"channel": "check", "amount": 50000.0}, ...],
      "new_vs_returning": {"new": 0, "returning": 2, "new_amount": 0.0, "returning_amount": 50050.0},
      "give_miami_day": {"date": "2026-11-19", "days_until": 11, "in_period": true},
-     "top_donor_ids": [...], "donor_ids": [...]}
+     "top_donor_ids": [...], "donor_ids": [...], "reached_today": 0}
 
     python -m service.targets            # print both periods as of $SCORE_AS_OF or the demo date
 
@@ -141,6 +141,7 @@ def compute(conn: sqlite3.Connection, period: str, as_of: date | None = None, go
             "date": gmd.isoformat(), "days_until": (gmd - as_of).days, "in_period": start <= gmd <= end},
         "top_donor_ids": donor_ids[:TOP_N],
         "donor_ids": donor_ids,
+        "reached_today": reached_today(conn, as_of),
     }
 
 
