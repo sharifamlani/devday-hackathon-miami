@@ -165,6 +165,7 @@ describe("localApiMethods onboarding calls", () => {
     await localApiMethods.runContext({ website: "https://a.org", x_url: "" });
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({
+      name: null, // organization name (e24a278): empty when the form had none
       website: "https://a.org",
       x_url: null,
       linkedin_url: null,
