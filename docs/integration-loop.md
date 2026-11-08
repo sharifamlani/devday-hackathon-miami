@@ -7,7 +7,7 @@ running app, and gets walked like a user before anyone calls it done (`docs/sop/
 
 | Stack | For | Service | Web | Code and data |
 |---|---|---|---|---|
-| LIVE | Sharif clicks through it; the demo laptop app | :8000 | :5173 | worktree `C:\Users\Shari\dd-live-main` (detached at `origin/main`), its own `data/` |
+| LIVE | Sharif clicks through it; the demo laptop app | :8001 | :5173 | worktree `C:\Users\Shari\dd-live-main` (detached at `origin/main`), its own `data/` |
 | TEST | the scripted walk, from empty, after every merge | :8101 | :5174 | service from worktree `C:\Users\Shari\dd-live-test`, its own `data/`; web from LIVE's `web/` |
 
 Each service reads `REPO_ROOT/data` of its own worktree (`DONORS_DB` is set too), so the two never share a db or a

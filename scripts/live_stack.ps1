@@ -3,7 +3,7 @@
   Start, stop, restart, reset or check the LIVE and TEST stacks of the integration wheel.
 
 .DESCRIPTION
-  LIVE  service :8000  web :5173  code + data in the LIVE worktree (default C:\Users\Shari\dd-live-main)
+  LIVE  service :8001  web :5173  code + data in the LIVE worktree (default C:\Users\Shari\dd-live-main)
   TEST  service :8101  web :5174  service code + data in the TEST worktree (default C:\Users\Shari\dd-live-test)
         web runs from the LIVE worktree's web/ (one node_modules install), pointed at :8101
 
@@ -30,7 +30,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Stacks = @{
-  live = @{ ServicePort = 8000; WebPort = 5173; ServiceRoot = $LiveRoot }
+  live = @{ ServicePort = 8001; WebPort = 5173; ServiceRoot = $LiveRoot }
   test = @{ ServicePort = 8101; WebPort = 5174; ServiceRoot = $TestRoot }
 }
 # Runtime files the service writes under data/ (gitignored). A TEST reset deletes these; tracked caches are restored
