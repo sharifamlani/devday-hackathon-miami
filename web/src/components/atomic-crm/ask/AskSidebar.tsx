@@ -196,7 +196,7 @@ export const AskSidebar = ({
       className={cn(
         "flex flex-col bg-card text-foreground",
         docked
-          ? "sticky top-4 h-[calc(100vh-5.5rem)] min-h-0 overflow-hidden rounded-[26px] border border-border xl:top-7"
+          ? "sticky top-4 h-[calc(100vh-5.5rem)] self-start min-h-0 overflow-hidden rounded-[26px] border border-border xl:top-7"
           : "fixed inset-0 z-50 md:inset-y-3 md:right-3 md:left-auto md:w-[400px] md:rounded-[26px] md:border md:border-border md:shadow-[0_20px_70px_#34302633]",
       )}
     >
