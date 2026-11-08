@@ -316,7 +316,9 @@ def persist_context(result: dict) -> dict | None:
     conn = db.connect()
     try:
         db.create_schema(conn)
-        return db.save_context(conn, result)
+        saved = db.save_context(conn, result)
+        from service.org_context import after_context_saved; after_context_saved(conn)  # index the store, then tasks (86)
+        return saved
     finally:
         conn.close()
 
