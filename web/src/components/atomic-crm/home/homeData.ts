@@ -6,6 +6,7 @@ import type {
 } from "../providers/local/calendarFeed";
 import { attentionTag } from "../providers/local/homeFeed";
 import type { Task } from "../providers/local/tasks";
+import type { ArtifactOwners } from "./artifactOwners";
 import { campaignHref } from "../ask/askChips";
 import { formatUsd } from "../contacts/donorFormat";
 import { DATA_MODE } from "../providers/local/config";
@@ -323,14 +324,43 @@ export interface ArtifactRow {
   kind: string;
   title: string;
   date: string;
+  ref: string | number | null;
   /** In-app route when the artifact has a page of its own. */
   to: string | null;
 }
 
-/** GET /artifacts → the newest few rows; a campaign opens its review page. */
+/**
+ * Where an artifact opens. The service sends kind "draft" for campaigns too,
+ * told apart by ref ("campaign:3", "draft:98", "call_note:<id>"); a bare
+ * numeric ref on kind "campaign" is the older shape. Drafts and call notes
+ * need the donor they belong to (owners); without it they have no target.
+ */
+export const artifactTarget = (
+  a: { kind: string; ref: string | number | null },
+  owners: ArtifactOwners = { drafts: {}, notes: {} },
+): string | null => {
+  if (a.ref == null) return null;
+  const ref = String(a.ref);
+  if (a.kind === "campaign" && /^[0-9]+$/.test(ref)) return `/campaigns/${ref}`;
+  const cut = ref.indexOf(":");
+  const prefix = ref.slice(0, cut);
+  const id = ref.slice(cut + 1);
+  if (cut < 0 || !id) return null;
+  if (prefix === "campaign" && /^[0-9]+$/.test(id)) return `/campaigns/${id}`;
+  const donor =
+    prefix === "draft"
+      ? owners.drafts[id]
+      : prefix === "call_note"
+        ? owners.notes[id]
+        : undefined;
+  return donor != null ? `/contacts/${donor}/show` : null;
+};
+
+/** GET /artifacts → the newest few rows; each opens the page that shows it. */
 export const artifactRows = (
   artifacts: Artifact[] | undefined,
   limit = 5,
+  owners?: ArtifactOwners,
 ): ArtifactRow[] =>
   [...(artifacts ?? [])]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -340,7 +370,8 @@ export const artifactRows = (
       kind: a.kind,
       title: a.title,
       date: a.date,
-      to: a.kind === "campaign" && a.ref != null ? `/campaigns/${a.ref}` : null,
+      ref: a.ref,
+      to: artifactTarget(a, owners),
     }));
 
 /* ---------- Agent thread ---------- */
