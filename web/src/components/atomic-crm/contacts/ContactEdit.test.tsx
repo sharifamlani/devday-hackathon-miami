@@ -9,7 +9,8 @@ import {
 } from "./ContactEdit.mobile.stories";
 import { page } from "vitest/browser";
 
-describe("ContactEdit", () => {
+// Skipped: screen removed in #84; Import donors replaces create/edit (rewrite for the Donors CRM later).
+describe.skip("ContactEdit", () => {
   describe("desktop", () => {
     beforeAll(() => {
       page.viewport(1600, 900);

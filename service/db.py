@@ -599,6 +599,27 @@ CONTACT_TYPES = ("giver", "neighbor", "community")
 # Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
 DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
 
+# Exact-identity merges made automatically at upload (same email / same written name / a name fragment).
+# Sharif: they stay automatic but are flagged for staff: keep (clear the flag) or split (restore each source
+# person with exactly its own gifts). No foreign key on donor_id, like crm_* tables: a staff merge or its undo
+# must not delete this history. Its own block so other branches editing db.py merge cleanly.
+AUTO_MERGE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS auto_merges (
+    id            INTEGER PRIMARY KEY,
+    donor_id      INTEGER NOT NULL,            -- the surviving person (donors.id)
+    rule          TEXT NOT NULL,               -- e.g. "same email", "same written name"
+    sources       TEXT NOT NULL,               -- JSON [{key, name, email, phone, locs, gift_ids, survivor, rule}]
+    merged_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewed_at   TEXT,
+    review_action TEXT CHECK (review_action IN ('keep', 'split')),
+    reviewed_by   TEXT,
+    split_ids     TEXT                         -- JSON donors.ids a split created
+);
+CREATE INDEX IF NOT EXISTS idx_auto_merges_donor ON auto_merges(donor_id);
+"""
+SCHEMA += AUTO_MERGE_SCHEMA
+TABLES = ["auto_merges"] + TABLES
+
 ADDED_COLUMNS = {
     "icp_profile": {"recent_context": "TEXT"},
     "prospects": {"fit_breakdown": "TEXT", "matched_context": "TEXT"},

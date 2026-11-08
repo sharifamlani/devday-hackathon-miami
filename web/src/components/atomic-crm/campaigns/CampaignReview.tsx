@@ -20,6 +20,7 @@ import { SourceLink } from "../contacts/ResearchPanel";
 import {
   useApproveSmallDrafts,
   useCampaign,
+  useOutbox,
   useSendCampaign,
   useUpdateCampaignMessage,
 } from "../providers/local/hooks";
@@ -30,7 +31,9 @@ import type {
   SendCampaignResult,
 } from "../providers/local/campaignTypes";
 import { formatStamp, intentLabel, pillButton } from "./campaignFormat";
-import { ChannelLabel, LinkPill, PageShell, SimulatedNote } from "./campaignUi";
+import { ChannelLabel, LinkPill, PageShell } from "./campaignUi";
+import { SendModeNote } from "./SendModeNote";
+import { TONE_CLASS, outboxLabel, sendSummary } from "./sendLabels";
 
 const SMS_MAX = 320;
 
@@ -136,11 +139,11 @@ const Review = ({ campaign }: { campaign: CampaignDetail }) => {
             }}
           >
             {send.isPending ? <Spinner /> : <Send />}
-            Send to outbox (simulated)
+            Send approved messages
             {counts.approved ? ` · ${counts.approved}` : ""}
           </Button>
         </div>
-        <SimulatedNote />
+        <SendModeNote />
         <p className="text-xs text-muted-foreground">
           Star, big and organization donors are never approved in bulk: approve
           each one below ({counts.needs_individual_approval} waiting). Drafts
@@ -151,9 +154,17 @@ const Review = ({ campaign }: { campaign: CampaignDetail }) => {
             `Approved ${approved.approved} small-donor draft${approved.approved === 1 ? "" : "s"}. ${approved.left_for_individual_approval} still need individual approval${approved.flagged ? `, ${approved.flagged} flagged` : ""}.`}
           {sent && (
             <>
-              {`Moved ${sent.sent} message${sent.sent === 1 ? "" : "s"} to the simulated outbox. Nothing was delivered.`}
-              {sent.no_address.length > 0 &&
-                ` Not sent: ${sent.no_address.map((n) => `${n.donor_name} (${n.reason})`).join(", ")}.`}
+              {sendSummary(sent).map((seg) => (
+                <span
+                  key={seg.text}
+                  className={cn(
+                    "block",
+                    seg.tone === "error" && "font-semibold text-destructive",
+                  )}
+                >
+                  {seg.text}
+                </span>
+              ))}
             </>
           )}
         </div>
@@ -448,12 +459,15 @@ const MessageCard = ({
 };
 
 const StatusChip = ({ message: m }: { message: CampaignMessage }) => {
+  const { data: outbox } = useOutbox();
+  // What really happened comes from this message's outbox row; no row yet, no claim.
+  const row = outbox?.find((o) => o.campaign_message_id === m.id);
+  const sentLabel = row
+    ? outboxLabel(row, formatStamp(m.sent_at))
+    : { text: `Processed · ${formatStamp(m.sent_at)}`, tone: "dry" as const };
   const [label, tone] =
     m.status === "sent"
-      ? [
-          `Sent (simulated) · ${formatStamp(m.sent_at)}`,
-          "bg-good text-good-foreground",
-        ]
+      ? [sentLabel.text, TONE_CLASS[sentLabel.tone]]
       : m.status === "approved"
         ? [
             `Approved${m.approved_via === "bulk" ? " in bulk" : ""}${m.approved_by ? ` by ${m.approved_by}` : ""}`,

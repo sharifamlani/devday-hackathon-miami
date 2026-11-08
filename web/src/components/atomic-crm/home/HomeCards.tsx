@@ -6,6 +6,7 @@ import {
   Clock,
   FileText,
   Folder,
+  Info,
   Plus,
   Search,
 } from "lucide-react";
@@ -523,6 +524,8 @@ export const TasksTile = ({
   live = true,
   selectedKey,
   onSelect,
+  onInfo,
+  agentLive = false,
   onPlan,
   isPending,
 }: {
@@ -532,7 +535,12 @@ export const TasksTile = ({
   /** False in the read-only snapshot build. */
   live?: boolean;
   selectedKey: string | null;
+  /** A row click: hands the task to the home agent when it's live, else opens the details. */
   onSelect: (key: string) => void;
+  /** The small ⓘ: the task-details dialog. */
+  onInfo?: (key: string) => void;
+  /** True when a row click goes to the agent (changes the row's label). */
+  agentLive?: boolean;
   onPlan: () => void;
   isPending: boolean;
 }) => {
@@ -626,19 +634,22 @@ export const TasksTile = ({
                     className="home-project-threads"
                   >
                     {group.items.map((task) => (
-                      <li key={task.key}>
+                      <li key={task.key} className="flex items-center gap-0.5">
                         <button
                           type="button"
                           aria-pressed={task.key === selectedKey}
-                          aria-label={
-                            task.why ? `${task.title}: ${task.why}` : task.title
-                          }
+                          aria-label={`${agentLive ? "Work on with the agent: " : ""}${task.title}${task.why ? `: ${task.why}` : ""}`}
                           title={
-                            task.why
-                              ? `${task.title} — ${task.why}`
-                              : task.title
+                            agentLive
+                              ? `Hand to the agent — ${task.title}`
+                              : task.why
+                                ? `${task.title} — ${task.why}`
+                                : task.title
                           }
-                          className={cn("home-project-thread", focusRing)}
+                          className={cn(
+                            "home-project-thread min-w-0 flex-1",
+                            focusRing,
+                          )}
                           onClick={() => onSelect(task.key)}
                         >
                           <Clock
@@ -647,6 +658,20 @@ export const TasksTile = ({
                           />
                           <span className="truncate">{task.title}</span>
                         </button>
+                        {onInfo && (
+                          <button
+                            type="button"
+                            aria-label={`Task details: ${task.title}`}
+                            title="Task details"
+                            onClick={() => onInfo(task.key)}
+                            className={cn(
+                              "grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-surface hover:text-foreground",
+                              focusRing,
+                            )}
+                          >
+                            <Info className="size-3.5" aria-hidden="true" />
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>
