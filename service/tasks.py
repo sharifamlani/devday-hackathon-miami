@@ -309,19 +309,28 @@ def _cols(conn: sqlite3.Connection, table: str) -> set[str]:
 
 
 def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None = None,
-             as_of: date | None = None, public_only: bool = False) -> list[dict]:
-    """Events merged with dated tasks: [{date, time, title, kind: event|task, source, ref}], by date then time."""
+             as_of: date | None = None, public_only: bool = False, kind: str | None = None) -> list[dict]:
+    """Events merged with dated tasks: [{date, time, title, kind: event|task, source, ref}], by date then time.
+    kind='event' (calendar v3: the calendar shows organization events only) or 'task' keeps just that kind."""
+    if kind not in (None, "event", "task"):
+        raise TaskError("kind must be event or task")
     start = date.fromisoformat(from_) if from_ else (as_of or default_as_of())
     end = date.fromisoformat(to) if to else start + timedelta(days=CALENDAR_DAYS)
     lo, hi = start.isoformat(), end.isoformat()
     items = []
-    if _has_table(conn, "events"):
-        for r in conn.execute("SELECT id, title, starts_at, source, source_url, status FROM events "
-                              "WHERE substr(starts_at, 1, 10) BETWEEN ? AND ?", (lo, hi)):
+    if _has_table(conn, "events") and kind != "task":
+        has = _cols(conn, "events")
+        extra = ", ".join(c for c in ("place", "event_kind") if c in has)
+        for r in conn.execute(f"SELECT id, title, starts_at, source, source_url, status{', ' + extra if extra else ''} "
+                              "FROM events WHERE substr(starts_at, 1, 10) BETWEEN ? AND ?", (lo, hi)):
             time = r["starts_at"][11:16] or None
             items.append({"date": r["starts_at"][:10], "time": time, "title": r["title"], "kind": "event",
                           "source": r["source"] or "website", "ref": f"event:{r['id']}",
-                          "source_url": r["source_url"], "status": r["status"]})
+                          "source_url": r["source_url"], "status": r["status"],
+                          **{c: r[c] for c in ("place", "event_kind") if c in has}})
+    if kind == "event":
+        items.sort(key=lambda i: (i["date"], i["time"] or "", i["ref"]))
+        return items
     private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
     for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL{private} AND due BETWEEN ? AND ?", (lo, hi)):
         items.append({"date": r["due"], "time": r["time"], "title": r["title"], "kind": "task",

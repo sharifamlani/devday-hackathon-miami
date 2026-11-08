@@ -43,7 +43,8 @@ def undo(token: str) -> dict:
 
 
 def test_sends_merges_and_deletes_are_approval_gated_and_nothing_else():
-    assert ca.APPROVAL_TOOLS == {"send", "merge_duplicate", "delete_task", "delete_calendar_item", "call_person"}
+    assert ca.APPROVAL_TOOLS == {"send", "merge_duplicate", "delete_task", "delete_calendar_item", "call_person",
+                                "delete_event"}
     reads = {"find_people", "get_person", "get_alerts", "get_events", "get_calendar", "get_tasks",
              "get_call_notes", "search_context"}
     writes = {"update_person", "add_interest", "remove_interest", "accept_enrichment", "merge_duplicate",
@@ -78,20 +79,20 @@ def test_update_and_complete_task_then_undo_restores(db_file):
 
 
 def test_calendar_items_add_move_delete_and_undo(db_file):
+    """Calendar v3: add_calendar_item makes an organization event (source agent), not a dated task."""
     item = invoke("add_calendar_item", title="Board meeting", date="2026-11-12", time="15:00")
     cal = invoke("get_calendar", from_date="2026-11-01", to_date="2026-11-30")["items"]
-    assert any(i["title"] == "Board meeting" and i["date"] == "2026-11-12" for i in cal)
+    assert any(i["title"] == "Board meeting" and i["date"] == "2026-11-12" and i["kind"] == "event" for i in cal)
 
-    moved = invoke("move_calendar_item", ref=f"task:{item['id']}", date="2026-11-13")
-    assert one(db_file, "SELECT due FROM tasks WHERE id = ?", item["id"])["due"] == "2026-11-13"
+    moved = invoke("move_event", event_id=item["id"], date="2026-11-13")
+    assert one(db_file, "SELECT starts_at FROM events WHERE id = ?", item["id"])["starts_at"] == "2026-11-13"
     undo(moved["undo_token"])
-    assert one(db_file, "SELECT due FROM tasks WHERE id = ?", item["id"])["due"] == "2026-11-12"
+    assert one(db_file, "SELECT starts_at FROM events WHERE id = ?", item["id"])["starts_at"] == "2026-11-12T15:00"
 
-    gone = invoke("delete_calendar_item", ref=f"task:{item['id']}")     # the card's approval is tested live below
-    assert one(db_file, "SELECT deleted_at FROM tasks WHERE id = ?", item["id"])["deleted_at"]
+    gone = invoke("delete_event", event_id=item["id"])                 # the card's approval is tested live below
+    assert one(db_file, "SELECT id FROM events WHERE id = ?", item["id"]) is None
     undo(gone["undo_token"])
-    assert one(db_file, "SELECT deleted_at FROM tasks WHERE id = ?", item["id"])["deleted_at"] is None
-
+    assert one(db_file, "SELECT title FROM events WHERE id = ?", item["id"])["title"] == "Board meeting"
 
 def test_delete_task_and_undo(db_file):
     task = invoke("create_task", kind="other", title="Order name badges")
@@ -482,6 +483,7 @@ def test_an_allowed_call_still_waits_on_the_card_and_never_dials_unapproved(db_f
     assert context.refused_calls == {} and dialed == []                     # a card, and no call without it
 
 
+@needs_key
 @pytest.mark.parametrize("approve_b", [True, False])
 def test_live_approving_one_of_two_cards_leaves_the_other_pending(db_file, approve_b):
     """Two delete cards: deciding the first must not decide the second. It comes back under a new run id
@@ -540,6 +542,7 @@ def test_call_list_follows_the_home_attention_order(db_file):
     assert all(p["phone_on_file"] == phones[p["id"]] for p in people)
 
 
+@needs_key
 def test_live_who_to_call_leads_with_the_failed_gift_and_cites_next_steps(db_file):
     """'Who should I call today?' answers from the CRM's attention order: the failed-gift donor first, and a
     giver's saved next step quoted."""

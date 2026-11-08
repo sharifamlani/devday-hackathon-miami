@@ -101,8 +101,11 @@ def remove_task(task_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> d
 
 @router.get("/calendar")
 def get_calendar(from_: date | None = Query(None, alias="from"), to: date | None = None,
+                 kind: Literal["event", "task"] | None = None,
                  conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
-    return _call(tasks.calendar, conn, from_.isoformat() if from_ else None, to.isoformat() if to else None)
+    """kind=event: organization events only (calendar v3); kind=task: dated tasks only; neither: both."""
+    return _call(tasks.calendar, conn, from_.isoformat() if from_ else None, to.isoformat() if to else None,
+                 kind=kind)
 
 
 @router.get("/artifacts")
