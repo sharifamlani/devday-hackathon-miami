@@ -1,5 +1,6 @@
 /**
- * The Home chat's connection to the main-UI agent (plan.md §21.2.5, B10): POST /chat with the conversation,
+ * The Home chat's connection to the main-UI agent (plan.md §21.2.5, B10): POST /chat/stream with the
+ * conversation (each tool step appears as it runs, the reply types out live; POST /chat if the stream fails),
  * tool steps shown as cards (Undo → POST /undo/{token}), sends / merges / deletes as approval cards
  * (→ POST /chat/approve). A tiny external store so the thread and the composer (siblings on HomePage)
  * share one conversation without a provider.
@@ -13,10 +14,12 @@ export type AgentStep = {
   tool: string;
   args: Record<string, unknown>;
   summary: string | null;
-  status: "done" | "error" | "awaiting_approval";
+  status: "running" | "done" | "error" | "awaiting_approval";
   undo_token: string | null;
   call_id?: string | null;
   undone?: boolean;
+  /** A richer card from the service, drawn by kind (e.g. "call_sheet", "merged_pairs"). */
+  card?: { kind: string; [k: string]: unknown } | null;
 };
 
 export type AgentApproval = {
@@ -40,9 +43,12 @@ export type AgentMessage =
       decisions?: Record<string, boolean>;
       /** set when approve/decline failed (e.g. the paused run was already consumed): the card is closed, not pending. */
       handled?: string;
+      /** true while the reply is still streaming in */
+      streaming?: boolean;
     };
 
 type AssistantMessage = Extract<AgentMessage, { role: "assistant" }>;
+type Assistant = AssistantMessage;
 
 type ChatResponse = {
   reply: string | null;
@@ -114,18 +120,137 @@ const history = () =>
     .filter((m) => m.content.trim())
     .slice(-12);
 
+const withStep = (reply: Assistant, callId: string, patch: Partial<AgentStep>): Assistant => ({
+  ...reply,
+  steps: reply.steps.map((s) => (s.call_id === callId ? { ...s, ...patch } : s)),
+});
+
+/**
+ * Apply one line of the assistant-stream data stream (service/chat_stream.py) to the reply being built:
+ * "0:" text delta · "b:" a tool call starts (its card shows as running) · "c:" its JSON args arrive ·
+ * "a:" its result {summary, status, undo_token, card} · "2:" data ({type: "approvals", run_id, approvals}) ·
+ * "3:" an error (thrown). Anything else (finish markers) is ignored. argsText collects partial args per call.
+ */
+export const applyStreamLine = (reply: Assistant, line: string, argsText: Map<string, string>): Assistant => {
+  const at = line.indexOf(":");
+  if (at < 1) return reply;
+  let value: any;
+  try {
+    value = JSON.parse(line.slice(at + 1));
+  } catch {
+    return reply;
+  }
+  switch (line.slice(0, at)) {
+    case "0":
+      return { ...reply, text: reply.text + String(value) };
+    case "b":
+      return {
+        ...reply,
+        steps: [
+          ...reply.steps,
+          { tool: value.toolName, args: {}, summary: null, status: "running", undo_token: null, call_id: value.toolCallId },
+        ],
+      };
+    case "c": {
+      const text = (argsText.get(value.toolCallId) ?? "") + (value.argsTextDelta ?? "");
+      argsText.set(value.toolCallId, text);
+      try {
+        return withStep(reply, value.toolCallId, { args: JSON.parse(text) });
+      } catch {
+        return reply; // the args are still arriving
+      }
+    }
+    case "a": {
+      const r = value.result ?? {};
+      return withStep(reply, value.toolCallId, {
+        summary: r.summary ?? null,
+        status: r.status ?? "done",
+        undo_token: r.undo_token ?? null,
+        card: r.card ?? undefined,
+      });
+    }
+    case "2":
+      for (const d of Array.isArray(value) ? value : [])
+        if (d?.type === "approvals") reply = { ...reply, approvals: d.approvals ?? [], runId: d.run_id ?? null };
+      return reply;
+    case "3":
+      throw new Error(typeof value === "string" ? value : JSON.stringify(value));
+    default:
+      return reply;
+  }
+};
+
+/** What POST /chat would say for a run paused on cards with no words of its own (service: "Waiting for you: …"). */
+const waitingLine = (approvals: AgentApproval[]) =>
+  `${WAITING_PREFIX}${approvals.map((a) => a.summary || a.tool.replace(/_/g, " ")).join("; ")}.`;
+
 export const sendToAgent = async (text: string, refetch: Refetch) => {
   const message = text.trim();
   if (!message || state.pending) return;
-  const prior = history();
+  const body = { message, history: history(), context: { screen: "home" } };
   set({ messages: [...state.messages, { role: "user", text: message }], pending: true, error: null });
+  const at = state.messages.length; // the reply goes right after the question
+  let reply: Assistant = { role: "assistant", text: "", steps: [], approvals: [], runId: null, streaming: true };
+  const show = () => set({ messages: [...state.messages.slice(0, at), reply] });
+  // POST /chat answers in one piece: used when the stream can't start, or fails before any tool ran
+  // (after a tool ran, asking again could repeat its write, so the error is shown instead).
+  const viaChat = async () => {
+    reply = { ...toAssistant(await post<ChatResponse>("/chat", body)), streaming: true };
+  };
   try {
-    const r = await post<ChatResponse>("/chat", { message, history: prior, context: { screen: "home" } });
-    set({ messages: [...state.messages, toAssistant(r)], pending: false });
-    const scopes = scopesOf(r.steps ?? []);
-    if (scopes.length) refetch(scopes);
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${API_URL}/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      res = null;
+    }
+    if (!res?.ok || !res.body) {
+      await viaChat();
+    } else if ((res.headers.get("content-type") ?? "").includes("application/json")) {
+      reply = { ...toAssistant((await res.json()) as ChatResponse), streaming: true };
+    } else {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      const argsText = new Map<string, string>();
+      let buffer = "";
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          buffer += decoder.decode(value, { stream: !done });
+          const lines = buffer.split("\n");
+          buffer = done ? "" : (lines.pop() ?? "");
+          for (const line of lines) if (line.trim()) reply = applyStreamLine(reply, line, argsText);
+          show();
+          if (done) break;
+        }
+      } catch (e) {
+        if (reply.steps.length || reply.text) throw e;
+        await viaChat();
+      }
+    }
+    finish();
+    set({ pending: false });
   } catch (e) {
+    if (reply.steps.length || reply.text) finish(); // an error frame, or the connection dropped after a tool
     set({ pending: false, error: e instanceof Error ? e.message : String(e) });
+  }
+
+  /** Close the reply on every path: no card left spinning, streaming off, and the screens refetched for the
+   *  writes that did finish (a task written before an error must still show up). */
+  function finish() {
+    reply = {
+      ...reply,
+      text: reply.approvals.length && !reply.text.trim() ? waitingLine(reply.approvals) : reply.text,
+      steps: reply.steps.map((s) => (s.status === "running" ? { ...s, status: "error", summary: "no result" } : s)),
+      streaming: undefined,
+    };
+    show();
+    const scopes = scopesOf(reply.steps);
+    if (scopes.length) refetch(scopes);
   }
 };
 

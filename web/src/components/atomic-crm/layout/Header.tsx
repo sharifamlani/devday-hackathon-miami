@@ -15,16 +15,19 @@ import { SampleDataBadge } from "./SampleDataBadge";
  * Ask and the account avatar on the right.
  */
 const Header = () => {
-  const { title } = useConfigurationContext();
+  const { title, darkModeLogo, lightModeLogo } = useConfigurationContext();
   const onHome = useLocation().pathname === "/";
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
-      {!onHome && (
-        <span className="min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
-          {title}
-        </span>
-      )}
+      <span
+        data-testid="wordmark"
+        className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-[-0.02em]"
+      >
+        <img className="[.light_&]:hidden h-6 shrink-0" src={darkModeLogo} alt="" />
+        <img className="[.dark_&]:hidden h-6 shrink-0" src={lightModeLogo} alt="" />
+        <span className="truncate">{title}</span>
+      </span>
       <SampleDataBadge />
       <span className="flex-1" />
       {!onHome && (

@@ -1,4 +1,4 @@
-import { Check, CircleAlert, Clock, Undo2, X } from "lucide-react";
+import { Check, CircleAlert, Clock, Loader2, Undo2, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { AgentApproval, AgentStep } from "./agentChat";
@@ -31,25 +31,36 @@ const chip = cn(
 );
 
 export const StepCard = ({ step, onUndo }: { step: AgentStep; onUndo?: () => void }) => {
-  const Icon = step.status === "error" ? CircleAlert : step.status === "awaiting_approval" ? Clock : Check;
+  const Icon =
+    step.status === "error"
+      ? CircleAlert
+      : step.status === "awaiting_approval"
+        ? Clock
+        : step.status === "running"
+          ? Loader2
+          : Check;
   return (
     <li
       data-testid="agent-step"
       className={cn(
-        "flex items-start gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[13px]",
+        "flex flex-wrap items-start gap-x-2 gap-y-1 rounded-xl border border-border bg-card px-3 py-2 text-[13px]",
         step.undone && "opacity-60",
       )}
     >
       <Icon
-        className={cn("mt-0.5 size-4 shrink-0", step.status === "error" ? "text-alert-foreground" : "text-muted-foreground")}
+        className={cn(
+          "mt-0.5 size-4 shrink-0",
+          step.status === "error" ? "text-alert-foreground" : "text-muted-foreground",
+          step.status === "running" && "animate-spin motion-reduce:animate-none",
+        )}
         aria-hidden="true"
       />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-40">
         <p className="font-semibold">{toolLabel(step.tool)}</p>
         {step.summary && <p className="text-muted-foreground">{step.undone ? `Undone · ${step.summary}` : step.summary}</p>}
       </div>
       {step.undo_token && !step.undone && onUndo && (
-        <button type="button" onClick={onUndo} className={cn(chip, "bg-current/10 hover:bg-current/20")}>
+        <button type="button" onClick={onUndo} className={cn(chip, "ml-auto bg-current/10 hover:bg-current/20")}>
           <Undo2 className="size-3.5" aria-hidden="true" />
           Undo
         </button>
@@ -96,7 +107,7 @@ export const ApprovalCard = ({
       <p className="mt-0.5 text-muted-foreground">{approval.summary || argLine(approval.args)}</p>
     )}
     {!decided && (
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <button
           type="button"
           disabled={disabled}
