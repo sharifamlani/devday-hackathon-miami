@@ -18,7 +18,8 @@ link is a read-only **preview** of sample data, not the demo. Scope: **Givers on
 Givers / Neighbors / Community, and the people page shows all three tabs (e.g. **Givers 40 · Neighbors 22 ·
 Community 15**), but the demo stays on **Givers**.
 
-Button and heading text below is what's on screen on main today, in **bold**.
+Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run; the
+Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
 
 1. **Empty start.** The app opens on the setup dialog (**Donor Desk · Step 1 of 3**) with nothing behind it: no
    people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–4): with
@@ -38,7 +39,8 @@ Button and heading text below is what's on screen on main today, in **bold**.
    heading becomes **Your desk is set up.** with e.g. **15 facts found about your organization** (website + news).
    Click **Go to the dashboard** (if the site was slow it says so, the button reads **Continue to the dashboard**,
    and the reading finishes in the background).
-5. **Dashboard (home).** A card offers **Your desk is ready. Want a one-minute tour?**: click **Not now**. Point at:
+5. **Dashboard (home).** A card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?" (or, while the read is
+   still running, "We're still reading your website. Want a one-minute tour while it finishes?"): click **Not now**. Point at:
    - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**);
    - the week strip (**November · Nov 8 – 14**) and the agenda under it: **Today · Sunday, Nov 8** "9 reviews · 5 calls
      · 3 preps · 1 email", Thu 12 **Prep list: Give Miami Day**, Sat 14 **Give Miami Day — Early Giving opens**, Sun 15
@@ -49,7 +51,8 @@ Button and heading text below is what's on screen on main today, in **bold**.
    - the **CRM** tile: **Find a donor**, **Open database**, and the donors needing attention with their badges
      (**Card failed**, **Late**, **New**);
    - **Files & drafts** (campaigns and invites the agents drafted);
-   - the chat (**Ask the agent…**) with its chips (**Enrich Gabriela Rincon**, **Who's late on a usual gift?**,
+   - the chat (**Ask the agent…**) with its chips (an **Enrich …** chip naming one donor, e.g. **Enrich Desmond Achebe-Wells**; it varies by
+     upload), **Who's late on a usual gift?**,
      **Plan next week**).
    **Open database** and the calendar's **↗** (**Open full calendar**) open a panel beside the chat. The icon rail on
    the left holds **Live transcript** and **Open Ask sidebar**.
