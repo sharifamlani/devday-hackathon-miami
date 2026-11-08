@@ -1,3 +1,4 @@
+import { useLocation } from "react-router";
 import { ThemeToggleButton } from "@/components/admin/theme-mode-toggle";
 import { UserMenu } from "@/components/admin/user-menu";
 
@@ -15,6 +16,7 @@ import { SampleDataBadge } from "./SampleDataBadge";
  */
 const Header = () => {
   const { title } = useConfigurationContext();
+  const onHome = useLocation().pathname === "/";
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
@@ -26,18 +28,22 @@ const Header = () => {
       </span>
       <SampleDataBadge />
       <span className="flex-1" />
-      <span data-tour="voice" className="inline-flex">
-        <LiveTranscriptTrigger />
-      </span>
-      <ThemeToggleButton />
-      <span data-tour="ask" className="inline-flex">
-        <AskSidebarTrigger />
-      </span>
-      <span className={avatarSlot("size-10")}>
-        <UserMenu>
-          <RestartOnboardingMenuItem />
-        </UserMenu>
-      </span>
+      {!onHome && (
+        <>
+          <span data-tour="voice" className="inline-flex">
+            <LiveTranscriptTrigger />
+          </span>
+          <ThemeToggleButton />
+          <span data-tour="ask" className="inline-flex">
+            <AskSidebarTrigger />
+          </span>
+          <span className={avatarSlot("size-10")}>
+            <UserMenu>
+              <RestartOnboardingMenuItem />
+            </UserMenu>
+          </span>
+        </>
+      )}
       {/* No search field in the top bar; ⌘K / Ctrl+K still opens search. */}
       <span className="hidden">
         <GlobalSearchButton />

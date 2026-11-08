@@ -3,7 +3,7 @@ import { Notification } from "@/components/admin/notification";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Suspense, type ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { ScrollRestoration } from "react-router";
+import { useLocation, ScrollRestoration } from "react-router";
 
 import { AskSessionProvider } from "../ask/AskSession";
 import { useAskSession } from "../ask/askSessionContext";
@@ -13,6 +13,8 @@ import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import { MobileNavigation } from "./MobileNavigation";
 import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
 import { PullToRefresh } from "./PullToRefresh";
+import Header from "./Header";
+import { DashboardControls } from "./DashboardControls";
 import { OnboardingGate } from "../onboarding/OnboardingGate";
 
 export const MobileLayout = ({ children }: { children: ReactNode }) => {
@@ -36,10 +38,23 @@ export const MobileLayout = ({ children }: { children: ReactNode }) => {
  */
 const MobileShell = ({ children }: { children: ReactNode }) => {
   const { sidebarOpen } = useAskSession();
+  const onHome = useLocation().pathname === "/";
   return (
     <>
       <div inert={sidebarOpen}>
-        <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom))]">
+        <div
+          className={
+            onHome
+              ? "home-mobile-shell"
+              : "min-h-screen pb-[calc(92px+env(safe-area-inset-bottom))]"
+          }
+        >
+          {onHome && (
+            <>
+              <DashboardControls />
+              <Header />
+            </>
+          )}
           <ScrollRestoration />
           <PullToRefresh />
           <ErrorBoundary FallbackComponent={Error}>
@@ -50,7 +65,7 @@ const MobileShell = ({ children }: { children: ReactNode }) => {
             </Suspense>
           </ErrorBoundary>
         </div>
-        <MobileNavigation />
+        {!onHome && <MobileNavigation />}
         <ProjectsSidebar />
       </div>
       {sidebarOpen && <AskSidebar docked={false} />}

@@ -7,7 +7,6 @@ import {
   Mail,
   Paperclip,
   Plus,
-  Sparkles,
   Upload,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
@@ -22,10 +21,10 @@ import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
 import { EXAMPLE_QUESTIONS, type AskAnswer } from "../providers/local/ask";
 import { answerSummary, appendAnswer, type HomeTask } from "./homeData";
-import { focusCard, focusRing } from "./tile";
+import { focusRing } from "./tile";
 
 const pill = cn(
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors",
+  "inline-flex min-h-9 items-center justify-center gap-2 rounded-[10px] px-3 text-sm font-medium transition-colors",
   focusRing,
 );
 
@@ -39,6 +38,7 @@ export const FocusTaskCard = ({
   draftHref,
   onDone,
   isPending,
+  onAction,
 }: {
   task: HomeTask | null;
   index: number;
@@ -47,6 +47,7 @@ export const FocusTaskCard = ({
   draftHref: string | null;
   onDone: (task: HomeTask) => void;
   isPending: boolean;
+  onAction?: () => void;
 }) => {
   const session = useAskSession();
   const headingId = useId();
@@ -55,7 +56,7 @@ export const FocusTaskCard = ({
       <section
         data-tour="chat"
         aria-labelledby={headingId}
-        className={cn(focusCard, "p-[18px]")}
+        className={"home-task-content"}
       >
         <h2 id={headingId} className="text-lg font-bold">
           {isPending ? "Loading today’s tasks…" : "You’re all caught up"}
@@ -69,12 +70,13 @@ export const FocusTaskCard = ({
     );
 
   const askToDraft = () => {
+    onAction?.();
     session.setDraft(`Draft an email for: ${task.title}`);
     session.openPane("ask");
   };
 
   return (
-    <section aria-labelledby={headingId} className={cn(focusCard, "p-[18px]")}>
+    <section aria-labelledby={headingId} className={"home-task-content"}>
       <p className="text-[11px] tracking-[0.08em] uppercase opacity-75">
         Task {index + 1} of {total} ·{" "}
         {task.kind === "campaign" ? "Review" : "Call"}
@@ -99,7 +101,10 @@ export const FocusTaskCard = ({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => session.openPane("voice")}
+          onClick={() => {
+            onAction?.();
+            session.openPane("voice");
+          }}
           className={cn(
             pill,
             "bg-brand text-brand-foreground hover:bg-brand/85",
@@ -111,7 +116,8 @@ export const FocusTaskCard = ({
         {draftHref ? (
           <Link
             to={draftHref}
-            className={cn(pill, "bg-current/12 hover:bg-current/20")}
+            onClick={onAction}
+            className={cn(pill, "bg-surface hover:bg-accent")}
           >
             <Mail className="size-4" aria-hidden="true" />
             <span>
@@ -122,7 +128,7 @@ export const FocusTaskCard = ({
           <button
             type="button"
             onClick={askToDraft}
-            className={cn(pill, "bg-current/12 hover:bg-current/20")}
+            className={cn(pill, "bg-surface hover:bg-accent")}
           >
             <Mail className="size-4" aria-hidden="true" />
             Draft email
@@ -131,7 +137,7 @@ export const FocusTaskCard = ({
         <button
           type="button"
           onClick={() => onDone(task)}
-          className={cn(pill, "bg-current/12 hover:bg-current/20")}
+          className={cn(pill, "bg-surface hover:bg-accent")}
         >
           <Check className="size-4" aria-hidden="true" />
           Mark done
@@ -147,7 +153,7 @@ const AgentMessage = ({ answer }: { answer: AskAnswer }) => {
   const session = useAskSession();
   const summary = answerSummary(answer);
   return (
-    <div className="max-w-[78%] self-start rounded-2xl rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm">
+    <div className="home-agent-message">
       <span className="mb-0.5 block text-[11px] font-bold text-muted-foreground">
         Agent
       </span>
@@ -182,7 +188,7 @@ const AgentMessage = ({ answer }: { answer: AskAnswer }) => {
 };
 
 const UserMessage = ({ text }: { text: string }) => (
-  <p className="max-w-[78%] self-end rounded-2xl rounded-br-[4px] bg-brand px-3.5 py-2.5 text-sm text-brand-foreground">
+  <p className="home-user-message">
     <span className="sr-only">You: </span>
     {text}
   </p>
@@ -211,7 +217,7 @@ export const AgentThread = () => {
     <div
       role="log"
       aria-label="Conversation with the agent"
-      className="flex min-h-[120px] flex-1 flex-col gap-3 overflow-y-auto px-[22px] py-4"
+      className="home-thread"
     >
       {history.length === 0 && !pending && (
         <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
@@ -250,6 +256,7 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const inputId = useId();
+  const [bloomId, setBloomId] = useState(0);
 
   const send = (question: string) => {
     const q = question.trim();
@@ -263,7 +270,7 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   };
 
   return (
-    <div className="px-[22px] pb-5">
+    <div className="home-composer">
       <ul aria-label="Suggestions" className="mb-2.5 flex flex-wrap gap-2">
         {SUGGESTIONS.map((question) => (
           <li key={question} className="max-w-full">
@@ -272,29 +279,27 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
               onClick={() => send(question)}
               disabled={session.pending}
               className={cn(
-                "inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-left text-[13px] hover:bg-surface disabled:opacity-60",
+                "inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-left text-xs hover:bg-accent disabled:opacity-60",
                 focusRing,
               )}
             >
-              <Sparkles
-                className="size-3.5 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
               {question}
             </button>
           </li>
         ))}
       </ul>
-      <form
-        onSubmit={onSubmit}
-        className="flex items-center gap-1.5 rounded-[18px] border border-border bg-card p-1.5 focus-within:border-foreground"
-      >
+      <form onSubmit={onSubmit} className="home-composer-input">
+        <span
+          key={bloomId}
+          aria-hidden="true"
+          className={bloomId ? "home-composer-bloom" : "hidden"}
+        />
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Add"
             title="Add"
             className={cn(
-              "grid size-11 shrink-0 place-items-center rounded-full hover:bg-surface",
+              "grid size-9 shrink-0 place-items-center rounded-full hover:bg-surface",
               focusRing,
             )}
           >
@@ -328,7 +333,7 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
           id={inputId}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ask about donors, plan outreach, or add to the calendar…"
+          placeholder="Ask the agent…"
           autoComplete="off"
           className="min-w-0 flex-1 bg-transparent px-1.5 py-2 text-sm outline-none placeholder:text-muted-foreground"
         />
@@ -338,7 +343,7 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
           aria-label="Start live transcript"
           title="Live transcript"
           className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground hover:bg-brand/85",
+            "grid size-9 shrink-0 place-items-center rounded-full text-[#242728] hover:bg-[#edf0f2]",
             focusRing,
           )}
         >
@@ -346,11 +351,20 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
         </button>
         <button
           type="submit"
+          onClick={(event) => {
+            if (
+              text.trim() &&
+              !session.pending &&
+              (event.detail > 0 ||
+                document.activeElement === event.currentTarget)
+            )
+              setBloomId((id) => id + 1);
+          }}
           aria-label="Send"
           title="Send"
           disabled={session.pending || !text.trim()}
           className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/85 disabled:opacity-60",
+            "grid size-9 shrink-0 place-items-center rounded-full border border-[#2427280e] bg-white text-[#242728] hover:bg-[#f5f6f7] disabled:opacity-50",
             focusRing,
           )}
         >
