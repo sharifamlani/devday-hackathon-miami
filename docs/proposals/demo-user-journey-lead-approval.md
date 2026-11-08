@@ -1,9 +1,9 @@
 # Proposal: Demo user journey update
 
-**Status:** Implementation in progress (authorized by project owner on 2026-11-08)
+**Status:** Implemented on `feat/demo-user-journey` (authorized by project owner on 2026-11-08)
 **Requested by:** Sharif  
 **Scope:** Frontend entry/onboarding, organization context research and demo data handoff  
-**Approval requested:** Approve the scope and decisions in “Lead decisions” before implementation.
+**Implementation authorization:** The project owner directed implementation of this proposal on 2026-11-08.
 
 ## Goal
 
@@ -23,21 +23,21 @@ The dashboard should be the result of setup, not the first screen. The experienc
 - The onboarding research starts an event search and invokes task generation. The dashboard’s Impact & Story area uses saved context. These are existing pieces to connect and verify; the current flow does not establish that one general search fills every panel.
 - The snapshot build is read-only. Actual document ingestion requires the API-connected live build.
 
-## Proposed changes
+## Implemented changes
 
 ### 1. Make the landing page the demo front door
 
 - Route the bare app URL to the landing page consistently, regardless of whether the browser already has onboarding state or the service already has records.
 - Add one prominent **Get started** action to open onboarding.
 - Preserve direct workspace routes and approved deep links, including a clear route for returning to the dashboard.
-- Keep any separate file-upload shortcut only if the lead wants it; it must not silently skip the onboarding/research sequence in the demo path.
+- Remove separate upload/sample-data controls from the landing so the demo always starts through onboarding.
 
 ### 2. Make sample ingest a single onboarding action
 
 - Keep manual multi-file upload.
-- Add a **Use demo files** action in onboarding that loads the published sample manifest and submits the selected fixture set to ingest without requiring a second submit click.
-- Reuse the current sample documents and ingest receipt, showing people, gifts, classifications and duplicate/review counts before continuing.
-- Confirm the sample manifest excludes the answer key and documentation files, and that the fixture set remains compatible with the live ingest service.
+- Add an **Import demo files** action in onboarding that loads the published sample manifest and submits the fixture set to ingest without requiring a second submit click.
+- Use the current three-file demo set (`team-call-list.csv`, `tech-philanthropist-gifts.csv`, `tech-philanthropist-profiles.txt`) and show people, gifts, classifications and duplicate/review counts before continuing.
+- Confirm the published manifest contains only importable fixtures (no answer key or documentation files) and that the fixtures are supported by the live ingest service.
 
 ### 3. Prefill and persist The Miami Foundation
 
@@ -52,7 +52,7 @@ The dashboard should be the result of setup, not the first screen. The experienc
 - Define and implement behavior for partial results: use successful live sources, retain matching cached facts for failed sources where appropriate, and label each source’s status.
 - Decide what “other organizations” means for this demo. Proposed bounded scope: research organizations explicitly named in the selected nonprofit’s public pages/news (such as partners, funders, and featured community organizations), with source links and a small result limit. Do not broaden to unrelated organizations or infer a funding relationship.
 - Map grounded outputs to the UI: organization stories/facts to **Ideas & Stories**, current dated events to the calendar, and actionable event/outreach steps to tasks. Keep existing donor-derived task generation and make the origin of each task clear.
-- Ensure a research failure does not block the user from reaching the dashboard; expose the status and allow a retry there.
+- Ensure a research failure does not block the user from reaching the dashboard; expose the status in onboarding and provide **Refresh research** in the dashboard's Impact & Story panel.
 
 ### 5. Make the dashboard the completed journey
 
@@ -64,7 +64,7 @@ The dashboard should be the result of setup, not the first screen. The experienc
 
 1. A fresh browser opening the main URL sees the landing page, not the dashboard or an onboarding overlay.
 2. **Get started** opens onboarding; completing it leads to the dashboard.
-3. **Use demo files** loads and submits the sample set in one action and shows the structured import receipt before the next step.
+3. **Import demo files** loads and submits the sample set in one action and shows the structured import receipt before the next step.
 4. The organization step starts with The Miami Foundation’s name and website, and the saved profile retains both.
 5. A successful live run is labeled live; a timeout/failure uses only same-organization cached data and is visibly labeled as saved/cached. Partial source outcomes are also accurately labeled.
 6. Research results feed Ideas & Stories; event results feed the calendar; generated tasks appear on the dashboard with their source/origin clear.
@@ -82,15 +82,13 @@ The dashboard should be the result of setup, not the first screen. The experienc
 6. Wire and verify research, event and task outputs on the dashboard.
 7. Walk the acceptance criteria in the live API-connected build and the snapshot build.
 
-## Lead decisions
+## Implementation assumptions
 
-Please approve or adjust these choices before implementation:
-
-1. **Main URL:** should `/` always be the landing page, with the dashboard available through an explicit workspace route?
-2. **Demo files:** should onboarding automatically import the full existing sample set after one click, or load it into the picker for review before a separate confirmation?
-3. **Other organizations:** should research be limited to organizations named on The Miami Foundation’s own site/news, or is there a specific set/list Sharif expects?
-4. **Research outputs:** should the event/task behavior above be included in this change, or should the first delivery focus on landing → onboarding → organization research → dashboard and leave further downstream enrichment as a follow-up?
-5. **Snapshot build:** is the read-only snapshot an expected stage path, or will the demo use only the API-connected live build?
+1. `/` is the landing page; `#/` and existing hash routes remain available for the workspace and deep links.
+2. **Import demo files** loads and submits the published fixture set in one click, then shows the structured receipt before continuing.
+3. The presenter enters the organization to research by name and website. The workflow researches that organization's website/news; it does not auto-discover related organizations.
+4. Existing event/calendar and task-generation paths are part of the onboarding run and remain source-grounded.
+5. Snapshot mode is supported as a read-only fallback and identifies its cached sample context.
 
 ## Code areas likely involved
 
@@ -105,6 +103,11 @@ Implementation is proceeding in the approved branch `feat/demo-user-journey`, in
 
 - Landing entry and onboarding CTA: committed as `848488e`.
 - One-action demo-file import and structured-record receipt: committed as `d6fc990`.
-- Organization identity, per-source cached result labels, and partial same-host fallback: implementation in progress.
-- The cached-source behavior keeps successful live results first and exposes prior facts only for failed or empty sources; those prior facts do not replace stored records.
-- Automated tests have not been run in this work session.
+- Demo fixtures are loaded from `web/public/demo-data/` in one onboarding action; the live ingest receipt previews structured records.
+- Organization name and website are prefilled for The Miami Foundation, editable for another nonprofit, and the submitted name is saved with its profile.
+- Context results distinguish live and cached sources. Saved facts are selected only by matching website host; successful live sources take precedence over saved facts for failed or empty sources.
+- Fallback facts are persisted to SQLite with cached provenance for the dashboard. Existing rows are retained when a source has no fallback; prior rows are not replaced by a partial fallback.
+- The onboarding context run continues to feed the existing calendar/event and task-generation paths. Research failure still allows the presenter to continue to the dashboard, where **Refresh research** retries it. Snapshot mode labels its saved sample context and read-only research limit.
+- “Other organizations” means an organization explicitly entered in onboarding. Its own website is researched; the application does not automatically create profiles for partner organizations mentioned on the site.
+- Commits: `848488e` landing entry; `d6fc990` one-action sample import; `e2f51cb` demo-data fixtures as the onboarding source; `e24a278` editable identity and labeled live/cache results; `2f0708b` persist cached facts through the dashboard handoff.
+- `git diff --check` passed. Automated tests were not run in this work session.

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   useCommunityStats,
   useContextStatus,
+  useRefreshContext,
 } from "../../providers/local/crmHooks";
 import {
   useOrgContext,
@@ -13,6 +14,7 @@ import {
 } from "../../providers/local/hooks";
 import type { CommunityStats } from "../../providers/local/crmTypes";
 import type { ContextFact, DonationTarget } from "../../providers/local/types";
+import { DATA_MODE } from "../../providers/local";
 import { focusRing } from "../tile";
 import "./impact-panel.css";
 
@@ -216,6 +218,10 @@ export const ImpactView = ({
   stats,
   contextCached = false,
   contextSourceStatus = {},
+  canRefresh = false,
+  refreshing = false,
+  refreshError = null,
+  onRefresh,
   refreshedAt,
   onCopy,
   copied = false,
@@ -228,6 +234,10 @@ export const ImpactView = ({
   stats: CommunityStats | undefined;
   contextCached?: boolean;
   contextSourceStatus?: Record<string, string>;
+  canRefresh?: boolean;
+  refreshing?: boolean;
+  refreshError?: string | null;
+  onRefresh?: () => void;
   refreshedAt?: string | null;
   onCopy: () => void;
   copied?: boolean;
@@ -266,24 +276,44 @@ export const ImpactView = ({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onCopy}
-          className={cn(
-            "inline-flex min-h-11 items-center gap-2 rounded-full bg-strong px-5 text-sm font-semibold text-strong-foreground hover:opacity-90",
-            focusRing,
+        <div className="flex flex-wrap items-center gap-2">
+          {canRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              className={cn(
+                "inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold hover:bg-quiet disabled:opacity-60",
+                focusRing,
+              )}
+            >
+              {refreshing ? "Refreshing research…" : "Refresh research"}
+            </button>
           )}
-        >
-          {copied ? (
-            <Check className="size-4" aria-hidden="true" />
-          ) : (
-            <Copy className="size-4" aria-hidden="true" />
-          )}
-          <span aria-live="polite">
-            {copied ? "Copied" : "Copy for a grant report"}
-          </span>
-        </button>
+          <button
+            type="button"
+            onClick={onCopy}
+            className={cn(
+              "inline-flex min-h-11 items-center gap-2 rounded-full bg-strong px-5 text-sm font-semibold text-strong-foreground hover:opacity-90",
+              focusRing,
+            )}
+          >
+            {copied ? (
+              <Check className="size-4" aria-hidden="true" />
+            ) : (
+              <Copy className="size-4" aria-hidden="true" />
+            )}
+            <span aria-live="polite">
+              {copied ? "Copied" : "Copy for a grant report"}
+            </span>
+          </button>
+        </div>
       </div>
+      {refreshError && (
+        <p role="alert" className="mt-2 text-sm text-alert-foreground">
+          {refreshError}
+        </p>
+      )}
 
       <section className="impact-panel-card" aria-labelledby="impact-q4">
         <h4
@@ -462,6 +492,7 @@ export const ImpactPanel = () => {
   const context = useOrgContext();
   const profile = useOrgProfile();
   const status = useContextStatus();
+  const refresh = useRefreshContext();
   const community = useCommunityStats();
   const [copied, setCopied] = useState(false);
   const quarter = targets.data?.quarter;
@@ -491,6 +522,10 @@ export const ImpactPanel = () => {
       stats={community.data}
       contextCached={context.data?.cached}
       contextSourceStatus={profile.data?.source_status}
+      canRefresh={DATA_MODE === "local"}
+      refreshing={refresh.isPending}
+      refreshError={refresh.error?.message ?? null}
+      onRefresh={() => refresh.mutate()}
       refreshedAt={
         status.data?.last_refreshed_at ?? context.data?.profile?.updated_at
       }

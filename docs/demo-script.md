@@ -18,21 +18,16 @@ link is a read-only **preview** of sample data, not the demo. Scope: **Givers on
 Givers / Neighbors / Community, and the people page shows all three tabs (e.g. **Givers 40 · Neighbors 22 ·
 Community 15**), but the demo stays on **Givers**.
 
-Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run; the
-Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
+The one-action upload now uses the three files in `web/public/demo-data/`. The detailed names/counts and downstream
+donor examples below include the prior eight-file rehearsal; use the records and counts shown by the current run
+instead of assuming those older values. The Vercel preview is read-only cached sample data.
 
-1. **Landing page.** Open the bare app URL and click **Get started**. The demo starts onboarding from the landing;
-   the workspace remains at `#/` for direct access.
-2. **Step 1, "Drag in your files."** Click **Import demo files** to load and submit the bundled **8 input files** in one
-   action, or drop the files from `data/sample_inputs/` on **Drop your files here**
-   (or click **Choose files**): `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`,
-   `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`,
-   `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`. Not
-   `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**
-   (it reads **Importing…**, about 10 s on a warm cache). **Import finished: 77 people · 131 gifts (+1 declined charge
-   on record) from 8 files**, then **40 Givers · 22 Neighbors · 15 Community**, **9 possible duplicates to
-   review**, and e.g. **3 people to double-check: the agent wasn't sure which tab they belong in.** Review the
-   collapsible preview of structured records and click **Continue**.
+1. **Landing page.** Open the bare app URL and click **Get started**. The landing has no import shortcut; uploads and
+   demo-file import both begin in onboarding. The workspace remains at `#/` for direct access.
+2. **Step 1, "Drag in your files."** Click **Import demo files** to load and submit the three current demo fixtures in
+   one action: `team-call-list.csv`, `tech-philanthropist-gifts.csv` and `tech-philanthropist-profiles.txt`.
+   Alternatively select or drop supported files in this step. Leave **Let the agent sort** selected. Review the
+   receipt and collapsible preview of structured records, then click **Continue**.
 3. **Step 2, "Tell us about your organization."** Confirm The Miami Foundation details and click
    **Continue**. Social links are saved, not read.
 4. **Step 3, "Building your context."** It shows **Reading your website · m:ss** (about 30 s). If a live read fails or times out, the screen explicitly says it is using saved research for this website; partial results label each saved source separately. "It reads the site and
@@ -49,7 +44,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      **Open calendar**;
    - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
      card (e.g. **14 sourced facts · Copy for a grant report**), with cached items labeled **Saved research** and
-     source links kept visible; the Vercel preview identifies its saved sample context and read-only research limit;
+     source links kept visible; use **Refresh research** to retry a failed read. The Vercel preview identifies its
+     saved sample context and read-only research limit;
    - the week strip (**November · Nov 8 – 14**) with the events the agent found on the Foundation's site during setup:
      **Today · Sunday, Nov 8 — nothing scheduled**, Sat 14 **Give Miami Day — Early Giving opens**, Sun 15 **The Give
      Miami 5K** (8:00 AM) and the Post-Race Festival (8:30 AM), Thu 19 **Give Miami Day**;

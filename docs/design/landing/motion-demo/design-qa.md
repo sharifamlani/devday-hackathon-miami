@@ -1,6 +1,6 @@
 # Local autonomous-color demo QA
 
-final result: passed
+Historical result: passed for the prior landing with upload/sample dialogs. The current onboarding-only landing has not had a visual QA pass; dialog observations below are from that earlier variant.
 
 ## Scope and evidence
 
