@@ -16,8 +16,6 @@ import { PullToRefresh } from "./PullToRefresh";
 import Header from "./Header";
 import { DashboardControls } from "./DashboardControls";
 import { OnboardingGate } from "../onboarding/OnboardingGate";
-import { DATA_MODE } from "../providers/local/config";
-import { SampleDataBadge } from "./SampleDataBadge";
 
 export const MobileLayout = ({ children }: { children: ReactNode }) => {
   useConfigurationLoader();
@@ -56,12 +54,6 @@ const MobileShell = ({ children }: { children: ReactNode }) => {
               <DashboardControls />
               <Header />
             </>
-          )}
-          {!onHome && DATA_MODE === "snapshot" && (
-            // Pages without the home header still say they are sample data.
-            <div className="px-4 pt-3">
-              <SampleDataBadge />
-            </div>
           )}
           <ScrollRestoration />
           <PullToRefresh />

@@ -8,7 +8,7 @@ import { GlobalSearchButton } from "../search/GlobalSearchButton";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { MotionMenuItems } from "./MotionMenuItems";
 import { avatarSlot } from "./shellState";
-import { SampleDataBadge } from "./SampleDataBadge";
+import { SampleDataMenuNote } from "./SampleDataBadge";
 
 /**
  * Top bar: wordmark on the left; live transcript, theme,
@@ -24,11 +24,18 @@ const Header = () => {
         data-testid="wordmark"
         className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-[-0.02em]"
       >
-        <img className="[.light_&]:hidden h-6 shrink-0" src={darkModeLogo} alt="" />
-        <img className="[.dark_&]:hidden h-6 shrink-0" src={lightModeLogo} alt="" />
+        <img
+          className="[.light_&]:hidden h-6 shrink-0"
+          src={darkModeLogo}
+          alt=""
+        />
+        <img
+          className="[.dark_&]:hidden h-6 shrink-0"
+          src={lightModeLogo}
+          alt=""
+        />
         <span className="truncate">{title}</span>
       </span>
-      <SampleDataBadge />
       <span className="flex-1" />
       {!onHome && (
         <>
@@ -41,6 +48,7 @@ const Header = () => {
           </span>
           <span className={avatarSlot("size-10")}>
             <UserMenu>
+              <SampleDataMenuNote />
               <RestartOnboardingMenuItem />
               <MotionMenuItems />
             </UserMenu>
