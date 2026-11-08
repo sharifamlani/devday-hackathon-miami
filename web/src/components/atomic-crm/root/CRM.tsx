@@ -49,8 +49,8 @@ import {
 import { i18nProvider as defaulti18nProvider } from "../providers/commons/i18nProvider";
 import { StartPage } from "../login/StartPage.tsx";
 import { useIsMobile } from "@/hooks/use-mobile.ts";
-import { ContactListMobile } from "../contacts/ContactList.tsx";
-import { ContactShow } from "../contacts/ContactShow.tsx";
+import { OrganizationList } from "../companies/OrganizationList";
+import { OrganizationShow } from "../companies/OrganizationShow";
 import { NoteShowPage } from "../notes/NoteShowPage.tsx";
 import { CampaignList } from "../campaigns/CampaignList";
 import { CampaignNew } from "../campaigns/CampaignNew";
@@ -267,12 +267,18 @@ const DesktopAdmin = (
         <Route path="/campaigns/:id" element={<CampaignReview />} />
         <Route path="/outbox" element={<OutboxList />} />
       </CustomRoutes>
-      {/* Donor Desk: deals, companies, tasks, sales and settings screens are
-          hidden. Their resources stay registered (no views) because the merge
-          logic and summary views still reference those tables. */}
+      {/* Donor Desk: the Donors tab is Atomic CRM's contacts (donors) and
+          companies (giving organizations) on the donor data. The sales-only
+          deals, sales and settings screens stay hidden; their resources stay
+          registered (no views) because shared code still references them. */}
       <Resource name="deals" />
       <Resource name="contacts" {...contacts} />
-      <Resource name="companies" />
+      <Resource
+        name="companies"
+        list={OrganizationList}
+        show={OrganizationShow}
+        recordRepresentation="name"
+      />
       <Resource name="contact_notes" />
       <Resource name="deal_notes" />
       <Resource name="tasks" />
@@ -352,16 +358,21 @@ const MobileAdmin = (
           <Route path="/ask" element={<AskPage />} />
           <Route path="/inbox" element={<CallToday />} />
         </CustomRoutes>
-        <Resource
-          name="contacts"
-          list={ContactListMobile}
-          show={ContactShow}
-          recordRepresentation={contacts.recordRepresentation}
-        >
+        {/* The same responsive Donors screens as desktop; a note opens full
+            screen on a phone (Atomic CRM's mobile note page). */}
+        <Resource name="contacts" {...contacts}>
           <Route path=":id/notes/:noteId" element={<NoteShowPage />} />
         </Resource>
-        <Resource name="companies" />
+        <Resource
+          name="companies"
+          list={OrganizationList}
+          show={OrganizationShow}
+          recordRepresentation="name"
+        />
+        <Resource name="contact_notes" />
         <Resource name="tasks" />
+        <Resource name="tags" />
+        <Resource name="sales" />
       </Admin>
     </PersistQueryClientProvider>
   );
