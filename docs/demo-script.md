@@ -41,13 +41,16 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    and the reading finishes in the background).
 5. **Dashboard (home).** A card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?" (or, while the read is
    still running, "We're still reading your website. Want a one-minute tour while it finishes?"): click **Not now**. Point at:
-   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**);
-   - the week strip (**November · Nov 8 – 14**) and the agenda under it: **Today · Sunday, Nov 8** "9 reviews · 5 calls
-     · 3 preps · 1 email", Thu 12 **Prep list: Give Miami Day**, Sat 14 **Give Miami Day — Early Giving opens**, Sun 15
-     **The Give Miami 5K** (8:00 AM) and the Post-Race Festival (8:30 AM), Thu 19 **Give Miami Day**. "The agent found
-     these on the Foundation's site during setup and made the prep tasks.";
-   - **Tasks (18)**, grouped: **Donor outreach (6)** (failed cards, late gifts, a new donor), **Donor records (9)**
-     (possible duplicates), **Preparation (3)**. Clicking a task opens it for the agent (step 7);
+   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and its **Impact & story ↗**
+     link (the Foundation's impact and stories);
+   - the **Today's briefing** button;
+   - the week strip (**November · Nov 8 – 14**) and the agenda under it: **Today · Sunday, Nov 8** e.g. "9 reviews · 5
+     calls · 3 preps · 1 email", Thu 12 **Prep list: Give Miami Day**, Sat 14 **Give Miami Day — Early Giving opens**,
+     Sun 15 **The Give Miami 5K** (8:00 AM) and the Post-Race Festival (8:30 AM), Thu 19 **Give Miami Day**. "The agent
+     found these on the Foundation's site during setup and made the prep tasks.";
+   - **Tasks** (e.g. 18; **↗** opens the full list), grouped: **Donor outreach** (e.g. 6: failed cards, late gifts, a
+     new donor), **Donor records** (e.g. 9 possible duplicates), **Preparation** (one per upcoming event). Clicking a
+     task opens it for the agent (step 7);
    - the **CRM** tile: **Find a donor**, **Open database**, and the donors needing attention with their badges
      (**Card failed**, **Late**, **New**);
    - **Files & drafts** (campaigns and invites the agents drafted);
@@ -57,9 +60,10 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    **Open database** and the calendar's **↗** (**Open full calendar**) open a panel beside the chat. The icon rail on
    the left holds **Live transcript** and **Open Ask sidebar**.
 6. **Home chat agent.** Click the chip **Plan next week** (about 10 s; **Thinking…** shows meanwhile). The conversation
-   shows the agent's tool steps (**Get events**, **Get calendar**, **Get tasks**, **Get alerts**), then **Next week:
-   November 9–15** with priorities, and "This is a proposed plan; I haven't changed your calendar." A step that changes
-   something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
+   shows the agent's tool steps (e.g. **Get context**, **Get events**, **Get calendar**, **Get tasks**), then a plan for
+   **November 9–15** with a priority per day, and it says it hasn't changed your calendar. (The wording varies run to
+   run; say "a suggested week, built from the events and tasks, and nothing changed until you say so".) A step that
+   changes something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
 7. **A task, worked by the agent.** In **Tasks** click **Call Hye-jin Park**. The dialog reads e.g. **TASK 2 OF 18 ·
    CALL** with **Work on it with the agent**, **Call and transcribe**, **Draft email** and **Mark done**. Click **Work
    on it with the agent** (about 20 s): the chat shows **Work on this task: Call Hye-jin Park…**, then its steps (**Get
@@ -68,10 +72,12 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
 8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to donors who gave in the last 90 days."*
    (about 25 s): **25 thank-you email drafts are ready for review … Nothing has been sent**, with the organizations that
    need individual approval listed by name. Each draft cites a Foundation fact with its source (e.g. Give Miami Day's
-   2025 record, linked to the Foundation's year in review). The campaign appears in **Files & drafts** as **Campaign:
-   Thank you · Email · 25 donors**. (Use *"Give Miami Day donors"* again once the fix for uploaded Give Miami Day gifts
-   merges: today that wording finds 0 donors. A campaign row doesn't open from Files & drafts yet: show a draft's
-   citation on the calendar's sample invite in step 10.)
+   2025 record, linked to the Foundation's year in review). In **Files & drafts** click **Campaign: Thank you · Email ·
+   25 donors**: the campaign page (**CAMPAIGN · THANK YOU**) shows every draft with its citations, **Approve all
+   small-donor drafts** (e.g. 18), and the organizations waiting for individual approval. Nothing is sent from here
+   unless someone clicks **Send approved messages**. (Until the list refreshes on its own, the new row shows after a
+   page reload; reloading is safe once setup is done. Use *"Give Miami Day donors"* again once the fix for uploaded Give
+   Miami Day gifts merges: today that wording finds 0 donors.)
 9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
    *"Add the Knight Foundation as a contact."* (about 5 s): **added organization John S. and James L. Knight Foundation**,
    with **Undo**. In the **CRM** tile click **Find a donor**, search *Knight* (placeholder **Name, email or
@@ -101,8 +107,9 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     click **Review merges →**. Exact matches were already merged on upload; these are the close calls, one pair at a
     time in **We found this donor twice** with its reason badges (e.g. **similar name + same phone**, **90% match**,
     **8 more after this one**). Pick the record to keep (**✓ Keep** / **Merge in**), then **Merge ✓** (**Merging…**) or
-    **Keep separate**. "Merge only after a person approves; the gift history moves to the kept record." On the donor,
-    **Merge history** → **Undo merge** → **Confirm undo** puts both back. After the suggestions are approved the
+    **Keep separate**. "Merge only after a person approves; the gift history moves to the kept record." Open the kept
+    donor (e.g. **Robert Nguyen**): the record reads e.g. **Merged Bob Nguyen · Nov 8, 2026 · 1 gift moved**, and
+    **Undo merge** → **Confirm undo** puts both back (the pair returns to the review list). After the suggestions are approved the
     counts match the answer key: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts.
 
 > Not on screen yet (don't demo): the after-call **Apply** card (the backend proposes follow-ups from a call and
@@ -114,7 +121,7 @@ Timings are from the Nov 8 dress rehearsal on the laptop (warm cache). Every age
 
 | Step | Can vary because | If it's slow or off, say |
 |---|---|---|
-| 4 Building your context (~30 s) | the site read runs close to its 30 s limit; the event search sometimes finds 3 of the 4 events at first | "It keeps reading in the background; the rest lands in a minute." Click **Continue to the dashboard**. |
+| 4 Building your context (~30 s) | the site read runs close to its 30 s limit; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | "It keeps reading in the background; the rest lands in a minute." Click **Continue to the dashboard**. |
 | 6 / 7 agent replies (10–20 s) | live model calls | "It's pulling the task, the donor's record and drafting; every step it takes shows here." |
 | 8 campaign (~25 s) | 25 live drafts | "Twenty-five personal drafts, each citing a real Foundation story. Nothing is sent without approval." |
 | 9 Enrich | fast while the research cache holds Knight; otherwise a live web search | "It's reading the public web; every tag will carry its source." |
