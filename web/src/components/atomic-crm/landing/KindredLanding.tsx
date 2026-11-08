@@ -129,9 +129,12 @@ const useElapsed = (active: boolean) => {
 
 export const KindredLanding = ({
   onPreviewUpload,
+  onSkip,
 }: {
   /** Development-only click-through: no file is read or sent by this action. */
   onPreviewUpload?: () => void;
+  /** Setup step 1 only: leave setup for later (the dashboard opens). */
+  onSkip?: () => void;
 } = {}) => {
   const [areColorsPaused, setColorsPaused] = useState(false);
   const [isUploadOpen, setUploadOpen] = useState(false);
@@ -174,12 +177,38 @@ export const KindredLanding = ({
     },
   });
 
+  // Live "Try sample data": load the example files and import them like an upload, so the
+  // folder animation and its results lead on to the organization step.
+  const importSample = async () => {
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      const sample = await loadSampleFiles(await loadSampleManifest());
+      setFiles(sample);
+      const done = await donorDeskMethods.uploadFiles(sample);
+      // Saved now, so a reload or "Review matches" doesn't send setup back to step 1.
+      onboarding.update({ files: ingestSummary(done, sample.length) });
+      setResult(done);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "We couldn’t import the sample files.",
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
   const importDonors = async () => {
     if (!canUpload || !files.length || pending) return;
     setPending(true);
     setError("");
     try {
-      setResult(await donorDeskMethods.uploadFiles(files));
+      const done = await donorDeskMethods.uploadFiles(files);
+      onboarding.update({ files: ingestSummary(done, files.length) });
+      setResult(done);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -228,7 +257,7 @@ export const KindredLanding = ({
           </div>
         )}
         <p className="kindred-wordmark">gatherly</p>
-        <h1 id="kindred-heading" className="kindred-headline">
+        <h1 id="kindred-heading" className="kindred-headline" tabIndex={-1}>
           <span>Less time on tasks.</span>
           <strong>More time for people.</strong>
         </h1>
@@ -272,16 +301,30 @@ export const KindredLanding = ({
           className="kindred-sample"
           type="button"
           onClick={() =>
-            onPreviewUpload ? onPreviewUpload() : setSampleOpen(true)
+            onPreviewUpload
+              ? onPreviewUpload()
+              : canUpload
+                ? void importSample()
+                : setSampleOpen(true)
           }
         >
           Try sample data
         </button>
+        {error && !isUploadOpen && (
+          <p role="alert" className="kindred-file-hint">
+            {error}
+          </p>
+        )}
         <ol className="kindred-steps" aria-label="How Gatherly works">
           <li>Upload your list</li>
           <li>Understand your donors</li>
           <li>Reach out thoughtfully</li>
         </ol>
+        {onSkip && (
+          <button type="button" className="kindred-skip" onClick={onSkip}>
+            Skip for now
+          </button>
+        )}
       </div>
 
       <button
