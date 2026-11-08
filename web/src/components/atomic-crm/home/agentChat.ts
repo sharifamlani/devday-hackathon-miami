@@ -32,6 +32,8 @@ export type AgentMessage =
       decided?: boolean;
       /** call_id → approved; set when the person decides, so each card shows the outcome. */
       decisions?: Record<string, boolean>;
+      /** set when approve/decline failed (e.g. the paused run was already consumed): the card is closed, not pending. */
+      handled?: string;
     };
 
 type ChatResponse = {
@@ -168,7 +170,9 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
     if (scopes.length) refetch(scopes);
   } catch (e) {
     set({
-      messages: state.messages.map((x, i) => (i === msgIndex ? { ...m, decided: false, decisions: undefined } : x)),
+      messages: state.messages.map((x, i) =>
+        i === msgIndex ? { ...m, decided: true, decisions: undefined, handled: "Already handled" } : x,
+      ),
       pending: false,
       error: e instanceof Error ? e.message : String(e),
     });
