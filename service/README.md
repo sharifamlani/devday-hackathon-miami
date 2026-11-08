@@ -85,7 +85,8 @@ If the read takes longer than `CONTEXT_DEADLINE_S` (30 s) or fails, it still ans
 The response labels saved sources `cached`; for a partial live run, a saved source fills in only when that source
 failed or returned no facts. Successful live sources take precedence, and cached facts from failed sources are
 returned for display without replacing those saved rows in SQLite. A blocked site shows as `blocked`; it is never
-faked. The organization `name` is sent with `/context/run` and saved with the profile. Uploads need `python-multipart`
+faked. Per-source `source_status` is retained on the organization profile so the dashboard can label saved facts
+after onboarding. The organization `name` is sent with `/context/run` and saved with the profile. Uploads need `python-multipart`
 (in `requirements.txt`).
 
 ## Chat and sending (plan.md §17)

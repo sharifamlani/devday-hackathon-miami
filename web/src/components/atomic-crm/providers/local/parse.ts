@@ -692,6 +692,11 @@ export const parseOrgProfile = (raw: ApiOrgProfile): OrgProfile => ({
   }),
   priorities: asStringList(raw.priorities),
   voice: parseVoice(raw.voice),
+  source_status: Object.fromEntries(
+    Object.entries(
+      (fromJson(raw.source_status) as Record<string, unknown> | null) ?? {},
+    ).map(([source, status]) => [source, asText(status)]),
+  ),
   updated_at: raw.updated_at ?? null,
 });
 
@@ -772,7 +777,7 @@ export const parseContextRun = (raw: ApiContextRun): ContextRun => {
   return {
     status: raw.state === "done" ? "done" : "failed",
     served_from: servedFrom,
-    cached: servedFrom === "fallback",
+    cached: raw.cached ?? (servedFrom === "fallback"),
     detail: raw.detail ?? null,
     sources,
     profile: context.profile,

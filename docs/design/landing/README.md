@@ -10,7 +10,7 @@ The layout centers all information in one screen at the checked desktop and phon
 
 The landing's direct upload remains a secondary shortcut. The primary demo action is **Get started**, which moves into the workspace hash route and starts onboarding. The onboarding file step supports multi-file upload and the bundled **Import demo files** action. The organization step starts with The Miami Foundation's name and website, both editable; the name travels with the context request and is saved in the organization profile.
 
-The context screen distinguishes live and saved source results. When a live read fails or times out, it says saved same-website research is being used; for partial reads, successful live sources take precedence and saved facts are used only for failed or empty sources. Snapshot mode labels saved sample context and remains read-only.
+The context screen distinguishes live and saved source results. When a live read fails or times out, it says saved same-website research is being used; for partial reads, successful live sources take precedence and saved facts are used only for failed or empty sources. The source status is saved with the organization profile so the dashboard keeps cached facts labeled. Snapshot mode labels saved sample context and remains read-only.
 
 The upload dialog uses the existing data-mode boundary. Snapshot builds offer a sample workspace and explain that uploads need the local service. Local builds submit a CSV through the existing `uploadFiles` method and show success/errors; no new backend or ingest behavior is introduced.
 

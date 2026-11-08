@@ -317,13 +317,14 @@ def cached_context(website: str | None) -> dict | None:
     host = host_of(website)
     if not host:
         return None
+    database_context = None
     if hasattr(routes_data, "get_org_profile_or_none"):
         conn = db.connect()
         try:
             db.create_schema(conn)
             profile = routes_data.get_org_profile_or_none(conn)
             if profile is not None and host_of(profile.get("website")) == host:
-                return {"profile": profile, "facts": routes_data.list_context(conn)}
+                database_context = {"profile": profile, "facts": routes_data.list_context(conn)}
         except sqlite3.OperationalError:
             pass
         finally:
@@ -331,9 +332,20 @@ def cached_context(website: str | None) -> dict | None:
 
     # the cache file is keyed by the normalized website host
     path = config.REPO_ROOT / "service" / "context_cache.json"
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8")).get(host)
+    file_context = json.loads(path.read_text(encoding="utf-8")).get(host) if path.exists() else None
+    if not database_context:
+        return file_context
+    if not file_context:
+        return database_context
+    # Prefer the database profile and its newer facts; add only file-cache facts not already present.
+    known = {(f.get("source"), f.get("url"), f.get("fact")) for f in database_context["facts"]}
+    extras = []
+    for fact in file_context.get("facts") or []:
+        key = (fact.get("source"), fact.get("url"), fact.get("fact"))
+        if key not in known:
+            extras.append({**fact, "cached": True})
+            known.add(key)
+    return {**file_context, **database_context, "facts": [*database_context["facts"], *extras]}
 
 
 def forget_other_org(conn: sqlite3.Connection, website: str | None) -> bool:
@@ -400,24 +412,56 @@ def persist_context(result: dict) -> dict | None:
     try:
         db.create_schema(conn)
         forget_other_org(conn, (result.get("profile") or {}).get("website"))
-        saved = db.save_context(conn, result)
+        savable_result = dict(result)
+        statuses = dict(result.get("sources") or {})
+        for source in ("website", "news"):
+            if statuses.get(source) != "error: cached fallback retained":
+                continue
+            count = conn.execute("SELECT COUNT(*) FROM org_context WHERE source = ?", (source,)).fetchone()[0]
+            if count == 0:
+                statuses[source] = "cached"  # seed an empty source so the dashboard can show its saved fallback
+        savable_result["sources"] = statuses
+        saved = db.save_context(conn, savable_result)
         from service.org_context import after_context_saved; after_context_saved(conn)  # index the store, then tasks (86)
+        for fact in savable_result.get("facts") or []:
+            if fact.get("cached"):
+                conn.execute(
+                    "UPDATE org_context SET cached = 1 WHERE source = ? AND url = ? AND fact = ?",
+                    (fact.get("source"), fact.get("url"), fact.get("fact")),
+                )
+        conn.commit()
         return saved
     finally:
         conn.close()
 
 
-def persist_urls(urls: dict) -> dict:
-    """Saves only the URLs the user typed into org_profile, for a run that timed out or hit a model error,
-    so the background refresh (org_urls) can read them later. Same organization: its facts, name,
-    priorities and voice stay as they were. Another organization: the previous one is forgotten first.
+def persist_fallback_context(urls: dict, sources: dict, result: dict | None) -> dict:
+    """Save same-host cached facts and the attempted source status for the dashboard handoff.
+
+    Only sources labeled cached are replaced with their saved facts. Sources without fallback data
+    retain prior rows. The organization name and URLs come from this request, never the cached profile.
     """
     conn = db.connect()
     try:
         db.create_schema(conn)
         cleared = forget_other_org(conn, urls.get("website"))
-        saved = db.save_context(conn, {"profile": dict(urls), "sources": {}, "facts": []})
-        return {**saved, "urls_only": True, "cleared_previous_org": cleared}
+        profile = {**((result or {}).get("profile") or {}), **urls}
+        source_status = {
+            source: "cached" if details["status"] == "cached"
+            else f"error: {details.get('detail') or details['status']}"
+            for source, details in sources.items()
+            if source in ("website", "news")
+        }
+        cached_sources = {source for source, status in source_status.items() if status == "cached"}
+        facts = [fact for fact in (result or {}).get("facts", []) if fact.get("source") in cached_sources]
+        saved = db.save_context(conn, {"profile": profile, "sources": source_status, "facts": facts})
+        from service.org_context import index_context
+        index_context(conn)
+        if saved.get("context_ids"):
+            marks = ",".join("?" for _ in saved["context_ids"])
+            conn.execute(f"UPDATE org_context SET cached = 1 WHERE id IN ({marks})", saved["context_ids"])
+            conn.commit()
+        return {**saved, "cached_fallback": True, "cleared_previous_org": cleared}
     finally:
         conn.close()
 
@@ -571,8 +615,8 @@ async def context_run(req: ContextRun) -> dict:
 
     served_from: "live" (always: the site is read on every run; `refresh` is accepted and ignored) or
     "fallback" (the read timed out or failed: cached: true, every fact flagged cached, still 200, so the
-    screen moves on). The saved/committed context is used only in that failure branch, which still saves the
-    typed URLs (only the URLs) so a background refresh can read them. No website: state "failed", detail
+    screen moves on). Same-host saved facts and the typed organization identity/URLs are persisted for the
+    dashboard; a background refresh can continue reading. No website: state "failed", detail
     "no website provided", served_from null, empty context, nothing saved.
     """
     try:
@@ -612,7 +656,7 @@ async def context_run(req: ContextRun) -> dict:
         result = with_user_urls(cached_context(req.website), urls)
         if result:                                      # label every fact so the UI can say "cached"
             result = {**result, "facts": [{**f, "cached": True} for f in result.get("facts") or []]}
-        state, cached, served_from = "failed", True, "fallback"
+        state, cached, served_from = "failed", bool(result and result.get("facts")), "fallback"
 
     if served_from != "fallback" and result:
         result = add_cached_partial_sources(result, req.website)
@@ -630,7 +674,7 @@ async def context_run(req: ContextRun) -> dict:
     elif keep_urls:
         # The site is still worth reading: keep what the user typed (never their facts) so
         # POST /context/refresh can finish the job in the background on these URLs.
-        saved = await run_in_threadpool(persist_urls, urls)
+        saved = await run_in_threadpool(persist_fallback_context, urls, sources, result)
         # The events search started with the read and is usually nearly done: give it a short grace so the
         # dashboard lands with events and prep tasks. Invites wait for that background refresh (step 3), so
         # this job never holds the refresh slot the web is about to ask for.

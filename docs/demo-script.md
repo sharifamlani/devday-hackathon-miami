@@ -48,7 +48,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      duplicates to review.** · **Review**; **Next event: Give Miami Day — Early Giving opens, in 6 days (Nov 14).** ·
      **Open calendar**;
    - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
-     card (e.g. **14 sourced facts · Copy for a grant report**);
+     card (e.g. **14 sourced facts · Copy for a grant report**), with cached items labeled **Saved research** and
+     source links kept visible; the Vercel preview identifies its saved sample context and read-only research limit;
    - the week strip (**November · Nov 8 – 14**) with the events the agent found on the Foundation's site during setup:
      **Today · Sunday, Nov 8 — nothing scheduled**, Sat 14 **Give Miami Day — Early Giving opens**, Sun 15 **The Give
      Miami 5K** (8:00 AM) and the Post-Race Festival (8:30 AM), Thu 19 **Give Miami Day**;

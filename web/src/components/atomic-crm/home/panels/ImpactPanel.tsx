@@ -6,7 +6,11 @@ import {
   useCommunityStats,
   useContextStatus,
 } from "../../providers/local/crmHooks";
-import { useOrgContext, useTargets } from "../../providers/local/hooks";
+import {
+  useOrgContext,
+  useOrgProfile,
+  useTargets,
+} from "../../providers/local/hooks";
 import type { CommunityStats } from "../../providers/local/crmTypes";
 import type { ContextFact, DonationTarget } from "../../providers/local/types";
 import { focusRing } from "../tile";
@@ -210,6 +214,8 @@ export const ImpactView = ({
   targetsPending = false,
   facts,
   stats,
+  contextCached = false,
+  contextSourceStatus = {},
   refreshedAt,
   onCopy,
   copied = false,
@@ -220,6 +226,8 @@ export const ImpactView = ({
   targetsPending?: boolean;
   facts: ImpactFact[];
   stats: CommunityStats | undefined;
+  contextCached?: boolean;
+  contextSourceStatus?: Record<string, string>;
   refreshedAt?: string | null;
   onCopy: () => void;
   copied?: boolean;
@@ -250,6 +258,11 @@ export const ImpactView = ({
           {refreshed && (
             <p className="mt-1 text-sm text-muted-foreground">
               Last refreshed {refreshed}
+            </p>
+          )}
+          {contextCached && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Saved sample context · this preview cannot run live research.
             </p>
           )}
         </div>
@@ -331,6 +344,15 @@ export const ImpactView = ({
                 <li key={f.id}>
                   <div className="mb-1 flex flex-wrap items-center gap-2">
                     <span className="impact-panel-kind">{kindLabel(f)}</span>
+                    {(f.cached ||
+                      contextSourceStatus[f.source] === "cached" ||
+                      contextSourceStatus[f.source]?.startsWith(
+                        "error: cached fallback",
+                      )) && (
+                      <span className="text-xs text-muted-foreground">
+                        Saved research
+                      </span>
+                    )}
                     {formatPosted(f.posted_at) && (
                       <span className="text-sm text-muted-foreground">
                         {formatPosted(f.posted_at)}
@@ -438,6 +460,7 @@ export const ImpactView = ({
 export const ImpactPanel = () => {
   const targets = useTargets();
   const context = useOrgContext();
+  const profile = useOrgProfile();
   const status = useContextStatus();
   const community = useCommunityStats();
   const [copied, setCopied] = useState(false);
@@ -466,6 +489,8 @@ export const ImpactPanel = () => {
       targetsPending={targets.isPending}
       facts={facts}
       stats={community.data}
+      contextCached={context.data?.cached}
+      contextSourceStatus={profile.data?.source_status}
       refreshedAt={
         status.data?.last_refreshed_at ?? context.data?.profile?.updated_at
       }

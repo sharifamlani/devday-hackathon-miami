@@ -1233,7 +1233,7 @@ browser-direct Gemini with a long-lived key.
 [4. Dashboard] gauge, today at a glance, CRM list, task card, calendar, artifacts, agent chat:
    every panel reads the context dataset + people/gifts; the agent answers from the same tables
 ```
-- Step 3 shows live progress (sources being read, facts found), then lands on the dashboard; no button press needed.
+- Step 3 shows live progress and source-level saved fallback; source status persists so the dashboard can keep saved facts labeled. The presenter can continue if a read fails or times out.
 - The daily refresh re-runs step 3 and re-generates tasks.
 - Build mapping: step 1 exists (ingest adapter); step 2 screen is Christian's (from draft #70); step 3 backend exists
   (`/context/run`, `/context/refresh`, events) and gains a final call to `/tasks/generate` (3a, B11); step 4 is the
