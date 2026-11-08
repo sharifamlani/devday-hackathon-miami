@@ -89,13 +89,14 @@ numbers off it.
    run; say "a suggested week, built from the events and tasks, and nothing changed until you say so".) A step that
    changes something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
 7. **An email, drafted (Sharif's Q2).** In **Ask the agent…** type *"Prep an email for Priya Raman"* (about 15 s;
-   14.5 s in a browser run on main 579b7e4). The agent's steps (**Get context** and **Get events** only if this is the
+   14.5 s and 15.3 s in two browser runs on 579b7e4). The agent's steps (**Get context** and **Get events** only if this is the
    chat's first turn), **Find people** ("1 people: Priya Raman"), **Draft email** ("batch #…: 1 drafts, pending
    approval"), **Send** ("waiting for your approval to send"), then the card **Needs your approval** · "Send thank-you
    email to Priya Raman": **To Priya Raman**, a bold subject (it varies, e.g. "Priya, thank you for showing up for
-   Miami") and the body: thanks for her $500 gift on November 2 and for giving each November since 2023, then sourced
-   Foundation facts (e.g. Give Miami Day 2025's 60,000+ donors and $40M+). Buttons **Send** · **Don't send**: **don't
-   click Send on stage**. "It wrote from her record and our own news; nothing goes out until staff click Send." (A
+   Miami") and the body: thanks for her $500 gift on November 2 and for giving each November since 2023, then the
+   Foundation's recent work (e.g. Give Miami Day's 60,000+ donors); the wording varies run to run. Buttons **Send** ·
+   **Don't send**, and below them "Waiting for you: Send thank-you email to Priya Raman.": **don't click Send on
+   stage**. "It wrote from her record and our own news; nothing goes out until staff click Send." (A
    single named person goes straight to the draft. Several people, e.g. *"prep an email to donors who gave in the
    last 90 days"*, get a prep card first: LAST TIME / WHAT WE'VE BEEN DOING / COMING UP / THE ANGLE / **Draft N
    emails**.)
@@ -192,7 +193,7 @@ within about 2 s and the answer types out live, so narrate the steps as they app
 | Step | Can vary because | If it's slow or off, say |
 |---|---|---|
 | 4 Background read (~30 s) | the site read runs in the background; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | Events or facts not there yet: keep touring and say "the agent is still reading the site; the events land in a moment." |
-| 6 / 7 agent replies (~6 s / ~15 s) | live model calls; step 7 reads her record and our news, then writes the draft | "It's reading her record and our own news, then writing; every step it takes shows here." No draft after ~30 s: type *"Prep a call sheet for Priya Raman"* instead (about 5 s). |
+| 6 / 7 agent replies (~6 s / ~15 s) | live model calls; step 7 reads her record and our news, then writes the draft | "It's reading her record and our own news, then writing; every step it takes shows here." No draft after ~30 s: type *"Write an email to Priya Raman"* (the same card, about 14 s); if that fails too, *"Prep a call sheet for Priya Raman"* (about 5 s). |
 | 8 campaign (~38 s) | 25 live drafts | "Twenty-five personal drafts, each citing a real Foundation story. Nothing is sent without approval." |
 | 9 Enrich | fast while the research cache holds Knight; otherwise a live web search | "It's reading the public web; every tag will carry its source." |
 | 12 Dictation | needs a mic and the live service | Type the question instead. |
