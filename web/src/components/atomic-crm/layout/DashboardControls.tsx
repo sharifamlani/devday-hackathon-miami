@@ -4,8 +4,7 @@ import { PanelLeft } from "lucide-react";
 import { OVERVIEW_ID, useOverview } from "../home/overviewContext";
 import { closeWorkspace, parseWorkspace } from "../home/workspaceView";
 import { UserMenu } from "@/components/admin/user-menu";
-import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
-import { ThemeToggleButton } from "@/components/admin/theme-mode-toggle";
+import { LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Megaphone, PhoneCall } from "lucide-react";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
@@ -66,15 +65,6 @@ export const DashboardControls = () => {
         <span data-tour="voice">
           <LiveTranscriptTrigger className="size-10 border-0 bg-transparent shadow-none" />
         </span>
-        {/* Off Home only: Home already shows the chat (Christian), the other pages need Ask and the theme. */}
-        {!onHome && (
-          <>
-            <span data-tour="ask">
-              <AskSidebarTrigger className="size-10 border-0 bg-transparent shadow-none" />
-            </span>
-            <ThemeToggleButton />
-          </>
-        )}
         <span className={avatarSlot("size-10")}>
           <UserMenu>
             {/* Pages the retired icon rail linked to that Home has no tile for. */}

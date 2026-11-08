@@ -1,3 +1,5 @@
+import { useLocation, useNavigate } from "react-router";
+import { X } from "lucide-react";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { wordmarkText } from "../root/defaultConfiguration";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
@@ -9,6 +11,8 @@ import { SampleDataBadge } from "./SampleDataBadge";
  */
 const Header = () => {
   const { title } = useConfigurationContext();
+  const navigate = useNavigate();
+  const onHome = useLocation().pathname === "/";
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
@@ -20,6 +24,18 @@ const Header = () => {
       </span>
       <SampleDataBadge />
       <span className="flex-1" />
+      {/* Every full-screen page closes back to Home, like Home's panels do. */}
+      {!onHome && (
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          aria-label="Close and go to Home"
+          title="Close"
+          className="grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <X className="size-5" aria-hidden="true" />
+        </button>
+      )}
       {/* No search field in the top bar; ⌘K / Ctrl+K still opens search. */}
       <span className="hidden">
         <GlobalSearchButton />
