@@ -685,7 +685,8 @@
   opacity: 0.85;
 }
 .home-cal-allday .home-cal-event {
-  min-height: 18px;
+  /* WCAG 2.2 AA target size: at least 24px, even when all-day events stack. */
+  min-height: 24px;
   padding: 1px 4px;
   justify-content: center;
 }

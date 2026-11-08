@@ -148,13 +148,16 @@ export const AgendaList = ({
   const feed = useCalendarEvents(start, addDays(start, LIST_DAYS - 1));
   const days = agendaDays(feed.data ?? [], start, today);
   // In the day view the arrows move by a day and the week follows along.
+  /** Open a date's day view, moving the week (and its feed) so the strip always contains it. */
+  const selectDay = (date: string) => {
+    const diff = Math.round(
+      (parseWhen(date).getTime() - parseWhen(today).getTime()) / 86_400_000,
+    );
+    setOffset(Math.floor(diff / 7));
+    setDay(date);
+  };
   const stepDay = (by: number) => {
-    if (!day) return;
-    const next = addDays(day, by);
-    setDay(next);
-    const weekStart = addDays(today, offset * 7);
-    if (next < weekStart) setOffset((v) => v - 1);
-    else if (next > addDays(weekStart, 6)) setOffset((v) => v + 1);
+    if (day) selectDay(addDays(day, by));
   };
   // Folded, the tile's subtitle names the next thing on the calendar.
   const nextUp = days.flatMap((d) => d.rows)[0]?.label;
@@ -299,7 +302,7 @@ export const AgendaList = ({
               today={today}
               events={feed.data ?? []}
               // Week: a block opens that day's view; day view: it opens the day plan.
-              onOpenEvent={day ? onOpenDay : setDay}
+              onOpenEvent={day ? onOpenDay : selectDay}
               detailed={!!day}
             />
             {day && (
@@ -356,7 +359,7 @@ export const AgendaList = ({
                             type="button"
                             className={cn("home-agenda-row", focusRing)}
                             title={`${row.label}${row.byAgent ? " (added by agent)" : ""}`}
-                            onClick={() => setDay(d.date)}
+                            onClick={() => selectDay(d.date)}
                           >
                             <i
                               aria-hidden="true"
