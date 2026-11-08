@@ -15,6 +15,8 @@ import type {
 import { campaignHttpMethods } from "./campaigns";
 import { parseAskResponse, type ApiAskResponse } from "./ask";
 import { API_URL, APPROVER_NAME } from "./config";
+import type { UploadTarget } from "./crmTypes";
+import { knownRoutes, routeExists } from "./routes";
 import { requireWebsite } from "./validate";
 import {
   parseContext,
@@ -31,7 +33,7 @@ import {
   parseProspectDetail,
   parseTargets,
 } from "./parse";
-import type { DonorDeskMethods, ImportMapping } from "./types";
+import type { BaseDonorDeskMethods, ImportMapping } from "./types";
 
 /** A non-2xx response, keeping the status and the parsed JSON body. */
 export class ApiError extends Error {
@@ -44,11 +46,19 @@ export class ApiError extends Error {
   }
 }
 
-const request = async <T>(
+export const request = async <T>(
   path: string,
   init?: { method?: "GET" | "POST" | "PATCH"; body?: unknown },
 ): Promise<T> => {
   const method = init?.method ?? "GET";
+  // Don't call a route this API build doesn't serve (see routes.ts): answer
+  // the way an unmounted route would, without a request or a console error.
+  const routes = await knownRoutes();
+  if (routes && !routeExists(routes, method, path)) {
+    throw new ApiError(`${method} ${path} isn't served by this API build`, 404, {
+      detail: "Not Found",
+    });
+  }
   const isForm = init?.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     method,
@@ -107,10 +117,15 @@ const postAgent = async (path: string) => {
 };
 
 /** Multipart POST /ingest: every file under "files", plus an optional column mapping. */
-const postIngest = async (files: File[], mapping?: ImportMapping) => {
+const postIngest = async (
+  files: File[],
+  mapping?: ImportMapping,
+  target?: UploadTarget, // plan.md §17: giver | neighbor | community | auto
+) => {
   const form = new FormData();
   for (const file of files) form.append("files", file, file.name);
   if (mapping) form.append("mapping", JSON.stringify(mapping));
+  if (target) form.append("target", target);
   try {
     return parseIngestResult(
       await request<unknown>("/ingest", { method: "POST", body: form }),
@@ -130,7 +145,7 @@ const postIngest = async (files: File[], mapping?: ImportMapping) => {
 };
 
 /** Talks to the Python API on the demo laptop (VITE_DATA_MODE=local). */
-export const localApiMethods: DonorDeskMethods = {
+export const localApiMethods: BaseDonorDeskMethods = {
   getDonors: async () =>
     (await request<ApiDonorRow[]>("/donors")).map(parseDonorRow),
   getDonor: async (id) =>
@@ -225,7 +240,7 @@ export const localApiMethods: DonorDeskMethods = {
     await request(`/prospects/${id}/dismiss`, { method: "POST" });
   },
 
-  uploadFiles: (files) => postIngest(files),
+  uploadFiles: (files, target = "auto") => postIngest(files, undefined, target),
   // Carlos's /ingest maps columns itself and may ignore "mapping".
   importDonors: (input) => postIngest(input.files, input.mapping),
   runContext: async (input) => {
