@@ -1,5 +1,6 @@
-import { Check, CircleAlert, Clock, Loader2, Undo2, X } from "lucide-react";
+import { Check, CircleAlert, Clock, Loader2, Mail, Undo2, X } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AgentApproval, AgentStep, MergedPair } from "./agentChat";
 import { PhoneCallButton } from "../voice/PhoneCallButton";
@@ -178,16 +179,93 @@ const MergedPairs = ({ pairs, onUndoPair }: { pairs: MergedPair[]; onUndoPair?: 
   </ul>
 );
 
+export type EmailPrep = {
+  kind: "email_prep";
+  topic: string;
+  person_ids: number[];
+  audience: { count: number; names: string[] };
+  last_time: { name: string; intent: string; channel: string; date: string; sent: number; messages: number } | null;
+  since: { fact: string; url: string; date: string | null }[];
+  coming_up: { title: string; date: string }[];
+  angle: string;
+};
+
+/** Email prep (Sharif): what we sent before, what we did since (X, Y, Z, sourced), what's next, then Draft. */
+export const EmailPrepCard = ({ prep, onAsk }: { prep: EmailPrep; onAsk?: (text: string) => void }) => {
+  const n = prep.audience.count;
+  const who = prep.audience.names.join(", ") + (n > prep.audience.names.length ? ` +${n - prep.audience.names.length} more` : "");
+  return (
+    <li data-testid="email-prep" className="rounded-xl border border-border bg-card px-3 py-2 text-[13px]">
+      <p className="font-semibold">
+        Email prep: {prep.topic} · {n} {n === 1 ? "person" : "people"}
+      </p>
+      {who && <p className="text-muted-foreground">{who}</p>}
+      <Section title="Last time">
+        <p>
+          {prep.last_time
+            ? `${prep.last_time.date} · ${prep.last_time.name} · ${prep.last_time.sent} sent`
+            : "No email to these people on record yet."}
+        </p>
+      </Section>
+      <Section title={prep.last_time ? "What we did since" : "What we've been doing"}>
+        {prep.since.length === 0 ? (
+          <p>No sourced updates on file.</p>
+        ) : (
+          <ul className="space-y-0.5">
+            {prep.since.map((f, i) => (
+              <li key={f.url + i}>
+                <span className="font-semibold">{String.fromCharCode(88 + i)}</span> {f.fact}{" "}
+                <a href={f.url} target="_blank" rel="noreferrer" className="underline">
+                  {f.date ?? "source"}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+      {prep.coming_up.length > 0 && (
+        <Section title="Coming up">
+          <p>{prep.coming_up.map((e) => `${e.title} (${e.date})`).join(" · ")}</p>
+        </Section>
+      )}
+      <Section title="The angle">
+        <p>{prep.angle}</p>
+      </Section>
+      {onAsk && n > 0 && (
+        <div className="mt-2 flex justify-end">
+          <Button
+            size="sm"
+            className="rounded-full"
+            onClick={() =>
+              onAsk(
+                `Draft the ${prep.topic} email for these ${n} people (ids ${prep.person_ids.join(", ")}), leading with ` +
+                  `what we did (${prep.since.map((_, i) => String.fromCharCode(88 + i)).join(", ") || "a thank-you"}) as the email prep shows.`,
+              )
+            }
+          >
+            <Mail aria-hidden />
+            Draft {n} email{n === 1 ? "" : "s"}
+          </Button>
+        </div>
+      )}
+    </li>
+  );
+};
+
 export const StepCard = ({
   step,
   onUndo,
   onUndoPair,
+  onAsk,
 }: {
   step: AgentStep;
   onUndo?: () => void;
   onUndoPair?: (pairIndex: number) => void;
+  /** Send a follow-up to the agent (e.g. the email prep's Draft button). */
+  onAsk?: (text: string) => void;
 }) => {
   if (step.card?.kind === "call_sheet") return <CallSheetCard sheet={step.card as unknown as CallSheet} />;
+  if (step.card?.kind === "email_prep") return <EmailPrepCard prep={step.card as unknown as EmailPrep} onAsk={onAsk} />;
   const Icon =
     step.status === "error"
       ? CircleAlert

@@ -301,6 +301,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
                     step={step}
                     onUndo={() => undoStep(i, j, refetch)}
                     onUndoPair={(k) => undoMergedPair(i, j, k, refetch)}
+                    onAsk={(text) => void sendToAgent(text, refetch)}
                   />
                 ))}
               </ul>
