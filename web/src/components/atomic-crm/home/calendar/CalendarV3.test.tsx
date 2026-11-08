@@ -89,7 +89,7 @@ describe("CalendarV3 (live, against the contract mocks)", () => {
 
   it("details offer Review invites, then Open batch navigates to /campaigns/<id>", async () => {
     const ui = await mount([{ ...GALA, id: 3, drafts_ready: 4 }]);
-    await ui.getByRole("button", { name: /Details for/ }).click();
+    await ui.getByRole("button", { name: /Details for Give Miami Day/ }).click();
     await ui.getByRole("button", { name: "Review invites" }).click();
     await ui.getByRole("button", { name: "Open batch" }).click();
     await expect.element(ui.getByTestId("where")).toHaveTextContent("/campaigns/42");
