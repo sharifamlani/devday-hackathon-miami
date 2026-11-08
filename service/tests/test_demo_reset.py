@@ -179,6 +179,18 @@ def test_warm_without_an_expectation_uploads_once(db_file, tmp_path, monkeypatch
     assert info["matched"] and info["attempts"] == 1 and len(calls) == 1
 
 
+@pytest.mark.parametrize("matched", [False, True])
+def test_warm_prints_the_start_steps_only_when_ready(db_file, monkeypatch, capsys, matched):
+    """After a FAIL, no "Start the demo" block under it (a reader can miss the FAIL line above)."""
+    monkeypatch.setenv("DONORS_DB", str(db_file))                        # main() sets it; restored after the test
+    monkeypatch.setattr(demo_reset, "warm", lambda *a, **k: {"cache_on": True, "matched": matched})
+    code = demo_reset.main(["--warm", "--db", str(db_file), "--port", str(free_port())])
+    out = capsys.readouterr().out
+    assert code == (0 if matched else demo_reset.FAILED)
+    assert ("Start the demo" in out) is matched
+    assert ("FAIL not ready for the stage" in out) is not matched
+
+
 def test_warm_refuses_while_the_service_runs(db_file, tmp_path, busy_port):
     with pytest.raises(demo_reset.Refused):
         demo_reset.warm(db_file, busy_port, tmp_path, upload=lambda files: {}, log=lambda *_: None)

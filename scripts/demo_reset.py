@@ -389,7 +389,11 @@ def main(argv: list[str] | None = None) -> int:
         else:
             reset(path, args.port, args.force)
             ok = True
-        print(run_commands(args.port, path))
+        if ok:
+            print(run_commands(args.port, path))
+        else:                                        # no "Start the demo" under a FAIL: it's easy to miss above them
+            print("\nFAIL not ready for the stage: fix the FAIL line above (usually: run --warm again), "
+                  "then start the demo.")
         return 0 if ok else FAILED
     except Refused as e:
         print(f"REFUSED {e}")
