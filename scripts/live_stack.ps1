@@ -153,6 +153,13 @@ function Stop-PartLocked([string]$name, [string]$part) {
   $pids.Remove($key); Write-Pids $pids
 }
 
+# taskkill returns before Windows releases the listening socket; starting at once can see our own dying process
+# as a foreign "BUSY" owner. Wait (up to 10 s) for the port to close before starting again.
+function Wait-PortFree([int]$port, [int]$seconds = 10) {
+  $deadline = (Get-Date).AddSeconds($seconds)
+  while ((Get-Date) -lt $deadline -and (Get-PortOwner $port)) { Start-Sleep -Milliseconds 300 }
+}
+
 function Wait-Healthy([string]$name, [string]$part, [int]$seconds = 90) {
   $cfg = $Stacks[$name]
   $url = if ($part -eq "service") { "http://127.0.0.1:$($cfg.ServicePort)/health" } else { "http://127.0.0.1:$($cfg.WebPort)/" }
@@ -190,11 +197,11 @@ $script:Bad = $false
 switch ($Action) {
   "start"   { foreach ($n in $Names) { foreach ($p in $Parts) { Start-Part $n $p } } }
   "stop"    { foreach ($n in $Names) { foreach ($p in $Parts) { Stop-Part $n $p } } }
-  "restart" { foreach ($n in $Names) { foreach ($p in $Parts) { Stop-Part $n $p; Start-Part $n $p } } }
+  "restart" { foreach ($n in $Names) { foreach ($p in $Parts) { Stop-Part $n $p; Wait-PortFree (Get-Port $n $p); Start-Part $n $p } } }
   "reset"   {
     # LIVE holds Sharif's data: only an explicit -Stack live resets it (on Sharif's or the lead's ask)
     if ($Stack -eq "all") { $Names = @("test") }
-    foreach ($n in $Names) { Stop-Part $n "service"; Start-Sleep -Milliseconds 500; Reset-Data $n; Start-Part $n "service" }
+    foreach ($n in $Names) { Stop-Part $n "service"; Wait-PortFree (Get-Port $n "service"); Reset-Data $n; Start-Part $n "service" }
     $Parts = @("service")
   }
 }
