@@ -140,7 +140,17 @@ def model_available() -> bool:
         return False
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-    return bool(os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_MODEL_DEFAULT"))
+    return bool(os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_MODEL_FAST"))
+
+
+def summary_model():
+    """The luna model (OPENAI_MODEL_FAST, gpt-6-luna: the newest luna on the account on Nov 8) on its own client with
+    outreach_agent's timeout and retries. Sharif: the agent that writes donor notes uses the latest luna model."""
+    from agents import OpenAIResponsesModel
+    from openai import AsyncOpenAI
+    from service.outreach_agent import OPENAI_RETRIES, OPENAI_TIMEOUT_S
+    client = AsyncOpenAI(timeout=OPENAI_TIMEOUT_S, max_retries=OPENAI_RETRIES)
+    return OpenAIResponsesModel(model=os.getenv("OPENAI_MODEL_FAST"), openai_client=client)
 
 
 def model_rewrite(full_name: str, current: str, new_info: str, giving: str) -> str:
@@ -148,11 +158,10 @@ def model_rewrite(full_name: str, current: str, new_info: str, giving: str) -> s
     its own event loop, where Runner.run_sync can't start another."""
     from agents import Agent, ModelSettings, Runner
     from openai.types.shared import Reasoning
-    from service.outreach_agent import bounded_model
 
     prompt = (f"Supporter: {full_name}\n\nCURRENT:\n{current or '(empty: write the first paragraph)'}\n\n"
               f"NEW:\n{new_info}\n\nGIVING:\n{giving}")
-    agent = Agent(name="DonorSummaryAgent", instructions=INSTRUCTIONS, model=bounded_model(),
+    agent = Agent(name="DonorSummaryAgent", instructions=INSTRUCTIONS, model=summary_model(),
                   output_type=SummaryRewrite, model_settings=ModelSettings(reasoning=Reasoning(effort="low")))
     with ThreadPoolExecutor(max_workers=1) as pool:
         return pool.submit(lambda: Runner.run_sync(agent, prompt).final_output.summary).result().strip()

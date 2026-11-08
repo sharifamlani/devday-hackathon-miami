@@ -141,3 +141,12 @@ def test_the_tool_is_a_write_refused_in_the_public_preview():
     from service import chat_agent as ca
     assert "update_donor_summary" in {t.name for t in ca.TOOLS}
     assert "update_donor_summary" not in ca.READ_ONLY_TOOLS
+
+
+def test_the_writer_uses_the_luna_model_from_openai_model_fast(monkeypatch):
+    monkeypatch.setenv("OPENAI_MODEL_FAST", "gpt-6-luna")
+    monkeypatch.setenv("OPENAI_MODEL_DEFAULT", "gpt-6.1-sol")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    assert ds.summary_model().model == "gpt-6-luna"
+    monkeypatch.delenv("SUMMARY_WRITER")
+    assert ds.model_available() is True                        # gated on OPENAI_MODEL_FAST, not DEFAULT
