@@ -131,3 +131,45 @@ describe("StepCard: pairs the agent merged by itself", () => {
     expect(html).toContain("Keep separate</button>");
   });
 });
+
+describe("StepCard: email prep", () => {
+  const prep = {
+    kind: "email_prep",
+    topic: "Give Miami Day",
+    person_ids: [4, 7],
+    audience: { count: 2, names: ["Carmen Ibarra", "Priya Raman"] },
+    last_time: null,
+    since: [
+      { fact: "A donated home produced the largest gift in its history.", url: "https://example.org/a", date: "2026-10-15" },
+      { fact: "Two SET Summits trained 300+ nonprofit leaders.", url: "https://example.org/b", date: "2026-10-01" },
+    ],
+    coming_up: [{ title: "Give Miami Day", date: "2026-11-19" }],
+    angle: "Here's what we've been doing: lead with (X), (Y) below, then invite them to Give Miami Day (2026-11-19).",
+  };
+  const step = { tool: "prep_email", args: {}, summary: "email prep", status: "done" as const, undo_token: null, card: prep };
+
+  it("shows last time, X / Y with sources, what's coming, the angle and a Draft button", () => {
+    const html = renderToString(<StepCard step={step} onAsk={() => {}} />).replace(/<!-- -->/g, "");
+    expect(html).toContain("Email prep: Give Miami Day · 2 people");
+    expect(html).toContain("No email to these people on record yet.");
+    expect(html).toContain("largest gift in its history");
+    expect(html).toContain('href="https://example.org/a"');
+    expect(html).toContain("Give Miami Day (2026-11-19)");
+    expect(html).toContain("Draft 2 emails</button>");
+  });
+
+  it("the Draft request carries the card's fact links; one person reads 'this person'", () => {
+    let asked = "";
+    const one = { ...prep, person_ids: [4], audience: { count: 1, names: ["Carmen Ibarra"] },
+      facts_label: "Nothing new since 2026-11-07 · recent updates" };
+    const html = renderToString(<StepCard step={{ ...step, card: one }} onAsk={(t) => (asked = t)} />).replace(/<!-- -->/g, "");
+    expect(html).toContain("Nothing new since 2026-11-07 · recent updates");
+    expect(html).toContain("No email to this person on record yet.");
+    expect(html).toContain("Draft 1 email</button>");
+    expect(asked).toBe("");                                        // nothing asked until the click
+  });
+
+  it("has no Draft button when nothing can ask the agent", () => {
+    expect(renderToString(<StepCard step={step} />)).not.toContain("Draft 2 emails");
+  });
+});

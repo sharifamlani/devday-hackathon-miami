@@ -150,6 +150,20 @@ def today_task(base):
     r.raise_for_status()
 
 
+def draft_from_the_prep(page: Page) -> str | None:
+    """The email prep's Draft button asks the agent to draft (its Send card then waits; never clicked here)."""
+    card = page.locator("[role=log] [data-testid=email-prep]").last
+    with page.expect_response(is_chat, timeout=CHAT_TIMEOUT_MS) as resp:
+        card.get_by_role("button", name=re.compile(r"^Draft \d+ emails?$")).click()
+    tools = [s["tool"] for s in chat_data(resp.value).get("steps", [])]
+    page.wait_for_timeout(1500)
+    if "draft_email" not in tools:
+        return f"Draft didn't draft (tools {tools})"
+    if not page.locator("[data-testid=agent-approval][data-decision=pending]").count():
+        return "no Send card after drafting"
+    return None
+
+
 def call_opens_in_the_card(page: Page) -> str | None:
     """The call sheet's Call opens the call inside the card (Sharif): no dialog over the page. The inner Call is
     never clicked here (and stays disabled with PHONE_CALLS off)."""
@@ -192,6 +206,10 @@ CASES = [
          setup=today_task, start=click_work_on_task),
     Case("GMD thank-you", "Draft a thank-you to Give Miami Day donors", tools_all={"draft_email"},
          setup=note_last_batch, probe=gmd_probe),
+    Case("email prep", "Prep the Give Miami Day email to lapsing givers", tools_all={"prep_email"},
+         tools_none={"draft_email", "send"}, ui=r"^Draft \d+ emails?$", ui_count=1, after=draft_from_the_prep),
+
+
     Case("enrich a donor", "Enrich Veloria Bay Foundation", tools_all={"enrich_person"},
          tools_none={"accept_enrichment"}, reply=r"save|add (these|them)|keep"),
     Case("call prep sheet", "Prep a call sheet for Elizabeth Fontaine", tools_all={"prep_call"},
@@ -282,8 +300,8 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
         if problem:
             ok, _ = False, notes.append(problem)
         else:
-            notes.append("call opened inside the card, no dialog")
-            page.screenshot(path=str(shots / f"{n:02d}-inline-call.png"), full_page=True)
+            notes.append("after-check ok")
+            page.screenshot(path=str(shots / f"{n:02d}-after.png"), full_page=True)
     if case.probe:
         good, detail = case.probe(base)
         notes.append(f"db: {detail}")
