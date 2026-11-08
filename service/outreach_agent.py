@@ -56,6 +56,8 @@ class FactUsed(BaseModel):
     fact: str
     url: str
     date: str | None = None           # the source's posted/updated date, when known
+    kind: str | None = None           # the context store's kind (success_story, use_of_funds, org_health, ...)
+    context_id: int | None = None     # org_context row id, for story facts
 
 
 class Draft(BaseModel):
@@ -64,6 +66,8 @@ class Draft(BaseModel):
     call_script: str
     facts_used: list[FactUsed]
     status: str                       # "draft" (human must approve) | "ready" (may auto-send)
+    sources: list[dict] = []          # the story facts cited: [{id, kind, title, fact, url, date, context_id}]
+    staff_note: str | None = None     # e.g. "no use-of-funds item in the context store yet; left out"
 
 
 class ModelDraft(BaseModel):
@@ -108,6 +112,8 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
     ranked = rank_org_facts(donor | {"notes": f"{donor.get('notes') or ''} {channels}"}, research_facts, org_facts)
     facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
              for i, f in enumerate(ranked[:MAX_ORG_FACTS], 1)}
+    story, notes = story_facts()
+    facts |= story
     facts |= {f"R{i}": {"fact": f["fact"], "url": f.get("source_url") or f.get("url", "")}
               for i, f in enumerate(research_facts, 1)}
 
@@ -125,7 +131,8 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
 
     for attempt in range(2):
         out: ModelDraft = Runner.run_sync(agent, prompt).final_output
-        problems = check_draft(out, facts, gifts, lead_id="O1", hide_gifts=hide)
+        problems = check_draft(out, cited_facts(facts, out.fact_ids), gifts, lead_id="O1", hide_gifts=hide)
+        problems += check_story(out.fact_ids, facts)
         if not problems:
             break
         prompt += "\n\nYour previous draft was rejected:\n- " + "\n- ".join(problems) + "\nRewrite it."
@@ -136,8 +143,10 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
         subject=out.subject,
         body=out.body,
         call_script=out.call_script,
-        facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"], date=facts[i].get("date")) for i in dict.fromkeys(out.fact_ids)],
+        facts_used=used_facts(facts, out.fact_ids),
         status="draft" if big else "ready",
+        sources=story_sources(facts, out.fact_ids),
+        staff_note=" ".join(notes) or None,
     )
 
 
@@ -263,13 +272,75 @@ SAMPLE_HISTORY_NOTE = ("on file, but it is SAMPLE data invented for a real organ
                        "gift amount, date, year or number of gifts. Thank them for their partnership and support.")
 
 
+# ----------------------------------------------------------------------------------------------
+# Story facts (§21.2.4): every draft tells the story - a success story, where money goes, how the
+# organization is doing - from the context store, newest first, each cited by id. Nothing invented.
+# ----------------------------------------------------------------------------------------------
+
+STORY_KINDS = ("success_story", "use_of_funds", "org_health")
+STORY_LABELS = {"success_story": "success story", "use_of_funds": "use of funds", "org_health": "organization health"}
+STORY_RULE = ("Story facts S1.. are tagged [success story], [use of funds] or [organization health]. Use at least "
+              "one S-fact of EACH kind listed, newest first, woven naturally into the message, and list every id "
+              "you use in fact_ids. Copy their figures exactly.")
+
+
+def story_facts(per_kind: int = 2, conn=None) -> tuple[dict, list[str]]:
+    """({S1: {fact, url, date, kind, context_id, title}, ...}, notes for staff). The newest items of
+    each story kind from the context store; a kind with none is left out and named in a note."""
+    try:
+        from service.org_context import search_context
+    except ImportError:
+        from org_context import search_context
+    facts, notes, n = {}, [], 1
+    for kind in STORY_KINDS:
+        try:
+            rows = search_context(kinds=[kind], k=per_kind, conn=conn)
+        except Exception:
+            rows = []
+        if not rows:
+            notes.append(f"No {STORY_LABELS[kind]} item in the context store yet, so it was left out.")
+        for r in rows:
+            facts[f"S{n}"] = {"fact": r["text"], "url": r["source_url"], "date": r.get("posted_at"),
+                              "kind": kind, "context_id": r["id"], "title": r.get("title")}
+            n += 1
+    return facts, notes
+
+
+def check_story(fact_ids: list[str], facts: dict) -> list[str]:
+    """Every story kind that has an S-fact must have at least one cited."""
+    cited = {facts[i]["kind"] for i in fact_ids if i in facts and i.startswith("S")}
+    have = {v["kind"] for k, v in facts.items() if k.startswith("S")}
+    return [f"cite at least one [{STORY_LABELS[k]}] S-fact" for k in STORY_KINDS if k in have and k not in cited]
+
+
+def cited_facts(facts: dict, fact_ids: list[str]) -> dict:
+    """Only the facts a draft cites: the figure check against these means no uncited claims."""
+    return {i: facts[i] for i in dict.fromkeys(fact_ids) if i in facts}
+
+
+def fact_line(k: str, v: dict) -> str:
+    tag = f" [{STORY_LABELS[v['kind']]}]" if v.get("kind") in STORY_LABELS else ""
+    return f"{k}{tag}: {v['fact']}" + (f" ({v['date']})" if v.get("date") else "")
+
+
+def used_facts(facts: dict, fact_ids: list[str]) -> list["FactUsed"]:
+    return [FactUsed(fact=facts[i]["fact"], url=facts[i]["url"], date=facts[i].get("date"),
+                     kind=facts[i].get("kind"), context_id=facts[i].get("context_id"))
+            for i in dict.fromkeys(fact_ids) if i in facts]
+
+
+def story_sources(facts: dict, fact_ids: list[str]) -> list[dict]:
+    return [{"id": i, "kind": facts[i]["kind"], "title": facts[i].get("title"), "fact": facts[i]["fact"],
+             "url": facts[i]["url"], "date": facts[i].get("date"), "context_id": facts[i].get("context_id")}
+            for i in dict.fromkeys(fact_ids) if i in facts and i.startswith("S")]
+
+
 def build_prompt(donor, gifts, score_why, facts, big, today, hide_gifts: bool = False) -> str:
     history = "\n".join(f"- {g['gift_date']}: ${g['amount']:,.0f} via {g.get('channel') or 'unknown'}"
                         for g in sorted(gifts, key=lambda g: g["gift_date"]))
     if hide_gifts:
         history = f"- {SAMPLE_HISTORY_NOTE}"
-    fact_lines = "\n".join(f"{k}: {v['fact']}" + (f" ({v['date']})" if v.get("date") else "")
-                           for k, v in facts.items())
+    fact_lines = "\n".join(fact_line(k, v) for k, v in facts.items())
     why = describe_why(score_why, hide_gifts)
     days_early = (EARLY_GIVING_OPENS - today).days
     days_gmd = (GIVE_MIAMI_DAY - today).days
@@ -287,9 +358,10 @@ Why they're on today's list:
 Gift history:
 {history or '- none on file'}
 
-Numbered facts you may use (O = Foundation accomplishment from miamifoundation.org, R = research on this donor).
+Numbered facts you may use (O = Foundation accomplishment from miamifoundation.org, S = the Foundation's story
+from its context store, R = research on this donor).
 O1 was chosen to fit this donor: lead the "here's what we did" part with O1, and list it first in fact_ids.
-{fact_lines}"""
+{fact_lines}""" + (f"\n\n{STORY_RULE}" if any(k.startswith("S") for k in facts) else "")
 
 
 def long_date(d: date) -> str:
@@ -467,7 +539,7 @@ MONEY_ASK_RE = re.compile(
 
 
 def check_prospect_draft(out: ModelDraft, facts: dict, lead_id: str = "O1") -> list[str]:
-    problems = check_draft(out, facts, [], lead_id=lead_id)
+    problems = check_draft(out, cited_facts(facts, out.fact_ids), [], lead_id=lead_id)
     text = " ".join((out.subject, out.body, out.call_script))
     if m := RELATIONSHIP_RE.search(text):
         problems.append(f"'{m.group(0)}' implies a relationship this prospect doesn't have")
@@ -495,10 +567,11 @@ def draft_prospect(prospect: dict, profile: dict, org_facts: list[dict], today: 
     ranked = rank_org_facts(prospect_as_donor(prospect), research, org_facts, prospect.get("priority"))
     facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
              for i, f in enumerate(ranked[:MAX_ORG_FACTS], 1)}
+    story, notes = story_facts()
+    facts |= story
     facts |= {f"R{i}": {"fact": f["fact"], "url": f["source_url"]} for i, f in enumerate(research, 1)}
 
-    fact_lines = "\n".join(f"{k}: {v['fact']}" + (f" ({v['date']})" if v.get("date") else "")
-                           for k, v in facts.items())
+    fact_lines = "\n".join(fact_line(k, v) for k, v in facts.items())
     traits = ", ".join(prospect.get("matched_traits") or []) or "none listed"
     prompt = f"""Today is {long_date(today)}.
 
@@ -506,9 +579,10 @@ Organization: {prospect.get('name')} ({prospect.get('org_type') or 'organization
 Foundation priority it fits: {prospect.get('priority') or 'not set'}
 Why it matches our current donors (internal, don't quote as fact): {traits}
 
-Numbered facts you may use (O = the Foundation's own work from miamifoundation.org, R = sourced facts about this organization).
+Numbered facts you may use (O = the Foundation's own work from miamifoundation.org, S = the Foundation's story from
+its context store, R = sourced facts about this organization).
 O1 was chosen to fit this organization: lead with O1, and list it first in fact_ids.
-{fact_lines}"""
+{fact_lines}""" + (f"\n\n{STORY_RULE}" if story else "")
 
     agent = Agent(
         name="ProspectOutreachAgent",
@@ -519,7 +593,7 @@ O1 was chosen to fit this organization: lead with O1, and list it first in fact_
     )
     for attempt in range(2):
         out: ModelDraft = Runner.run_sync(agent, prompt).final_output
-        problems = check_prospect_draft(out, facts)
+        problems = check_prospect_draft(out, facts) + check_story(out.fact_ids, facts)
         if not problems:
             break
         prompt += "\n\nYour previous draft was rejected:\n- " + "\n- ".join(problems) + "\nRewrite it."
@@ -530,8 +604,10 @@ O1 was chosen to fit this organization: lead with O1, and list it first in fact_
         subject=out.subject,
         body=out.body,
         call_script=out.call_script,
-        facts_used=[FactUsed(fact=facts[i]["fact"], url=facts[i]["url"], date=facts[i].get("date")) for i in dict.fromkeys(out.fact_ids)],
+        facts_used=used_facts(facts, out.fact_ids),
         status="draft",
+        sources=story_sources(facts, out.fact_ids),
+        staff_note=" ".join(notes) or None,
     )
 
 
