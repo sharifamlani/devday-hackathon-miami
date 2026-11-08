@@ -179,7 +179,7 @@ def measure(browser, base, view, w, h, shots: Path):
     return ok
 
 
-TILE_SEL = {"calendar": ".home-agenda", "tasks": '[data-tour="tasks"]', "crm": '[data-tour="crm"]', "impact": ".home-overview > section:first-child"}
+TILE_SEL = {v: f'[data-zoom-source="{v}"]' for v in ("calendar", "tasks", "crm", "impact")}
 
 # Samples the animated card's rect every frame: the real panel (open) or the ghost frame (close).
 SHAPE_JS = """

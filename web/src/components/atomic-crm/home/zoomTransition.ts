@@ -24,10 +24,10 @@ type FlipDoc = {
 
 /** The tile each workspace zooms out of / back into. */
 const TILE: Record<string, string> = {
-  calendar: ".home-agenda",
-  tasks: '[data-tour="tasks"]',
-  crm: '[data-tour="crm"]',
-  impact: ".home-overview > section:first-child",
+  calendar: '[data-zoom-source="calendar"]',
+  tasks: '[data-zoom-source="tasks"]',
+  crm: '[data-zoom-source="crm"]',
+  impact: '[data-zoom-source="impact"]',
 };
 
 export const EASE = "cubic-bezier(0.32,0.72,0,1)";
