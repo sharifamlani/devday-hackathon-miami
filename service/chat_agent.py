@@ -664,6 +664,13 @@ def summarize(output) -> str:
         return str(output)[:160]
     if "error" in data:
         return f"error: {data['error']}"
+    if isinstance(data.get("task"), dict):                  # get_task
+        t = data["task"]
+        return f"task #{t.get('id')}: {t.get('title')}" + (" (done)" if t.get("done") else "")
+    if "full_name" in data and "gifts" in data:            # get_person: a donor record
+        gifts = data.get("gifts") or []
+        return f"{data['full_name']}: {len(gifts)} gift{'s' if len(gifts) != 1 else ''}" + (
+            f", score {data['score']}" if data.get("score") is not None else "")
     if "batch_id" in data and "sent" in data:   # the send result: approved by a person, then delivered
         blocked = len(data.get("blocked") or [])
         return (f"Approved: batch #{data['batch_id']}, {data['sent']} sent"

@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode, type ComponentType } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import {
   BarChart3,
   CalendarDays,
@@ -36,6 +36,9 @@ import { DATA_MODE } from "../providers/local/config";
 import { useDonors, useTargets } from "../providers/local/hooks";
 import { useHomeData } from "../providers/local/homeFeed";
 import { useCompleteTask } from "../providers/local/tasks";
+import { useAgentRefetch } from "../providers/local/refetch";
+import { sendToAgent, useAgentChat } from "./agentChat";
+import { taskPrompt } from "./taskPrompt";
 import {
   ArtifactsTile,
   CrmTile,
@@ -109,6 +112,28 @@ export const WorkspaceSidebar = () => {
     () => artifactRows(home.artifacts.data),
     [home.artifacts.data],
   );
+
+  // A task click hands the task to the home agent, which loads it and does the next step
+  // (service/chat_agent.py); the sidebar is on every screen, so it goes home to show the agent
+  // working. The read-only snapshot has no agent: a click opens the details instead (so does ⓘ).
+  const agent = useAgentChat();
+  const refetch = useAgentRefetch();
+  const navigate = useNavigate();
+  const openDetails = (key: string) => {
+    setSelectedKey(key);
+    setTaskOpen(true);
+  };
+  const workOn = (task: HomeTask) => {
+    setSelectedKey(task.key);
+    setTaskOpen(false);
+    if (agent.pending) {
+      setStatus("The agent is still working. Try the task again in a moment.");
+      return;
+    }
+    navigate("/");
+    void sendToAgent(taskPrompt(task), refetch);
+    setStatus(`Handed to the agent: ${task.title}.`);
+  };
 
   const markDone = (task: HomeTask) => {
     completeTask.mutate(task.id, {
@@ -185,10 +210,16 @@ export const WorkspaceSidebar = () => {
           live={live}
           selectedKey={focus?.key ?? null}
           onSelect={(key) => {
-            setSelectedKey(key);
             closePopover();
-            setTaskOpen(true);
+            const task = tasks.find((t) => t.key === key);
+            if (live && task) workOn(task);
+            else openDetails(key);
           }}
+          onInfo={(key) => {
+            closePopover();
+            openDetails(key);
+          }}
+          agentLive={live}
           onPlan={() => {
             closePopover();
             openDay(today);
@@ -389,6 +420,7 @@ export const WorkspaceSidebar = () => {
             draftHref={focus ? draftEmailHref(focus) : null}
             onAction={() => setTaskOpen(false)}
             onDone={markDone}
+            onWork={live ? workOn : undefined}
             isPending={tasksPending}
             hasData={hasData}
             live={live}
