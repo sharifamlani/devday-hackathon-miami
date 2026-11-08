@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import type { NoteDestination } from "./callNotes";
 import { listServerCallNotes } from "../providers/local/calls";
 import { DATA_MODE } from "../providers/local/config";
 import {
@@ -39,14 +40,57 @@ const RETRY_MS = 700;
 
 type Phase = "reading" | "ready" | "applying" | "applied" | "discarded" | "error";
 
+type MatchedPerson = NonNullable<AfterCallProposal["person"]>;
+
+/**
+ * One proposal per note: React StrictMode mounts the card twice in development, and each
+ * /actions is a model call. A failed request is dropped so Try again asks afresh.
+ */
+const proposals = new Map<string, Promise<AfterCallProposal>>();
+export const proposeOnce = (noteId: string, fresh = false): Promise<AfterCallProposal> => {
+  if (fresh || !proposals.has(noteId)) {
+    proposals.set(
+      noteId,
+      proposeAfterCall(noteId).catch((e: unknown) => {
+        proposals.delete(noteId);
+        throw e;
+      }),
+    );
+  }
+  return proposals.get(noteId)!;
+};
+export const forgetProposals = () => proposals.clear();
+
+const firstOf = (name: string) => name.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+
+/**
+ * The agent's matched person is trusted for the note's donor only when it agrees with who the
+ * call was with (the pane's contact name): same full name, or same first name.
+ */
+export const confidentMatch = (person: AfterCallProposal["person"], contactName: string | null | undefined): person is MatchedPerson => {
+  if (!person?.full_name || !contactName?.trim()) return false;
+  const full = person.full_name.trim().toLowerCase();
+  if (full === contactName.trim().toLowerCase()) return true;
+  return !!person.first_name && person.first_name.trim().toLowerCase() === firstOf(contactName);
+};
+
+/** The note's destinations with the matched donor added, unless a donor is already set. */
+export const withMatchedDonor = (destinations: NoteDestination[], person: MatchedPerson): NoteDestination[] =>
+  destinations.some((d) => d.kind === "donor")
+    ? destinations
+    : [...destinations, { kind: "donor", id: String(person.id), label: person.full_name ?? "" }];
+
 export const AfterCallCard = ({
   noteId,
   contactName,
+  onMatchedPerson,
   retryMs = RETRY_MS,
 }: {
   noteId: string;
   /** Shown until the agent names the person it matched. */
   contactName?: string | null;
+  /** Called once with the agent's matched person when it agrees with contactName. */
+  onMatchedPerson?: (person: MatchedPerson) => void;
   retryMs?: number;
 }) => {
   const { apply } = useAfterCall();
@@ -57,6 +101,8 @@ export const AfterCallCard = ({
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const live = useRef(true);
+  const onMatched = useRef(onMatchedPerson);
+  onMatched.current = onMatchedPerson;
 
   useEffect(() => {
     live.current = true;
@@ -73,8 +119,9 @@ export const AfterCallCard = ({
           });
           if (!live.current) return;
         }
-        const p = await proposeAfterCall(noteId);
+        const p = await proposeOnce(noteId, attempt > 0);
         if (!live.current) return;
+        if (confidentMatch(p.person, contactName)) onMatched.current?.(p.person);
         setProposal(p);
         setTicked(new Set(p.actions.map((a) => a.id)));
         setPhase("ready");
@@ -91,6 +138,8 @@ export const AfterCallCard = ({
       live.current = false;
       window.clearTimeout(timer);
     };
+    // contactName is read once per proposal; a later change must not ask the model again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId, attempt, retryMs]);
 
   const name = proposal?.person?.first_name || proposal?.person?.full_name || contactName || null;

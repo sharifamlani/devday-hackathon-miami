@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
@@ -17,7 +18,7 @@ vi.mock("../providers/local/voice", () => ({
   useAfterCall: () => ({ apply: { mutate: api.mutate } }),
 }));
 
-const { AfterCallCard } = await import("./AfterCallCard");
+const { AfterCallCard, confidentMatch, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
 
 const ROSA: AfterCallProposal = {
   steps: ["Read the call", "Matched the Beach Cleanup on Sat Nov 21"],
@@ -35,6 +36,7 @@ const applied = (ids: string[]): AfterCallResult => ({
 });
 
 beforeEach(() => {
+  forgetProposals(); // one proposal per note is cached across mounts
   api.propose.mockReset();
   api.mutate.mockReset();
   api.savedIds.mockReset();
@@ -108,3 +110,60 @@ describe("AfterCallCard", () => {
     await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
   });
 });
+
+describe("one proposal per note (each /actions is a model call)", () => {
+  it("StrictMode's double mount asks the agent once", async () => {
+    api.propose.mockResolvedValue(ROSA);
+    const screen = await render(
+      <StrictMode>
+        <AfterCallCard noteId="n1" />
+      </StrictMode>,
+    );
+    await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    expect(api.propose).toHaveBeenCalledOnce();
+  });
+
+  it("a second card for the same note reuses the proposal", async () => {
+    api.propose.mockResolvedValue(ROSA);
+    const first = await render(<AfterCallCard noteId="n1" />);
+    await expect.element(first.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    const second = await render(<AfterCallCard noteId="n1" />);
+    await expect.element(second.getByText("Text Rosa a secure link to update her card", { exact: false }).nth(1)).toBeVisible(); // the second card on the page
+    expect(api.propose).toHaveBeenCalledOnce();
+  });
+});
+
+describe("pre-filling the note's donor from the agent's match", () => {
+  const rosa = ROSA.person!;
+
+  it("confident only when the match agrees with who the call was with", () => {
+    expect(confidentMatch(rosa, "Rosa Delgado")).toBe(true);
+    expect(confidentMatch(rosa, "rosa")).toBe(true); // the demo's first-name contact
+    expect(confidentMatch(rosa, "James Carter")).toBe(false);
+    expect(confidentMatch(rosa, null)).toBe(false); // no contact name: don't guess
+    expect(confidentMatch(null, "Rosa Delgado")).toBe(false);
+  });
+
+  it("adds the donor destination only if none is set", () => {
+    expect(withMatchedDonor([], rosa)).toEqual([{ kind: "donor", id: "1", label: "Rosa Delgado" }]);
+    const chosen = [{ kind: "donor" as const, id: "9", label: "Someone else" }];
+    expect(withMatchedDonor(chosen, rosa)).toBe(chosen);
+    const group = [{ kind: "group" as const, id: "g1", label: "Lapsed" }];
+    expect(withMatchedDonor(group, rosa)).toEqual([...group, { kind: "donor", id: "1", label: "Rosa Delgado" }]);
+  });
+
+  it("tells the pane about a confident match, and stays quiet otherwise", async () => {
+    api.propose.mockResolvedValue(ROSA);
+    const matched = vi.fn();
+    const a = await render(<AfterCallCard noteId="n1" contactName="Rosa Delgado" onMatchedPerson={matched} />);
+    await expect.element(a.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    expect(matched).toHaveBeenCalledWith(ROSA.person);
+
+    forgetProposals();
+    const unmatched = vi.fn();
+    const b = await render(<AfterCallCard noteId="n2" contactName="James Carter" onMatchedPerson={unmatched} />);
+    await expect.element(b.getByText("Text Rosa a secure link to update her card", { exact: false }).first()).toBeVisible();
+    expect(unmatched).not.toHaveBeenCalled();
+  });
+});
+
