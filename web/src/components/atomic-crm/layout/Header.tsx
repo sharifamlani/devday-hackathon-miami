@@ -5,13 +5,12 @@ import { UserMenu } from "@/components/admin/user-menu";
 import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
-import { ProjectsSidebarToggle } from "./ProjectsSidebar";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { avatarSlot } from "./shellState";
 import { SampleDataBadge } from "./SampleDataBadge";
 
 /**
- * Top bar: Projects toggle and wordmark on the left; live transcript, theme,
+ * Top bar: wordmark on the left; live transcript, theme,
  * Ask and the account avatar on the right.
  */
 const Header = () => {
@@ -20,10 +19,7 @@ const Header = () => {
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
-      <span data-tour="projects" className="inline-flex">
-        <ProjectsSidebarToggle />
-      </span>
-      <span className="ml-1 min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
+      <span className="min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
         {title}
       </span>
       <SampleDataBadge />

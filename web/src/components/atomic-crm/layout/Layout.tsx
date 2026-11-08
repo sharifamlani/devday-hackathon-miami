@@ -14,14 +14,13 @@ import { DataImportProvider } from "../dataImport/DataImportProvider";
 import { OnboardingGate } from "../onboarding/OnboardingGate";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import Header from "./Header";
-import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
 import { Rail } from "./Rail";
 import { shellState } from "./shellState";
 
 /**
  * Desktop shell in the Kindred look: a white canvas with soft yellow-green
  * glows, 16px around the edge and 12px between columns:
- *   rail | Projects sidebar (collapsible) | workspace (top bar + page) | right pane
+ *   rail | workspace (top bar + page) | right pane
  * Phones use MobileLayout instead (see CRM.tsx, useIsMobile).
  */
 export const Layout = ({ children }: { children: ReactNode }) => {
@@ -29,9 +28,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <DataImportProvider>
       <AskSessionProvider>
-        <ProjectsSidebarProvider>
-          <LayoutShell>{children}</LayoutShell>
-        </ProjectsSidebarProvider>
+        <LayoutShell>{children}</LayoutShell>
       </AskSessionProvider>
       <Notification />
     </DataImportProvider>
@@ -63,7 +60,6 @@ const LayoutShell = ({ children }: { children: ReactNode }) => {
         </a>
         <div className="flex h-dvh gap-3 p-4">
           <Rail />
-          <ProjectsSidebar />
           <div
             className={cn(
               "flex min-w-0 flex-1 flex-col gap-3",

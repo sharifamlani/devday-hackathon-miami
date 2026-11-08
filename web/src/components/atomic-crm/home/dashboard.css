@@ -53,6 +53,13 @@
   width: 28px;
   height: 28px;
 }
+.home-overview > .home-tile > ul.home-glance-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.home-glance-grid > li > * {
+  min-height: 64px;
+}
 .home-quarter-summary {
   display: flex;
   align-items: center;

@@ -11,7 +11,6 @@ export const TOUR_IDS = [
   "tasks",
   "crm",
   "chat",
-  "projects",
 ] as const;
 export type TourId = (typeof TOUR_IDS)[number];
 
@@ -51,11 +50,6 @@ export const TOUR_STOPS: TourStop[] = [
     id: "chat",
     title: "Your agent",
     body: "Ask for drafts, plans and reminders. Nothing is sent without your approval.",
-  },
-  {
-    id: "projects",
-    title: "Projects",
-    body: "Group donors, notes and drafts by campaign or event in the Projects sidebar.",
   },
 ];
 

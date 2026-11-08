@@ -20,7 +20,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
 import { EXAMPLE_QUESTIONS, type AskAnswer } from "../providers/local/ask";
-import { answerSummary, appendAnswer, type HomeTask } from "./homeData";
+import {
+  answerSummary,
+  appendAnswer,
+  kindLabel,
+  type HomeTask,
+} from "./homeData";
 import { focusRing } from "./tile";
 
 const pill = cn(
@@ -34,19 +39,23 @@ export const FocusTaskCard = ({
   task,
   index,
   total,
-  facts,
   draftHref,
   onDone,
   isPending,
+  hasData,
+  live = true,
   onAction,
 }: {
   task: HomeTask | null;
   index: number;
   total: number;
-  facts: string[];
   draftHref: string | null;
   onDone: (task: HomeTask) => void;
   isPending: boolean;
+  /** False while the database is empty (nothing uploaded yet). */
+  hasData: boolean;
+  /** False in the read-only snapshot build: no "all caught up" there. */
+  live?: boolean;
   onAction?: () => void;
 }) => {
   const session = useAskSession();
@@ -59,11 +68,21 @@ export const FocusTaskCard = ({
         className={"home-task-content"}
       >
         <h2 id={headingId} className="text-lg font-bold">
-          {isPending ? "Loading today’s tasks…" : "You’re all caught up"}
+          {isPending
+            ? "Loading today’s tasks…"
+            : !live
+              ? "Live tasks appear here"
+              : hasData
+                ? "You’re all caught up"
+                : "Upload your files to see tasks"}
         </h2>
         {!isPending && (
           <p className="mt-1 text-sm opacity-85">
-            No tasks left for today. Ask the agent below what to do next.
+            {!live
+              ? "Live data appears when the service is connected."
+              : hasData
+                ? "No tasks left for today. Ask the agent below what to do next."
+                : "Add your donor files with the + below and Donor Desk lines up today’s tasks."}
           </p>
         )}
       </section>
@@ -76,19 +95,22 @@ export const FocusTaskCard = ({
   };
 
   return (
-    <section aria-labelledby={headingId} className={"home-task-content"}>
+    <section
+      data-tour="chat"
+      aria-labelledby={headingId}
+      className={"home-task-content"}
+    >
       <p className="text-[11px] tracking-[0.08em] uppercase opacity-75">
-        Task {index + 1} of {total} ·{" "}
-        {task.kind === "campaign" ? "Review" : "Call"}
-        {task.source === "plan" ? " · On your plan" : ""}
+        Task {index + 1} of {total} · {kindLabel(task.kind)}
+        {task.source === "agent" ? " · Added by agent" : ""}
       </p>
       <h2 id={headingId} className="mt-1 mb-1.5 text-lg leading-snug font-bold">
         {task.title}
       </h2>
-      <p className="mb-3 text-sm opacity-85">{task.why}</p>
-      {facts.length > 0 && (
+      {task.why && <p className="mb-3 text-sm opacity-85">{task.why}</p>}
+      {task.chips.length > 0 && (
         <ul className="mb-3.5 flex flex-wrap gap-1.5" aria-label="Facts">
-          {facts.map((fact) => (
+          {task.chips.map((fact) => (
             <li
               key={fact}
               className="rounded-full border border-current/25 px-2.5 py-0.5 text-xs"
@@ -99,30 +121,42 @@ export const FocusTaskCard = ({
         </ul>
       )}
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            onAction?.();
-            session.openPane("voice");
-          }}
-          className={cn(
-            pill,
-            "bg-brand text-brand-foreground hover:bg-brand/85",
-          )}
-        >
-          <AudioLines className="size-4" aria-hidden="true" />
-          Call and transcribe
-        </button>
-        {draftHref ? (
+        {task.kind !== "review" && task.kind !== "prep" && (
+          <button
+            type="button"
+            onClick={() => {
+              onAction?.();
+              session.openPane("voice");
+            }}
+            className={cn(
+              pill,
+              "bg-brand text-brand-foreground hover:bg-brand/85",
+            )}
+          >
+            <AudioLines className="size-4" aria-hidden="true" />
+            Call and transcribe
+          </button>
+        )}
+        {task.kind === "review" ? (
+          <Link
+            to="/inbox"
+            onClick={onAction}
+            className={cn(
+              pill,
+              "bg-brand text-brand-foreground hover:bg-brand/85",
+            )}
+          >
+            <Mail className="size-4" aria-hidden="true" />
+            <span>Review duplicates</span>
+          </Link>
+        ) : draftHref ? (
           <Link
             to={draftHref}
             onClick={onAction}
             className={cn(pill, "bg-surface hover:bg-accent")}
           >
             <Mail className="size-4" aria-hidden="true" />
-            <span>
-              {task.kind === "campaign" ? "Review drafts" : "Draft email"}
-            </span>
+            <span>Draft email</span>
           </Link>
         ) : (
           <button
@@ -248,10 +282,17 @@ export const AgentThread = () => {
 
 /* ---------- Composer ---------- */
 
-/** Three short example questions (the long Q4 one reads better in the Ask pane). */
+/** Generic example questions, used until GET /home/summary has chips for this data. */
 export const SUGGESTIONS = EXAMPLE_QUESTIONS.slice(1, 4);
 
-export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
+export const Composer = ({
+  onUploadList,
+  suggestions = SUGGESTIONS,
+}: {
+  onUploadList: () => void;
+  /** GET /home/summary.suggestions. */
+  suggestions?: string[];
+}) => {
   const session = useAskSession();
   const navigate = useNavigate();
   const [text, setText] = useState("");
@@ -272,7 +313,7 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   return (
     <div className="home-composer">
       <ul aria-label="Suggestions" className="mb-2.5 flex flex-wrap gap-2">
-        {SUGGESTIONS.map((question) => (
+        {suggestions.map((question) => (
           <li key={question} className="max-w-full">
             <button
               type="button"

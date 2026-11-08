@@ -11,7 +11,6 @@ import { AskSidebar } from "../ask/AskSidebar";
 import { DataImportProvider } from "../dataImport/DataImportProvider";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import { MobileNavigation } from "./MobileNavigation";
-import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
 import { PullToRefresh } from "./PullToRefresh";
 import Header from "./Header";
 import { DashboardControls } from "./DashboardControls";
@@ -22,9 +21,7 @@ export const MobileLayout = ({ children }: { children: ReactNode }) => {
   return (
     <DataImportProvider>
       <AskSessionProvider>
-        <ProjectsSidebarProvider forceOverlay>
-          <MobileShell>{children}</MobileShell>
-        </ProjectsSidebarProvider>
+        <MobileShell>{children}</MobileShell>
       </AskSessionProvider>
       <Notification mobileOffset={{ bottom: "96px" }} />
     </DataImportProvider>
@@ -66,7 +63,6 @@ const MobileShell = ({ children }: { children: ReactNode }) => {
           </ErrorBoundary>
         </div>
         {!onHome && <MobileNavigation />}
-        <ProjectsSidebar />
       </div>
       {sidebarOpen && <AskSidebar docked={false} />}
       <OnboardingGate />
