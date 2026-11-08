@@ -373,6 +373,12 @@ const SampleDialog = ({
   const [cachedRun, setCachedRun] = useState(false);
   const canUpload = DATA_MODE === "local";
   const elapsed = useElapsed(pending);
+  // Choosing the sample is choosing to skip setup: open the dashboard, not step 1 ("Drag in your files"),
+  // with the quick-tour card offered there. "Set up again" in the user menu still runs setup.
+  const onboarding = useOnboarding();
+  const openWorkspace = () => {
+    if (!onboarding.data.completedAt) onboarding.finish();
+  };
 
   useEffect(() => {
     if (!open || files) return;
@@ -466,7 +472,11 @@ const SampleDialog = ({
         )}
 
         {done && (
-          <a className="kindred-workspace-link" href="#/">
+          <a
+            className="kindred-workspace-link"
+            href="#/"
+            onClick={openWorkspace}
+          >
             Open the CRM
           </a>
         )}

@@ -1,5 +1,6 @@
 import { render } from "vitest-browser-react";
 
+import { onboardingStore } from "../onboarding/onboardingState";
 import { KindredLanding } from "./KindredLanding";
 import { loadSampleManifest } from "./sampleFiles";
 
@@ -45,6 +46,20 @@ describe("Try sample data (snapshot mode)", () => {
     await expect
       .element(screen.getByRole("link", { name: "Open the CRM" }))
       .toHaveAttribute("href", "#/");
+  });
+
+  it("Open the CRM skips setup: the dashboard opens with the tour offered, not step 1", async () => {
+    window.localStorage.clear();
+    onboardingStore.forget();
+    const screen = await render(<KindredLanding />);
+    await screen.getByRole("button", { name: "Try sample data" }).click();
+    await screen.getByRole("button", { name: "Go" }).click();
+    await screen.getByRole("link", { name: "Open the CRM" }).click();
+
+    const { data } = onboardingStore.get();
+    expect(data.status).toBe("completed");
+    expect(data.completedAt).not.toBeNull();
+    expect(data.tourOffer).toBe("pending");
   });
 });
 

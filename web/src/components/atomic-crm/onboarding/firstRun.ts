@@ -621,10 +621,17 @@ export const backgroundLine = (read: BackgroundRead) =>
         : "Your website is read. Nothing new this time."
       : (read.detail ?? "We couldn't read your website this time.");
 
-/** The card's title and line: "ready" only when the website really was read. */
+/** The card's title and line: "ready" only when the website really was read. The read-only sample
+ * build (`sample`) reads no website: its workspace is already built, so the card says that instead. */
 export const offerCopy = (
   data: Pick<OnboardingData, "context" | "background">,
+  sample = false,
 ): { title: string; body: string } => {
+  if (sample)
+    return {
+      title: "This is the sample desk.",
+      body: "Every name and amount is made up. Want a one-minute tour of where things are?",
+    };
   const outcome =
     data.background?.status === "done" ? "done" : data.context?.outcome;
   if (outcome === "done")
