@@ -129,9 +129,12 @@ function Start-PartLocked([string]$name, [string]$part) {
     Remove-Item Env:DONORS_DB, Env:AFTER_CALL_PROPOSALS, Env:CORS_ORIGINS
   } else {
     $env:VITE_DATA_MODE = "local"; $env:VITE_API_URL = "http://127.0.0.1:$($cfg.ServicePort)"
-    # Run vite's own entry with node so the PID we keep is the server, not a cmd/npx wrapper. No --force: both web
-    # servers share LIVE's node_modules/.vite and vite re-optimizes by itself when the lockfile changes.
-    $proc = Start-Process -FilePath "node" -WorkingDirectory (Join-Path $LiveRoot "web") -PassThru -WindowStyle Hidden `
+    # Run vite's own entry with node so the PID we keep is the server, not a cmd/npx wrapper. A stack whose worktree has
+    # its own web/node_modules serves its own web code (TEST can run a new merge while LIVE holds); otherwise it serves
+    # LIVE's web/. No --force: vite re-optimizes by itself when the lockfile changes.
+    $ownWeb = Join-Path $cfg.ServiceRoot "web"
+    $webDir = if (Test-Path (Join-Path $ownWeb "node_modules\vite\bin\vite.js")) { $ownWeb } else { Join-Path $LiveRoot "web" }
+    $proc = Start-Process -FilePath "node" -WorkingDirectory $webDir -PassThru -WindowStyle Hidden `
       -RedirectStandardOutput $log -RedirectStandardError $err `
       -ArgumentList @("node_modules\vite\bin\vite.js", "--port", "$port", "--strictPort")
     Remove-Item Env:VITE_DATA_MODE, Env:VITE_API_URL
@@ -139,7 +142,8 @@ function Start-PartLocked([string]$name, [string]$part) {
   $id = Get-Identity $proc.Id
   if (-not $id) { $id = @{ pid = $proc.Id; name = $null; start = $null } }   # exited at once; see the err log
   $pids[$key] = $id; Write-Pids $pids
-  Write-Host "started $key pid $($proc.Id) on :$port (log $log)"
+  $from = if ($part -eq "web") { " from $webDir" } else { "" }
+  Write-Host "started $key pid $($proc.Id) on :$port$from (log $log)"
 }
 
 function Stop-Part([string]$name, [string]$part) { Use-PidLock { Stop-PartLocked $name $part } }
