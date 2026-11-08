@@ -394,6 +394,21 @@ def update_person(ctx: RunContextWrapper[ChatContext], person_id: int, email: st
     return write(agent_writes.update_person, person_id, fields, actor="agent")
 
 
+@function_tool
+def add_contact(ctx: RunContextWrapper[ChatContext], full_name: str,
+                donor_type: Literal["individual", "organization"] = "individual",
+                contact_type: Literal["giver", "neighbor", "community"] | None = None,
+                email: str | None = None, phone: str | None = None, city: str | None = None,
+                notes: str | None = None) -> dict:
+    """Add a new person or organization (no gifts). contact_type is giver unless the user says "as a neighbor"
+    or "as community". Use the full name the user gives; a short name that matches one known organization is
+    expanded to its exact name, and an ambiguous one comes back as a question to ask the user.
+    Applies at once with Undo; an organization can then be researched with Enrich."""
+    from service import agent_writes
+    return write(agent_writes.add_contact, full_name, donor_type, contact_type or "giver",
+                 email, phone, city, notes, actor="agent")
+
+
 def interests_module():
     try:
         from service import interests
@@ -546,16 +561,42 @@ def delete_calendar_item(ctx: RunContextWrapper[ChatContext], ref: str) -> dict:
     return write(lambda conn: t.delete_calendar_item(conn, ref, actor="agent"))
 
 
+def after_call_module():
+    try:
+        from service import after_call_agent
+    except ImportError:
+        return None
+    return after_call_agent
+
+
+@function_tool
+def get_after_call_actions(ctx: RunContextWrapper[ChatContext], call_note_id: str) -> dict:
+    """Suggested follow-ups from a saved call note (tasks, RSVPs, pledges, interest tags), each with an id.
+    Nothing is written; apply the ones the user wants with apply_after_call_actions."""
+    aca = after_call_module()
+    if aca is None:
+        return {"error": "after-call actions are not available yet"}
+    try:
+        return with_conn(aca.propose, call_note_id)
+    except LookupError as e:
+        return {"error": str(e)}
+    except Exception as e:  # another lane's failure: tell the user plainly instead of a raw tool error
+        return {"error": f"after-call actions failed ({type(e).__name__}: {e})"}
+
+
 @function_tool
 def apply_after_call_actions(ctx: RunContextWrapper[ChatContext], call_note_id: str,
                              action_ids: list[str]) -> dict:
-    """Apply suggested follow-ups from a call note (tasks, RSVPs, pledges)."""
-    try:
-        from service import after_call_agent
-        apply = getattr(after_call_agent, "apply_actions")
-    except (ImportError, AttributeError):
+    """Apply suggested follow-ups from a call note by id (from get_after_call_actions); each applies at most once."""
+    aca = after_call_module()
+    if aca is None:
         return {"error": "after-call actions are not available yet"}
-    return with_conn(lambda conn: apply(conn, call_note_id, action_ids, actor="agent"))
+    try:
+        return with_conn(aca.apply_actions, call_note_id, action_ids, actor="agent")
+    except LookupError as e:
+        return {"error": str(e)}
+    except Exception as e:  # another lane's failure: tell the user plainly instead of a raw tool error
+        return {"error": f"after-call actions failed ({type(e).__name__}: {e})"}
 
 
 @function_tool(needs_approval=True)
@@ -587,8 +628,9 @@ TOOLS = [
     find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_calendar, get_tasks,
     get_call_notes, build_brief, community_stats,
     # writes (each returns an undo_token)
-    update_person, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
-    create_task, update_task, complete_task, add_calendar_item, move_calendar_item, apply_after_call_actions,
+    update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
+    create_task, update_task, complete_task, add_calendar_item, move_calendar_item, get_after_call_actions,
+    apply_after_call_actions,
     draft_email, draft_sms, plan_event_outreach, undo,
     # approval-gated: the run pauses on an approval card
     merge_duplicate, delete_task, delete_calendar_item, send,
@@ -639,6 +681,8 @@ def summarize(output) -> str:
         when = " ".join(x for x in (data.get("due"), data.get("time")) if x)
         state = "deleted" if data.get("deleted_at") else "done" if data.get("done") else "saved"
         return f"task #{data['id']} {state}: {data['title']}" + (f" ({when})" if when else "")
+    if "person_id" in data and "contact_type" in data and "full_name" in data and "gifts" not in data:
+        return f"added {data['donor_type']} {data['full_name']} (person {data['person_id']}, {data['contact_type']})"
     if "person_id" in data and "after" in data:
         return f"updated person {data['person_id']}: " + ", ".join(f"{k} = {v}" for k, v in data["after"].items())
     if "full_name" in data and "gifts" in data:                                    # get_person

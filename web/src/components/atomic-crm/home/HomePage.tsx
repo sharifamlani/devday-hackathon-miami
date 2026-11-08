@@ -1,3 +1,6 @@
+import { OVERVIEW_ID, useOverview } from "./overviewContext";
+import { ProjectsTile } from "./ProjectsTile";
+import { WeekCalendarTile } from "./WeekCalendarTile";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
@@ -23,26 +26,16 @@ import { DayPlanner } from "../outreach/DayPlanner";
 import { useOutreachPlan } from "../outreach/outreachPlan";
 import { recommendOutreach } from "../outreach/recommend";
 import { FindDonorDialog } from "./FindDonorDialog";
-import {
-  ArtifactsTile,
-  CrmTile,
-  GlanceTile,
-  Q4ProgressTile,
-  TasksTile,
-  WeekTile,
-} from "./HomeCards";
+import { ArtifactsTile, Q4ProgressTile, TasksTile } from "./HomeCards";
 import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
 import {
-  agendaFromCalendar,
   artifactRows,
-  calendarMarks,
   draftEmailHref,
   firstName,
   giveMiamiDay,
   goalEnds,
   greeting,
   tasksFromApi,
-  weekDays,
   type HomeTask,
 } from "./homeData";
 import "./dashboard.css";
@@ -51,6 +44,7 @@ import "./dashboard.css";
  * Task actions remain available in a dialog selected from the project list.
  */
 export const HomePage = () => {
+  const overview = useOverview();
   const targets = useTargets();
   // "Today" is the service's as-of date (the demo runs as of Nov 8), not this
   // browser's clock; the browser's date only holds until /targets answers.
@@ -115,24 +109,6 @@ export const HomePage = () => {
   );
   const focus = tasks[focusIndex] ?? null;
 
-  const marks = useMemo(
-    () =>
-      calendarMarks({
-        items: calendarItems,
-        campaignEnds: goalEnds(targets.data),
-        giveMiamiDay: gmd,
-      }),
-    [calendarItems, targets.data, gmd],
-  );
-  const agenda = useMemo(
-    () =>
-      agendaFromCalendar({
-        today,
-        items: calendarItems,
-        nextEvent: summary?.next_event,
-      }),
-    [today, calendarItems, summary?.next_event],
-  );
   const artifacts = useMemo(
     () => artifactRows(home.artifacts.data),
     [home.artifacts.data],
@@ -171,7 +147,6 @@ export const HomePage = () => {
     profile.data as { staff_name?: string | null } | null | undefined
   )?.staff_name;
   const name = firstName(staffName);
-  const summaryPending = home.summary.isPending;
   const tasksPending = home.tasks.isPending;
 
   return (
@@ -179,36 +154,24 @@ export const HomePage = () => {
       <p role="status" aria-live="polite" className="sr-only">
         {status}
       </p>
-      <div className="home-board">
-        <aside aria-label="Workspace overview" className="home-overview">
+      <div
+        className={
+          overview.open ? "home-board" : "home-board home-overview-hidden"
+        }
+      >
+        <aside
+          id={OVERVIEW_ID}
+          hidden={!overview.open}
+          aria-label="Workspace overview"
+          className="home-overview"
+        >
           <Q4ProgressTile
             target={targets.data?.quarter}
             goal={targets.data?.quarter?.goal ?? null}
             goalIsSample={targets.data?.quarter?.goal_is_sample ?? false}
             isPending={targets.isPending}
           />
-          <GlanceTile
-            today={today}
-            atRisk={summary ? summary.gifts_at_risk : null}
-            duplicates={summary ? summary.duplicates : null}
-            tasks={summary ? summary.tasks_today : null}
-            nextEvent={
-              summary?.next_event
-                ? {
-                    title: summary.next_event.title,
-                    days: summary.next_event.days,
-                  }
-                : null
-            }
-            isPending={summaryPending}
-          />
-          <WeekTile
-            today={today}
-            days={weekDays(today)}
-            marks={marks}
-            agenda={agenda}
-            onOpenDay={openDay}
-          />
+          <WeekCalendarTile today={today} onOpenDay={openDay} />
           <TasksTile
             tasks={tasks}
             hasData={hasData}
@@ -221,15 +184,7 @@ export const HomePage = () => {
             onPlan={() => openDay(today)}
             isPending={tasksPending}
           />
-          <CrmTile
-            people={home.attention.data ?? []}
-            hasData={hasData}
-            live={live}
-            isPending={home.attention.isPending}
-            error={home.attention.error}
-            onFind={() => setFindOpen(true)}
-            onOpenDonor={setDonorId}
-          />
+          <ProjectsTile />
           <ArtifactsTile rows={artifacts} />
         </aside>
 

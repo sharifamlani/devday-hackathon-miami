@@ -13,7 +13,7 @@
   --dark:#242728; --dark-ink:#f7f6f1; --btn:#242728; --btn-ink:#ffffff;
   --tile-warm:rgba(244,217,88,.13);
   --tile-shadow:0 2px 8px rgba(36,39,40,.025); --task-surface:rgba(255,255,255,.64);
-  --pad:20px; --gap:16px;
+  --pad:20px; --gap:16px; --rail-width:40px;
   --font:"Avenir Next",Avenir,"Inter Variable",-apple-system,sans-serif;
 }
 @media (prefers-color-scheme: dark){
@@ -54,16 +54,16 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 }
 
 /* Shell: uniform padding on every side */
-.app{display:grid;grid-template-columns:52px 0 minmax(0,1fr) 0;height:100vh;padding:var(--pad);transition:grid-template-columns .2s ease}
-body.left-open .app{grid-template-columns:52px 268px minmax(0,1fr) 0}
-body.right-open .app{grid-template-columns:52px 0 minmax(0,1fr) 392px}
-body.left-open.right-open .app{grid-template-columns:52px 268px minmax(0,1fr) 392px}
-body.right-expanded .app{grid-template-columns:52px 0 0 minmax(0,1fr)}
-body.left-open.right-expanded .app{grid-template-columns:52px 268px 0 minmax(0,1fr)}
+.app{display:grid;grid-template-columns:var(--rail-width) minmax(0,1fr) 0;height:100vh;padding:var(--pad);transition:grid-template-columns .2s ease}
+body.left-open .app{grid-template-columns:var(--rail-width) minmax(0,1fr) 0}
+body.right-open .app{grid-template-columns:var(--rail-width) minmax(0,1fr) 392px}
+body.left-open.right-open .app{grid-template-columns:var(--rail-width) minmax(0,1fr) 392px}
+body.right-expanded .app{grid-template-columns:var(--rail-width) 0 minmax(0,1fr)}
+body.left-open.right-expanded .app{grid-template-columns:var(--rail-width) 0 minmax(0,1fr)}
 
 /* Permanent rail */
 .rail{display:flex;flex-direction:column;align-items:center;gap:var(--gap);min-height:0;overflow-y:auto;scrollbar-width:none}
-.railtools{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px;border-radius:26px;flex:none}
+.railtools{width:var(--rail-width);margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:4px 0;border-radius:22px;flex:none}
 .railtools .tbtn{border:0;background:transparent}
 .railtools .voicebtn{box-shadow:none}
 .logo{width:46px;height:46px;border-radius:50%;background:var(--dark);color:var(--brand);display:grid;place-items:center}
@@ -131,13 +131,13 @@ body.left-open.right-expanded .app{grid-template-columns:52px 268px 0 minmax(0,1
 .link{background:none;border:0;padding:4px 0;font-size:12px;color:var(--muted)}
 .link:hover{color:var(--ink);text-decoration:underline}
 
-.q4-summary{display:flex;align-items:center;justify-content:space-between;gap:24px}
-.q4-gauge{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none;width:74px}
-.q4-gauge svg{display:block;width:74px;height:42px}
-.q4-percent{font-size:16px;line-height:20px;font-weight:600;font-variant-numeric:tabular-nums}
-.q4-raised{display:flex;flex-direction:column;gap:2px;margin-right:12px}
+.q4-summary{display:grid;grid-template-columns:88px minmax(0,max-content);align-items:center;justify-content:center;gap:24px}
+.q4-gauge{width:88px;flex:none}
+.q4-gauge svg{display:block;width:88px;height:58px}
+.q4-percent{fill:var(--ink);stroke:none;font-family:var(--font);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.q4-raised{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;margin:0;min-width:0}
 .q4-raised span{font-size:12px;color:var(--muted)}
-.q4-raised strong{font-size:18px;line-height:1.3;font-weight:600;font-variant-numeric:tabular-nums}
+.q4-raised strong{font-size:20px;line-height:1.3;font-weight:600;font-variant-numeric:tabular-nums}
 .glance{display:grid;grid-template-columns:1fr 1fr;gap:16px 8px;margin-top:24px}
 .bubble{border-radius:0;padding:0;background:transparent}
 .bubble b{display:block;font-size:22px;line-height:1.25;font-variant-numeric:tabular-nums;margin-bottom:3px}
@@ -327,14 +327,14 @@ body.notes .legend{display:block}
 
 @media (max-width:760px){
   body{overflow:auto}
-  .app,body.left-open .app,body.right-open .app,body.left-open.right-open .app,body.right-expanded .app,body.left-open.right-expanded .app{grid-template-columns:52px minmax(0,1fr);height:auto}
-  .rail{position:fixed;top:var(--pad);bottom:var(--pad);left:var(--pad);width:52px;z-index:30;background:transparent;gap:8px}
+  .app,body.left-open .app,body.right-open .app,body.left-open.right-open .app,body.right-expanded .app,body.left-open.right-expanded .app{grid-template-columns:var(--rail-width) minmax(0,1fr);height:auto}
+  .rail{position:fixed;top:var(--pad);bottom:var(--pad);left:var(--pad);width:var(--rail-width);z-index:30;background:transparent;gap:8px}
   .rail .logo{display:none}
   .railnav{gap:4px;flex:none}
   .main{grid-column:2;overflow:visible;margin-left:var(--gap);padding-bottom:0}
   .boardwrap{overflow:visible}
-  .projects,.agent{position:fixed;inset:0;z-index:40;display:none;background:var(--bg);padding:var(--pad);height:100vh}
-  body.left-open .projects,body.right-open .agent{display:block}
+  .agent{position:fixed;inset:0;z-index:40;display:none;background:var(--bg);padding:var(--pad);height:100vh}
+  body.right-open .agent{display:block}
   .panel,.projects .panel{width:auto;margin:0}
   .center{height:auto;min-height:0}
   .hello{align-items:flex-start;flex-wrap:wrap}
@@ -451,6 +451,47 @@ body.notes .legend{display:block}
 .left .project-toggle{min-height:26px;padding:4px 2px}
 .left .project-thread{min-height:26px;padding:4px 8px}
 @container(max-width:620px){.left #context-tasks{flex:none;min-height:220px}}
+
+/* Projects share the overview stack; the header toggle hides the entire column. */
+.overview-projects{height:auto;overflow:visible;flex:none}
+.overview-projects .panel{width:100%;height:auto;margin:0;padding:12px}
+.overview-projects .panel h2{margin-bottom:10px}
+.overview-projects .group{margin-top:10px}
+.overview-projects .group>button{font-size:12px;font-weight:500}
+.overview-projects .group li button{font-size:13px;padding:5px 6px}
+.overview-projects .search{padding:7px 10px;font-size:13px;background:var(--bg)}
+body.overview-hidden .board{grid-template-columns:minmax(0,1fr)}
+body.overview-hidden .center{max-width:900px}
+
+.rail>.overview-toggle{margin-top:calc(46px + var(--gap));flex:none;border:0;background:transparent;color:var(--ink)}
+.rail>.overview-toggle[aria-pressed="true"]{background:transparent;color:var(--ink);border:0}
+.rail>.overview-toggle:hover{background:var(--surface-2)}
+.rail>.overview-toggle svg{width:18px;height:18px;stroke-width:1.6}
+
+/* A compact week view keeps events on their dates instead of in an agenda. */
+.calendar-tools{display:flex;align-items:center;gap:2px}
+.calendar-nav{width:24px;height:28px;display:grid;place-items:center;border:0;border-radius:7px;background:transparent;font-size:22px;line-height:1;color:var(--muted)}
+.calendar-nav:hover{background:var(--surface-2)}
+.weekly-calendar{margin-top:12px;min-width:0}
+.calendar-days{display:grid;grid-template-columns:24px repeat(7,minmax(0,1fr));text-align:center;gap:0}
+.calendar-day{font-size:9px;color:var(--muted);line-height:1.4}
+.calendar-day b{display:grid;place-items:center;width:23px;height:23px;margin:2px auto 7px;font-size:12px;font-weight:600;color:var(--ink);border-radius:50%}
+.calendar-day.is-today b{background:#e95b55;color:white}
+.calendar-hours{position:relative;height:136px;margin-left:24px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:repeating-linear-gradient(to bottom,transparent 0,transparent 33px,rgba(36,39,40,.055) 33px,rgba(36,39,40,.055) 34px)}
+.calendar-hour{position:absolute;left:-24px;width:21px;text-align:left;font-size:8px;color:var(--muted);transform:translateY(-5px)}
+.calendar-column{position:relative;min-width:0;border-left:1px solid rgba(36,39,40,.035)}
+.calendar-event{position:absolute;left:1px;right:1px;overflow:hidden;border:0;border-left:2px solid var(--event-ink);border-radius:4px;background:var(--event-bg);color:var(--event-ink);padding:3px 2px;text-align:left;font-size:9px;font-weight:600;line-height:1.3;cursor:pointer}
+.calendar-event>span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calendar-event:hover{filter:brightness(.97)}
+.calendar-event time{display:block;font-size:8px;font-weight:500;margin-bottom:2px}
+.calendar-event.call{--event-bg:#cbdfff;--event-ink:#285a9a}
+.calendar-event.meeting{--event-bg:#e4d0f5;--event-ink:#80519d}
+.calendar-event.campaign{--event-bg:#d3e8bc;--event-ink:#50763a}
+.calendar-event.new-event{--event-bg:#fae8c9;--event-ink:#8d641d}
+
+.calendar-all-day{margin-bottom:8px;min-height:48px}
+.calendar-all-day .calendar-event{top:0;height:46px;overflow-wrap:normal;font-size:8px}
+.calendar-all-day-label{font-size:7px;text-align:left;color:var(--muted);align-self:center}
 </style>
 </head>
 <body>
@@ -490,6 +531,7 @@ body.notes .legend{display:block}
 
 <div class="app">
   <nav class="rail" aria-label="Main">
+    <button class="tbtn hasnote overview-toggle" id="leftToggle" aria-label="Hide workspace overview" aria-pressed="true" aria-expanded="true" aria-controls="workspaceOverview"><svg><use href="#i-panel"/></svg><span class="note">3</span></button>
     <div class="railtools tile" role="group" aria-label="Workspace controls">
       <button class="voicebtn hasnote" id="voiceBtn" data-voice-toggle aria-label="Start live transcript" aria-pressed="false" title="Live transcript"><svg><use href="#i-wave"/></svg><span class="note">4</span></button>
       <button class="tbtn hasnote" id="askBtn" data-ask-toggle aria-label="Open Ask sidebar" aria-pressed="false" aria-controls="agent"><svg><use href="#i-spark"/></svg><span class="note">6</span></button>
@@ -497,7 +539,46 @@ body.notes .legend{display:block}
     </div>
   </nav>
 
-  <aside class="projects" aria-label="Projects" id="projects">
+
+
+  <div class="main">
+    <header class="topbar">
+
+
+      <span class="grow"></span>
+    </header>
+
+    <div class="boardwrap">
+    <main class="board">
+      <section class="col left" id="workspaceOverview" aria-label="Workspace overview">
+        <article class="card tile overview">
+          <span class="note">8</span>
+          <div class="card-head"><h2>Q4 outreach</h2></div>
+          <div class="q4-summary">
+            <div class="q4-gauge" role="img" aria-label="70 percent of Q4 fundraising goal">
+              <svg viewBox="0 0 104 68" aria-hidden="true">
+                <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#f4d958"/><stop offset="1" stop-color="#b8d16a"/></linearGradient></defs>
+                <path d="M8 56a44 44 0 0 1 88 0" stroke="var(--surface-2)" stroke-width="10" fill="none"/>
+                <path d="M8 56a44 44 0 0 1 88 0" stroke="url(#gg)" stroke-width="10" fill="none" stroke-dasharray="138.2" stroke-dashoffset="41.5" stroke-linecap="round"/>
+                <text class="q4-percent" x="52" y="58" text-anchor="middle">70%</text>
+              </svg>
+            </div>
+            <div class="q4-raised"><span>Raised of $150k</span><strong>$105.4k</strong></div>
+          </div>
+        </article>
+
+
+        <article class="card tile context-panel" id="context-today" aria-labelledby="calendar-title">
+          <span class="note">14</span>
+          <div class="cal-head"><div><h2 id="calendar-title">November</h2><span class="sub" id="weekRange"></span></div><div class="calendar-tools"><button class="calendar-nav" id="previousWeek" aria-label="Previous week">‹</button><button class="calendar-nav" id="nextWeek" aria-label="Next week">›</button><button class="iconbtn" id="addCalendar" aria-label="Add to calendar"><svg><use href="#i-plus"/></svg></button></div></div>
+          <div class="weekly-calendar" id="weeklyCalendar" aria-label="Weekly calendar"></div>
+        </article>
+        <article class="card tile tasks context-panel" id="context-tasks" aria-labelledby="tasks-title">
+          <span class="note">15</span>
+          <div class="card-head"><h2 id="tasks-title">Tasks <span class="sub" id="contextTaskCount">5</span></h2><button class="iconbtn" id="addTask" aria-label="Add task"><svg><use href="#i-plus"/></svg></button></div>
+          <ul class="tasklist" id="tasks" aria-label="Task projects"></ul>
+        </article>
+  <aside class="projects overview-projects" aria-label="Projects" id="projects">
     <div class="panel tile hasnote">
       <span class="note">2</span>
       <h2>Projects</h2>
@@ -528,58 +609,6 @@ body.notes .legend{display:block}
       </div>
     </div>
   </aside>
-
-  <div class="main">
-    <header class="topbar">
-      <button class="tbtn hasnote" id="leftToggle" aria-label="Show Projects sidebar" aria-pressed="false" aria-controls="projects"><svg><use href="#i-panel"/></svg><span class="note">3</span></button>
-      <span class="wordmark">Donor Desk</span>
-      <span class="grow"></span><span class="sub workspace-date">Saturday, November 7</span>
-    </header>
-
-    <div class="boardwrap">
-    <main class="board">
-      <section class="col left" aria-label="Workspace overview">
-        <article class="card tile overview">
-          <span class="note">8</span>
-          <div class="card-head"><h2>Q4 outreach</h2></div>
-          <div class="q4-summary">
-            <div class="q4-gauge" role="img" aria-label="70 percent of Q4 fundraising goal">
-              <svg viewBox="0 0 104 60" aria-hidden="true">
-                <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#f4d958"/><stop offset="1" stop-color="#b8d16a"/></linearGradient></defs>
-                <path d="M8 56a44 44 0 0 1 88 0" stroke="var(--surface-2)" stroke-width="10" fill="none"/>
-                <path d="M8 56a44 44 0 0 1 88 0" stroke="url(#gg)" stroke-width="10" fill="none" stroke-dasharray="138.2" stroke-dashoffset="41.5" stroke-linecap="round"/>
-              </svg>
-              <strong class="q4-percent" aria-hidden="true">70%</strong>
-            </div>
-            <div class="q4-raised"><span>Raised of $150k</span><strong>$105.4k</strong></div>
-          </div>
-        </article>
-
-
-        <article class="card tile context-panel" id="context-today" aria-labelledby="calendar-title">
-          <span class="note">14</span>
-          <div class="cal-head"><h2 id="calendar-title">November</h2><button class="iconbtn" id="addCalendar" aria-label="Add to calendar"><svg><use href="#i-plus"/></svg></button></div>
-          <div class="week">
-            <span class="d">M</span><span class="d">T</span><span class="d">W</span><span class="d">T</span><span class="d">F</span><span class="d">S</span><span class="d">S</span>
-            <button>2<span class="dots"></span></button>
-            <button>3<span class="dots"><i></i></span></button>
-            <button>4<span class="dots"></span></button>
-            <button>5<span class="dots"><i></i><i></i></span></button>
-            <button>6<span class="dots"></span></button>
-            <button class="today" aria-current="date">7<span class="dots"><i class="a"></i></span></button>
-            <button>8<span class="dots"></span></button>
-          </div>
-          <div class="agenda" id="agenda">
-            <div><time>Tue 10</time>3 thank-you calls</div>
-            <div><time>Thu 12</time>Board coffee · Coral Room</div>
-            <div><time>Wed 18</time>Give Miami Day</div>
-          </div>
-        </article>
-        <article class="card tile tasks context-panel" id="context-tasks" aria-labelledby="tasks-title">
-          <span class="note">15</span>
-          <div class="card-head"><h2 id="tasks-title">Tasks <span class="sub" id="contextTaskCount">5</span></h2><button class="iconbtn" id="addTask" aria-label="Add task"><svg><use href="#i-plus"/></svg></button></div>
-          <ul class="tasklist" id="tasks" aria-label="Task projects"></ul>
-        </article>
         <article class="card tile context-panel" id="context-files" aria-labelledby="files-title">
           <span class="note">16</span>
           <div class="card-head"><h2 id="files-title">Files &amp; drafts</h2></div>
@@ -593,7 +622,7 @@ body.notes .legend{display:block}
 
       <section class="center" aria-label="Agent">
         <div class="center-top">
-          <div class="hello"><h1>Good evening, <b>Denise.</b></h1><button class="toggle" id="toggleNotes" aria-pressed="false">Show meeting notes</button></div>
+          <div class="hello"><h1>Good evening, <b>Denise.</b></h1></div>
 
         </div>
         <div class="thread" id="thread" aria-live="polite">
@@ -825,8 +854,8 @@ function pick(i,open=false){
 pick(0);
 
 /* Left sidebar */
-function setLeft(on){B.classList.toggle('left-open',on);$('leftToggle').setAttribute('aria-pressed',on);$('leftToggle').setAttribute('aria-label',on?'Hide Projects sidebar':'Show Projects sidebar')}
-$('leftToggle').onclick=()=>setLeft(!B.classList.contains('left-open'));
+function setLeft(on){B.classList.toggle('overview-hidden',!on);const toggle=$('leftToggle');toggle.setAttribute('aria-pressed',String(on));toggle.setAttribute('aria-expanded',String(on));toggle.setAttribute('aria-label',on?'Hide workspace overview':'Show workspace overview');$('workspaceOverview').hidden=!on;}
+$('leftToggle').onclick=()=>setLeft(B.classList.contains('overview-hidden'));
 document.querySelectorAll('.group>button').forEach(b=>b.onclick=()=>{const c=b.parentElement.toggleAttribute('data-closed');b.setAttribute('aria-expanded',!c)});
 
 /* Right pane: mode = ask | voice */
@@ -846,9 +875,7 @@ document.querySelectorAll('[data-ask-toggle]').forEach(b=>b.onclick=()=>setPane(
 $('closePane').onclick=()=>setPane(null);
 $('expandPane').onclick=()=>setExpanded(!B.classList.contains('right-expanded'));
 
-/* Notes */
-const tn=$('toggleNotes');
-tn.onclick=()=>{const on=B.classList.toggle('notes');tn.setAttribute('aria-pressed',on);tn.textContent=on?'Hide meeting notes':'Show meeting notes'};
+
 
 /* Plus menu */
 const plus=$('plus'),pm=$('plusMenu');
@@ -934,6 +961,36 @@ function selectContext(name,focus=false){
  panel.scrollIntoView({block:'nearest',inline:'nearest'});
  if(focus){const heading=panel.querySelector('h2');heading.tabIndex=-1;heading.focus({preventScroll:true})}
 }
+
+const calendarEvents=[
+ {date:'2026-11-10',hour:10,duration:1,title:'Thank-you calls',short:'Calls',detail:'3 thank-you calls · Tuesday, November 10 · 10:00–11:00 AM',tone:'call'},
+ {date:'2026-11-12',hour:11,duration:1,title:'Board coffee',short:'Coffee',detail:'Board coffee · Coral Room · Thursday, November 12 · 11:00 AM (sample time)',tone:'meeting'},
+ {date:'2026-11-18',hour:9,duration:4,title:'Give Miami Day',detail:'Give Miami Day · Wednesday, November 18 · All day',tone:'campaign',allDay:true}
+];
+let calendarStart=new Date(2026,10,9);
+function calendarIso(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`}
+function openCalendarEvent(event){openWorkspaceDialog('preview',event.title,event.detail);$('workspaceDialogTitle').textContent='Event details';$('workspaceTitleLabel').textContent='Event';$('workspaceBodyLabel').textContent='When & where';}
+function renderCalendar(){
+ const days=Array.from({length:7},(_,i)=>new Date(calendarStart.getFullYear(),calendarStart.getMonth(),calendarStart.getDate()+i));
+ $('calendar-title').textContent=calendarStart.toLocaleDateString('en-US',{month:'long'});
+ $('weekRange').textContent=`${days[0].getDate()}–${days[6].getDate()} ${days[6].toLocaleDateString('en-US',{month:'short'})}`;
+ const root=$('weeklyCalendar');root.replaceChildren();root.setAttribute('aria-label',`Week of ${calendarStart.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`);
+ const header=document.createElement('div');header.className='calendar-days';header.append(document.createElement('span'));
+ days.forEach((date,i)=>{const day=document.createElement('div');day.className='calendar-day';day.classList.toggle('is-today',calendarIso(date)==='2026-11-07');const name=document.createElement('span');name.textContent=['M','T','W','T','F','S','S'][i];const number=document.createElement('b');number.textContent=date.getDate();day.append(name,number);header.append(day)});
+ const hours=document.createElement('div');hours.className='calendar-hours';
+ [9,10,11,12].forEach((hour,i)=>{const label=document.createElement('span');label.className='calendar-hour';label.style.top=`${i*34}px`;label.textContent=hour===12?'12p':`${hour}a`;hours.append(label)});
+ days.forEach(date=>{const col=document.createElement('div');col.className='calendar-column';calendarEvents.filter(event=>event.date===calendarIso(date)&&!event.allDay).forEach(event=>{const button=document.createElement('button');button.type='button';button.className=`calendar-event ${event.tone}`;button.title=event.detail;button.setAttribute('aria-label',event.detail);button.style.top=`${(event.hour-9)*34}px`;button.style.height=`${event.duration*34-3}px`;const time=document.createElement('time');time.textContent=event.allDay?'All day':`${Math.floor(event.hour)}:${event.hour%1?'30':'00'}`;const title=document.createElement('span');title.textContent=event.short||event.title;button.append(time,title);button.onclick=()=>openCalendarEvent(event);col.append(button)});hours.append(col)});
+ root.append(header);
+ if(days.some(date=>calendarEvents.some(event=>event.allDay&&event.date===calendarIso(date)))){
+  const allDay=document.createElement('div');allDay.className='calendar-days calendar-all-day';const label=document.createElement('span');label.textContent='all day';label.className='calendar-all-day-label';allDay.append(label);
+  days.forEach(date=>{const col=document.createElement('div');col.className='calendar-column';calendarEvents.filter(event=>event.allDay&&event.date===calendarIso(date)).forEach(event=>{const button=document.createElement('button');button.type='button';button.className=`calendar-event ${event.tone}`;button.textContent=event.title;button.title=event.detail;button.setAttribute('aria-label',event.detail);button.onclick=()=>openCalendarEvent(event);col.append(button)});allDay.append(col)});root.append(allDay);
+ }
+ root.append(hours);
+}
+$('previousWeek').onclick=()=>{calendarStart.setDate(calendarStart.getDate()-7);renderCalendar()};
+$('nextWeek').onclick=()=>{calendarStart.setDate(calendarStart.getDate()+7);renderCalendar()};
+renderCalendar();
+
 const wd=$('workspaceDialog');let workspaceMode='task';
 function openWorkspaceDialog(kind,title='',body=''){
  workspaceMode=kind;
@@ -948,14 +1005,18 @@ function openWorkspaceDialog(kind,title='',body=''){
 }
 $('closeWorkspaceDialog').onclick=$('cancelWorkspaceDialog').onclick=()=>wd.close();
 $('addTask').onclick=()=>openWorkspaceDialog('task');
-$('addCalendar').onclick=()=>openWorkspaceDialog('event','','Tuesday, Nov 10 · 10:00 AM');
+$('addCalendar').onclick=()=>{openWorkspaceDialog('event','',`${calendarIso(calendarStart)} 10:00`);$('workspaceHint').textContent='Sample event · use YYYY-MM-DD HH:mm (9:00–12:00).'};
 function addFile(title){
  const li=document.createElement('li'),button=document.createElement('button'),time=document.createElement('small');button.textContent=title;time.textContent='Now';li.append(button,time);$('artifacts').prepend(li);
 }
 $('workspaceForm').onsubmit=e=>{
  e.preventDefault();const title=$('workspaceTitle').value.trim(),body=$('workspaceBody').value.trim();if(!title)return;
  if(workspaceMode==='task'){tasks.push({k:'Prep',t:title,s:body||'Added just now',p:body||'Ready for your next step.',f:['Added in this workspace']});pick(tasks.length-1);selectContext('tasks')}
- if(workspaceMode==='event'){const row=document.createElement('div'),time=document.createElement('time');time.textContent=body||'Time to be confirmed';row.append(time,document.createTextNode(title));$('agenda').append(row);selectContext('today')}
+ if(workspaceMode==='event'){
+  const match=body.match(/^(2026-\d{2}-\d{2})\s+(\d{1,2}):(\d{2})$/),date=match&&new Date(`${match[1]}T00:00:00`),hour=match&&Number(match[2])+Number(match[3])/60;
+  if(!match||!date||calendarIso(date)!==match[1]||Number(match[3])>59||hour<9||hour>12){$('workspaceHint').textContent='Use a valid 2026 date and time: YYYY-MM-DD HH:mm (9:00–12:00).';return;}
+  calendarEvents.push({date:match[1],hour,duration:1,title,detail:`${title} · ${body}`,tone:'new-event'});calendarStart=new Date(date);calendarStart.setDate(date.getDate()-(date.getDay()+6)%7);renderCalendar();selectContext('today')
+ }
  if(workspaceMode==='draft'){addFile(title);selectContext('files')}
  $('workspaceStatus').textContent=workspaceMode==='draft'?'Draft saved.':workspaceMode==='event'?'Event added.':'Task added.';wd.close();
 };
@@ -984,13 +1045,13 @@ requestAnimationFrame(()=>{thread.scrollTop=thread.scrollHeight});
 const h=location.hash;
 if(h.includes('light'))document.documentElement.dataset.theme='light';
 if(h.includes('dark'))document.documentElement.dataset.theme='dark';
-if(h.includes('left'))setLeft(true);
+setLeft(true);
 if(h.includes('ask'))setPane('ask');
 if(h.includes('asked'))say('Who gave this quarter and hasn’t been thanked yet?',$('agentThread'));
 if(h.includes('voice')){startVoice(130);document.querySelector('[data-dest="donor"]').click()}
 if(h.includes('summary')){startVoice(212);document.querySelector('[data-dest="donor"]').click();document.querySelector('[data-dest="project"]').click();setTimeout(()=>$('genSummary').click(),200)}
 if(h.includes('expand'))setExpanded(true);
-if(h.includes('notes'))tn.click();
+
 if(h.includes('crm')){openCrm('priya');$('enrich').click()}
 </script>
 </body>

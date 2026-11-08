@@ -19,9 +19,11 @@ const Header = () => {
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
-      <span className="min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
-        {title}
-      </span>
+      {!onHome && (
+        <span className="min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
+          {title}
+        </span>
+      )}
       <SampleDataBadge />
       <span className="flex-1" />
       {!onHome && (
