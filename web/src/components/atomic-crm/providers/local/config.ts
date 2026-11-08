@@ -22,3 +22,11 @@ export const APPROVER_NAME: string =
 // Resolved against the page, so it works under any deployment sub-path.
 export const SNAPSHOT_URL: string =
   import.meta.env.VITE_SNAPSHOT_URL ?? "./snapshot.json";
+
+/**
+ * Posting to Instagram / LinkedIn / X is not built (plan.md §17 amendment).
+ * Screens render those actions disabled with a "Coming soon" label while
+ * this is "coming_soon"; nothing in the data layer posts anywhere.
+ */
+export type FeatureState = "coming_soon" | "enabled";
+export const SOCIAL_POSTING: FeatureState = "coming_soon";
