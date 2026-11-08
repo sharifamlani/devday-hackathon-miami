@@ -90,7 +90,8 @@ export const agendaDays = (
   const byDate = new Map<string, CalendarItem[]>();
   for (const item of items) {
     const date = item.date.slice(0, 10);
-    if (item.kind !== "event" || item.done || date < start || date > end) continue;
+    if (item.kind !== "event" || item.done || date < start || date > end)
+      continue;
     byDate.set(date, [...(byDate.get(date) ?? []), item]);
   }
   const row = (i: CalendarItem, n: number): AgendaRow => ({
@@ -195,33 +196,35 @@ export const AgendaList = ({
             </p>
           </div>
         </div>
-        <div className="home-calendar-tools" hidden={collapsed}>
-          <button
-            type="button"
-            aria-label="Previous week"
-            className={focusRing}
-            onClick={() => setOffset((value) => value - 1)}
-          >
-            <ChevronLeft size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="Next week"
-            className={focusRing}
-            onClick={() => setOffset((value) => value + 1)}
-          >
-            <ChevronRight size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="Plan today"
-            title="Plan today"
-            className={cn("home-calendar-add", focusRing)}
-            onClick={() => onOpenDay(today)}
-          >
-            <Plus size={15} aria-hidden="true" />
-          </button>
-        </div>
+        {!collapsed && (
+          <div className="home-calendar-tools">
+            <button
+              type="button"
+              aria-label="Previous week"
+              className={focusRing}
+              onClick={() => setOffset((value) => value - 1)}
+            >
+              <ChevronLeft size={14} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="Next week"
+              className={focusRing}
+              onClick={() => setOffset((value) => value + 1)}
+            >
+              <ChevronRight size={14} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="Plan today"
+              title="Plan today"
+              className={cn("home-calendar-add", focusRing)}
+              onClick={() => onOpenDay(today)}
+            >
+              <Plus size={15} aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </div>
       <TileBody id={bodyId} collapsed={collapsed}>
         <ol className="home-agenda-strip" aria-label="Week">

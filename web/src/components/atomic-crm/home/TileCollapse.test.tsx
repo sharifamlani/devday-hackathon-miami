@@ -2,7 +2,8 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
 
-import { TasksTile } from "./HomeCards";
+import { Q4ProgressTile, TasksTile } from "./HomeCards";
+import type { DonationTarget } from "../providers/local/types";
 import { resetTileCollapseForTest, TILE_COLLAPSE_KEY } from "./collapseState";
 import type { HomeTask } from "./homeData";
 
@@ -80,6 +81,27 @@ describe("collapsible overview tiles", () => {
     const again = await render(<Tasks />);
     await expect
       .element(again.getByRole("button", { name: "Expand Tasks" }))
+      .toBeVisible();
+  });
+
+  it("a folded quarter tile keeps the sample-goal qualification", async () => {
+    const screen = await render(
+      <MemoryRouter>
+        <Q4ProgressTile
+          target={
+            { label: "Q4 2026", raised: 98_800 } as unknown as DonationTarget
+          }
+          goal={150_000}
+          goalIsSample
+          isPending={false}
+        />
+      </MemoryRouter>,
+    );
+    await screen
+      .getByRole("button", { name: "Collapse quarter progress" })
+      .click();
+    await expect
+      .element(screen.getByText(/66% · \$98\.8k · sample goal/))
       .toBeVisible();
   });
 });

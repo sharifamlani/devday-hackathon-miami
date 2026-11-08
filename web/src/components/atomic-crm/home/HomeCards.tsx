@@ -174,6 +174,8 @@ export const Q4ProgressTile = ({
     ? [
         percent == null ? null : `${Math.round(percent)}%`,
         formatCompactUsd(target.raised),
+        // Folded, the "Sample goal" note is hidden: the summary keeps the qualification.
+        percent != null && goalIsSample ? "sample goal" : null,
       ]
         .filter(Boolean)
         .join(" · ")
