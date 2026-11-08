@@ -94,12 +94,20 @@ def e164(raw: str | None) -> str | None:
     return None
 
 
-def mask(number: str | None) -> str | None:
-    return f"•••-•••-{number[-4:]}" if number else None
+def pretty(number: str | None) -> str | None:
+    """'+13055550142' -> '+1 (305) 555-0142'; other countries as stored. Shown in full: it's the CRM's job."""
+    if number and number.startswith("+1") and len(number) == 12:
+        return f"+1 ({number[2:5]}) {number[5:8]}-{number[8:]}"
+    return number
 
 
 def staff_phone() -> str | None:
     return e164(os.getenv("STAFF_PHONE"))
+
+
+def twilio_number() -> str | None:
+    """Caller ID for leg 1. Never STAFF_PHONE: a carrier sends a call from your own number to your voicemail login."""
+    return e164(os.getenv("TWILIO_PHONE_NUMBER"))
 
 
 def has_twilio() -> bool:
@@ -229,7 +237,7 @@ def get_call(conn: sqlite3.Connection, call_id: str, check_worker: bool = False)
 
 def preview(conn: sqlite3.Connection, donor_id: int) -> dict:
     """What the call dialog shows before Call: {ready, reason, donor_name, donor_phone, staff_phone, notice}.
-    Numbers come back masked. LookupError for an unknown donor."""
+    LookupError for an unknown donor."""
     row = conn.execute("SELECT id, full_name, org_name, phone FROM donors WHERE id = ?", (donor_id,)).fetchone()
     if row is None:
         raise LookupError(f"donor {donor_id} not found")
@@ -238,12 +246,15 @@ def preview(conn: sqlite3.Connection, donor_id: int) -> dict:
     reason = ("Phone calls are off: set PHONE_CALLS=on in .env" if not enabled()
               else "Twilio isn't set up: TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are missing" if not has_twilio()
               else "Your phone number isn't set: add STAFF_PHONE to .env" if not staff
+              else ("No Twilio number: buy one and set TWILIO_PHONE_NUMBER in .env (a call to your phone from "
+                    "your own number goes to your voicemail)") if not twilio_number()
               else f"No phone number on file for {name}" if not donor
+              else f"{name}'s number is your own number; calling it from itself reaches your voicemail" if donor == staff
               else f"{name}'s number isn't on SEND_ALLOWLIST, so the app won't call it" if not allowlisted(donor)
               else "Another call is in progress" if busy()
               else None)
     return {"ready": reason is None, "reason": reason, "donor_id": donor_id, "donor_name": name,
-            "donor_phone": mask(donor), "staff_phone": mask(staff), "notice": NOTICE}
+            "donor_phone": pretty(donor), "staff_phone": pretty(staff), "notice": NOTICE}
 
 
 # ----------------------------------------------------------------------------------------------
@@ -259,7 +270,7 @@ def start_call(conn: sqlite3.Connection, donor_id: int, client: Twilio | None = 
     client = client or twilio()
     staff = staff_phone()
     call_id = uuid.uuid4().hex[:16]
-    leg1 = client.create_call(to=staff, from_=e164(os.getenv("TWILIO_PHONE_NUMBER")) or staff,
+    leg1 = client.create_call(to=staff, from_=twilio_number(),
                               twiml=staff_twiml(f"dd-{call_id}", ready["donor_name"]), record=True)
     conn.execute("INSERT INTO phone_calls (id, donor_id, donor_name, status, staff_call_sid, started_at) "
                  "VALUES (?, ?, ?, 'calling_you', ?, ?)",

@@ -25,9 +25,9 @@ def setup(db_file, monkeypatch):
     conn.execute("UPDATE donors SET phone = '(305) 555-0142' WHERE id = ?", (JAMES,))
     conn.commit()
     for name, value in {"PHONE_CALLS": "on", "TWILIO_ACCOUNT_SID": "ACtest", "TWILIO_AUTH_TOKEN": "token",
-                        "STAFF_PHONE": "305-555-0100", "SEND_ALLOWLIST": "305 555 0142"}.items():
+                        "STAFF_PHONE": "305-555-0100", "SEND_ALLOWLIST": "305 555 0142",
+                        "TWILIO_PHONE_NUMBER": "+17865550199"}.items():
         monkeypatch.setenv(name, value)
-    monkeypatch.delenv("TWILIO_PHONE_NUMBER", raising=False)
     monkeypatch.delenv("PHONE_STAFF_CHANNEL", raising=False)
     monkeypatch.delenv("PHONE_KEEP_RECORDING", raising=False)
     monkeypatch.setenv("AFTER_CALL_DRAFTER", "rules")
@@ -108,19 +108,20 @@ def run(conn, db_file, fake, transcriber=fake_transcriber) -> dict:
 # Numbers and guards
 # ----------------------------------------------------------------------------------------------
 
-def test_e164_and_mask():
+def test_e164_and_pretty():
     assert phone.e164("(305) 555-0142") == "+13055550142"
     assert phone.e164("1 305 555 0142") == "+13055550142"
     assert phone.e164("+44 20 7946 0958") == "+442079460958"
     assert phone.e164("555-0142") is None and phone.e164(None) is None
-    assert phone.mask("+13055550142") == "•••-•••-0142"
+    assert phone.pretty("+13055550142") == "+1 (305) 555-0142"
+    assert phone.pretty("+442079460958") == "+442079460958" and phone.pretty(None) is None
 
 
-def test_preview_is_ready_and_masks_numbers(setup):
+def test_preview_is_ready_and_shows_full_numbers(setup):
     p = phone.preview(setup, JAMES)
     assert p["ready"] and p["reason"] is None
     assert p["donor_name"] == "James Carter"
-    assert p["donor_phone"] == "•••-•••-0142" and p["staff_phone"] == "•••-•••-0100"
+    assert p["donor_phone"] == "+1 (305) 555-0142" and p["staff_phone"] == "+1 (305) 555-0100"
     assert "recorded" in p["notice"]
 
 
@@ -130,6 +131,8 @@ def test_preview_is_ready_and_masks_numbers(setup):
     ({"TWILIO_AUTH_TOKEN": ""}, "Twilio isn't set up"),
     ({"SEND_ALLOWLIST": ""}, "isn't on SEND_ALLOWLIST"),
     ({"SEND_ALLOWLIST": "305 555 9999"}, "isn't on SEND_ALLOWLIST"),
+    ({"TWILIO_PHONE_NUMBER": ""}, "TWILIO_PHONE_NUMBER"),
+    ({"STAFF_PHONE": "305-555-0142"}, "your own number"),
 ])
 def test_preview_names_what_is_missing(setup, monkeypatch, env, expected):
     for name, value in env.items():
@@ -170,7 +173,8 @@ def test_full_call_saves_a_note_on_the_donor(setup, db_file):
 
     # Leg 1 rings the staff phone, recorded in two channels, and holds them in the room
     leg1, leg2 = fake.created
-    assert leg1["to"] == STAFF and leg1["record"] is True
+    # Leg 1 shows the Twilio number: a call from your own number lands in your voicemail login
+    assert leg1["to"] == STAFF and leg1["from"] == "+17865550199" and leg1["record"] is True
     assert "Calling James Carter. Please hold." in leg1["twiml"] and "<Conference" in leg1["twiml"]
     # Leg 2 shows the staff member's own number, and the notice plays before the donor joins the room
     assert leg2["to"] == DONOR and leg2["from"] == STAFF and leg2["record"] is False
