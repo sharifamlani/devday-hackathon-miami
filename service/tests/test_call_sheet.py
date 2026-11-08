@@ -31,7 +31,7 @@ def gift(conn, pid, amount, day, channel="Online", status="ok"):
                  (pid, amount, day, channel, status))
 
 
-def test_sheet_summarizes_giving_and_masks_the_phone(conn):
+def test_sheet_summarizes_giving_and_shows_the_full_phone(conn):
     pid = person(conn, "Elizabeth Fontaine", "(305) 555-0104")
     gift(conn, pid, 100, "2024-03-01")
     gift(conn, pid, 250, "2025-11-20", "Check")
@@ -39,8 +39,8 @@ def test_sheet_summarizes_giving_and_masks_the_phone(conn):
     conn.commit()
     s = call_sheet.build(conn, pid)
     assert s["kind"] == "call_sheet" and s["name"] == "Elizabeth Fontaine"
-    assert s["phone_masked"] == "***-***-0104" and s["has_phone"]
-    assert "555" not in json.dumps(s)
+    assert s["phone"].startswith("+1 (") and s["phone"].endswith("-0104") and "*" not in s["phone"] and s["has_phone"]
+    assert s["phone"] == "+1 (305) 555-0104"            # shown in full (Sharif, rule 15)
     rel = s["relationship"]
     assert (rel["gift_count"], rel["total"]) == (3, 450)
     assert rel["first_gift"] == {"date": "2024-03-01", "amount": 100}
@@ -66,7 +66,7 @@ def test_no_phone_no_gifts_and_unknown_person(conn):
     pid = person(conn, "Carmen Ibarra")
     conn.commit()
     s = call_sheet.build(conn, pid)
-    assert s["has_phone"] is False and s["phone_masked"] is None
+    assert s["has_phone"] is False and s["phone"] is None
     assert s["relationship"]["gift_count"] == 0 and s["relationship"]["last_gift"] is None
     assert s["talking_points"] and "No gifts on record" in s["talking_points"][0]
     with pytest.raises(LookupError):

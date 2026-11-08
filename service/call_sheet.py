@@ -2,7 +2,7 @@
 
 build(conn, donor_id) -> a plain dict with "kind": "call_sheet", shown as a card in the agent panel next to a
 Call button. Everything in it comes from the db; the talking points are written from those same facts only, never
-by a model, so nothing on the sheet is invented. The phone number is masked (***-***-0104): the Call button
+by a model, so nothing on the sheet is invented. The phone number is shown in full (Sharif, rule 15): the Call button
 resolves the real number server-side. LookupError for an unknown person.
 """
 
@@ -12,7 +12,7 @@ import sqlite3
 from collections import Counter
 
 from service import phone as phone_module
-from service.routes_campaigns import mask_address
+from service.phone import shown
 
 MAX_POINTS = 3
 MAX_NOTES = 2
@@ -101,7 +101,7 @@ def build(conn: sqlite3.Connection, donor_id: int) -> dict:
         "org_name": row["org_name"],
         "location": ", ".join(x for x in (row["city"], row["state"]) if x) or None,
         "has_phone": number is not None,
-        "phone_masked": mask_address(number, "text") if number else None,
+        "phone": shown(number),
         "relationship": rel,
         "declined_charges": declined,
         "interests": interests,
