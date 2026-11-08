@@ -103,6 +103,9 @@ export const ingestSummary = (
   return {
     people,
     gifts: result.gifts,
+    ...(typeof raw.declined_on_record === "number"
+      ? { declined: raw.declined_on_record }
+      : {}),
     duplicates: result.duplicates,
     files: fileCount,
     byTab,
@@ -144,11 +147,14 @@ export const filesStepAction = ({
 }): "import" | "continue" | "need_files" =>
   pending > 0 ? "import" : imported || existing > 0 ? "continue" : "need_files";
 
-/** "68 people · 113 gifts · 6 possible duplicates found" */
+/** "68 people · 113 gifts (+1 declined charge on record) · 6 possible duplicates found" */
 export const filesLine = (summary: FilesSummary) => {
+  const declined = summary.declined
+    ? ` (+${plural(summary.declined, "declined charge", "declined charges")} on record)`
+    : "";
   const parts = [
     summary.people != null ? plural(summary.people, "person", "people") : null,
-    summary.gifts != null ? plural(summary.gifts, "gift", "gifts") : null,
+    summary.gifts != null ? plural(summary.gifts, "gift", "gifts") + declined : null,
     summary.duplicates
       ? plural(summary.duplicates, "possible duplicate", "possible duplicates")
       : null,

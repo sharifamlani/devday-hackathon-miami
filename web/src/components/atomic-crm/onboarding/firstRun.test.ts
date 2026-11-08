@@ -79,6 +79,30 @@ describe("what ingest found", () => {
     ...fields,
   });
 
+  it("counts gifts without the declined charge and says it's on record (S1)", () => {
+    const summary = ingestSummary(
+      result({
+        gifts: 131,
+        duplicates: 9,
+        raw: { people_added: 77, gifts_added: 132, gifts: 131, declined_on_record: 1, duplicate_suggestions: 9 },
+      }),
+      8,
+    );
+    expect(summary.gifts).toBe(131);
+    expect(summary.declined).toBe(1);
+    expect(filesLine(summary)).toBe(
+      "77 people · 131 gifts (+1 declined charge on record) · 9 possible duplicates found",
+    );
+  });
+
+  it("shows no declined note when there are no declined charges (S-neg)", () => {
+    const summary = ingestSummary(
+      result({ gifts: 47, duplicates: 0, raw: { people_added: 12, gifts: 47, declined_on_record: 0 } }),
+      2,
+    );
+    expect(filesLine(summary)).toBe("12 people · 47 gifts found");
+  });
+
   it("reads POST /ingest's own fields: people_added, by_tab, flagged_for_review", () => {
     // The shape service/ingest_adapter.py returns (the coordinator's live run).
     expect(

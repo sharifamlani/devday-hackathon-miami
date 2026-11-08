@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SendCampaignResult } from "../providers/local/campaignTypes";
 import {
+  campaignCounterSegments,
   campaignOutcomeLabel,
   outboxLabel,
   outboxOutcome,
@@ -159,6 +160,61 @@ describe("S-neg2 mixed", () => {
     expect(campaignOutcomeLabel([gm]).text).toBe("Sent via Gmail");
     expect(campaignOutcomeLabel([gm, dry]).text).toBe(
       "Sent via Gmail + dry run",
+    );
+  });
+});
+
+describe("campaign counter", () => {
+  const line = (
+    counts: { total: number; approved: number; sent: number },
+    rows: Parameters<typeof campaignCounterSegments>[1],
+  ) =>
+    campaignCounterSegments(counts, rows)
+      .map((s) => s.text)
+      .join(" · ");
+  const dry = {
+    provider: "dryrun",
+    simulated: true,
+    delivery_status: "queued (dry run)",
+  };
+  const gmail = {
+    provider: "gmail",
+    simulated: false,
+    delivery_status: "sent",
+  };
+
+  it("S1 one dry run is never called sent", () => {
+    const l = line({ total: 1, approved: 0, sent: 1 }, [dry]);
+    expect(l).toBe("1 message · 0 approved · 1 dry run");
+    expect(l).not.toMatch(/sent/);
+  });
+  it("S2 gmail and dry run are split", () => {
+    expect(line({ total: 3, approved: 0, sent: 3 }, [gmail, gmail, dry])).toBe(
+      "3 messages · 0 approved · 2 sent via Gmail · 1 dry run",
+    );
+  });
+  it("S3 a failure is red", () => {
+    const f = {
+      provider: "gmail",
+      simulated: false,
+      delivery_status: "failed: bounce",
+    };
+    const segs = campaignCounterSegments({ total: 1, approved: 0, sent: 1 }, [
+      f,
+    ]);
+    expect(segs.at(-1)).toEqual({ text: "1 failed", tone: "error" });
+  });
+  it("S4 singular and plural", () => {
+    expect(line({ total: 2, approved: 1, sent: 0 }, [])).toBe(
+      "2 messages · 1 approved",
+    );
+    expect(line({ total: 1, approved: 1, sent: 0 }, [])).toBe(
+      "1 message · 1 approved",
+    );
+  });
+  it("S-neg outbox not loaded: processed, no delivery claim", () => {
+    expect(line({ total: 4, approved: 0, sent: 4 }, undefined)).toBe(
+      "4 messages · 0 approved · 4 processed",
     );
   });
 });

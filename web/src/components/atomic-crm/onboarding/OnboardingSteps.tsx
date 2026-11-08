@@ -206,7 +206,7 @@ const TARGETS: { value: UploadTarget; label: string }[] = [
 ];
 
 /** folk's "Import finished": what came in, per tab, and what to check. */
-const ImportReceipt = ({
+export const ImportReceipt = ({
   summary,
   fresh,
   onReviewDuplicates,
@@ -221,7 +221,13 @@ const ImportReceipt = ({
   const headingId = useId();
   const totals = [
     summary.people != null ? plural(summary.people, "person", "people") : null,
-    summary.gifts != null ? plural(summary.gifts, "gift", "gifts") : null,
+    summary.gifts != null
+      ? plural(summary.gifts, "gift", "gifts") +
+        // A declined charge is kept on record but isn't a gift (matches demo_reset's wording).
+        (summary.declined
+          ? ` (+${plural(summary.declined, "declined charge", "declined charges")} on record)`
+          : "")
+      : null,
   ].filter(Boolean);
   return (
     <section className="onb-receipt onb-tile" aria-labelledby={headingId}>
@@ -531,8 +537,8 @@ export const FilesStep = ({
 
           {skipped.length > 0 && (
             <ul className="onb-files skipped" aria-label="Files left out">
-              {skipped.map((file) => (
-                <li key={file.name}>
+              {skipped.map((file, i) => (
+                <li key={`${i}-${file.name}`}>
                   <CircleMinus aria-hidden="true" size={16} strokeWidth={1.7} />
                   <span className="onb-file-name">{file.name}</span>
                   <span className="onb-file-why">{file.reason}</span>
@@ -858,7 +864,7 @@ const initials = (name: string | null) =>
     .map((w) => w[0]!.toUpperCase())
     .join("");
 
-const ContextReceipt = ({ receipt }: { receipt: Receipt }) => (
+export const ContextReceipt = ({ receipt }: { receipt: Receipt }) => (
   <section className="onb-receipt onb-tile" aria-label="What the agent found">
     <div className="onb-receipt-head">
       <CircleCheck aria-hidden="true" size={20} />
@@ -869,8 +875,9 @@ const ContextReceipt = ({ receipt }: { receipt: Receipt }) => (
     </div>
     {receipt.titles.length > 0 && (
       <ul className="onb-fact-list" aria-label="A few of the facts">
-        {receipt.titles.map((title) => (
-          <li key={title}>{title}</li>
+        {receipt.titles.map((title, i) => (
+          // Facts can repeat (the same line from two pages), so the text alone isn't a unique key.
+          <li key={`${i}-${title}`}>{title}</li>
         ))}
       </ul>
     )}
