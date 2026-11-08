@@ -1,59 +1,56 @@
-# RESUME HERE: paused Sun Nov 8, ~12:30 AM ET
+# RESUME HERE: state at ~2:00 AM Sun Nov 8 (lead = "Ideas", now session devday-hackathon-fb)
 
-Paused by Sharif (going home). Nothing merges while paused. Freeze: **Sun Nov 8, 4:15 PM ET**; repo public with MIT by 3:30 PM.
-Plan of record: `plan.md` §21 (approved). Element→endpoint map: `docs/ui-integration.md`.
+Freeze: **Sun Nov 8, 4:15 PM ET**; repo public + MIT by 3:30 PM. Plan of record: `plan.md` §21. Map: `docs/ui-integration.md`.
+Workflow: builders → PR → QA approves exact SHA → lead merges `gh pr merge N --merge --match-head-commit <sha>` →
+session 12's watcher auto-deploys main to Vercel → 12 walks prod → c9 grades §21.10 at the end.
 
-## How to resume (lead session)
-1. Re-arm the watches: main-merge monitor (45 s fetch, flags Christian/Faye merges) and the Slack check of
-   #codex-dev-day-hackathon (C0CFX659JEQ) every 10 min.
-2. Ask session 12 to restart the Vercel auto-deploy watcher (stopped for the pause; prod = b3510bf). Its restart command (run in background):
-   `bash "C:/Users/Shari/AppData/Local/Temp/claude/c--Users-Shari-Dropbox--Personal--GenAI-Company-Projects-devday-hackathon/162c5294-4385-421c-b6f5-ba90db1418e8/scratchpad/watch-deploy.sh" "C:/Users/Shari/Dropbox (Personal)/GenAI Company/Projects/devday_hackathon" "C:/Users/Shari/Dropbox (Personal)/GenAI Company/Projects/dd-deploy" "C:/Users/Shari/AppData/Local/Temp/claude/c--Users-Shari-Dropbox--Personal--GenAI-Company-Projects-devday-hackathon/162c5294-4385-421c-b6f5-ba90db1418e8/scratchpad/deploy-watch.log" 30`
-3. Send each session "resume" plus its line below. Merge only on a QA APPROVE pinned to the exact SHA
-   (`gh pr merge N --merge --match-head-commit <sha>`).
+## Main = 5ecf010 (green; live on Vercel via 12's watcher)
+Merged after resume: #103 voice pause labels, #88 interest tags, #90 after-call agent, #106 snapshot privacy fix, #102 schema race.
+Earlier: #73 #77 #80 #57 #68 #81 #82 #79 #83 #89 #87 #91 #99 #94 #97 #96 #98 #100; Christian #78 #84 #85 #86 #93 #92; Faye #105 (dashboard design).
 
-## Main
-Main is at **b3510bf** (Faye's #105 "Apply the approved Donor Desk dashboard design", merged during the pause
-call). Main has **1 failing test**: `test_crm::test_snapshot_never_exports_crm_records`, a privacy leak where
-#100 moved Donors-tab tasks into `tasks` and #98's export ships `tasks` to the Vercel snapshot. 3a owns the fix.
+## Sessions after restart (names changed; reply via the `from=` pipe address, two are both "devday-hackathon-82")
+| New name | Was | Doing now |
+|---|---|---|
+| db | c9 | Independent §21.10 grading on main → docs/progress_reports/evaluation_scorecard.md on branch eval/scorecard |
+| 82 (pipe …52516c51) | 98 QA | Reviewing #108 (docs), #109, independent #107 walk; queue #110, #112, #113 |
+| 1b | 12 | Vercel auto-deploy watcher running (restarted 01:24); walks prod per SHA |
+| 0f | 90 | Reviewing #112; owns #111 (+ add_contact stacked, head 0c3c9c5; switching default tab to "giver") |
+| d1 | 42 | Enrich UI (chips, Save to profile, one wording) + importDonors target "giver" fix; PR coming (base feat/home-integration-2) |
+| 82 (pipe …149b4923) | 80 | #110 done (phone Calendar); NOW Givers/Neighbors/Community tabs on Donors page + add_contact refetch scope |
+| 33 | 3a | #109 context-note undo (in QA) |
+| e6 | 86 | #108 README + demo script: fixing QA's CHANGES |
+| 3c | Agent Phone | 🎙 dictation in Ask sidebar + home composer (composer on top of #112's branch) |
+| a4 | 8b | scripts/demo_reset.py (reset to empty, --warm ingest cache, --check vs answer key, print start commands) |
+In-session lead subagents: reviewing #107 and #111.
 
-Merged tonight (18 + Christian's + Faye's): #73 #77 #80 #57 #68 #81 #82 #79 #83 #89 #87 #91 #99 #94 #97 #96 #98
-#100; Christian #78 #84 #85 #86 #93 #92; Faye #105.
+## Open PRs
+| # | What | Base | State |
+|---|---|---|---|
+| **#107** | Faye's #105 design + real-data home (supersedes #95) | main | in-session reviewer + QA walk running; MERGE FIRST, then close #95 |
+| #111 | Agent tools live (interests, RSVP, after-call) + add_contact (0c3c9c5) | main | in-session review |
+| #112 | Agent chat in home (supersedes #101) | feat/home-integration-2 | 90 + QA reviewing; retarget to main after #107; then close #101 |
+| #113 | Calendar shows tasks; outreach plan = real tasks (supersedes #104) | feat/home-integration-2 | QA (with #110); retarget after #107; close #104 |
+| #110 | Phone Calendar route | feat/home-integration-2 | QA; conflicts on CalendarPage with #113 (rebase whichever lands second) |
+| #108 | README + demo script | main | CHANGES (86 fixing: step 8 depends on #111 + 42's UI; counts after approval; 7 files only; real onboarding wording) |
+| #109 | Context-note undo (touches 86's after_call_agent; 86 OK'd) | main | QA reviewing |
+| #95 #101 #104 | superseded | — | close when replacements merge |
+| #76 #69 #70 | parked | — | don't merge |
 
-## Open work, in priority order
-| # | What | Owner | State at pause | Next step |
-|---|---|---|---|---|
-| leak | Exclude Donors-tab (crm) tasks from every snapshot export | 3a | **PR #106 done, head c78df8a** (424 passed; leak test green) | review (c9) → merge FIRST (main is red) |
-| #95 | Real data on the home (tasks, glance, CRM, gauge, calendar, artifacts), Projects removed, overflow, phone header | integration agent (in-lead subagent) | head e93e231; QA 98 PARKED mid first-run walk (no verdict) | **Faye's #105 rewrote HomePage/HomeCards/HomeChat/Header/MobileLayout**: merge main into #95 keeping #105's design and #95's data wiring, re-walk, then QA |
-| #88 | Interest tags (+ tag_slugs) | 42 | **QA APPROVED 5f444aaa7a83700414888493069853f8c6309f58** | merge on resume (pinned; check it still merges with b3510bf) |
-| #90 | After-call agent | 86 | **QA APPROVED 009e6701093ca36842dc9629e4e5f529d3b8c963** | merge on resume (pinned) |
-| #102 | Schema-migration race | in-lead builder | c9: fix passes, CHANGES = main.py conflict with #100's startup hook | rebase: migrate_schema first, then migrate_crm_tasks; c9 re-check |
-| #103 | Voice: pause-then-summarize relabels every stretch | Agent Phone | **c9 APPROVED 6e91849ab7e098f2ee6f5805ca331f80e1a44439** | merge first thing on resume (pinned) |
-| #101 | Center chat → agent (step cards, Undo, approval cards) | 90 | based on #95 | retarget to main after #95; also must merge with #105's HomeChat changes; QA 98 |
-| #104 | Calendar page shows tasks; outreach plan = real tasks | integration agent | based on #95 | retarget after #95; QA |
-| — | Mobile "Sample data" badge | 80 | **likely already done by Faye's #105** (12: badge shows on phone, +80px overflow gone) | verify after #95 merges; skip if still present |
-| — | Agent tools live: interests, RSVP, after-call | 90 | branch feat/agent-tools-live 97de253 | open PR after #88 + #90 merge |
-| — | Calendar route on phone ("Not Found" at 390) | unassigned | — | assign after #95 |
+## Decisions (Sharif)
+- Enrich demo = option (b): add the REAL "John S. and James L. Knight Foundation" by hand as a contact with NO gifts (agent: "add the Knight Foundation as a contact", or Import a one-row CSV), then Enrich → cached sourced tags → Save to profile. Example data stays fictional; never invent gifts for real orgs.
+- Laptop demo; Miami Foundation as example org; Sharif writes the call script.
+- Pending: README wording on Codex (lead recommends "Codex wasn't used; built with Claude Code; OpenAI API + Agents SDK throughout"); brand "kindred" (landing) vs "Donor Desk" (lead recommends Donor Desk everywhere).
 
-## Sunday morning (after the above)
-1. c9 grades every §21.10 criterion and loops until all PASS.
-2. README + demo script (session 37 or a writer agent), including the demo checklist below.
-3. Three rehearsals from an empty DB, after one warm-up upload.
-4. History check (TEAM_CONTACTS.md, docs/judges.md, transcripts/ never committed) → repo public + MIT → tag `demo`.
+## Known gaps
+- Neighbors/Community not visible in the web app until 80's tabs PR.
+- No create-contact route except via ingest or 90's add_contact.
+- Landing picker should skip answer_key.json / _README.md (unassigned; onboarding step already skips them).
 
-## Demo checklist (goes into README / demo script)
-- Do one warm-up upload of the same files first, so the duplicate-card count is fixed (9 or 10 cold).
-- The web app must run on port 5173 or 5174 (the WS relay checks Origin against CORS_ORIGINS).
-- Say "Give Miami Day donors", not "gala donors" (the example data has no gala).
-- Until #103 merges: click Generate summary without pausing first.
-- Laptop live mode: VITE_DATA_MODE=local, VITE_API_URL=http://127.0.0.1:<port>.
+## Demo checklist
+Warm-up upload first (or `scripts/demo_reset.py --warm`); web on 5173/5174 (WS Origin check); VITE_DATA_MODE=local;
+say "Give Miami Day donors" not "gala"; drag the 7 input files only; counts 68 / 33/20/15 after approving duplicates;
+Enrich only the hand-added real org.
 
-## Decisions still open for Sharif
-1. Enrich individuals on the web, or organizations only (lead recommends organizations only)?
-2. Demo script wording "Give Miami Day donors" vs adding a gala to the example files?
-
-## Sessions (Cursor tabs are titled by first prompt, not by session name)
-3a tasks · 42 interests · 86 context/after-call · 90 [113a1a] agent tools/chat · 80 web hooks · Agent Phone voice ·
-98 QA · c9 second reviewer/evaluator · 12 deploy watcher + walks · 37 writer (unbriefed) · 90 [58e3c2] reserve.
-Sessions 8b and 48 hold messages for approval; their work moved into lead-session builders.
-
-Prod check at pause (12): /snapshot.json is clean of Donors-tab text ("crm" 0, "Private" 0, all task sources = generator). #105 walk PASS desktop + phone, 0 console errors.
+## Watches to re-arm after compaction
+Main-merge monitor (45 s fetch, flags Christian/Faye) and Slack cron on #codex-dev-day-hackathon (C0CFX659JEQ, baseline 21:34 EST Nov 7).
+Prod: https://devday-donor-desk.vercel.app. Lead deploys by hand only if 12 is down (from C:/Users/Shari/wt/main-check/web, .vercel/project.json copied from ../dd-deploy/web).
