@@ -102,28 +102,21 @@ export const Q4ProgressTile = ({
   const filled =
     percent == null ? 0 : Math.min(Math.max(percent, 0), 100) / 100;
   return (
-    <section
-      data-zoom-source="impact"
-      aria-labelledby={headingId}
-      className={cn(tile, "p-4")}
-    >
+    <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
       <TileHead
         id={headingId}
-        title={target ? `${target.label} outreach` : "Quarter progress"}
-        hint="Ctrl+I"
-      >
-        <Link
-          to="/?workspace=impact"
-          onClick={zoomClick("impact")}
-          className={cn(
-            "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
-            focusRing,
-          )}
-        >
-          Impact &amp; story
-          <ArrowUpRight className="size-3.5" aria-hidden="true" />
-        </Link>
-      </TileHead>
+        title={
+          <Link
+            to="/?workspace=impact"
+            onClick={zoomClick("impact")}
+            title="Open Impact & story"
+            aria-label="Open Impact & story"
+            className={headingLink}
+          >
+            {target ? `${target.label} outreach` : "Quarter progress"}
+          </Link>
+        }
+      />
       {isPending ? (
         <Skeleton className="h-16 w-full rounded-xl" />
       ) : !target ? (
