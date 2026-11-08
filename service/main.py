@@ -477,9 +477,10 @@ async def capped(what: str, seconds: float, fn, *args, **kwargs):
 
 @app.post("/chat")
 async def chat(req: ChatRequest) -> dict:
-    """{reply, tab, steps: [{tool, args, summary, status}], pending_batch: {id, title, items} | null}.
+    """{reply, tab, steps: [{tool, args, summary, status, undo_token}], run_id, approvals, pending_batch, batches}.
 
-    The model can draft a batch; it cannot send. A human sends with POST /send.
+    Edits apply at once (each step carries an undo_token for POST /undo/{token}). Sends, merges and deletes pause
+    the run: approvals lists them, and POST /chat/approve resumes it after a person decides.
     """
     from service.chat_agent import SCREEN_TAB, run_chat
 
@@ -490,6 +491,32 @@ async def chat(req: ChatRequest) -> dict:
     selection = req.selection or ([screen.person_id] if screen.person_id is not None else [])
     return await capped("chat", config.CHAT_DEADLINE_S, run_chat, req.message, tab, selection,
                         [t.model_dump() for t in req.history], screen.event_id)
+
+
+class ApprovalDecision(BaseModel):
+    call_id: str
+    approve: bool
+
+
+class ApproveRequest(BaseModel):
+    run_id: str
+    approved_by: str = Field(min_length=1, max_length=120)
+    approvals: list[ApprovalDecision] = Field(default_factory=list,
+                                              description="One per pending call; any left out is declined")
+
+
+@app.post("/chat/approve")
+async def chat_approve(req: ApproveRequest) -> dict:
+    """Resume a run paused on approval cards. Same response shape as POST /chat."""
+    from service.chat_agent import resume_chat
+
+    if not req.approved_by.strip():
+        raise HTTPException(422, "approved_by must name a person")
+    try:
+        return await capped("chat", config.CHAT_DEADLINE_S, resume_chat, req.run_id,
+                            {d.call_id: d.approve for d in req.approvals}, req.approved_by.strip())
+    except KeyError as e:
+        raise HTTPException(404, str(e))
 
 
 class SendChoice(BaseModel):
