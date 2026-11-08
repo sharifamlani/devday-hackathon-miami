@@ -1,6 +1,7 @@
 import type { CrmEvent } from "../providers/local/crmTypes";
 import { fromIsoDate, giveMiamiDayFor } from "../outreach/dates";
 import type { OutreachPlanItem } from "../outreach/outreachPlan";
+import type { CalendarItem as ApiCalendarItem } from "../providers/local/calendarFeed";
 import { kindInfo } from "./eventKinds";
 
 /**
@@ -34,32 +35,94 @@ export const campaignEndsFrom = (events: CrmEvent[]) =>
 export const eventDays = (events: CrmEvent[]) =>
   events.map((e) => ({ date: e.starts_at.slice(0, 10), label: e.title }));
 
-/** A plan item as a react-big-calendar all-day entry. */
-export const planItemTitle = (item: OutreachPlanItem) =>
-  `${item.done ? "Done: " : ""}${item.campaign_id != null ? "Review " : "Contact "}${item.label}`;
+/**
+ * A dated task on the calendar. Live: a row of GET /calendar (kind "task").
+ * Snapshot build: an item of the browser-local outreach plan.
+ */
+export interface CalTask {
+  /** The task id as a string (PATCH /tasks/{id}); the plan item id in the snapshot build. */
+  id: string;
+  date: string; // YYYY-MM-DD
+  time: string | null;
+  title: string;
+  done: boolean;
+  /** "agent" | "staff" | "generator" | ... */
+  source: string | null;
+  /** "call" | "review" | ... when known. */
+  kind: string | null;
+}
 
-export const planCalendarEntries = (items: OutreachPlanItem[]) =>
+/** GET /calendar rows → the tasks among them (events stay with useEvents). */
+export const tasksFromFeed = (
+  items: (ApiCalendarItem & { done?: boolean; task_kind?: string })[],
+): CalTask[] =>
+  items.flatMap((item) =>
+    item.kind === "task"
+      ? [
+          {
+            id: String(item.ref ?? "").replace(/^task:/, ""),
+            date: item.date.slice(0, 10),
+            time: item.time,
+            title: item.title,
+            done: item.done === true,
+            source: item.source,
+            kind: item.task_kind ?? null,
+          },
+        ]
+      : [],
+  );
+
+export const planItemTitle = (item: OutreachPlanItem) =>
+  item.title ??
+  `${item.campaign_id != null ? "Review " : "Contact "}${item.label}`;
+
+/** Snapshot build: the local plan as calendar tasks. */
+export const tasksFromPlan = (items: OutreachPlanItem[]): CalTask[] =>
   items.map((item) => ({
     id: item.id,
+    date: item.date,
+    time: null,
     title: planItemTitle(item),
-    start: fromIsoDate(item.date),
-    end: fromIsoDate(item.date),
+    done: item.done,
+    source: item.source,
+    kind: null,
+  }));
+
+/** "Done: " and "(added by agent)" are part of how a task reads everywhere. */
+export const taskLabel = (task: CalTask) =>
+  `${task.done ? "Done: " : ""}${task.title}${task.source === "agent" ? " (added by agent)" : ""}`;
+
+/** Who made the task, in words; null when it needs no note. */
+export const taskOrigin = (task: Pick<CalTask, "source">) =>
+  task.source === "agent"
+    ? "added by agent"
+    : task.source === "generator"
+      ? "suggested from your data"
+      : null;
+
+/** A task as a react-big-calendar all-day entry. */
+export const taskCalendarEntries = (tasks: CalTask[]) =>
+  tasks.map((task) => ({
+    id: `task-${task.id}`,
+    title: taskLabel(task),
+    start: fromIsoDate(task.date),
+    end: fromIsoDate(task.date),
     allDay: true,
-    item,
+    task,
   }));
 
 export type AgendaEntry =
   | { kind: "event"; date: string; event: CrmEvent }
-  | { kind: "plan"; date: string; item: OutreachPlanItem };
+  | { kind: "task"; date: string; task: CalTask };
 
 /**
- * Upcoming list: events as given, plus plan items from `today` on (done ones
- * stay, ticked, so marking one done doesn't make it vanish), by day.
- * Within a day events come first, then plan items.
+ * Upcoming list: events as given, plus tasks from `today` on (done ones stay,
+ * ticked, so marking one done doesn't make it vanish), by day. Within a day
+ * events come first, then tasks (by time, then as given).
  */
 export const mergeAgenda = (
   events: CrmEvent[],
-  items: OutreachPlanItem[],
+  tasks: CalTask[],
   today: string,
 ): AgendaEntry[] => {
   const entries: AgendaEntry[] = [
@@ -68,13 +131,19 @@ export const mergeAgenda = (
       date: event.starts_at.slice(0, 10),
       event,
     })),
-    ...items
-      .filter((item) => item.date >= today)
-      .map((item) => ({ kind: "plan" as const, date: item.date, item })),
+    ...tasks
+      .filter((task) => task.date >= today)
+      .map((task) => ({ kind: "task" as const, date: task.date, task })),
   ];
   return entries.sort(
     (a, b) =>
       a.date.localeCompare(b.date) ||
-      (a.kind === b.kind ? 0 : a.kind === "event" ? -1 : 1),
+      (a.kind === b.kind
+        ? a.kind === "task" && b.kind === "task"
+          ? (a.task.time ?? "99:99").localeCompare(b.task.time ?? "99:99")
+          : 0
+        : a.kind === "event"
+          ? -1
+          : 1),
   );
 };
