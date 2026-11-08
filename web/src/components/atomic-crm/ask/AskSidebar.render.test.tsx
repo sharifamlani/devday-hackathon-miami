@@ -21,7 +21,12 @@ vi.hoisted(() => {
   }
 });
 import { AskSessionProvider } from "./AskSession";
-import { AskSidebar, AskSidebarTrigger } from "./AskSidebar";
+import {
+  AskSidebar,
+  AskSidebarTrigger,
+  LiveTranscriptTrigger,
+} from "./AskSidebar";
+import { AskSessionContext, type AskSession } from "./askSessionContext";
 
 // Render-only smoke test (no DOM needed): the shell, both Ask variants and
 // the trigger mount without throwing and expose their accessible names.
@@ -56,7 +61,8 @@ describe("Ask sidebar render", () => {
     const docked = wrap(<AskSidebar docked />);
     expect(docked).toContain('role="complementary"');
     expect(docked).toContain("Ask Donor Desk");
-    expect(docked).toContain('aria-label="Open full page"');
+    expect(docked).toContain('aria-label="Expand to full page"');
+    expect(docked).toContain('aria-pressed="false"');
     expect(docked).toContain('aria-label="Close Ask sidebar"');
     // No ChatPanel module in this repo yet: no tabs.
     expect(docked).not.toContain('role="tablist"');
@@ -64,6 +70,38 @@ describe("Ask sidebar render", () => {
     const overlay = wrap(<AskSidebar docked={false} />);
     expect(overlay).toContain('role="dialog"');
     expect(overlay).toContain('aria-modal="true"');
+  });
+
+  it("renders the live-transcript trigger", () => {
+    const html = wrap(<LiveTranscriptTrigger />);
+    expect(html).toContain('aria-label="Live transcript"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('aria-controls="ask-sidebar"');
+    expect(renderToString(<LiveTranscriptTrigger />)).toBe("");
+  });
+
+  it("renders the voice mode header, expanded", () => {
+    const session = {
+      sidebarOpen: true,
+      openedByUser: false,
+      paneMode: "voice",
+      paneExpanded: true,
+      setPaneExpanded: vi.fn(),
+      closeSidebar: vi.fn(),
+    } as unknown as AskSession;
+    const html = renderToString(
+      <MemoryRouter>
+        <AskSessionContext.Provider value={session}>
+          <AskSidebar docked />
+          <LiveTranscriptTrigger />
+        </AskSessionContext.Provider>
+      </MemoryRouter>,
+    );
+    expect(html).toContain("Live transcript");
+    expect(html).not.toContain("Ask Donor Desk");
+    expect(html).toContain('aria-label="Shrink to sidebar"');
+    expect(html).toContain('aria-label="Close live transcript"');
+    expect(html).toContain('aria-expanded="true"');
   });
 
   it("shows a Chat tab when a chat slot is passed", () => {

@@ -5,7 +5,7 @@ The shapes come from the route functions themselves, so the UI parses both modes
     {
       "meta":       {"as_of", "generated_at", "label": "Cached sample", "donor_count", "source"},
       "donors":     [...]          # == GET /donors
-      "donor_details": {"<id>": {...}}   # == GET /donors/{id}, keyed by id as a string
+      "donor_details": {"<id>": {...}}   # == GET /donors/{id}, keyed by id as a string; call_notes always []
       "duplicates": [...]          # == GET /duplicates
       "people":     {"counts": {...}, "giver": [...], "neighbor": [...], "community": [...]}  # == GET /people?type=
       "events":     [...]          # == GET /events
@@ -63,7 +63,7 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
             "source": "service/export_snapshot.py from data/donors.db",
         },
         "donors": donors,
-        "donor_details": {str(r[0]): get_donor(r[0], conn) for r in conn.execute("SELECT id FROM donors ORDER BY id")},
+        "donor_details": {str(r[0]): snapshot_donor(r[0], conn) for r in conn.execute("SELECT id FROM donors ORDER BY id")},
         "duplicates": list_duplicates(conn),
         "people": {"counts": people_counts(conn), **{t: list_people(conn, t) for t in ("giver", "neighbor", "community")}},
         "events": (events := list_events(conn)),
@@ -78,6 +78,11 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "campaigns_demo": campaigns_snapshot(conn),
         "ask_examples": snapshot_examples(conn, as_of_values[-1] if as_of_values else as_of),
     }
+
+
+def snapshot_donor(donor_id: int, conn) -> dict:
+    """GET /donors/{id}, minus saved call notes: transcripts stay on the laptop, never in the public snapshot."""
+    return {**get_donor(donor_id, conn), "call_notes": []}
 
 
 def campaigns_snapshot(conn) -> dict | None:

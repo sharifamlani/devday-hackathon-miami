@@ -28,7 +28,21 @@ export interface AskSession {
   toggleSidebar: () => void;
   /** True once a person opened the panel in this page view; drives focus-on-open. */
   openedByUser: boolean;
+
+  /**
+   * What the right pane shows while it is open: the Ask conversation or the
+   * live call transcript (voice/LiveTranscriptPane). `sidebarOpen` is still
+   * "the right pane is open"; the Ask triggers open it in "ask" mode.
+   */
+  paneMode: PaneMode;
+  /** Open the right pane in a mode (switches mode if it is already open). */
+  openPane: (mode: PaneMode) => void;
+  /** The pane fills the workspace instead of sitting beside it. */
+  paneExpanded: boolean;
+  setPaneExpanded: (expanded: boolean) => void;
 }
+
+export type PaneMode = "ask" | "voice";
 
 export const AskSessionContext = createContext<AskSession | null>(null);
 

@@ -7,7 +7,9 @@
 
 @theme inline {
   /* Kindred renders in Avenir Next on Apple devices; bundled Inter covers the rest. */
-  --font-sans: "Avenir Next", Avenir, "Inter Variable", -apple-system, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    "Avenir Next", Avenir, "Inter Variable", -apple-system, "Segoe UI",
+    ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -43,8 +45,12 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  /* Kindred palette (sites/kindred): beige canvas, warm surface, yellow accent */
+  /* Kindred palette (sites/kindred): white canvas with yellow-green glows,
+     a warm recessed surface, yellow accent */
   --color-surface: var(--surface);
+  --color-strong: var(--strong);
+  --color-strong-foreground: var(--strong-foreground);
+  --color-tile: var(--tile);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-soft: var(--brand-soft);
@@ -64,9 +70,11 @@
    darkened where Kindred's originals fall under WCAG 2.2 AA (4.5:1) on white. */
 :root {
   --radius: 1rem;
-  --background: #dcd9d2;
+  /* Canvas is white; the page glows (body, below) and tiles carry the color. */
+  --background: #ffffff;
   --foreground: #242728;
-  --surface: #f5f4ef;
+  /* Recessed fill inside tiles: inputs, bubbles, hover. */
+  --surface: #f3f1ea;
   --card: #ffffff;
   --card-foreground: #242728;
   --popover: #ffffff;
@@ -75,40 +83,50 @@
   --primary-foreground: #ffffff;
   --secondary: #efeee7;
   --secondary-foreground: #242728;
-  --muted: #f1f1ea;
-  --muted-foreground: #66695f;
-  --accent: #f3f2eb;
+  --muted: #f3f1ea;
+  --muted-foreground: #5f6264;
+  --accent: #f3f1ea;
   --accent-foreground: #242728;
   --destructive: #a63f2c;
-  --border: #e8e7df;
-  --input: #e0e3d8;
-  --ring: #ad960c;
+  --border: #e4e1d9;
+  --input: #e0ddd3;
+  /* Focus rings: 4.5:1 on white (Kindred's #ad960c was 3:1). */
+  --ring: #7f6c00;
   --brand: #f4d958;
   --brand-foreground: #242728;
   --brand-soft: #faf2cc;
   --brand-soft-foreground: #6e5f14;
   --olive: #e6e7db;
-  --good: #edf2e9;
-  --good-foreground: #46624b;
-  --warn: #faf2cc;
-  --warn-foreground: #6e5f14;
-  --alert: #fbede4;
-  --alert-foreground: #94492b;
-  --quiet: #f1f1ea;
-  --quiet-foreground: #5f6358;
+  --good: #e1eedf;
+  --good-foreground: #2f6b45;
+  --warn: #f8ecc8;
+  --warn-foreground: #6e5212;
+  --alert: #f7dcd7;
+  --alert-foreground: #9b2c22;
+  --quiet: #ecebe6;
+  --quiet-foreground: #4b5563;
+  /* Dark ink surfaces in both themes: active rail item, the focused task card. */
+  --strong: #242728;
+  --strong-foreground: #f7f6f1;
+  /* Tiles and page glows (see @utility tile and body). */
+  --tile: rgb(255 255 255 / 0.9);
+  --tile-glow-yellow: rgb(244 217 88 / 0.17);
+  --tile-glow-green: rgb(196 220 120 / 0.2);
+  --page-glow-yellow: rgb(244 217 88 / 0.5);
+  --page-glow-green: rgb(196 220 120 / 0.45);
   --chart-1: #f4d958;
   --chart-2: #55705b;
   --chart-3: #d97556;
   --chart-4: #8a9a7b;
   --chart-5: #242728;
-  --sidebar: #f5f4ef;
+  --sidebar: #ffffff;
   --sidebar-foreground: #242728;
   --sidebar-primary: #242728;
   --sidebar-primary-foreground: #f4d958;
   --sidebar-accent: #f3f2eb;
   --sidebar-accent-foreground: #242728;
-  --sidebar-border: #e8e7df;
-  --sidebar-ring: #ad960c;
+  --sidebar-border: #e4e1d9;
+  --sidebar-ring: #7f6c00;
   --avatar-0: #ebe8db;
   --avatar-1: #f2dfd2;
   --avatar-2: #e0e7dc;
@@ -122,51 +140,59 @@
 }
 
 /* Kindred has no dark theme; this is a warm dark counterpart with the same roles. */
+/* Same structure in dark, with dimmer glows (homepage mock, 09-dark). */
 .dark {
-  --background: #141615;
-  --foreground: #f1f0ea;
-  --surface: #1d201e;
-  --card: #262927;
-  --card-foreground: #f1f0ea;
-  --popover: #262927;
-  --popover-foreground: #f1f0ea;
-  --primary: #f1f0ea;
-  --primary-foreground: #1d201e;
-  --secondary: #2f3330;
-  --secondary-foreground: #f1f0ea;
-  --muted: #2f3330;
-  --muted-foreground: #b3b6aa;
-  --accent: #2f3330;
-  --accent-foreground: #f1f0ea;
-  --destructive: #f08a70;
-  --border: #ffffff1a;
-  --input: #ffffff26;
+  --background: #151617;
+  --foreground: #efede6;
+  --surface: #2a2c2d;
+  --card: #222425;
+  --card-foreground: #efede6;
+  --popover: #222425;
+  --popover-foreground: #efede6;
+  --primary: #f4f2ec;
+  --primary-foreground: #1b1c1d;
+  --secondary: #2d2f30;
+  --secondary-foreground: #efede6;
+  --muted: #2d2f30;
+  --muted-foreground: #b4b2ab;
+  --accent: #2d2f30;
+  --accent-foreground: #efede6;
+  --destructive: #f2a49a;
+  --border: #35383a;
+  --input: #3d4042;
   --ring: #e3c74a;
   --brand: #f4d958;
-  --brand-foreground: #1d201e;
-  --brand-soft: #3b3518;
-  --brand-soft-foreground: #f3dd7a;
+  --brand-foreground: #1b1c1d;
+  --brand-soft: #3d3420;
+  --brand-soft-foreground: #f0cf7a;
   --olive: #343830;
-  --good: #24322a;
-  --good-foreground: #a9cfae;
-  --warn: #3b3518;
-  --warn-foreground: #f3dd7a;
-  --alert: #3e2a22;
-  --alert-foreground: #f3b79e;
-  --quiet: #2f3330;
-  --quiet-foreground: #c4c7bb;
+  --good: #21382a;
+  --good-foreground: #8fd0a3;
+  --warn: #3d3420;
+  --warn-foreground: #f0cf7a;
+  --alert: #46261f;
+  --alert-foreground: #f2a49a;
+  --quiet: #33363a;
+  --quiet-foreground: #c3c6cc;
+  --strong: #0e0f10;
+  --strong-foreground: #f7f6f1;
+  --tile: rgb(34 36 37 / 0.92);
+  --tile-glow-yellow: rgb(244 217 88 / 0.08);
+  --tile-glow-green: rgb(196 220 120 / 0.08);
+  --page-glow-yellow: rgb(244 217 88 / 0.16);
+  --page-glow-green: rgb(196 220 120 / 0.13);
   --chart-1: #f4d958;
   --chart-2: #8fb596;
   --chart-3: #e8977c;
   --chart-4: #b3c2a4;
   --chart-5: #f1f0ea;
-  --sidebar: #1d201e;
+  --sidebar: #151617;
   --sidebar-foreground: #f1f0ea;
   --sidebar-primary: #f1f0ea;
   --sidebar-primary-foreground: #1d201e;
   --sidebar-accent: #2f3330;
   --sidebar-accent-foreground: #f1f0ea;
-  --sidebar-border: #ffffff1a;
+  --sidebar-border: #35383a;
   --sidebar-ring: #e3c74a;
   --avatar-0: #3a3a30;
   --avatar-1: #47352b;
@@ -178,6 +204,26 @@
   --avatar-7: #2f3d31;
   --avatar-8: #2f3a42;
   --avatar-9: #3d3340;
+}
+
+/* Kindred tile: thin border, white fill, a yellow-green glow at the bottom
+   corners. Use `tile` on any card or panel; set `[--tile:var(--card)]` where
+   it floats over a scrim and must be opaque. */
+@utility tile {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      85% 55% at 0% 100%,
+      var(--tile-glow-yellow),
+      transparent 72%
+    ),
+    radial-gradient(
+      85% 55% at 100% 100%,
+      var(--tile-glow-green),
+      transparent 72%
+    ),
+    var(--tile);
 }
 
 a,
@@ -234,6 +280,20 @@ input[type="time"] {
 body {
   font-family: var(--font-sans);
   font-size: 14px;
+  /* White canvas, yellow glow bottom-left, green-yellow glow bottom-right. */
+  background:
+    radial-gradient(
+      55% 45% at 0% 100%,
+      var(--page-glow-yellow),
+      transparent 70%
+    ),
+    radial-gradient(
+      55% 45% at 100% 100%,
+      var(--page-glow-green),
+      transparent 70%
+    ),
+    var(--background);
+  background-attachment: fixed;
 }
 
 /* The mobile pull-to-refresh (see layout/PullToRefresh.tsx) owns the overscroll

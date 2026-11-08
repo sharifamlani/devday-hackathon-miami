@@ -52,3 +52,33 @@ export function ThemeModeToggle() {
     </DropdownMenu>
   );
 }
+
+const prefersDark = () =>
+  typeof window !== "undefined" &&
+  !!window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+
+/**
+ * One round sun/moon button that flips between light and dark (the Donor Desk
+ * top bar). "System" resolves to what the device prefers right now. The icon
+ * shows the current theme; the label says what pressing it does.
+ */
+export function ThemeToggleButton({ className }: { className?: string }) {
+  const { theme, setTheme } = useTheme();
+  const dark = theme === "dark" || (theme === "system" && prefersDark());
+  const label = dark ? "Switch to light mode" : "Switch to dark mode";
+  const Icon = dark ? Moon : Sun;
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "tile grid size-10 shrink-0 place-items-center rounded-full text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        className,
+      )}
+    >
+      <Icon className="size-[19px]" aria-hidden />
+    </button>
+  );
+}
