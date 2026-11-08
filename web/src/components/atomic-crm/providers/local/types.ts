@@ -2,6 +2,7 @@ import type { CampaignMethods } from "./campaignTypes";
 
 export type * from "./campaignTypes";
 import type { AskAnswer, AskFilter, AskIntent } from "./ask";
+import type { CallNote } from "../../voice/callNotes";
 
 /**
  * The view model the Donor Desk screens render. parse.ts builds it from the
@@ -85,6 +86,7 @@ export interface DonorDetail extends DonorSummary {
   research: ResearchFact[];
   merges: MergeLogEntry[]; // merges into this donor, newest first ([] if none)
   draft: OutreachDraft | null; // newest outreach_drafts row
+  call_notes: CallNote[]; // the service's saved call notes, newest first ([] if none)
 }
 
 export interface DuplicateDonor {

@@ -24,11 +24,9 @@ def offline(monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
 
-def test_the_model_has_no_tool_that_sends():
-    names = {t.name for t in chat_agent.TOOLS}
-    assert names == {"find_people", "segment", "get_context", "get_events", "get_alerts", "draft_email",
-                     "draft_sms", "plan_event_outreach", "build_brief", "community_stats"}
-    assert not any("send" in n for n in names)
+def test_the_model_can_only_send_through_an_approval_card():
+    sends = {t.name for t in chat_agent.TOOLS if "send" in t.name}
+    assert sends == {"send"} and sends <= chat_agent.APPROVAL_TOOLS     # B10: the run pauses until a person approves
 
 
 def test_draft_batch_is_pending_and_sends_nothing(db_file):

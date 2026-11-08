@@ -50,8 +50,9 @@ import {
   savedConfirmation,
   type CallSummary,
 } from "./summarize";
+import { micTranscriptSource, usesGeminiCaptions } from "./geminiTranscriptSource";
+import { labelSpeakers, takeRecording } from "./speakerLabels";
 import {
-  browserSpeechSource,
   DEMO_FALLBACK_DONOR,
   demoCallScript,
   demoTranscriptSource,
@@ -166,7 +167,7 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
   const campaigns = useCampaigns();
   // The mic needs getUserMedia; captions also need SpeechRecognition.
   const [micOk] = useState(micAvailable);
-  const [captionsOk] = useState(() => getSpeechRecognition() != null);
+  const [captionsOk] = useState(() => usesGeminiCaptions() || getSpeechRecognition() != null);
 
   const cardDonor = findCardFailedDonor(donors.data);
   const demoDonorNow = cardDonor?.full_name ?? DEMO_FALLBACK_DONOR;
@@ -295,14 +296,14 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
       micRef.current = mic;
       setMicOn(true);
       setStatus("live");
-      if (!getSpeechRecognition()) {
+      if (!usesGeminiCaptions() && !getSpeechRecognition()) {
         setNotice({
           text: "Live captions need Chrome or Edge; the demo call shows how it works.",
           offerDemo: true,
         });
         return;
       }
-      runSource(browserSpeechSource());
+      runSource(micTranscriptSource());
     },
     [stopAll, runSource],
   );
@@ -460,14 +461,17 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
   /* ---------- Summary and saving ---------- */
 
   const generateSummary = async () => {
+    const recording = takeRecording(sourceRef.current); // before stopAll ends it
     stopAll();
     setStatus("ended");
     setSummarizing(true);
     update({ tab: "summary" });
     const current = draftRef.current;
     try {
+      const { lines } = await labelSpeakers(recording, current.lines, { donorName });
+      if (lines !== current.lines) update({ lines });
       const result = await buildSummary({
-        transcript: current.lines,
+        transcript: lines,
         donorName,
         notes: current.notes,
         today: new Date(current.startedAt),

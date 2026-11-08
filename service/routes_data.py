@@ -53,6 +53,18 @@ def get_conn() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+def parse_demographics(raw: str | None) -> dict:
+    """donors.demographics is JSON {field: {value, source_row}}. A row holding anything else (free text from an
+    older import) reads as {"summary": {"value": <text>}} instead of failing the whole route."""
+    if not raw or not raw.strip():
+        return {}
+    try:
+        val = json.loads(raw)
+    except ValueError:
+        return {"summary": {"value": raw.strip()}}
+    return val if isinstance(val, dict) else {"summary": {"value": val}}
+
+
 def _donor_out(row: sqlite3.Row) -> dict:
     d = dict(row)
     d["emails_all"] = json.loads(d.get("emails_all") or "[]")
@@ -65,7 +77,7 @@ def _donor_out(row: sqlite3.Row) -> dict:
         d["why"] = json.loads(d["why"]) if d["why"] else None
     if "interests" in d:
         d["interests"] = json.loads(d["interests"] or "[]")
-        d["demographics"] = json.loads(d["demographics"] or "{}")
+        d["demographics"] = parse_demographics(d["demographics"])
         d["has_dog"] = None if d["has_dog"] is None else bool(d["has_dog"])
     return d
 
@@ -432,7 +444,7 @@ def get_context_status(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
 def community_stats(conn: sqlite3.Connection) -> dict:
     """Counts by each self-reported demographic field across the Community tab. A field missing from a
     record lands in "not recorded"; list fields (programs) count each value once per person."""
-    people = [json.loads(r[0] or "{}") for r in conn.execute(
+    people = [parse_demographics(r[0]) for r in conn.execute(
         "SELECT demographics FROM donors WHERE contact_type = 'community'")]
     fields = {}
     for field in db.DEMOGRAPHIC_FIELDS:

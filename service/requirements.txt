@@ -8,3 +8,5 @@ python-multipart
 pandas
 openpyxl
 python-docx
+assistant-stream
+google-genai

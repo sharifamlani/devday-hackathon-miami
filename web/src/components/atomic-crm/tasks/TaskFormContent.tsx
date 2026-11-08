@@ -6,6 +6,7 @@ import { required } from "ra-core";
 import { DateTimeInput } from "@/components/admin";
 
 import { contactOptionText } from "../misc/ContactOption";
+import { SavedInBrowserHint } from "../misc/SavedInBrowserHint";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 
 export const TaskFormContent = ({
@@ -54,6 +55,7 @@ export const TaskFormContent = ({
           helperText={false}
         />
       </div>
+      <SavedInBrowserHint />
     </div>
   );
 };

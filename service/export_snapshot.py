@@ -3,7 +3,7 @@
 The shapes come from the route functions themselves, so the UI parses both modes the same way:
 
     {
-      "meta":       {"as_of", "generated_at", "label": "Cached sample", "donor_count", "source"},
+      "meta":       {"as_of", "generated_at", "label": "Cached sample", "donor_count", "source", "snapshot_id"},
       "donors":     [...]          # == GET /donors
       "donor_details": {"<id>": {...}}   # == GET /donors/{id}, keyed by id as a string; call_notes always []
       "duplicates": [...]          # == GET /duplicates
@@ -21,7 +21,20 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "campaigns_demo": {"label", "campaigns": [GET /campaigns/{id}], "outbox": [], "drafts": {...}}
                      # #38: one precomputed sample campaign + template drafts per donor (no API, no writes)
       "ask_examples": [...]        # Ask Donor Desk: rules answers to ask_agent.EXAMPLE_QUESTIONS
+      plan.md §21 home (live-only routes, read from here by the snapshot build):
+      "home_summary": {...}        # == GET /home/summary
+      "people_attention": [...]    # == GET /people/attention?limit=50 (the UI slices)
+      "tasks": [...]               # == GET /tasks (every task; the UI filters from/to/person)
+      "tasks_today": [...]         # == GET /tasks?due=today
+      "calendar": [...]            # == GET /calendar (whole range; the UI filters from/to)
+      "artifacts": [...]           # == GET /artifacts, minus call notes (they stay on the laptop)
+      "target_quarters": {...}     # == GET /targets/quarters
     }
+
+Never exported: the Donors tab's notes, tasks and tags (crm_* tables, routes_crm.py). They are private staff
+notes; in snapshot mode the browser keeps its own in localStorage, tied to meta.snapshot_id: a hash of every
+donor's id and name, so re-exporting the same donors keeps them and a snapshot whose ids mean other donors
+starts clean.
 
     python -m service.export_snapshot                    # rescore as of the demo date, write web/public/snapshot.json
     python -m service.export_snapshot --no-rescore --out other.json
@@ -30,6 +43,7 @@ The shapes come from the route functions themselves, so the UI parses both modes
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -61,6 +75,7 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
             "label": "Cached sample",
             "donor_count": len(donors),
             "source": "service/export_snapshot.py from data/donors.db",
+            "snapshot_id": snapshot_id(donors),
         },
         "donors": donors,
         "donor_details": {str(r[0]): snapshot_donor(r[0], conn) for r in conn.execute("SELECT id FROM donors ORDER BY id")},
@@ -77,7 +92,37 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "targets": targets.compute_all(conn, as_of),
         "campaigns_demo": campaigns_snapshot(conn),
         "ask_examples": snapshot_examples(conn, as_of_values[-1] if as_of_values else as_of),
+        **home_snapshot(conn, as_of),
     }
+
+
+def home_snapshot(conn, as_of: date | None) -> dict:
+    """The home board's live-only routes (plan.md §21), from the same functions the routes call.
+
+    Runs the task generator first: it is idempotent, and the pipeline's sample DB otherwise has no tasks.
+    Call-note artifacts are left out, like donor_details' call_notes: transcripts never go public.
+    """
+    from service import tasks
+    from service.routes_home import attention, home_summary
+
+    today = as_of or score.default_as_of()
+    tasks.generate(conn, today)
+    return {
+        "home_summary": home_summary(as_of=today, conn=conn),
+        "people_attention": attention(conn, today, 50),
+        "tasks": tasks.list_tasks(conn, as_of=today),
+        "tasks_today": tasks.list_tasks(conn, due="today", as_of=today),
+        "calendar": tasks.calendar(conn, None, None),
+        "artifacts": [a for a in tasks.artifacts(conn, 50) if a.get("kind") != "call_note"],
+        "target_quarters": targets.quarters(conn, today),
+    }
+
+
+def snapshot_id(donors: list[dict]) -> str:
+    """Which donors this snapshot's ids stand for: stable across re-exports of the same donors, different as
+    soon as an id names someone else. The browser keys its saved notes to it (crmPersistence.ts)."""
+    pairs = sorted((int(d["id"]), d.get("full_name") or "") for d in donors)
+    return hashlib.sha256(json.dumps(pairs, ensure_ascii=False).encode()).hexdigest()[:16]
 
 
 def snapshot_donor(donor_id: int, conn) -> dict:
