@@ -107,6 +107,11 @@ export const ingestSummary = (
       ? { declined: raw.declined_on_record }
       : {}),
     duplicates: result.duplicates,
+    ...(typeof raw.duplicates_removed === "number" &&
+    Number.isInteger(raw.duplicates_removed) &&
+    raw.duplicates_removed >= 0
+      ? { duplicatesRemoved: raw.duplicates_removed }
+      : {}),
     files: fileCount,
     byTab,
     review: Array.isArray(raw.flagged_for_review)
@@ -154,7 +159,9 @@ export const filesLine = (summary: FilesSummary) => {
     : "";
   const parts = [
     summary.people != null ? plural(summary.people, "person", "people") : null,
-    summary.gifts != null ? plural(summary.gifts, "gift", "gifts") + declined : null,
+    summary.gifts != null
+      ? plural(summary.gifts, "gift", "gifts") + declined
+      : null,
     summary.duplicates
       ? plural(summary.duplicates, "possible duplicate", "possible duplicates")
       : null,

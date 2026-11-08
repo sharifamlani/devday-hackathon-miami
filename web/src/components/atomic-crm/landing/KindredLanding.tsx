@@ -1,3 +1,5 @@
+import { UploadProcessing } from "../upload/UploadProcessing";
+import { ingestSummary } from "../onboarding/firstRun";
 import {
   useEffect,
   useRef,
@@ -88,7 +90,9 @@ const useHasPeople = (): boolean | null => {
  * /ingest reads .json and .md, so without this the answer key and the README would be imported as data.
  */
 const isNotDonorData = (name: string) =>
-  /answer[_-]?key/i.test(name) || /^_?readme\b/i.test(name) || name.startsWith(".");
+  /answer[_-]?key/i.test(name) ||
+  /^_?readme\b/i.test(name) ||
+  name.startsWith(".");
 
 const splitDonorFiles = (incoming: File[]) => ({
   keep: incoming.filter((f) => !isNotDonorData(f.name)),
@@ -138,6 +142,7 @@ export const KindredLanding = () => {
   const elapsed = useElapsed(pending);
   const [error, setError] = useState("");
   const [result, setResult] = useState<IngestResult | null>(null);
+  const onboarding = useOnboarding();
   const canUpload = DATA_MODE === "local";
   const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
     accept: ACCEPTED_TYPES,
@@ -152,7 +157,9 @@ export const KindredLanding = () => {
         chooseFiles(accepted);
         // The answer key (.json) is refused by type too: list it as skipped, not as a wrong file
         const wrong = rejected.filter((r) => !isNotDonorData(r.file.name));
-        const notData = rejected.filter((r) => isNotDonorData(r.file.name)).map((r) => r.file.name);
+        const notData = rejected
+          .filter((r) => isNotDonorData(r.file.name))
+          .map((r) => r.file.name);
         if (notData.length) setSkipped((s) => [...s, ...notData]);
         if (wrong.length)
           setError("Please choose .csv, .xlsx, .docx, .md or .txt files.");
@@ -177,6 +184,24 @@ export const KindredLanding = () => {
       setPending(false);
     }
   };
+
+  if (pending || result)
+    return (
+      <UploadProcessing
+        pending={pending}
+        summary={result ? ingestSummary(result, files.length) : null}
+        onContinue={() => {
+          if (!result) return;
+          onboarding.update({ files: ingestSummary(result, files.length) });
+          onboarding.start(1);
+          window.location.hash = "#/";
+        }}
+        onReviewDuplicates={() => {
+          onboarding.finishLater();
+          window.location.hash = "#/contacts";
+        }}
+      />
+    );
 
   return (
     <main

@@ -1,3 +1,4 @@
+import { UploadProcessing } from "../upload/UploadProcessing";
 import {
   useCallback,
   useEffect,
@@ -82,9 +83,6 @@ import {
 
 /** The laptop build talks to the service; the Vercel snapshot has no API. */
 const LIVE = DATA_MODE === "local";
-
-/** Measured on the 8 example files against the local service: about a minute. */
-const INGEST_TIME = "This usually takes about a minute.";
 
 const plural = (n: number, one: string, many: string) =>
   `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
@@ -317,7 +315,6 @@ export const FilesStep = ({
   const existing = people?.length ?? 0;
   const uploading = upload.isPending;
   const busy = uploading || loadingSample;
-  const elapsed = useElapsed(uploading);
   useReportBusy(busy, onBusy);
   // Saved in onboarding state right after ingest succeeds, so leaving or
   // reloading before Continue never asks for the same files again.
@@ -389,6 +386,16 @@ export const FilesStep = ({
     }
   };
 
+  if (uploading || (showReceipt && imported))
+    return (
+      <UploadProcessing
+        pending={uploading}
+        summary={imported}
+        onContinue={() => onContinue(imported)}
+        onReviewDuplicates={onReviewDuplicates}
+      />
+    );
+
   const collapsible = files.length > COLLAPSE_AFTER;
   const showList = !collapsible || listOpen;
 
@@ -424,7 +431,9 @@ export const FilesStep = ({
             ? "Importing…"
             : files.length
               ? `Import ${plural(files.length, "file", "files")}`
-              : "Continue"}
+              : showReceipt
+                ? "Create organization profile"
+                : "Continue"}
         </Primary>
       }
     >
@@ -575,12 +584,7 @@ export const FilesStep = ({
       )}
 
       <div aria-live="polite">
-        {uploading ? (
-          <p className="onb-status">
-            Reading your files and sorting people into tabs · {clock(elapsed)}.{" "}
-            {INGEST_TIME}
-          </p>
-        ) : status ? (
+        {status ? (
           <p className="onb-status" data-tone={status.tone}>
             {status.text}
           </p>
