@@ -32,10 +32,10 @@ This is a skeleton: each step names the screen and the one point to land. Timing
    donors and organizations need individual approval.
 8. **Enrich (on a real organization).** The sample data is fictional, so add a real one on stage: tell the agent
    *"add the Knight Foundation as a contact"*. **John S. and James L. Knight Foundation** lands in **Givers** as a new
-   contact with no gifts. Open it and click **Enrich**: sourced interest tags (**civic engagement & local news, arts &
-   culture, community development, economic mobility**, each traced to a source) appear from cache in seconds. Click
-   **Save to profile**. "Nothing is saved until staff accept, and every tag shows where it came from."
-   _The "Save to profile" step needs 42's Enrich UI; on main today the button reads **Enrich profile**._
+   contact with no gifts. Open it and click **Enrich profile**: a dry run (nothing is written) proposes sourced
+   interest tags (**civic engagement & local news, arts & culture, community development, economic mobility**, each
+   traced to a source), from cache in seconds. Tick the ones to keep and click **Save to profile**, which writes only
+   the ticked items. "Nothing is saved until staff accept, and every tag shows where it came from."
 9. **Call + transcript + after-call Apply.** Start a call from the voice panel; the transcript appears live. At the
    end, the agent proposes follow-ups (a task to send the card-update link, a $50/month pledge, an RSVP to the event
    on the 21st, notes), each quoting the call. Click Apply; show the task on the list, then Undo it.
