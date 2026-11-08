@@ -45,7 +45,7 @@ def test_reset_backs_up_then_empties(db_file):
     assert saved is not None and saved.exists() and saved.name.startswith("donors.backup-")
     assert count(saved) == people                       # the backup holds the old rows
     assert count(db_file) == 0 and count(db_file, "gifts") == 0
-    assert demo_reset.reset(db_file, free_port(), log=lambda *_: None) is not None   # idempotent
+    assert demo_reset.reset(db_file, free_port(), log=lambda *_: None) is None   # empty now: no second backup
 
 
 def test_reset_on_a_missing_db_creates_an_empty_schema(tmp_path):
@@ -69,6 +69,7 @@ def test_main_exit_codes(db_file, busy_port, capsys):
     assert demo_reset.main(["--db", str(db_file), "--port", str(free_port())]) == 0
     out = capsys.readouterr().out
     assert "PASS reset" in out and "VITE_DATA_MODE=local" in out and "--port 5173" in out
+    assert "except answer_key.json and _README.md" in out
     assert demo_reset.main(["--db", str(db_file), "--check"]) == demo_reset.FAILED   # empty db: nothing to check
 
 

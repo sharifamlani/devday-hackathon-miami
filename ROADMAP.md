@@ -138,6 +138,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5.7 | Make the AI visible: label where the Agents SDK ran (research, draft) | 80 | ⏸ | — | rubric: use of OpenAI |
 | 5.8 | Merge PR #11 (UI data layer + screens) | lead (QA-gated) | ✅ | Nov 7 · PR #11 | D14 |
 | 5.9 | Kindred landing: centered one-screen layout, approved copy, white/yellow/olive palette, framed CSV drop area, sample entry and shared upload client | Faye | ✅ built; review pending | Nov 7 · `codex/kindred-landing-design` | `docs/design/landing/design-qa.md` |
+| 5.10 | Unified collapsible workspace, anchored quick access, home CRM/calendar panels, consistent donor filters/search | Christian | ✅ local CI; browser/API acceptance pending | Nov 8 · UI branch based on `1a366f7` | `docs/design/workspace-sidebar.md` |
 
 ### Phase 5B — Intelligent ICP, prospects, organization outreach
 **Goal:** "organizations that look like your best donors, and why" with sourced first-touch drafts. **Entry gate:** Phase 3. **Exit gate:** 6+ sourced prospects + drafts in the snapshot and the live API. **Status:** ⏳
