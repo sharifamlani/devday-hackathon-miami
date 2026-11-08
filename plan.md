@@ -1788,7 +1788,7 @@ Ground truth after 13: SQL row counts vs `answer_key.json`; spot-check 3 context
 | Context store sourced, recent-first | 100% rows with source_url; newest-first order holds | SQL | query output |
 | Campaigns tell the story | 100% of 5 drafts cite ≥1 success story, 1 use of funds, 1 org health; 0 invented facts | citation check + review | report |
 | Money is exact | equals the updated answer key; pledges never count | pytest | pass line |
-| Challenge #2 | 6/6 duplicate groups proposed, merge needs approval, gift history kept; 5/5 alerts shown as tasks | API + SQL | counts |
+| Challenge #2 | fuzzy/possible duplicates stay pending until staff approve; exact identity matches may auto-merge but every auto-merged person shows a "!" review icon with Keep / Split (Sharif, Sun Nov 8); gift history and answer-key totals unchanged after Split; 5/5 alerts shown as tasks | API + SQL + Playwright | counts |
 | Enrich tags | ≥2 of 3 sample orgs get ≥1 sourced tag; 0 outside the 17; 0 for a made-up person | API runs | JSON |
 | Transcription | first words < 2 s; ≥90% word match on a scripted 20 s read | smoke + WER | log |
 | Call notes | note + summary survive restart; dictation stores 0 rows | curl after restart; SQL | output |
