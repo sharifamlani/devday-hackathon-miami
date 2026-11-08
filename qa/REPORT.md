@@ -252,3 +252,5 @@ Merged by the lead on QA verdict: #73 (918cd24), #77 (067fa19). #69 parked (Chri
 | dedupe 10-vs-6 | — | the cause is the adapter (pre-merges + uncollapsed dupes + fragments), not dedupe.py or the key; Marrow Lane ~ Okoye is a true pair per key D32 | diagnosed |
 | #49 feat/events | 4dd9847 | 11 passed; weekdays right; runsignup/eventbrite state Nov 15; givemiamiday verified earlier in real Chrome; no Community ask | APPROVE |
 | #57 feat/refresh | c2ff468 | superset of #49 + refresh.py; 35 targeted tests pass | APPROVE |
+| #68 fix/mergeimport-browser-tests (Christian) | a51fa2d | mergeImport 4/8 → 8/8; provider vitest 93/97 → 97/97; test seam only | APPROVE |
+| main retro 6a18d17 | — | pytest 175; chat answers with 7 tool steps; BLOCKER: /duplicates, /people?type=community, /community/stats → 500 after a real upload (free-text demographics vs json.loads; ingest_adapter.py:585 / routes_data.py:66); tabs 39/31/14, dupes 16, alerts 4 (adapter non-determinism); landing sample manifest ships 5 of 7 files | PROBLEMS (adapter owner; landing manifest owner) |
