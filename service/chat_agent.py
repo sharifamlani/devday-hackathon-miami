@@ -86,13 +86,39 @@ def query(sql: str, args: tuple = ()) -> list[dict]:
 TAB_CONTACT = {"givers": "giver", "neighbors": "neighbor", "community": "community"}
 
 
+GAVE_VIA_ALIASES = ({"gmd", "give miami day"},)   # "GMD" and "Give Miami Day" are the same thing
+JOINED_MIN = 6       # letters run together ("GiveMiamiDay") count only for a phrase this long: never "gmd" in "Big MD"
+
+
+def _words(text: str | None) -> list[str]:
+    """'give_miami_day_export_2022-2025.xlsx | sheet:GMD gifts:row:9' -> ['give', 'miami', 'day', ..., 'gmd', ...]."""
+    return re.findall(r"[a-z0-9]+", (text or "").lower())
+
+
+def _says(text: str | None, phrase: list[str]) -> bool:
+    """The phrase as whole words in order ("give miami day" in the file name, "gmd" in "sheet:GMD gifts", but not
+    "gmd" inside "Big MD"), or, for a long phrase, its letters run together ("GiveMiamiDay")."""
+    words, n = _words(text), len(phrase)
+    if any(words[i:i + n] == phrase for i in range(len(words) - n + 1)):
+        return True
+    joined = "".join(phrase)
+    return len(joined) >= JOINED_MIN and joined in "".join(words)
+
+
 def gave_via_ids(channel: str | None) -> set[int] | None:
-    """Donor ids with a gift through a matching channel (case-insensitive substring); None = no filter."""
-    if not channel:
+    """Donor ids with an ok gift through a matching channel; None = no filter. Matches gifts.channel or the
+    gift's source row (an upload often leaves channel empty: "Give Miami Day" lives only in the file name,
+    give_miami_day_export_2022-2025.xlsx), ignoring case and punctuation; "GMD" = "Give Miami Day"."""
+    asked = _words(channel)
+    if not asked:
         return None
-    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ? "
-                                         "AND COALESCE(status, 'ok') = 'ok'",       # a declined charge isn't a gift
-                                         (f"%{channel.strip().lower()}%",))}
+    alias = next((a for a in GAVE_VIA_ALIASES
+                  if " ".join(asked) in a or "".join(asked) in {p.replace(" ", "") for p in a}), None)
+    phrases = [p.split() for p in alias] if alias else [asked]
+    rows = query("SELECT donor_id, channel, source_row FROM gifts "
+                 "WHERE COALESCE(status, 'ok') = 'ok'")                    # a declined charge isn't a gift
+    return {r["donor_id"] for r in rows
+            if any(_says(r["channel"], p) or _says(r["source_row"], p) for p in phrases)}
 
 
 def tab_people(tab: str) -> list[dict] | None:
@@ -965,7 +991,8 @@ def send_summary(batch_id: int, message_ids: list[int] | None = None) -> str | N
     camp = query("SELECT name, intent, channel FROM campaigns WHERE id = ?", (batch_id,))
     if not camp:
         return None
-    rows = query("SELECT m.id, m.channel, d.full_name FROM campaign_messages m JOIN donors d ON d.id = m.donor_id "
+    rows = query("SELECT m.id, m.channel, m.flags, m.needs_individual_approval, d.full_name, d.email, d.phone "
+                 "FROM campaign_messages m JOIN donors d ON d.id = m.donor_id "
                  "WHERE m.campaign_id = ? AND m.status IN ('draft', 'approved') ORDER BY m.id", (batch_id,))
     if message_ids:
         chosen = {int(i) for i in message_ids}
@@ -976,7 +1003,28 @@ def send_summary(batch_id: int, message_ids: list[int] | None = None) -> str | N
     kind = "email" if channels == {"email"} else "text" if channels == {"text"} else "message"
     what = f"{INTENT_WORDS.get(camp[0]['intent'], '')} {kind}{'s' if len(rows) > 1 else ''}".strip()
     who = rows[0]["full_name"] + (f" +{len(rows) - 1} more" if len(rows) > 1 else "")
-    return f"Send {what} to {who}"
+    notes = send_notes(rows)
+    return f"Send {what} to {who}" + (f" ({' · '.join(notes)})" if notes else "")
+
+
+def send_notes(rows: list[dict]) -> list[str]:
+    """What will hold some messages back, said before Send instead of after (the send rules in routes_campaigns):
+    star / big / organization messages need individual approval, a missing address can't be sent, flagged ones
+    wait for an edit."""
+    individual = sum(1 for r in rows if r["needs_individual_approval"])
+    no_email = sum(1 for r in rows if r["channel"] == "email" and not (r["email"] or "").strip())
+    no_phone = sum(1 for r in rows if r["channel"] == "text" and not (r["phone"] or "").strip())
+    flagged = sum(1 for r in rows if (r["flags"] or "[]") != "[]")
+    notes = []
+    if individual:
+        notes.append(f"{individual} need{'s' if individual == 1 else ''} individual approval")
+    if no_email:
+        notes.append(f"{no_email} {'has' if no_email == 1 else 'have'} no email")
+    if no_phone:
+        notes.append(f"{no_phone} {'has' if no_phone == 1 else 'have'} no phone")
+    if flagged:
+        notes.append(f"{flagged} flagged")
+    return notes
 
 
 def approval_items(interruptions) -> list[dict]:
