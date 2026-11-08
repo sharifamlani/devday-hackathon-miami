@@ -1,5 +1,5 @@
-import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { Pause, Play, Upload } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { FileText, Pause, Play, Upload } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 
 import {
@@ -11,6 +11,12 @@ import {
 import { DATA_MODE, donorDeskMethods } from "../providers/local";
 import type { IngestResult } from "../providers/local/types";
 import "./kindred-landing.css";
+import {
+  formatBytes,
+  loadSampleFiles,
+  loadSampleManifest,
+  type SampleFile,
+} from "./sampleFiles";
 
 const subscribeToHash = (onChange: () => void) => {
   window.addEventListener("hashchange", onChange);
@@ -27,6 +33,7 @@ export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
 export const KindredLanding = () => {
   const [areColorsPaused, setColorsPaused] = useState(false);
   const [isUploadOpen, setUploadOpen] = useState(false);
+  const [isSampleOpen, setSampleOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -112,9 +119,13 @@ export const KindredLanding = () => {
               : "or drag and drop your CSV here"}
           </p>
         </div>
-        <a className="kindred-sample" href="#/">
+        <button
+          className="kindred-sample"
+          type="button"
+          onClick={() => setSampleOpen(true)}
+        >
           Try sample data
-        </a>
+        </button>
         <ol className="kindred-steps" aria-label="How Kindred works">
           <li>Upload your list</li>
           <li>Understand your donors</li>
@@ -194,6 +205,124 @@ export const KindredLanding = () => {
           </a>
         </DialogContent>
       </Dialog>
+      <SampleDialog open={isSampleOpen} onOpenChange={setSampleOpen} />
     </main>
+  );
+};
+
+/** "12 donors · 47 gifts · 3 possible duplicates", from whatever ingest reported. */
+const summarize = (result: IngestResult) => {
+  const parts = [
+    result.donors != null ? `${result.donors} donors` : null,
+    result.gifts != null ? `${result.gifts} gifts` : null,
+    result.duplicates != null ? `${result.duplicates} possible duplicates` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : (result.message ?? "Your files were imported.");
+};
+
+/**
+ * "Try sample data": pre-loads the fictional sample files and waits for Go.
+ * Local mode uploads them to POST /ingest (the agent sorts them); the snapshot
+ * build can't import, so it says so and opens the cached sample workspace.
+ */
+const SampleDialog = ({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) => {
+  const [files, setFiles] = useState<SampleFile[] | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<IngestResult | null>(null);
+  const [cachedRun, setCachedRun] = useState(false);
+  const canUpload = DATA_MODE === "local";
+
+  useEffect(() => {
+    if (!open || files) return;
+    loadSampleManifest()
+      .then(setFiles)
+      .catch((cause: Error) => setError(cause.message));
+  }, [open, files]);
+
+  const go = async () => {
+    if (!files?.length || pending) return;
+    setError("");
+    if (!canUpload) {
+      setCachedRun(true);
+      return;
+    }
+    setPending(true);
+    try {
+      // No target: uploadFiles defaults to "auto", the agent sorts them.
+      setResult(await donorDeskMethods.uploadFiles(await loadSampleFiles(files)));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We couldn’t import the sample files.");
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const done = result != null || cachedRun;
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)}>
+      <DialogContent className="kindred-import" showCloseButton={!pending}>
+        <DialogTitle>
+          {result
+            ? "Your sample files are in."
+            : cachedRun
+              ? "Sample run (cached)"
+              : "Sample files, ready to go."}
+        </DialogTitle>
+        <DialogDescription>
+          {result
+            ? summarize(result)
+            : cachedRun
+              ? "This preview can’t import files, so it opens a cached sample workspace instead. It wasn’t built from these files."
+              : "Fictional records for a Miami nonprofit: every name, email and amount is invented."}
+        </DialogDescription>
+
+        {!done && (
+          <>
+            {files ? (
+              <ul className="kindred-sample-files" aria-label="Sample files">
+                {files.map((file) => (
+                  <li key={file.name}>
+                    <FileText aria-hidden="true" size={16} strokeWidth={1.7} />
+                    <span className="kindred-sample-name">{file.name}</span>
+                    <span className="kindred-sample-size">{formatBytes(file.bytes)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              !error && <p role="status">Loading the sample files…</p>
+            )}
+            <p className="kindred-sample-target">
+              Where they go: <strong>Let the agent sort them</strong>
+            </p>
+            {error && <p role="alert">{error}</p>}
+            <button
+              className="kindred-upload"
+              type="button"
+              onClick={() => void go()}
+              disabled={!files?.length || pending}
+            >
+              {pending ? "Reading your files…" : "Go"}
+            </button>
+            <span role="status" className="sr-only">
+              {pending ? "Import in progress. Please wait." : ""}
+            </span>
+          </>
+        )}
+
+        {(done || (error && canUpload && files)) && (
+          <a className="kindred-workspace-link" href="#/">
+            {done ? "Open the CRM" : "Open the cached sample workspace instead"}
+          </a>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
