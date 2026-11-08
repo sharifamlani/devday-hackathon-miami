@@ -22,7 +22,7 @@ const Header = () => {
     <header className="flex h-[46px] shrink-0 items-center gap-2">
       <span
         data-testid="wordmark"
-        className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-[-0.02em]"
+        className="wordmark flex min-w-0 items-center gap-2"
       >
         <img className="[.light_&]:hidden h-6 shrink-0" src={darkModeLogo} alt="" />
         <img className="[.dark_&]:hidden h-6 shrink-0" src={lightModeLogo} alt="" />
