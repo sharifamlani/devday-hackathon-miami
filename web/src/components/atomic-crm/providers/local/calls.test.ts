@@ -1,4 +1,3 @@
-import type * as CallNotesModule from "../../voice/callNotes";
 import { __resetCallNotesForTests, type CallNote } from "../../voice/callNotes";
 import {
   callNotesPath,
@@ -52,23 +51,14 @@ const apiNote: ApiCallNote = {
   saved_at: "2026-11-07 15:01:00",
 };
 
-// What saveCallNote (the browser store) was given, newest first.
-let lastSaved: CallNote[] = [];
-
-vi.mock("../../voice/callNotes", async (importOriginal) => {
-  const actual = await importOriginal<typeof CallNotesModule>();
-  return {
-    ...actual,
-    saveCallNote: (n: CallNote) => {
-      lastSaved = [n, ...lastSaved.filter((x) => x.id !== n.id)];
-      actual.saveCallNote(n);
-    },
-  };
-});
+// What the browser store (voice/callNotes) holds, newest first: read from its storage key rather than a
+// vi.mock spy, which doesn't apply when another test file in the same run has already loaded the module.
+const CALL_NOTES_KEY = "donor-desk.call-notes.v1";
+const stored = (): CallNote[] => JSON.parse(window.localStorage.getItem(CALL_NOTES_KEY) ?? "[]");
 
 beforeEach(() => {
-  lastSaved = [];
   fallback.mockClear();
+  window.localStorage.removeItem(CALL_NOTES_KEY);
   __resetCallNotesForTests();
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -189,7 +179,7 @@ describe("saveCallNoteEverywhere", () => {
       summary: ["Wants to give again."],
       next_steps: ["Send the impact report."],
     });
-    expect(lastSaved.map((n) => n.id)).toEqual(["call-1"]);
+    expect(stored().map((n) => n.id)).toEqual(["call-1"]);
   });
 
   it("keeps the note in this browser when the server save fails", async () => {
@@ -197,7 +187,7 @@ describe("saveCallNoteEverywhere", () => {
     const result = await saveCallNoteEverywhere(note, "local");
     expect(result).toMatchObject({ savedTo: "browser", note });
     expect(result.error).toContain("500");
-    expect(lastSaved).toEqual([note]);
+    expect(stored()).toEqual([note]);
   });
 
   it("only stores locally in snapshot mode", async () => {
@@ -206,7 +196,7 @@ describe("saveCallNoteEverywhere", () => {
     const result = await saveCallNoteEverywhere(note, "snapshot");
     expect(result).toEqual({ note, savedTo: "browser" });
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(lastSaved).toEqual([note]);
+    expect(stored()).toEqual([note]);
   });
 });
 
