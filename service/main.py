@@ -611,7 +611,7 @@ def start_events_search(website: str | None):
     return asyncio.ensure_future(run_in_threadpool(find_onboarding_events, website))
 
 
-ONBOARDING_SEARCHES = 2
+ONBOARDING_SEARCHES = 3
 
 
 def find_onboarding_events(website: str) -> list[dict]:
