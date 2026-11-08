@@ -4,6 +4,8 @@ import type { TranscriptLine } from "./callNotes";
 import {
   geminiTranscriptSource,
   liveTranscribeUrl,
+  warmUpCaptions,
+  type CallRecorderLike,
   type RecorderLike,
   type SocketLike,
 } from "./geminiTranscriptSource";
@@ -54,6 +56,33 @@ class FakeRecorder implements RecorderLike {
   }
 }
 
+class FakeCallRecorder implements CallRecorderLike {
+  state: "inactive" | "recording" | "paused" = "inactive";
+  mimeType = "audio/webm;codecs=opus";
+  ondataavailable: ((event: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  start() {
+    this.state = "recording";
+  }
+  pause() {
+    this.state = "paused";
+  }
+  resume() {
+    this.state = "recording";
+  }
+  chunk(text: string) {
+    this.ondataavailable?.({ data: new Blob([text]) });
+  }
+  stop() {
+    this.state = "inactive";
+    // like MediaRecorder: the last chunk, then onstop, after the call returns
+    queueMicrotask(() => {
+      this.chunk("tail");
+      this.onstop?.();
+    });
+  }
+}
+
 const setup = () => {
   const sockets: FakeSocket[] = [];
   const recorders: FakeRecorder[] = [];
@@ -61,7 +90,9 @@ const setup = () => {
   const lines: TranscriptLine[] = [];
   const interims: string[] = [];
   const errors: TranscriptSourceError[] = [];
+  const callRecorder = new FakeCallRecorder();
   const source = geminiTranscriptSource({
+    createCallRecorder: async () => callRecorder,
     createSocket: (url) => {
       const s = new FakeSocket(url);
       sockets.push(s);
@@ -79,7 +110,7 @@ const setup = () => {
     onInterim: (text) => interims.push(text),
     onError: (e) => errors.push(e),
   });
-  return { source, sockets, recorders, lines, interims, errors, tick: (ms: number) => (t += ms) };
+  return { source, sockets, recorders, callRecorder, lines, interims, errors, tick: (ms: number) => (t += ms) };
 };
 
 describe("geminiTranscriptSource", () => {
@@ -94,12 +125,13 @@ describe("geminiTranscriptSource", () => {
     const { source, sockets, recorders, lines, interims } = setup();
     const [ws] = sockets;
     expect(ws.url).toContain("purpose=call");
-    expect(recorders).toHaveLength(0); // the mic opens only once the socket is up
+    expect(recorders[0].started).toBe(true); // the mic starts with the handshake
+    recorders[0].frame([1, 0]); // heard before the socket opened: buffered
+    recorders[0].frame([2, 0]);
+    expect(ws.sent).toHaveLength(0);
     ws.open();
-    expect(recorders[0].started).toBe(true);
-    recorders[0].frame([1, 0, 2, 0]);
-    expect(ws.sent).toHaveLength(1);
-    expect(new Uint8Array(ws.sent[0] as ArrayBuffer)).toEqual(new Uint8Array([1, 0, 2, 0]));
+    recorders[0].frame([3, 0]);
+    expect(ws.sent.map((f) => [...new Uint8Array(f as ArrayBuffer)])).toEqual([[1, 0], [2, 0], [3, 0]]);
 
     ws.server({ type: "interim", text: "Who gave" });
     ws.server({ type: "final", text: "Who gave this quarter?" });
@@ -158,5 +190,64 @@ describe("geminiTranscriptSource", () => {
     vi.advanceTimersByTime(4000);
     expect(c.errors[0].message).toMatch(/No audio/);
     expect(c.recorders[0].stopped).toBe(true);
+  });
+
+  it("records the call, pauses the recording with the captions, and hands it over with its line count", async () => {
+    const { source, sockets, recorders, callRecorder } = setup();
+    await Promise.resolve(); // the call recorder comes up asynchronously
+    expect(callRecorder.state).toBe("recording");
+    sockets[0].open();
+    recorders[0].frame([0, 0]);
+    callRecorder.chunk("a");
+    sockets[0].server({ type: "final", text: "One." });
+    sockets[0].server({ type: "final", text: "Two." });
+    source.pause();
+    expect(callRecorder.state).toBe("paused");
+    source.resume();
+    expect(callRecorder.state).toBe("recording");
+
+    const finishing = source.finishRecording();
+    source.stop(); // the pane stops the source right after taking the recording
+    const rec = await finishing;
+    expect(rec?.lines).toBe(2);
+    expect(await rec?.audio.text()).toBe("atail"); // the last chunk is not lost
+    expect(rec?.audio.type).toBe("audio/webm;codecs=opus");
+  });
+
+  it("gives no recording where the browser can't record", async () => {
+    const source = geminiTranscriptSource({
+      createSocket: (url) => new FakeSocket(url),
+      createRecorder: () => new FakeRecorder(),
+      createCallRecorder: async () => null,
+    });
+    source.start({ onLine: () => {} });
+    expect(await source.finishRecording()).toBeNull();
+  });
+});
+
+describe("warmUpCaptions", () => {
+  it("holds one suspended 16 kHz AudioContext, created once", () => {
+    const made: { sampleRate?: number; suspended: boolean }[] = [];
+    const Real = globalThis.AudioContext;
+    globalThis.AudioContext = class {
+      rec: { sampleRate?: number; suspended: boolean };
+      constructor(o?: AudioContextOptions) {
+        this.rec = { sampleRate: o?.sampleRate, suspended: false };
+        made.push(this.rec);
+      }
+      suspend() {
+        this.rec.suspended = true;
+        return Promise.resolve();
+      }
+    } as unknown as typeof AudioContext;
+    try {
+      warmUpCaptions();
+      warmUpCaptions();
+      // at most one made here (none if the module's own warm-up already ran in local mode)
+      expect(made.length).toBeLessThanOrEqual(1);
+      for (const m of made) expect(m).toEqual({ sampleRate: 16000, suspended: true });
+    } finally {
+      globalThis.AudioContext = Real;
+    }
   });
 });
