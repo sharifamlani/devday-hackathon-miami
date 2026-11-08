@@ -10,6 +10,7 @@ import {
   parseCommunityStats,
   parseEventDetail,
   parsePeople,
+  sourceFile,
   toTab,
 } from "./crmParse";
 import { crmSnapshotMethods } from "./crmSnapshot";
@@ -23,6 +24,20 @@ describe("crmParse", () => {
     expect(["giver", "donor", "neighbor", "prospect", "community", "beneficiary", "x"].map(toTab)).toEqual([
       "giver", "giver", "neighbor", "neighbor", "community", "community", null,
     ]);
+  });
+
+  it("keeps a neighbor's notes and the file they came from (how we met)", () => {
+    const [met, bare] = parsePeople(
+      [
+        { id: 15, full_name: "Gabriela Rincon", contact_type: "neighbor", notes: " Probably will give. ",
+          source_row: "board_retreat_notes.md: line:35-36" },
+        { id: 63, full_name: "Anil Deshmukh", contact_type: "neighbor", notes: "", source_row: null },
+      ],
+      "neighbor",
+    ).people;
+    expect(met).toMatchObject({ notes: "Probably will give.", source: "board_retreat_notes.md" });
+    expect(bare).toMatchObject({ notes: null, source: null });
+    expect(sourceFile("event_signin_sheet_nov1.xlsx: sheet:Nov 1 Open House:row 4")).toBe("event_signin_sheet_nov1.xlsx");
   });
 
   it("reads PR #60's people shape: counts, interests, tab_review, demographics", () => {

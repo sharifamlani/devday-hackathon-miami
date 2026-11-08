@@ -109,6 +109,39 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
     data contract in `plan.md` §13; contract changes need Carlos + Sharif.
 14. **No Supabase.** Data is local SQLite (`data/donors.db`, gitignored) behind the local Python API.
 
+## The development flywheel (CRITICAL, Sharif, Sun Nov 8)
+
+> "THIS DEVELOPMENT FLYWHEEL IS CRITICAL. EVERYTHING NEEDS TO WORK THIS WAY TO ENSURE THE APP WORKS AS INTENDED."
+
+Every change goes round the whole wheel, every time. A feature is **done only when an AI tester agent has used it in
+the running, merged app and every acceptance scenario passed**, not when its tests pass, it merges, or it deploys.
+The step-by-step SOP is `docs/sop/development-flywheel.md`.
+
+```
+0 DEFINE (before code: a feature card in the PR with user, goal, intended behavior, acceptance scenarios, must-not-happen)
+1 BUILD (builder, own lane, PR early)
+  -> 2 QA GATE (graded MERGED WITH CURRENT MAIN: full tests + live walk; "APPROVE <full sha>" or "CHANGES file:line")
+     + 2b INTEGRATION TREE (QA: main + every open PR merged together, so PR-vs-PR breaks are caught before main)
+  -> 3 PINNED MERGE (lead only, the moment approval lands: gh pr merge N --merge --match-head-commit <sha>)
+  -> 4 INTEGRATE (Integrate + Test lane: LIVE app on latest main at localhost:5173 for Sharif; TEST stack reset to
+       empty; scripted Playwright regression of the whole demo path)
+  -> 5 LIVE AI-AGENT TEST (an AI tester given only the feature card USES the feature through the real UI, like the
+       user would; per scenario: actions, what's on screen, API/SQL data check, errors -> PASS/FAIL + GAPS)
+  -> 6 LOOP (lead routes every FAIL/GAP to its owner with expected / saw / repro -> back to 1)
+```
+
+- **Owners:** builders build; QA gates (overflow reviewers when QA is busy); only the lead merges; the Integrate +
+  Test lane integrates and tests live; the deploy watcher walks the Vercel preview; the evaluator grades the plan's
+  criteria. Nobody grades or approves their own work.
+- **Timings:** approval → merge in minutes; merge → integration walk report in 10 minutes or less; a FAIL gets an
+  owner right away.
+- **Main stays green.** A red test on main comes before any feature. Teammates who merge without the gate get a retro
+  check and a live walk, and every open PR rebases onto their merge.
+- **Evidence, not claims:** numbers on screen vs the API, 0 console errors, 0 failed requests, desktop and 390 px,
+  from an empty start.
+- **Never** change product code just to make a test pass; report it and route the fix to its owner.
+- Full playbook: the user-level `development-flywheel` skill (and `pm-lead-session` for the lead's mechanics).
+
 ## How we work fast
 
 **Parallelize the periphery, serialize the spine** (`docs/hackathon-kit/playbooks/parallel-build-playbook.md`).

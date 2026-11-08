@@ -56,6 +56,7 @@ import type {
   DonationTarget,
   TargetsByPeriod,
 } from "./types";
+import { toTab } from "./crmParse";
 
 /**
  * The one parser for both data modes: GET responses and snapshot.json share
@@ -330,6 +331,9 @@ export const parseDonorRow = (row: ApiDonorRow): DonorSummary => {
     gift_count: why?.gift_count ?? 0,
     total_given: why?.lifetime_total ?? 0,
     give_miami_day_days_away: why?.give_miami_day?.days_away ?? null,
+    contact_type: toTab(row.contact_type),
+    auto_merged: !!row.auto_merged,
+    merged_from: row.merged_from ?? 0,
   };
 };
 

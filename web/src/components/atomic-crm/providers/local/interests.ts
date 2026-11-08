@@ -38,6 +38,8 @@ export interface EnrichPreview {
   contact: Record<string, unknown>; // {website, public_phone, employer, location, source_urls, ...}
   /** confirmed | probable | ambiguous | not_found, or not_researched for individuals */
   identity_match?: string;
+  /** What matched; ["name"] alone means a name-only match (shown as ambiguous, with the service's note). */
+  identity_basis?: string[];
   notes?: string | null; // e.g. "individual donors are not researched in the demo"
 }
 

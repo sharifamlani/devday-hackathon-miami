@@ -101,6 +101,11 @@ export const useEnrichReview = (donor: DonorDetail) => {
     toggleTag: (tag: string) => setTags((s) => toggled(s, tag)),
     run,
     save,
+    /** Drop the proposal without saving (nothing was written by the dry run). */
+    discard: () => {
+      preview.reset();
+      accept.reset();
+    },
   };
 };
 
@@ -123,7 +128,10 @@ export const EnrichProposal = ({ review }: { review: EnrichReviewState }) => {
           {proposal.identity_match === "not_researched"
             ? ENRICH_COPY.individual
             : proposal.identity_match === "ambiguous"
-              ? ENRICH_COPY.ambiguous
+              ? // Only the name matched: show the service's own reason, not the generic "more than one" copy
+                proposal.identity_basis?.length === 1 && proposal.identity_basis[0] === "name" && proposal.notes
+                ? proposal.notes
+                : ENRICH_COPY.ambiguous
               : ENRICH_COPY.noInfo}
         </p>
       )}

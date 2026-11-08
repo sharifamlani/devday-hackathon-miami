@@ -24,6 +24,18 @@ describe("refetch helper (§21.2.5: the UI refetches after agent writes)", () =>
     expect(spy).toHaveBeenCalledWith({ queryKey: ["donor-desk"] });
   });
 
+  it("add_contact refreshes the People tabs (and their counts) and the home summary", async () => {
+    expect(scopesForTool("add_contact")).toEqual(["people", "summary"]);
+    const qc = new QueryClient();
+    const spy = vi.spyOn(qc, "invalidateQueries");
+    await refetchAfterAgent(qc, scopesForTool("add_contact"));
+    const keys = spy.mock.calls.map((c) => (c[0] as { queryKey: unknown[] }).queryKey);
+    // usePeople(tab) keys are ["donor-desk", "people", tab]; a prefix match covers all three tabs.
+    expect(keys).toContainEqual(["donor-desk", "people"]);
+    expect(keys).toContainEqual(["donor-desk", "community-stats"]);
+    expect(keys).toContainEqual(["donor-desk", "home-summary"]);
+  });
+
   it("maps every B10 write tool to at least one scope", () => {
     for (const tool of ["log_gift", "save_call_note", "apply_after_call_actions", "accept_enrichment", "send"]) {
       expect(scopesForTool(tool)?.length).toBeGreaterThan(0);

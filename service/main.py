@@ -81,6 +81,8 @@ app.include_router(voice_router)
 
 from service.routes_after_call import router as after_call_router  # noqa: E402  (§21 B6: /call-notes/{id}/actions, /apply)
 app.include_router(after_call_router)
+from service.routes_phone import router as phone_router  # noqa: E402  (§21 S1: call a donor from your own phone)
+app.include_router(phone_router)
 
 def module_present(name: str) -> bool:
     try:
