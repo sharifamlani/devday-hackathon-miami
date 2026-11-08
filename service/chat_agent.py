@@ -80,7 +80,8 @@ def gave_via_ids(channel: str | None) -> set[int] | None:
     """Donor ids with a gift through a matching channel (case-insensitive substring); None = no filter."""
     if not channel:
         return None
-    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ?",
+    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ? "
+                                         "AND COALESCE(status, 'ok') = 'ok'",       # a declined charge isn't a gift
                                          (f"%{channel.strip().lower()}%",))}
 
 
@@ -249,8 +250,8 @@ def build_brief(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
                   "FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id WHERE d.id = ?", (person_id,))
     if not donor:
         return {"error": f"person {person_id} not found"}
-    gifts = query("SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? ORDER BY gift_date DESC LIMIT 6",
-                  (person_id,))
+    gifts = query("SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? AND COALESCE(status, 'ok') = 'ok' "
+                  "ORDER BY gift_date DESC LIMIT 6", (person_id,))   # declined/failed charges are not gifts
     facts = query("SELECT fact, source_url FROM research_facts WHERE donor_id = ? LIMIT 5", (person_id,))
     d = donor[0]
     d["why"] = json.loads(d["why"] or "{}").get("reasons", [])
@@ -333,9 +334,17 @@ def get_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
     from fastapi import HTTPException
     from service import routes_data
     try:
-        return with_conn(lambda conn: routes_data.get_donor(person_id, conn))
+        return with_conn(lambda conn: person_record(routes_data.get_donor(person_id, conn)))
     except HTTPException as e:
         return {"error": str(e.detail)}
+
+
+def person_record(donor: dict) -> dict:
+    """What the agent sees about a person: gifts are only charges that went through; a declined or failed
+    charge moves to declined_charges, so a draft can never thank anyone for it. The UI route is unchanged."""
+    gifts = donor.get("gifts") or []
+    ok = [g for g in gifts if (g.get("status") or "ok") == "ok"]
+    return donor | {"gifts": ok, "declined_charges": [g for g in gifts if g not in ok]}
 
 
 @function_tool

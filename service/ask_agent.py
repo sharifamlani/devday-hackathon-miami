@@ -269,7 +269,8 @@ def apply_filter(conn: sqlite3.Connection, spec: AskFilter, as_of: date | None =
 
     as_of_iso = (as_of or score.default_as_of()).isoformat()
     gifts: dict[int, list[tuple[str, float, str | None]]] = {}
-    for g in conn.execute("SELECT donor_id, amount, gift_date, channel FROM gifts WHERE gift_date <= ?",
+    from service.targets import _counted          # a declined charge doesn't make someone a giver to thank
+    for g in conn.execute("SELECT donor_id, amount, gift_date, channel FROM gifts WHERE gift_date <= ?" + _counted(conn),
                           (as_of_iso,)):
         gifts.setdefault(g["donor_id"], []).append((g["gift_date"][:10], float(g["amount"]), g["channel"]))
     drafts: dict[int, int] = {}
