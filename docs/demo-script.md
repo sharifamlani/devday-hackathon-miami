@@ -98,15 +98,16 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     **Invites · Open batch**. **Open batch** (about 3 s) opens the event's campaign page (e.g. **The Give Miami 5K ·
     Nov 15 · 12 people**) with **Approve all small-donor drafts** and **Send approved messages**; nothing is sent until
     someone approves it.
-11. **A call, transcribed.** On a task click **Call and transcribe**, or click **Live transcript** in the rail: the panel
+11. **A call, transcribed.** Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
+    **Live transcript** in the rail: the panel
     opens on **Listening** with **Demo call**, **Generate summary** and **Pause**. **Demo call** plays a scripted call
     with Rosa (about 10 s). Click **Generate summary** (about 4 s): the summary and **Suggested next steps** (text her a
     card-update link, sign her up for the beach cleanup), or ask a question in **Ask about this call**.
 12. **Dictation.** **Open Ask sidebar** and use **Dictate** to speak a question instead of typing it (**Stop
     dictation** to finish; it needs the live service and a microphone: test it before going on stage).
 13. **Duplicates review.** Click the **CRM** tile's heading: the banner reads **9 possible duplicates found** with
-    **Review merges →** and **Ask the agent to fix**; click **Review merges →**. (The briefing's **Review** instead
-    hands the first duplicate to the agent in the chat.) Exact matches were already merged on upload; these are the close calls, one pair at a
+    **Review merges →** and **Ask the agent to fix**; click **Review merges →**. (The briefing's **Review** opens the inbox, with the same banner; **Ask the agent to fix** hands the
+    duplicates to the agent.) Exact matches were already merged on upload; these are the close calls, one pair at a
     time in **We found this donor twice** with its reason badges (e.g. **similar name + same phone**, **90% match**,
     **8 more after this one**). Pick the record to keep (**✓ Keep** / **Merge in**), then **Merge ✓** (**Merging…**) or
     **Keep separate**. "Merge only after a person approves; the gift history moves to the kept record." Open the kept
@@ -172,7 +173,8 @@ If the laptop or network fails, switch to the Vercel preview tab (read-only samp
 
 - [ ] **Reset and warm up:** `python scripts/demo_reset.py --warm` (service stopped). It empties the db, uploads the 8
       files once to warm the cache, and empties the db again; the on-stage upload then replays fast and shows
-      **9 possible duplicates**.
+      **9 possible duplicates**. Run it ~30 min before: it must end with **`PASS stage numbers: 77 people / 9`**
+      (… duplicate suggestions); exit 1 means run it again.
 - [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
 - [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
 - [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8000`; service
