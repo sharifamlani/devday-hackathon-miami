@@ -239,7 +239,8 @@ export const EmailPrepCard = ({ prep, onAsk }: { prep: EmailPrep; onAsk?: (text:
             onClick={() =>
               onAsk(
                 `Draft the ${prep.topic} email for these ${n} people (ids ${prep.person_ids.join(", ")}), leading with ` +
-                  `what we did (${prep.since.map((_, i) => String.fromCharCode(88 + i)).join(", ") || "a thank-you"}) as the email prep shows.`,
+                  `what we did (${prep.since.map((_, i) => String.fromCharCode(88 + i)).join(", ") || "a thank-you"}) as the email prep shows, ` +
+                  `then show me the Send card. Don't send until I approve it.`,
               )
             }
           >

@@ -13,7 +13,7 @@ MAX_EVENTS = 2
 
 
 def last_campaign(conn: sqlite3.Connection, person_ids: list[int]) -> dict | None:
-    """The newest campaign that had a message to any of these people, with how many of them it reached."""
+    """The newest campaign that actually sent something to any of these people (drafts never sent don't count)."""
     if not person_ids:
         return None
     marks = ", ".join("?" * len(person_ids))
@@ -21,7 +21,8 @@ def last_campaign(conn: sqlite3.Connection, person_ids: list[int]) -> dict | Non
         f"SELECT c.id, c.name, c.intent, c.channel, c.created_at, "
         f"SUM(m.status = 'sent') AS sent, COUNT(m.id) AS messages FROM campaigns c "
         f"JOIN campaign_messages m ON m.campaign_id = c.id WHERE m.donor_id IN ({marks}) "
-        f"GROUP BY c.id ORDER BY c.created_at DESC, c.id DESC LIMIT 1", person_ids).fetchone()
+        f"GROUP BY c.id HAVING SUM(m.status = 'sent') > 0 ORDER BY c.created_at DESC, c.id DESC LIMIT 1",
+        person_ids).fetchone()
     if row is None:
         return None
     return {"name": row["name"], "intent": row["intent"], "channel": row["channel"],

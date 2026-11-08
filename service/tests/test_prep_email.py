@@ -88,3 +88,21 @@ def test_the_agent_tool_returns_the_card_and_a_one_line_step(db_file):
     assert ca.summarize(out) == "email prep: Give Miami Day · 2 people · 3 sourced updates"
     assert "error" in invoke("prep_email", person_ids=[], topic="x")
     assert "prep_email" not in ca.APPROVAL_TOOLS
+
+
+def test_a_batch_drafted_but_never_sent_is_not_last_time(db_file):
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        seed_context(conn)
+        ids = givers(conn)
+        cur = conn.execute("INSERT INTO campaigns (name, intent, channel, created_at, created_by, status) "
+                           "VALUES ('Draft only', 're_engage', 'email', '2026-11-07T10:00:00', 'test', 'draft')")
+        conn.execute("INSERT INTO campaign_messages (campaign_id, donor_id, channel, subject, body, facts_used, flags, "
+                     "drafted_by, status, needs_individual_approval) VALUES (?, ?, 'email', 's', 'b', '[]', '[]', "
+                     "'template', 'draft', 0)", (cur.lastrowid, ids[0]))
+        conn.commit()
+        card = prep_email.build(conn, ids, "Give Miami Day", TODAY)
+    finally:
+        conn.close()
+    assert card["last_time"] is None
