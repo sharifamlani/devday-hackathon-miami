@@ -299,3 +299,8 @@ Main 5ecf010 baseline: answer key unchanged; ingest_check cold + 2 warm, 0 FAIL,
 
 Process incident: the #112 reviewer stopped another session's Vite on :5191 (it killed by port owner). Rule tightened to own recorded PIDs only. Disk hit 99%; QA node_modules (verified not junctions) deleted, C: free 7.9 GB.
 | #125 auto-merge "!" flag (a4) | d91e40f | flag = 15 exact same-email merges with differing names; keep-all / split-all keep 131 / $1,367,535, 0 orphans; fuzzy pending 11 = main; routes 404/422/409; ingest_check 0 FAIL; split → approve-all gives 69 not 68 (Marrow Lane Print not re-suggested; routes_data.py:530) | CHANGES |
+| #112 agent chat (re-review, on fc93c69) | 74336289 (short 7433628) | Approve end to end "Approved: batch #3, 2 sent, 1 blocked (dry run)", sends simulated, the org stays draft; failed decide → "Already handled"; Markdown + DOMPurify; regressions pass | APPROVE (merged) |
+| main #129 retro | a684912 | home/layout vitest 36/36; chat grounded (Park/Salinas/Brandt match the API), add + undo with no reload; 8 sidebar links ok; 0 errors | OK |
+| main #132 retro | a79ef67 | onboarding vitest 83/83 (#131 fix holds); first run → dashboard, POSTs ingest → context → tasks once; #128 gate survives (a new browser on a filled db skips onboarding); nit: the import summary says 132 gifts (includes the declined charge) vs 131 | OK (nit) |
+
+Pipeline: devday-hackathon-20 = the Integrate + Test Wheel (ports 8000/5173/8101/5174 reserved). Scope (Sharif): Givers first; Neighbors/Community issues informational unless they break the Givers flow or the counts.
