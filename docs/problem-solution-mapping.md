@@ -174,7 +174,7 @@ agent's 3-line summary (interests, next step).
 |---|---|---|---|
 | Upload → three tabs | ingest adapter, `contact_type`, tabs (#60) | — | done |
 | Duplicates (C2) | 6/6 groups, approve/dismiss routes, merge keeps gifts (#65) | — | done |
-| Gift alerts (C2, P2) | `GET /alerts`: 5/5 expected on sample data (#48) | **a screen that shows them** (money-raised card + to-do) | UI: Christian |
+| Gift alerts (C2, P2) | `GET /alerts` (#48); answer key expects 5 on sample data, not re-checked on main | **a screen that shows them** (money-raised card + to-do) | UI: Christian |
 | Chat agent (P1) | `/chat`, tool steps, approval-gated `/send`, allowlist (#58) | assistant-ui panel #69 still open; home middle column per the sketch | QA #69; Christian for home |
 | Enrichment (P2) | `/enrich/{id}`, ResearchPanel | — (individuals stay parked) | done |
 | ICP + prospects | `/icp/run`, `/prospects` (#62) | visible entry point on screen | Christian |
