@@ -1844,7 +1844,7 @@ here is run until Sharif says go.
 ```
 plan.md                         §22 (this section): run order, T-minus checklist, smokes, criteria, roles, fallbacks
 docs/demo-script.md             read only here: the words and bold labels for every step below
-scripts/demo_reset.py           NOT used in this run (Sharif ~4:25 PM): it empties the db
+scripts/demo_reset.py           NOT used in this run (Sharif ~4:25 PM): it empties LIVE's loaded data
 scripts/public_tunnel.py        T-15: on | off | status for the public site (the tunnel runs on --port 8401)
 scripts/live_stack.ps1          T-30: stops / starts LIVE's service (:8001) and web (:5173) in C:\Users\Shari\dd-live-main
 scripts/smoke-openai.py         smoke 1: key + model tiers + one Agents SDK tool call (7/7)
