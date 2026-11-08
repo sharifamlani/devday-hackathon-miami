@@ -22,12 +22,14 @@ Button and heading text below is what's on screen on main today, in **bold**. Co
 shows the same while the tunnel is up). Its snapshot fallback (**Sample data** badge) is an older cut: don't read
 numbers off it.
 
-1. **Empty start.** Open **http://localhost:5173/** (the bare URL). On an empty app, setup's first step is the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data** ("or drag and drop your files here (CSV, Excel, Word, notes)"), **Try sample data**, and Upload your list · Understand your donors · Reach out thoughtfully.
+**Changed Sun Nov 8, ~4:25 PM (Sharif): no empty-start onboarding.** LIVE (579b7e4) keeps the loaded data (78 donors, Christian included) and the demo opens on the dashboard. **Never run `demo_reset.py` or `tminus30.sh` before the demo: they empty the db.** Steps 1–4 below are **SKIPPED**: kept for reference only, don't run them. Start at step 5.
+
+1. **Empty start (SKIPPED).** Open **http://localhost:5173/** (the bare URL). On an empty app, setup's first step is the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data** ("or drag and drop your files here (CSV, Excel, Word, notes)"), **Try sample data**, and Upload your list · Understand your donors · Reach out thoughtfully.
    Nothing is behind it: no people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during
    setup** (steps 1–3). If someone does after **Try sample data**, the landing comes back as if the import vanished,
    but the data is already in: press **Skip for now** (bottom of the landing) to reach the dashboard, and do NOT click
    **Try sample data** again (that would import twice).
-2. **The files.** Click **Try sample data**: it imports the 8 sample files for real (the agent reads and sorts them),
+2. **The files (SKIPPED).** Click **Try sample data**: it imports the 8 sample files for real (the agent reads and sorts them),
    exactly like an upload. (Or **Upload donor data** → choose the 8 files from `data/sample_inputs/`
    (`give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`,
    `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`,
@@ -43,17 +45,18 @@ numbers off it.
    with **Review matches**. Say: "19 exact copies merged automatically; 9 look-alikes wait for you." Don't click
    **Review matches** on stage: it pauses setup and opens the donor list (the
    close calls come back in step 13). Click **Create organization profile**.
-3. **Step 2, "Your organization."** (the **gatherly** wordmark and "Start with your website."; this screen shows no step label)
+3. **Step 2, "Your organization." (SKIPPED)** (the **gatherly** wordmark and "Start with your website."; this screen shows no step label)
    **Organization name** is required and already reads **The Miami Foundation** ("Prefilled for this demo. Change it to
    research another organization."): leave it. Type `miamifoundation.org` in the **Website** field (placeholder **yourorganization.org**) and click **Continue**
    (skip **+ Add social links**: they're saved, not read). The dashboard opens in under 2 s.
-4. **The dashboard opens at once; the agent reads in the background.** There's no waiting screen: "It reads the
+4. **The dashboard opens at once; the agent reads in the background (SKIPPED).** There's no waiting screen: "It reads the
    site and news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing."
    The briefing opens with e.g. **15 tasks today**; the events, prep tasks and Impact & story facts land when the read
    finishes, about 30 s after **Continue** (27.5 s in T1) (the events go 0 → 4, then e.g. 18 tasks; the invites about a minute
    later). Start the dashboard tour (step 5) while it reads.
-5. **Dashboard (home).** A card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?" (or,
-   while the read is still running, "We're still reading your website. Want a one-minute tour while it finishes?"):
+5. **Dashboard (home). The demo starts here.** In the NEW incognito window from T-30, open
+   **http://localhost:5173/**: it opens on the loaded dashboard (with people in the db there's no landing): **Good afternoon, Sharif.**, the gauge **66%** / **$98.8k**, **5 usual gifts look late.**, **9 possible duplicates to review.**
+   If a card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?",
    click **Not now**. Point at:
    - the chat's first message, **Here's your day.**, one line per thing to do, each with its button: e.g. **18 tasks
      today. First up: Call Rafael Quintero** · **Start**; **5 usual gifts look late.** · **Show me**; **9 possible
@@ -139,8 +142,8 @@ numbers off it.
     Nov 15 · 12 people**) with **Approve all small-donor drafts** and **Send approved messages**; nothing is sent until
     someone approves it.
 11. **A call, transcribed.**
-    **The live call (the only call on stage).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate
-    added as a donor for the demo, off-screen, after setup). About 5 s later (5.3 s in T1) the agent shows **Get context · Get
+    **The live call (the only call on stage).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate,
+    already a donor in the loaded data). About 5 s later (5.3 s in T1) the agent shows **Get context · Get
     events · Find people** ("1 people: Christian Gonzalez") and the card **Call sheet: Christian Gonzalez** (Phone
     (the full number), a **Call** button, GIVING "No gifts on record.", TALKING POINTS). Click the card's **Call**: the panel
     **Call Christian Gonzalez** opens in the card ("Your phone (…) rings first. When you pick up, Christian Gonzalez (…)
@@ -239,11 +242,9 @@ If the laptop or network fails, switch to the Vercel tab and reload it: it falls
 
 ## Demo checklist (30 minutes before)
 
-- [ ] **Reset and warm up:** `python scripts/demo_reset.py --warm` (service stopped). It empties the db, uploads the 8
-      files once to warm the cache, and empties the db again; the on-stage upload then replays fast and shows
-      **9 possible duplicates**. Run it ~30 min before: it must end with **`PASS stage numbers: 77 people / 9`**
-      (… duplicate suggestions); exit 1 means run it again.
-- [ ] **Browser:** After the reset, open a NEW incognito window (close any old one first) at http://localhost:5173/, never a rehearsal tab: the home chat thread lives in the tab's sessionStorage (`donor-desk-agent-chat`), so a reused tab shows the rehearsal conversation after the reset. Then check that the bare URL shows the **gatherly** landing ("Less time on tasks. More time for people.", **Upload donor data** / **Try sample data**): the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL skips setup.
+- [ ] **Loaded data (no reset):** don't run `demo_reset.py` (it empties the db). LIVE keeps the loaded data
+      (78 donors, Christian included).
+- [ ] **Browser:** Open a NEW incognito window (close any old one first) at http://localhost:5173/, never a rehearsal tab: the home chat thread lives in the tab's sessionStorage (`donor-desk-agent-chat`), so a reused tab shows the conversation from earlier. It opens on the loaded dashboard: **Good afternoon, Sharif.**, the gauge **66%** / **$98.8k**, **5 usual gifts look late.**, **9 possible duplicates to review.**
 - [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
 - [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
 - [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8001`; service
