@@ -1,4 +1,4 @@
-# Donor Desk: demo script
+# Gatherly: demo script
 
 Challenge #2: duplicate donor records, and donors who quietly stop giving.
 Judges score fit to "what solved looks like", originality, use of Codex and OpenAI, feasibility, and presentation (each /10).
@@ -22,7 +22,7 @@ Button and heading text below is what's on screen on main today, in **bold**. Co
 Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
 
 1. **Empty start.** Open **http://localhost:5173/** (the bare URL, not `#/welcome`: that's the marketing landing).
-   The app opens straight on setup (**Donor Desk · Step 1 of 2**) with nothing behind it: no
+   The app opens straight on setup (the **gatherly** wordmark · **Step 1 of 2**; "Set up Gatherly") with nothing behind it: no
    people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–3): with
    people already uploaded, a reload could skip the website step (#193 should prevent it; keep the habit).
 2. **Step 1, "Drag in your files."** Drop the **8 input files** from `data/sample_inputs/` on **Drop your files here**
@@ -31,7 +31,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`. Not
    `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**.
    (**Use the example files** loads the same eight with one click.) A full-screen processing view takes over: the
-   **kindred** wordmark, folders shuffling into a box, **Bringing your data together.** with a progress bar ("Reading
+   **gatherly** wordmark, folders shuffling into a box, **Bringing your data together.** with a progress bar ("Reading
    files and recognizing accounts."), then **Everything's in place.** ("Ready for your next step."). About 5 s after
    **Import 8 files** (4–7 s on a warm cache) the results:
    **Your donor data is ready.** "A clearer picture of your people." with the tiles **77 Accounts recognized** and
@@ -41,7 +41,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    with **Review matches**. Say: "19 exact copies merged automatically; 9 look-alikes wait for you." Don't click
    **Review matches** on stage: it pauses setup and opens the donor list (the
    close calls come back in step 13). Click **Create organization profile**.
-3. **Step 2, "Your organization."** (**Step 2 of 2**, the **kindred** wordmark, "Start with your website.") Type
+3. **Step 2, "Your organization."** (**Step 2 of 2**, the **gatherly** wordmark, "Start with your website.") Type
    `miamifoundation.org` in the **Website** field (placeholder **yourorganization.org**) and click **Continue**
    (skip **+ Add social links**: they're saved, not read). The dashboard opens in under 2 s.
 4. **The dashboard opens at once; the agent reads in the background.** There's no waiting screen: "It reads the
@@ -60,8 +60,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      card (e.g. **14 sourced facts · Copy for a grant report**);
    - the calendar tile (**November · Nov 8 – 14**): a week grid with coloured event blocks for the events the agent
      found on the Foundation's site during setup (Sat 14 **Give Miami Day — Early Giving opens**; next week Sun 15 **The
-     Give Miami 5K** at 8:00 AM and the Post-Race Festival at 8:30 AM, Thu 19 **Give Miami Day**). Overlapping events
-     share one block in the week grid, so Sun 15 reads like "T… / T…": point at the day view or the **By day** list
+     Give Miami 5K** at 8:00 AM and the Post-Race Festival at 8:30 AM, Thu 19 **Give Miami Day**). Sun 15 is in next
+     week's grid (press **›**), where its two overlapping events share one block reading "T… / T…": point at the day view or the **By day** list
      for the full names and times. Chat requests only land here when they say "calendar event" (e.g. *"Add a calendar
      event Tuesday at 10am: thank-you breakfast"*, ~6 s); "add a thank-you call Tuesday at 10" makes a task;
    - **Tasks** (e.g. 18; the heading opens the full list), grouped: **Donor outreach** (e.g. 6: failed cards, late
