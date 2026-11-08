@@ -1154,3 +1154,16 @@ Chat box, listening
 ```
 Criterion: first words in the box within 2 s of speech; at least 90% word match on a scripted question; nothing written
 to the database. Smoke: the B3 relay smoke with `purpose=dictation` returns final text and 0 new rows.
+
+### 20.9 The in-app agent: one agent, every database (Sharif, Sat Nov 7 night)
+
+The agent in the UI (center chat and Ask sidebar) reads and writes the CRM, calendar, tasks and call notes through
+tools; writes that change records go through an approval card. Tools (B10, 90): `find_people`, `get_person`,
+`get_alerts`, `get_events`, `get_calendar`, `add_calendar_item`, `get_tasks`, `create_task`, `complete_task`,
+`get_call_notes`, `get_context`, `draft_email`, `draft_sms`, `enrich` (propose only).
+
+**Framework decision (open):** Sharif is considering LangChain. Lead recommendation: keep the OpenAI Agents SDK for
+the agent, because (1) the event's acceptance criteria name the OpenAI Agents SDK and judges score its visible use,
+(2) `/chat` with tool steps and approval-gated sends already runs on it (#58), and (3) a framework switch at T-18 h
+re-opens working code. LangChain/LangGraph is used only if the chat-UI research (`docs/research/repos-to-lift.md`)
+shows a decisively faster path. The chat UI package is chosen from that research the same way.
