@@ -219,6 +219,12 @@ def s3_donors(page: Page, api: Api, shots: Path):
            ok(bool(m) and int(m.group(1)) == c["giver"]))
     # PeopleTabs (#126): a tablist "People by tab", each tab carrying its GET /people count
     tablist = page.get_by_role("tablist", name="People by tab")
+    if not tablist.count():   # #200: the CRM is givers only, with no Neighbors/Community tabs
+        stray = page.get_by_role("tab", name=re.compile("Neighbors|Community")).count()
+        record("3b givers only", "no Neighbors/Community tabs (#200)", f"tabs {stray}", ok(stray == 0))
+        record("3c other people", "Neighbors / Community live off the CRM (API only)",
+               f"API neighbor {c['neighbor']} community {c['community']}", "INFO")
+        return
     shown = {}
     for label, key in (("Givers", "giver"), ("Neighbors", "neighbor"), ("Community", "community")):
         tab = tablist.get_by_role("tab", name=re.compile(label))
