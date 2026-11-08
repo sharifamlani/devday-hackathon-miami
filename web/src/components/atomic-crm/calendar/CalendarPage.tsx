@@ -317,9 +317,9 @@ export const CalendarPage = ({
           ) : null}
         </div>
       </div>
-      {refresh.error ? (
+      {refresh.error || refresh.data?.refresh_error ? (
         <p role="alert" className="text-sm text-alert-foreground">
-          {refresh.error.message}
+          {refresh.error?.message ?? refresh.data?.refresh_error}
         </p>
       ) : refresh.data?.unread_sources?.length ? (
         <p role="status" className="text-sm text-alert-foreground">
