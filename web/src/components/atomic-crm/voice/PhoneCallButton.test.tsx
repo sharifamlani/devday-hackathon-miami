@@ -3,11 +3,12 @@ import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
+import type * as PhoneApi from "../providers/local/phone";
 import { PhoneCallButton } from "./PhoneCallButton";
 
 // The dialog asks the service whether a call can be placed; answer as a ready preview, and never start a call.
 vi.mock("../providers/local/phone", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../providers/local/phone")>()),
+  ...(await importOriginal<typeof PhoneApi>()),
   previewPhoneCall: vi.fn(async (donorId: number) => ({
     ready: true,
     reason: null,
