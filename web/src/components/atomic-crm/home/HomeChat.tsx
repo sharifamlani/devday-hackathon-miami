@@ -260,12 +260,17 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
   const { messages, pending, error } = useAgentChat();
   const refetch = useAgentRefetch();
   const endRef = useRef<HTMLDivElement>(null);
+  const last = messages[messages.length - 1];
+  // While a reply streams in, its own step cards and text show the progress; "Thinking…" covers the wait before
+  const streamingShown =
+    last?.role === "assistant" && Boolean(last.streaming) && (last.steps.length > 0 || last.text !== "");
+  const progress = last?.role === "assistant" ? `${last.steps.length}:${last.text.length}` : "";
 
   useEffect(() => {
     // Nothing said yet: stay at the top so an opening briefing is read from its first line.
     if (messages.length === 0 && !pending) return;
     endRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [messages.length, pending]);
+  }, [messages.length, pending, progress]);
 
   return (
     <div
@@ -316,7 +321,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
           </div>
         ),
       )}
-      {pending && (
+      {pending && !streamingShown && (
         <p className="self-start rounded-2xl bg-surface px-3.5 py-2.5 text-sm text-muted-foreground">
           Thinking…
         </p>

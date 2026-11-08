@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { WAITING_PREFIX, agentChatMessages, decide, resetAgentChat, sendToAgent } from "./agentChat";
+import { WAITING_PREFIX, agentChatMessages, applyStreamLine, decide, resetAgentChat, sendToAgent } from "./agentChat";
 
 const reply = (body: unknown) =>
   Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
@@ -42,6 +42,79 @@ describe("agent chat: deciding an approval card", () => {
     await sendToAgent("thank Maria", () => {});
     await decide(1, { c1: false }, () => {});
     expect(agentChatMessages()[1]).toMatchObject({ text: "I drafted a thank-you for Maria.", decided: true });
+  });
+});
+
+const stream = (lines: string[], status = 200) =>
+  Promise.resolve(new Response(lines.join("\n") + "\n", { status, headers: { "content-type": "text/plain; charset=utf-8" } }));
+
+const taskLines = [
+  'b:{"toolCallId": "t1", "toolName": "create_task"}',
+  'c:{"toolCallId": "t1", "argsTextDelta": "{\\"kind\\":\\"call\\",\\"title\\":\\"Call Priya\\"}"}',
+  'a:{"toolCallId": "t1", "result": {"tool": "create_task", "summary": "task #1 saved: Call Priya", "status": "done", "undo_token": "u1"}}',
+  '0:"Added "',
+  '0:"the task."',
+];
+
+describe("agent chat: streaming replies", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetAgentChat();
+  });
+
+  it("builds the reply from the stream: tool cards with args, result and Undo, then the text", async () => {
+    const fetchMock = vi.spyOn(window, "fetch").mockImplementationOnce(() => stream(taskLines));
+    const refetch = vi.fn();
+    await sendToAgent("add a task to call Priya", refetch);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/chat\/stream$/);
+    const reply = agentChatMessages()[1];
+    expect(reply).toMatchObject({ role: "assistant", text: "Added the task." });
+    if (reply.role !== "assistant") throw new Error("no reply");
+    expect(reply.streaming).toBeUndefined();
+    expect(reply.steps).toEqual([
+      expect.objectContaining({ tool: "create_task", args: { kind: "call", title: "Call Priya" },
+        summary: "task #1 saved: Call Priya", status: "done", undo_token: "u1", call_id: "t1" }),
+    ]);
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it("a tool card shows as running until its result arrives", () => {
+    const empty = { role: "assistant" as const, text: "", steps: [], approvals: [], runId: null };
+    const started = applyStreamLine(empty, taskLines[0], new Map());
+    expect(started.steps[0]).toMatchObject({ tool: "create_task", status: "running", summary: null });
+  });
+
+  it("a paused run shows its approval cards and the waiting line", async () => {
+    vi.spyOn(window, "fetch").mockImplementationOnce(() =>
+      stream([
+        'b:{"toolCallId": "s1", "toolName": "send"}',
+        'a:{"toolCallId": "s1", "result": {"tool": "send", "status": "awaiting_approval", "summary": "waiting for your approval to send", "run_id": "r9"}}',
+        '2:[{"type": "approvals", "run_id": "r9", "approvals": [{"call_id": "s1", "tool": "send", "args": {"batch_id": 3}, "summary": "Send 2 emails"}]}]',
+      ]),
+    );
+    await sendToAgent("send it", () => {});
+    expect(agentChatMessages()[1]).toMatchObject({
+      runId: "r9",
+      approvals: [{ call_id: "s1", summary: "Send 2 emails" }],
+      text: `${WAITING_PREFIX}Send 2 emails.`,
+    });
+  });
+
+  it("falls back to POST /chat when the stream can't start", async () => {
+    const fetchMock = vi
+      .spyOn(window, "fetch")
+      .mockImplementationOnce(() => stream(["boom"], 500))
+      .mockImplementationOnce(() => reply({ reply: "Here you go.", steps: [], approvals: [], run_id: null }));
+    await sendToAgent("hi", () => {});
+    expect(String(fetchMock.mock.calls[1][0])).toMatch(/\/chat$/);
+    expect(agentChatMessages()[1]).toMatchObject({ role: "assistant", text: "Here you go." });
+  });
+
+  it("an error after a tool ran is shown, not retried (a retry could repeat the write)", async () => {
+    const fetchMock = vi.spyOn(window, "fetch").mockImplementationOnce(() => stream([taskLines[0], taskLines[2], '3:"model timed out"']));
+    await sendToAgent("add a task", () => {});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(agentChatMessages()[1]).toMatchObject({ steps: [expect.objectContaining({ status: "done" })] });
   });
 });
 
