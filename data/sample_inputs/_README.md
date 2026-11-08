@@ -14,15 +14,27 @@ These synthetic files are fixtures for the planned CRM ingest workflow and parse
 | `check_deposit_log_q3_2026.docx` | Word table of Q3 2026 checks plus handwritten-style notes. |
 | `donor_intake_forms_2026.docx` | Four filled intake forms. |
 | `stock_and_daf_grants.docx` | Memo table of stock gifts and DAF grants. |
-| `community_intake_forms_2026.docx` | 14 self-reported intake forms for people the nonprofit serves (contact preference, household size, age range or birth year, gender, ZIP/neighborhood, language, programs, dog/pet). Some fields are blank or "prefer not to say" on purpose; 2 people have no email or phone. |
-| `event_signin_sheet_nov1.xlsx` | Messy 27-row sign-in sheet from the Nov 1 open house: mixed name spellings and contact formats, an "Interested in" column (volunteering, giving, pet adoption, newsletter) and a "Brought a dog?" column. 19 new Neighbors, 2 who signed twice, plus 3 existing donors and 3 existing community members (cross-file duplicates). |
+| `community_intake_forms_2026.docx` | 14 self-reported intake forms for people the nonprofit serves (contact preference, household size, age range or birth year, gender, ZIP/neighborhood, language, programs, dog/pet). Some fields are blank or "prefer not to say" on purpose; every person has an email and a phone (see Contacts below). |
+| `event_signin_sheet_nov1.xlsx` | Messy 27-row sign-in sheet from the Nov 1 open house: mixed name spellings and contact formats (separate Email and Phone columns), an "Interested in" column (volunteering, giving, pet adoption, newsletter) and a "Brought a dog?" column. 19 new Neighbors, 2 who signed twice, plus 3 existing donors and 3 existing community members (cross-file duplicates). |
 | `answer_key.json` | Ground truth: canonical donors with every source row, 6 duplicate groups, every gift (donor, file, location), the one double-recorded gift, totals, planted scoring cases, expected top-3 lapsing donors. Also, per person, `tab` (giver / neighbor / community), `ambiguous` + `candidate_tabs` + `reason`, `has_dog` where stated; `tab_counts`, `community_members`, `neighbors`, `cross_file_duplicates`, and `puppy_outreach` (target set). |
 
 ## Three tabs: what the key expects
 
 - **Counts:** giver 33, neighbor 20, community 15 (68 people). Each canonical person is counted once, under the tab in `tab`.
 - **Ambiguous (flag for review), planted in `board_retreat_notes.md`:** Dolores Quinones (pantry client who put $25 in the donation jar: community or giver?), Marcus Bell (pantry client who says he will give $10 a month from December: community or giver?), Gabriela Rincon (met at a mixer, "probably will give", mother is a client: neighbor or giver?). The $25 is not in the donor gift totals.
-- **Puppy outreach:** target = anyone whose dog is stated in any file and who has an email or phone (15 people across all three tabs). A blank or "no" in "Brought a dog?" is not evidence of no dog. `puppy_outreach` also lists people with a dog but no contact info and people interested in pet adoption.
+- **Puppy outreach:** target = anyone whose dog is stated in any file and who has an email or phone (16 people across all three tabs). A blank or "no" in "Brought a dog?" is not evidence of no dog. `puppy_outreach` also lists people with a dog but no contact info (none since Nov 8; see Contacts) and people interested in pet adoption.
+- **Contacts (Sharif, Nov 8: "make sure all the sample data has both email and phone"):** every person and organization
+  shows an email and a phone somewhere in the files, all fictional (`example.org` / `example.com`, `305-555-01xx`) and
+  unique to that person. A planted duplicate twin (a row the upload keeps as its own record for staff to review: the
+  check-log rows `D. Kowalczyk`, `Liz Fontaine`, `Bob Nguyen`, `Marrow Lane Print Co.`, `Lucia Ferrante`, Priscilla's
+  pre-2026 address, the Veloria Bay row with no contact email) carries its OWN values, never the other record's, so
+  every planted pair keeps its exact evidence and score (dedupe only adds evidence). Bob's check row also states the
+  planted shared cell (305-555-0102), so Bob ~ Robert no longer depends on reading the notes. Values sit in columns the
+  upload reads (Email, E-mail, Contact email, Phone): the check log and the Major-gifts sheet gained Phone / Email
+  columns, the stock table a Phone column, the `Nov 1-7` sheet's "Tel" header became "Phone", and the sign-in sheet's
+  "Email or phone" became two columns. This retired the planted no-contact cases (Andre Lafleur, Tyrone Gaines,
+  Gus Lindemann, and the notes-only Dolores Quinones and Gabriela Rincon now have contacts), so the puppy target went
+  from 15 to 16 and `has_dog_but_no_contact` is empty. Givers totals are unchanged.
 - **Gift alerts (`gift_alerts_expected`):** Hye-jin Park (failed: monthly $40, the 2026-10-10 charge is a row in the Online sheet marked "card declined" (status declined), no later good gift), Teodoro Salinas (late: quarterly, missed Jul and Oct), Walter Brandt (late: yearly, due 2026-03-18), Veloria Bay Foundation (late: yearly, due 2026-04-15), Rafael Quintero (failed = missed payment: monthly $50, missed Sep 2026, resumed Oct). A declined charge is NOT a gift: it is excluded from gifts, totals and lifetime giving (`failed_gifts_not_counted`). Totals now: 131 unique gifts, $1,367,535 (the 113 gifts and $1,269,470 of the other files, plus the 18 gifts and $98,065 in `online_gifts_oct_nov_2026.xlsx`). None of the new gifts touch a planted case: Maria Delgado, Teodoro Salinas, Walter Brandt, Veloria Bay, Hye-jin Park, Rafael Quintero and the top-3 lapsing list are unchanged.
 - **Quarters (`gifts_by_quarter`, `totals.q4_2026_total` / `q4_2026_gifts`):** calendar quarters, summed from `gifts`. 2026-Q4 is 23 gifts, $98,815 ($750 from the older files plus $98,065 from the new sheet).
 - **Cross-file duplicates:** `cross_file_duplicates` lists who reappears on the sign-in sheet under a different spelling.
