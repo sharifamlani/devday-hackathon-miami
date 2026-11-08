@@ -48,22 +48,20 @@ def test_campaign_drafts_cover_every_giver_and_only_givers(db_file):
     assert all(len(v) == 6 for v in demo["drafts"].values())  # all intent x channel combinations kept
 
 
-def test_the_written_file_masks_contacts_and_blanks_staff_text(db_file, tmp_path):
-    """The public preview reads this file: no full email or phone, no transcript or call notes (#137/#189)."""
-    import re
+def test_the_written_file_blanks_staff_text_but_keeps_contacts(db_file, tmp_path):
+    """The public preview reads this file: no transcript, call notes or staff notes (#137/#189); emails and phones
+    stay in full because the sample data is fictional (Sharif, Nov 8)."""
     from service.export_snapshot import public_snapshot
-    from service.public_mode import EMAIL_RE, PHONE_RE
     conn = db.connect(db_file)
     snap = build_snapshot(conn, rescore=False)
     conn.close()
     snap["donor_details"]["x"] = {"email": "maria.delgado@example.com", "phone": "305-555-0101",
-                                  "notes": "met at gala", "transcript": "she said yes", "bio": "call 305-555-0102"}
+                                  "notes": "met at gala", "transcript": "she said yes",
+                                  "call_notes": [{"text": "wants a call"}], "summary": None}
     out = tmp_path / "snapshot.json"
     write_snapshot(public_snapshot(snap), out)
     text = out.read_text(encoding="utf-8")
-    assert [e for e in EMAIL_RE.findall(text) if "***@" not in e] == []
-    assert PHONE_RE.findall(text) == []
-    assert "maria.delgado" not in text and "she said yes" not in text and "met at gala" not in text
+    assert "she said yes" not in text and "met at gala" not in text and "wants a call" not in text
     x = json.loads(text)["donor_details"]["x"]
-    assert (x["email"], x["phone"], x["bio"]) == ("m***@example.com", "***-***-0101", "call ***-***-0102")
-    assert snap["donor_details"]["x"]["email"] == "maria.delgado@example.com"     # the mirror itself is untouched
+    assert (x["email"], x["phone"], x["notes"], x["transcript"], x["call_notes"]) ==         ("maria.delgado@example.com", "305-555-0101", "", "", [])
+    assert snap["donor_details"]["x"]["notes"] == "met at gala"                    # the mirror itself is untouched

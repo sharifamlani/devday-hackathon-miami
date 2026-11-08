@@ -12,7 +12,7 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "event_details": {"<id>": {...}}     # == GET /events/{id}
       "community_stats": {...}     # == GET /community/stats
       "context_status": {...}      # == GET /context/status
-      "auto_merges": {"<id>": {...}}  # == GET /people/{id}/merges for each flagged person; contacts masked,
+      "auto_merges": {"<id>": {...}}  # == GET /people/{id}/merges for each flagged person; contacts in full,
                                       #    gift_ids dropped (gift_count kept); open merges only. Read-only on Vercel.
       (donor_details covers every person in every tab, so the drawer works on all three.)
       "icp":        {...} | null   # == GET /icp (null before the ICP stage has run)
@@ -160,9 +160,8 @@ def snapshot_event(conn, event_id: int) -> dict:
 
 def auto_merges_snapshot(conn) -> dict:
     """The "!" dialog's source records for every person with an open automatic merge (#125), so the Vercel
-    build can list them (Keep/Split stay live-only). Emails and phones masked like campaign addresses."""
+    build can list them (Keep/Split stay live-only). Emails and phones in full: the sample data is fictional."""
     try:
-        from service.routes_campaigns import mask_address
         from service.routes_data import person_merges
     except ImportError:
         return {}
@@ -175,8 +174,7 @@ def auto_merges_snapshot(conn) -> dict:
         body = person_merges(conn, person_id)
         body["merges"] = [
             {**m, "reviewed_by": None,
-             "sources": [{**src, "email": mask_address(src.get("email"), "email"),
-                          "phone": mask_address(src.get("phone"), "text"), "gift_ids": []}
+             "sources": [{**src, "gift_ids": []}
                          for src in m["sources"]]}
             for m in body["merges"] if m["reviewed_at"] is None]
         out[str(person_id)] = body
@@ -198,11 +196,17 @@ def campaigns_snapshot(conn) -> dict | None:
     return demo
 
 
-def public_snapshot(snapshot: dict) -> dict:
-    """What the public preview may show: build_snapshot mirrors the routes unmasked (the tests compare them), so the
-    file is masked on the way out the same way public mode masks a live response: emails and phones masked, call
-    transcripts and staff free text blanked."""
-    return public_mode.mask_json(snapshot)
+def public_snapshot(value, key: str = ""):
+    """What the public preview may show. Emails and phones stay in full (the sample data is fictional; Sharif,
+    Nov 8); call transcripts, call notes and staff free text (public_mode.BLANK_KEYS) are blanked on the way out.
+    build_snapshot itself stays an exact mirror of the routes (the tests compare them)."""
+    if key.lower() in public_mode.BLANK_KEYS:
+        return [] if isinstance(value, list) else ("" if isinstance(value, str) else None)
+    if isinstance(value, dict):
+        return {k: public_snapshot(v, k) for k, v in value.items()}
+    if isinstance(value, list):
+        return [public_snapshot(v, key) for v in value]
+    return value
 
 
 def write_snapshot(snapshot: dict, out: Path) -> int:

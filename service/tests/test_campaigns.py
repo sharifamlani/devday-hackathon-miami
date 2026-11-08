@@ -262,7 +262,7 @@ def test_snapshot_carries_a_sample_campaign_and_template_drafts(db_file):
     sample = demo["campaigns"][0]
     assert len(sample["messages"]) == 5 and all(m["drafted_by"] == "template" for m in sample["messages"])
     assert set(demo["drafts"]["1"]) == {f"{i}:{c}" for i in ca.INTENTS for c in ca.CHANNELS}
-    assert "@example.com" not in str(demo).replace("***@example.com", "")   # only masked addresses
+    assert "***" not in str([m["to"] for m in sample["messages"]])   # in full: fictional sample data (Sharif, Nov 8)
     with db.connect(db_file) as c2:
         assert c2.execute("SELECT COUNT(*) FROM campaigns").fetchone()[0] == 0    # the export writes nothing
 

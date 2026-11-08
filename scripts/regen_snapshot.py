@@ -6,10 +6,10 @@
 The live onboarding path, in-process (the same app and routes the UI calls; no port is opened):
     empty scratch db -> POST /ingest (the 8 sample files, target auto) -> POST /context/run {website}
     -> wait for GET /context/refresh "done" (the background invites) -> POST /tasks/generate
-    -> export_snapshot (masked on the way out) -> GATE line -> privacy check.
+    -> export_snapshot (staff text blanked on the way out) -> GATE line -> privacy check.
 
-The privacy check fails (exit 1) on any full email or phone, any filled transcript/call_notes/notes value, any "crm_"
-a file over the size limit. Exit 2: refused (missing env file, the refresh never finished).
+Emails and phones stay in full (fictional sample data; Sharif, Nov 8). The privacy check fails (exit 1) on any
+filled transcript/call_notes/notes value, any donor summary, any "crm_" key, or a file over the size limit. Exit 2: refused (missing env file, the refresh never finished).
 """
 
 from __future__ import annotations
@@ -35,15 +35,9 @@ FAILED, REFUSED = 1, 2
 
 def privacy_problems(text: str, max_bytes: int) -> list[str]:
     """What would leak or break the preview; [] when the file is fit to publish."""
-    from service.public_mode import BLANK_KEYS, EMAIL_RE, PHONE_RE
+    from service.public_mode import BLANK_KEYS
 
     problems = []
-    emails = [e for e in EMAIL_RE.findall(text) if "***@" not in e]
-    if emails:
-        problems.append(f"{len(emails)} unmasked emails, e.g. {emails[0]}")
-    phones = PHONE_RE.findall(text)
-    if phones:
-        problems.append(f"{len(phones)} unmasked phones, e.g. {phones[0]}")
     filled: dict[str, int] = {}
 
     def walk(value, key=""):
@@ -53,8 +47,13 @@ def privacy_problems(text: str, max_bytes: int) -> list[str]:
                      else ()):
             walk(v, k if isinstance(k, str) else key)
 
-    walk(json.loads(text))
+    snap = json.loads(text)
+    walk(snap)
     problems += [f'{n} non-empty "{k}" values' for k, n in sorted(filled.items())]
+    summaries = [d for d in (snap.get("donor_details") or {}).values()      # "About <donor>" (#226) is private
+                 if d.get("summary") or d.get("summary_sources")]
+    if summaries:
+        problems.append(f"{len(summaries)} donor summaries not blanked")
     crm = re.findall(r'"crm_\w+"\s*:', text)
     if crm:
         problems.append(f"{len(crm)} crm_* keys")
@@ -153,8 +152,8 @@ def main() -> int:
     size = write_snapshot(public_snapshot(snap), args.out)
     print("GATE " + json.dumps(gate(snap, size, status)))
     problems = privacy_problems(args.out.read_text(encoding="utf-8"), MAX_BYTES)
-    print("\n".join(f"FAIL {p}" for p in problems) or "PASS privacy: 0 unmasked emails/phones, 0 filled "
-          "transcript/call_notes/notes, 0 crm_* keys")
+    print("\n".join(f"FAIL {p}" for p in problems) or "PASS privacy: 0 filled "
+          "transcript/call_notes/notes, 0 donor summaries, 0 crm_* keys")
     if status != "done":
         return REFUSED
     return FAILED if problems else 0

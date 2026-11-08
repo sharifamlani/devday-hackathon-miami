@@ -8,8 +8,8 @@ POST  /campaigns/{id}/approve-small       bulk-approve only drafts that need no 
 POST  /campaigns/{id}/send                approved messages -> outbox (simulated: no provider, nothing leaves the laptop)
 GET   /outbox                             the simulated outbox = the contact log (?campaign_id=, ?donor_id=)
 
-Addresses are stored in full in the local db and returned in full by the live API. Only the public snapshot's
-sample campaign (campaigns_demo) masks them (r***@example.com, ***-***-0101).
+Addresses are stored in full in the local db and returned in full by the live API. The public snapshot's
+sample campaign (campaigns_demo) shows them in full too: the sample data is fictional (Sharif, Nov 8).
 """
 
 from __future__ import annotations
@@ -431,14 +431,14 @@ def demo_message(donor: dict, why: dict, draft: ca.CampaignDraft, channel: str, 
         "subject": draft.subject, "body": draft.body, "facts_used": json.dumps(draft.facts_used),
         "flags": json.dumps(draft.flags), "drafted_by": draft.drafted_by, "draft_note": draft.note,
         "status": "draft", "approved_by": None, "approved_via": None, "approved_at": None, "sent_at": None,
-        "outreach_draft_id": None}, mask=True)
+        "outreach_draft_id": None})
 
 
 def campaigns_demo(conn: sqlite3.Connection) -> dict:
     """{label, campaigns: [sample campaign detail], outbox: [], drafts: {donor_id: {"intent:channel": message}}}.
 
     Template path only (no model, no writes), so the Vercel build can show create -> approve -> send in the tab.
-    Addresses stay masked in this sample (the snapshot's donor rows are masked by the web build, not here)."""
+    Addresses in full: the sample data is fictional (Sharif, Nov 8)."""
     ids = [r[0] for r in conn.execute("SELECT d.id FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id "
                                       "ORDER BY s.score IS NULL, s.score DESC, d.id LIMIT ?", (SNAPSHOT_DRAFT_DONORS,))]
     drafts: dict[str, dict] = {}
