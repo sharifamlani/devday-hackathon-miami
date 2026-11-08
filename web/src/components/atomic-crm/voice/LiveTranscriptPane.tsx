@@ -50,6 +50,7 @@ import {
   type CallSummary,
 } from "./summarize";
 import { micTranscriptSource, usesGeminiCaptions } from "./geminiTranscriptSource";
+import { labelSpeakers, takeRecording } from "./speakerLabels";
 import {
   DEMO_FALLBACK_DONOR,
   demoCallScript,
@@ -459,14 +460,17 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
   /* ---------- Summary and saving ---------- */
 
   const generateSummary = async () => {
+    const recording = takeRecording(sourceRef.current); // before stopAll ends it
     stopAll();
     setStatus("ended");
     setSummarizing(true);
     update({ tab: "summary" });
     const current = draftRef.current;
     try {
+      const { lines } = await labelSpeakers(recording, current.lines, { donorName });
+      if (lines !== current.lines) update({ lines });
       const result = await buildSummary({
-        transcript: current.lines,
+        transcript: lines,
         donorName,
         notes: current.notes,
         today: new Date(current.startedAt),
