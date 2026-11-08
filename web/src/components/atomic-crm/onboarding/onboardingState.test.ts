@@ -81,6 +81,14 @@ describe("onboardingReducer", () => {
     });
   });
 
+  it("adopt (the service already has people) completes without offering the tour", () => {
+    const state = reduce(initialOnboarding(), { type: "adopt" });
+    expect(state.status).toBe("completed");
+    expect(state.completedAt).toBe(NOW);
+    expect(state.tourOffer).toBe("dismissed");
+    expect(shouldAutoShow(state, "/", null)).toBe(false);
+  });
+
   it("finish completes and offers the tour once", () => {
     let state = reduce(
       initialOnboarding(),
