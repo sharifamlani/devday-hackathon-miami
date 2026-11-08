@@ -313,3 +313,24 @@ export const usesGeminiCaptions = (): boolean =>
 
 export const micTranscriptSource = (): TranscriptSource =>
   usesGeminiCaptions() ? geminiTranscriptSource() : browserSpeechSource();
+
+/*
+ * Chrome builds the first 16 kHz AudioContext in a page slowly (measured
+ * ~100-400 ms), and the recorder builds its own only when the call starts, so
+ * the first words were lost while it did. Holding one suspended 16 kHz context
+ * from the moment the pane loads (half a second before the mic source starts)
+ * brings the recorder's down to ~40 ms. Suspended, it uses no audio thread.
+ */
+let warmContext: AudioContext | null = null;
+
+export const warmUpCaptions = (): void => {
+  if (warmContext || typeof AudioContext === "undefined") return;
+  try {
+    warmContext = new AudioContext({ sampleRate: 16000 });
+    void warmContext.suspend();
+  } catch {
+    warmContext = null; // no gain, no harm: the recorder builds its own as before
+  }
+};
+
+if (usesGeminiCaptions()) warmUpCaptions();

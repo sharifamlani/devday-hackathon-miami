@@ -4,6 +4,7 @@ import type { TranscriptLine } from "./callNotes";
 import {
   geminiTranscriptSource,
   liveTranscribeUrl,
+  warmUpCaptions,
   type CallRecorderLike,
   type RecorderLike,
   type SocketLike,
@@ -221,5 +222,32 @@ describe("geminiTranscriptSource", () => {
     });
     source.start({ onLine: () => {} });
     expect(await source.finishRecording()).toBeNull();
+  });
+});
+
+describe("warmUpCaptions", () => {
+  it("holds one suspended 16 kHz AudioContext, created once", () => {
+    const made: { sampleRate?: number; suspended: boolean }[] = [];
+    const Real = globalThis.AudioContext;
+    globalThis.AudioContext = class {
+      rec: { sampleRate?: number; suspended: boolean };
+      constructor(o?: AudioContextOptions) {
+        this.rec = { sampleRate: o?.sampleRate, suspended: false };
+        made.push(this.rec);
+      }
+      suspend() {
+        this.rec.suspended = true;
+        return Promise.resolve();
+      }
+    } as unknown as typeof AudioContext;
+    try {
+      warmUpCaptions();
+      warmUpCaptions();
+      // at most one made here (none if the module's own warm-up already ran in local mode)
+      expect(made.length).toBeLessThanOrEqual(1);
+      for (const m of made) expect(m).toEqual({ sampleRate: 16000, suspended: true });
+    } finally {
+      globalThis.AudioContext = Real;
+    }
   });
 });
