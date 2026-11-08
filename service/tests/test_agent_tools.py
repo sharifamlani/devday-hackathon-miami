@@ -402,3 +402,81 @@ def test_approval_cards_name_the_person_and_the_batch(db_file):
     batch = invoke("draft_email", person_ids=[pid], intent="thank_you")["batch_id"]
     assert ca.approval_summary("send", {"batch_id": batch}) == f"Send thank-you email to {name}"   # the recipient
     assert ca.approval_summary("merge_duplicate", {"suggestion_id": 999999}) is None              # unknown: show args
+
+
+def test_interest_filter_folds_case_and_plurals(db_file):
+    recent, lapsed = lapsed_and_tagged(db_file)
+    conn = sqlite3.connect(db_file)
+    try:
+        conn.execute("INSERT INTO donor_interests (donor_id, tag, confidence, evidence, source_url, source_type, set_by) "
+                     "VALUES (?, 'scholarship', 'high', 'Funds a scholarship', 'https://example.org/s', 'event_sponsor', "
+                     "'agent')", (recent,))
+        conn.commit()
+    finally:
+        conn.close()
+    ids = lambda interest: {p["id"] for p in invoke("find_people", interest=interest, limit=50)["people"]}
+    assert ids("scholarships") == ids("Scholarship") == {recent}            # S1: the plural finds the tag
+    assert lapsed in ids("Environments") and lapsed in ids("kid programs") and lapsed in ids("KIDS")
+    assert ca.interest_matches("arts", ["Arts & Culture"]) and ca.interest_matches("charities", ["charity"])
+    assert ca.interest_matches("environment", ["environmental justice"])
+    assert not ca.interest_matches("art", ["heart health"]) and not ca.interest_matches("class", ["glass"])
+
+
+def test_lapsed_givers_come_with_the_lapsing_and_an_exact_split(db_file):
+    counts = {r["status"]: r["n"] for r in [dict(zip(("status", "n"), row)) for row in sqlite3.connect(db_file).execute(
+        "SELECT s.status, COUNT(*) FROM donor_scores s JOIN donors d ON d.id = s.donor_id "
+        "WHERE d.contact_type = 'giver' GROUP BY s.status")]}
+    names = sorted(r[0] for r in sqlite3.connect(db_file).execute(
+        "SELECT d.full_name FROM donor_scores s JOIN donors d ON d.id = s.donor_id "
+        "WHERE d.contact_type = 'giver' AND s.status = 'lapsed'"))
+    r = invoke("find_people", status="lapsed", limit=3)
+    assert r["split"]["lapsed"] == counts.get("lapsed", 0) and r["split"]["lapsing"] == counts.get("lapsing", 0)
+    assert sorted(r["split"]["lapsed_names"]) == names
+    assert r["count"] == counts.get("lapsed", 0) + counts.get("lapsing", 0)      # the full match, not the limit
+    assert len(r["people"]) == min(3, r["count"])
+    assert "split" not in invoke("find_people", status="lapsing")             # other statuses unchanged
+
+
+def test_a_call_that_cannot_happen_gets_no_approval_card(db_file, monkeypatch):
+    from agents import RunContextWrapper
+    monkeypatch.setenv("PHONE_CALLS", "off")
+    no_phone = one(db_file, "SELECT id, full_name FROM donors WHERE COALESCE(phone, '') = '' ORDER BY id LIMIT 1")
+    has_phone = one(db_file, "SELECT id, full_name FROM donors WHERE COALESCE(phone, '') != '' ORDER BY id LIMIT 1")
+    tool = TOOLS["call_person"]
+    assert tool.needs_approval is ca.call_needs_approval and "call_person" in ca.APPROVAL_TOOLS
+
+    for pid, reason in ((no_phone["id"], f"{no_phone['full_name']} has no phone number on file"),
+                        (has_phone["id"], "Phone calls are off: set PHONE_CALLS=on in .env")):
+        context = ca.ChatContext(tab="givers")
+        assert asyncio.run(ca.call_needs_approval(RunContextWrapper(context), {"person_id": pid}, "c1")) is False
+        payload = json.dumps({"person_id": pid})
+        out = asyncio.run(tool.on_invoke_tool(ToolContext(context=context, tool_name="call_person", tool_call_id="c1",
+                                                          tool_arguments=payload), payload))
+        out = out if isinstance(out, dict) else json.loads(out)
+        assert out == {"error": reason, "refused": True}                    # S3: a clear reason, no card
+
+    # Everything in place: the card still shows (the approval gate is unchanged).
+    monkeypatch.setattr(ca, "call_refusal", lambda person_id: None)
+    assert asyncio.run(ca.call_needs_approval(RunContextWrapper(ca.ChatContext(tab="givers")),
+                                              {"person_id": has_phone["id"]}, "c2")) is True
+
+
+def test_an_allowed_call_still_waits_on_the_card_and_never_dials_unapproved(db_file, monkeypatch):
+    """Everything in place (calls on, Twilio set, the donor allowlisted): the Call card shows, and nothing dials
+    before a person approves it."""
+    from agents import RunContextWrapper
+    from service import phone
+    donor = one(db_file, "SELECT id, phone FROM donors WHERE COALESCE(phone, '') != '' ORDER BY id LIMIT 1")
+    monkeypatch.setenv("PHONE_CALLS", "on")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "test-token")
+    monkeypatch.setenv("STAFF_PHONE", "+13055550199")
+    monkeypatch.setenv("TWILIO_PHONE_NUMBER", "+13055550198")
+    monkeypatch.setenv("SEND_ALLOWLIST", phone.e164(donor["phone"]))
+    dialed = []
+    monkeypatch.setattr(phone, "start_call", lambda *a, **k: dialed.append(a) or {"call_id": "x"})
+
+    context = ca.ChatContext(tab="givers")
+    assert ca.call_refusal(donor["id"]) is None
+    assert asyncio.run(ca.call_needs_approval(RunContextWrapper(context), {"person_id": donor["id"]}, "c1")) is True
+    assert context.refused_calls == {} and dialed == []                     # a card, and no call without it
