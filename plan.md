@@ -902,3 +902,87 @@ Money card (home, upper left)            Profile interest chips
 B1, B2 and B3 run in parallel on disjoint files, except `db.py`, where each adds only its own tables (B1 lands
 first, B3 rebases). B4 goes to Christian right after approval. Every PR goes through QA, then a merge pinned to the
 approved SHA, a deploy and a Playwright walk. B5 starts Sun 9 AM. Freeze Sun 4:15 PM.
+
+### 19.1 The demo (Sharif, Sat Nov 7 night): a live call that updates tasks, calendar and context
+
+Source: `transcripts/demo.md` (gitignored). Runs live on stage: a real phone call, transcribed as it happens, then
+the agent routes what was said into tasks, the calendar and the context.
+
+**Script (fictional donor; no real person's history is invented):**
+1. **Before the call:** "Tell me about Bill at Veloria Bay Foundation." The agent answers from the CRM: $1.1M
+   lifetime, yearly gift late since Apr 15, interests Health & Wellness / International (polio), last spoke with
+   Susan on Oct 12, his wife is Melissa, and Give Miami Day is Thu Nov 19.
+2. **The call:** Sharif clicks 🎙 and calls Bill (a teammate's phone, on speaker). The transcript fills in live.
+   Bill agrees to renew at $1M and to attend Thursday's event. "Say hi to Melissa."
+3. **After the call:** Sharif clicks Save to Bill. The after-call agent shows its tool steps and proposes updates;
+   one click applies them:
+   - **Tasks:** "Send $1M pledge agreement to Bill" (due Mon), "Confirm Bill's seat for Give Miami Day".
+   - **Calendar:** Bill added to Give Miami Day (Thu Nov 19) as attending; the event's guest count goes up.
+   - **Context:** pledge $1M recorded (not counted as raised until received); last contact = Sharif, Nov 8;
+     relationship note "wife Melissa"; interest tags confirmed from the call.
+4. **Proof:** the to-do list, calendar and Bill's profile all show the changes; reload keeps them.
+
+**Fictional cast:** Veloria Bay Foundation (D27, sample data: $1.1M lifetime, yearly gift late) is the donor. "Bill"
+is its board chair and "Susan" a staff member, both fictional and added by the demo seed only. The seed also adds
+Susan's Oct 12 call note and staff-set interest tags (fictional orgs have nothing on the web, so tags come from the
+note, not web research). Live web enrichment is shown on a real organization in its own beat, organizations only.
+
+### 19.2 Builds this adds
+
+| # | Build | Owner | Est. |
+|---|---|---|---|
+| B3+ | `call_notes` gets `staff_name` and `contact_name`, so "who talked to him last" has an answer | builder C | +15 min |
+| B6 | **After-call agent** (OpenAI Agents SDK): reads a saved transcript and proposes typed actions: `create_task`, `rsvp_event`, `record_pledge`, `add_context_note`, `tag_interest`. Every action is shown as a tool step; **Apply all** (or per item) writes them. Needs a persisted `tasks` table (today's tasks are in-browser FakeRest), `event_audience.rsvp` (invited / attending / declined), a `pledges` table (not counted in raised), and `person_context` notes | builder D | 2.5 h |
+| B7 | **Demo seed:** `scripts/seed_demo.py` adds Bill, Susan, the Oct 12 note and staff tags on top of the sample upload; idempotent; `--reset` restores the pre-demo state between rehearsals | builder D | 30 min |
+| B8 | **Live hosting:** the live demo runs the service on the laptop. The public Vercel URL stays the read-only snapshot. If the call must run from the public URL, a tunnel (cloudflared) exposes the laptop API, behind the same send allowlist | me | 30 min (only if needed) |
+
+Tree additions:
+```
+service/
+├── after_call_agent.py   NEW B6 transcript -> proposed actions (typed), apply(actions)
+├── db.py                 B6 tasks, pledges, person_context tables; event_audience.rsvp column (ALTER ... ADD COLUMN)
+├── main.py               B6 POST /call-notes/{id}/actions (propose), POST /call-notes/{id}/apply; GET /tasks
+scripts/seed_demo.py      NEW B7
+docs/demo-script.md       B5 the script above, word for word, with the reset steps
+```
+
+Flow addition:
+```
+[Save to Bill] --> call_notes --> after_call_agent --> proposed actions (tool steps on screen)
+                                        |  [Apply all]
+            +---------------+-----------+-----------+-----------------+
+            v               v                       v                 v
+         tasks         event_audience(rsvp)      pledges        person_context + donor_interests
+            |               |                       |                 |
+       to-do list     calendar guest list     profile pledge     profile + chat agent's next answer
+```
+
+Wireframe: after-call review card (in the agent column):
+```
++--------------------------------------------------------------+
+| Call with Bill · 4:12 · saved to Veloria Bay Foundation       |
+| ✓ read_transcript   ✓ find_event("Thursday") -> Give Miami Day|
+| Proposed updates                                              |
+| [x] Task: Send $1M pledge agreement to Bill (due Mon Nov 9)   |
+| [x] Task: Confirm Bill's seat, Give Miami Day                 |
+| [x] Calendar: Bill attending Give Miami Day (Thu Nov 19)      |
+| [x] Pledge: $1,000,000 (not counted as raised until received) |
+| [x] Context: wife Melissa; last contact Sharif, Nov 8         |
+|                                   [Apply selected] [Discard]  |
++--------------------------------------------------------------+
+```
+
+Derisking additions (after smoke 7):
+| # | Proves | Command | Expected | If it fails |
+|---|---|---|---|---|
+| 7a | The agent extracts the right actions from the demo transcript | `pytest service/tests/test_after_call.py` on a recorded demo transcript (3 live runs) | exactly: 2 tasks, 1 RSVP to Give Miami Day, 1 pledge $1,000,000, 1 context note with "Melissa" | tighten the action schema and prompt |
+| 7b | Apply writes all four places and survives reload | curl apply, restart, GET /tasks, /events/{id}, /people/{id} | all four present after restart | fix the failing write |
+| 7c | Reset makes rehearsals repeatable | `python scripts/seed_demo.py --reset` twice, then the walk | same counts every time | fix idempotency |
+
+Evaluation additions:
+| Criterion | Threshold | How measured |
+|---|---|---|
+| The call is routed correctly | 3/3 live runs on the demo transcript produce the expected 5 actions, 0 extra | pytest + live runs |
+| Nothing is written without a click | 0 rows in tasks / pledges / event_audience before Apply | SQL before and after |
+| Live stage run | full script (research → call → apply → proof) under 4 min, 0 console errors | timed rehearsal + Playwright log |
+| Pledges don't inflate money raised | raised unchanged after the $1M pledge | GET /targets/quarters before and after |
