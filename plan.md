@@ -1939,8 +1939,8 @@ Live-call notes (19, from the real test call):
 - **Press any key, on both phones.** Each leg opens with Twilio's trial message ("You have a trial account… press any
   key to execute your code"), and **Twilio hangs up that leg if no key is pressed**. So Sharif presses any key when his
   phone rings and the message plays; then Christian presses any key when his phone rings. Brief Christian beforehand.
-  If either doesn't, the call drops silently and the transcript is empty (both of the Nov 8 test calls broke this
-  way). Say the message out loud as a known limit ("a trial account, so Twilio reads a notice first").
+  If either doesn't, the call drops silently and the transcript is empty (the two failed Nov 8 test calls broke this
+  way; the third, with the keys pressed, worked end to end). Say the message out loud as a known limit ("a trial account, so Twilio reads a notice first").
 - Christian hears "Hello. This call is recorded for our notes." before he joins.
 - Don't restart LIVE's service between **Call** and the summary (about a minute after **Hang up**): the call's
   worker runs inside the service. If the transcript fails, the card offers **Try again** (it keeps the recording and
@@ -2066,7 +2066,7 @@ fallback before T-30.
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
-| 4c Live call (dropped) | the call drops, or the transcript comes back empty (a key wasn't pressed at the trial message) | "That's a trial-account limit: Twilio needs a key press first." Go to 4d. |
+| 4c Live call (dropped) | the call drops, or the transcript comes back empty (a key wasn't pressed at the trial message); the card reads e.g. "You hung up before Christian Gonzalez answered." or "Twilio has no recording for this call, so there is no transcript." | "That's a trial-account limit: Twilio needs a key press first." Go to 4d. |
 | 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the recording is kept, so the transcript can be finished later, then go to 4d. |
 | 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do 4d (the Live transcript demo call). |
 | 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
