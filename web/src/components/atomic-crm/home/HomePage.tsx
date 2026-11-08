@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { DonorDrawer } from "../contacts/DonorDrawer";
+import MobileHeader from "../layout/MobileHeader";
 import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
 import {
   useOnboarding,
@@ -60,6 +62,7 @@ const BOARD_HEIGHT = "@min-[1081px]:h-full";
  */
 export const HomePage = () => {
   const today = toIsoDate(new Date());
+  const isMobile = useIsMobile();
   const home = useHomeData(today);
   const donors = useDonors();
   const targets = useTargets();
@@ -181,6 +184,18 @@ export const HomePage = () => {
 
   return (
     <div className="@container h-full">
+      {/* Phones have no desktop top bar: this one carries Live transcript,
+          theme, Ask and the account menu (Restart tour, Log out). */}
+      {isMobile && (
+        <>
+          <MobileHeader>
+            <span className="truncate text-xl font-bold tracking-[-0.02em]">
+              Donor Desk
+            </span>
+          </MobileHeader>
+          <div className="h-14" aria-hidden="true" />
+        </>
+      )}
       <p role="status" aria-live="polite" className="sr-only">
         {status}
       </p>
