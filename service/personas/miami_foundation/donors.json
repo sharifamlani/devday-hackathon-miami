@@ -1,5 +1,5 @@
 {
-  "_about": "SAMPLE seed for the miami_foundation persona, moved here unchanged from service/db.py SEED_DONORS. Individuals are fictional. Donors 9-12 are REAL organizations (publicly reported Miami Foundation supporters, plan §11) with INVENTED gift histories; their names match data/research_cache.json. Give Miami Day dates: Thu Nov 16 2023, Thu Nov 21 2024, Thu Nov 20 2025 (2026 is Thu Nov 19). Gifts are [amount, date, channel].",
+  "_about": "SAMPLE seed for the miami_foundation persona, moved here unchanged from service/db.py SEED_DONORS. Individuals are fictional. Donors 9-12 are REAL organizations (publicly reported Miami Foundation supporters, plan §11) with INVENTED gift histories; their names match data/research_cache.json. Give Miami Day dates: Thu Nov 16 2023, Thu Nov 21 2024, Thu Nov 20 2025 (2026 is Thu Nov 19). Gifts are [amount, date, channel]. Donors 13-18 are fictional 5E Neighbors and Community members (from origin/main #60), the same in every pack.",
   "donors": [
     {
       "full_name": "Maria Delgado",
@@ -223,6 +223,83 @@
         [7500, "2024-03-12", "in-kind"],
         [7500, "2025-03-11", "in-kind"]
       ]
+    },
+    {
+      "full_name": "Danielle Okafor",
+      "first_name": "Danielle",
+      "last_name": "Okafor",
+      "donor_type": "individual",
+      "contact_type": "neighbor",
+      "email": "danielle.okafor@example.com",
+      "phone": "+13055550211",
+      "city": "Miami",
+      "state": "FL",
+      "interests": ["dogs", "volunteering"],
+      "has_dog": true,
+      "notes": "SAMPLE: met at the Give Miami 5K info table"
+    },
+    {
+      "full_name": "Marco Bellini",
+      "first_name": "Marco",
+      "last_name": "Bellini",
+      "donor_type": "individual",
+      "contact_type": "neighbor",
+      "email": "marco.bellini@example.com",
+      "phone": "+13055550212",
+      "city": "Coral Gables",
+      "state": "FL",
+      "interests": ["arts"],
+      "has_dog": false,
+      "notes": "SAMPLE: signed up at a community arts night"
+    },
+    {
+      "full_name": "Keisha Grant",
+      "first_name": "Keisha",
+      "last_name": "Grant",
+      "donor_type": "individual",
+      "contact_type": "community",
+      "phone": "+13055550221",
+      "city": "Homestead",
+      "state": "FL",
+      "interests": ["youth programs"],
+      "has_dog": true,
+      "demographics": {"age_range": {"value": "25-34", "source_row": "intake_form_01.docx: Age range"}, "household_size": {"value": "4", "source_row": "intake_form_01.docx: Household"}, "zip": {"value": "33030", "source_row": "intake_form_01.docx: ZIP"}, "language": {"value": "English", "source_row": "intake_form_01.docx: Language"}, "programs": {"value": ["After-school tutoring"], "source_row": "intake_form_01.docx: Programs"}},
+      "notes": "SAMPLE: intake record"
+    },
+    {
+      "full_name": "Rosa Jimenez",
+      "first_name": "Rosa",
+      "last_name": "Jimenez",
+      "donor_type": "individual",
+      "contact_type": "community",
+      "phone": "+13055550222",
+      "city": "Miami",
+      "state": "FL",
+      "demographics": {"age_range": {"value": "45-54", "source_row": "intake_form_02.docx: Age range"}, "gender": {"value": "Female", "source_row": "intake_form_02.docx: Gender"}, "zip": {"value": "33125", "source_row": "intake_form_02.docx: ZIP"}, "language": {"value": "Spanish", "source_row": "intake_form_02.docx: Language"}, "programs": {"value": ["Food pantry", "After-school tutoring"], "source_row": "intake_form_02.docx: Programs"}},
+      "notes": "SAMPLE: intake record"
+    },
+    {
+      "full_name": "Tomas Reyes",
+      "first_name": "Tomas",
+      "last_name": "Reyes",
+      "donor_type": "individual",
+      "contact_type": "community",
+      "city": "Miami",
+      "state": "FL",
+      "demographics": {"zip": {"value": "33125", "source_row": "signin_sheet_oct.xlsx: row 7"}},
+      "notes": "SAMPLE: event sign-in only"
+    },
+    {
+      "full_name": "Jordan Lee",
+      "first_name": "Jordan",
+      "last_name": "Lee",
+      "donor_type": "individual",
+      "contact_type": "neighbor",
+      "email": "jordan.lee@example.com",
+      "city": "Miami",
+      "state": "FL",
+      "tab_review": "appears on the intake list and the volunteer sign-up sheet; Community or Neighbor?",
+      "notes": "SAMPLE: ambiguous tab, flagged for review"
     }
   ]
 }

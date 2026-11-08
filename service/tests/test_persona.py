@@ -46,7 +46,7 @@ def test_default_persona_is_fictional_tidepath(monkeypatch):
 def test_tidepath_seed_has_no_real_names_and_keeps_the_planted_cases(tidepath):
     seed = persona.seed_donors()
     assert leaks(json.dumps(seed, ensure_ascii=False)) == []
-    assert len(seed) == 12 and all(d.get("source_row") in (None, "SAMPLE") for d in seed)
+    assert len(seed) == 18 and all(d.get("source_row") in (None, "SAMPLE") for d in seed)
     for d in seed:                                          # synthetic contact details only
         assert d.get("email") is None or d["email"].split("@")[1].endswith(("example.com", "example.org"))
         assert d.get("phone") is None or "55501" in "".join(ch for ch in d["phone"] if ch.isdigit())
@@ -126,7 +126,9 @@ def test_tidepath_snapshot_has_every_ui_key_and_no_real_names(tidepath, tmp_path
     monkeypatch.setenv("OPENAI_API_KEY", "")
     out = tmp_path / "snapshot.json"
     report = pipeline.run_pipeline(AS_OF, out=out)
-    assert [r["status"] for r in report] == ["ok"] * 6, report
+    status = {r["stage"]: r["status"] for r in report}
+    assert status.pop("events") in ("ok", "missing")            # events_agent (PR #49) may not be on this build
+    assert set(status.values()) == {"ok"}, report
     text = out.read_text(encoding="utf-8")
     assert leaks(text) == []
     snap = json.loads(text)

@@ -1,5 +1,5 @@
-import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
-import { ArrowUp, Loader2, ShieldCheck, Sparkles } from "lucide-react";
+import { useId, useState } from "react";
+import { ShieldCheck, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { DonorDrawer } from "../contacts/DonorDrawer";
@@ -11,6 +11,7 @@ import {
 } from "../providers/local/ask";
 import { DATA_MODE } from "../providers/local/config";
 import { useAsk } from "../providers/local/hooks";
+import { AskPrompt } from "./AskPrompt";
 import { AskResults } from "./AskResults";
 import "../dashboard/donor-inbox.css";
 
@@ -22,7 +23,6 @@ import "../dashboard/donor-inbox.css";
 export const AskPage = () => {
   const ask = useAsk();
   const promptId = useId();
-  const hintId = useId();
   const [draft, setDraft] = useState("");
   // The answer to the question as asked, kept so "Reset filters" can restore it.
   const [original, setOriginal] = useState<AskAnswer | null>(null);
@@ -58,23 +58,6 @@ export const AskPage = () => {
     void run(text);
   };
 
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    submit(draft);
-  };
-
-  // Enter asks; Shift+Enter adds a line.
-  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing
-    ) {
-      event.preventDefault();
-      submit(draft);
-    }
-  };
-
   return (
     <div className="donor-inbox">
       <section
@@ -93,48 +76,22 @@ export const AskPage = () => {
           see and edit; your own records answer it.
         </p>
 
-        <form onSubmit={onSubmit} className="mt-7 w-full">
-          <label htmlFor={promptId} className="sr-only">
-            Ask a question about your donors
-          </label>
-          <div className="relative rounded-[28px] border border-border bg-card p-2 text-left shadow-[0_12px_40px_#34302612] focus-within:ring-2 focus-within:ring-ring">
-            <textarea
-              id={promptId}
-              rows={3}
-              value={draft}
-              maxLength={500}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={onKeyDown}
-              aria-describedby={hintId}
-              placeholder="Who gave this quarter and hasn't been thanked yet?"
-              className="block min-h-[96px] w-full resize-none rounded-[22px] bg-transparent px-4 pt-3 pr-16 pb-3 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={!draft.trim() || ask.isPending}
-              aria-label={ask.isPending ? "Asking" : "Ask"}
-              className="absolute right-3 bottom-3 grid size-11 place-items-center rounded-full bg-primary text-brand transition-opacity disabled:opacity-50 dark:text-primary-foreground"
-            >
-              {ask.isPending ? (
-                <Loader2
-                  className="size-5 animate-spin motion-reduce:animate-none"
-                  aria-hidden
-                />
-              ) : (
-                <ArrowUp className="size-5" aria-hidden />
-              )}
-            </button>
-          </div>
-          <p
-            id={hintId}
-            className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground"
-          >
-            <ShieldCheck className="size-3.5" aria-hidden />
-            {DATA_MODE === "local"
-              ? "Read-only: the AI never writes records, sends messages, or sees donor details."
-              : "Cached sample: the example questions are precomputed. Live AI runs on the demo laptop."}
-          </p>
-        </form>
+        <div className="mt-7 w-full">
+          <AskPrompt
+            value={draft}
+            onChange={setDraft}
+            onSubmit={submit}
+            pending={ask.isPending}
+            hint={
+              <>
+                <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
+                {DATA_MODE === "local"
+                  ? "Read-only: the AI never writes records, sends messages, or sees donor details."
+                  : "Examples are precomputed. Other questions go to a read-only AI that sees only your question, never donor records."}
+              </>
+            }
+          />
+        </div>
 
         <ul
           aria-label="Example questions"
