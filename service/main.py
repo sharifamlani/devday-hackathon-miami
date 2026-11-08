@@ -664,6 +664,17 @@ def daily_refresh_loop(hh_mm: str) -> None:
 
 
 @app.on_event("startup")
+def migrate_schema() -> None:
+    """Create/upgrade donors.db once, before the first request: parallel first page loads then find the schema
+    current (create_schema is also locked and idempotent, and a migrated db file is not migrated again)."""
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
 def start_daily_refresh() -> None:
     """In-process scheduler: off unless REFRESH_DAILY_AT is set, and never under pytest.
     For a laptop that isn't always serving, use Windows Task Scheduler instead (service/README.md)."""

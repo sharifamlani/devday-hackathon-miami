@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import sqlite3
+import threading
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -560,7 +561,47 @@ ADDED_COLUMNS = {
 }
 
 
-def create_schema(conn: sqlite3.Connection) -> None:
+_MIGRATE_LOCK = threading.RLock()
+_MIGRATED: set[tuple] = set()      # (path, inode, created, schema_version) of each db state this process migrated
+
+
+def _db_identity(conn: sqlite3.Connection) -> tuple | None:
+    """Identify the db file behind conn; None for :memory: / temp dbs (always migrated)."""
+    file = next((r[2] for r in conn.execute("PRAGMA database_list") if r[1] == "main"), "")
+    if not file:
+        return None
+    try:
+        st = os.stat(file)
+    except OSError:
+        return None
+    # schema_version moves on any DDL (a dropped table, another process's ALTER), so a stale entry just re-migrates
+    return (file, st.st_ino, st.st_ctime_ns, conn.execute("PRAGMA schema_version").fetchone()[0])
+
+
+def create_schema(conn: sqlite3.Connection, force: bool = False) -> None:
+    """Create or upgrade the schema. Safe under concurrency and cheap to call repeatedly: one migration at a
+    time per process (a lock), and a db file this process has already migrated is not migrated again
+    (app startup migrates once; per-request callers then no-op). force=True always runs."""
+    with _MIGRATE_LOCK:
+        key = None if force else _db_identity(conn)
+        if key is not None and key in _MIGRATED:
+            return
+        _migrate(conn)
+        key = _db_identity(conn)
+        if key is not None:
+            _MIGRATED.add(key)
+
+
+def _add_column(conn: sqlite3.Connection, table: str, name: str, kind: str) -> None:
+    """ADD COLUMN that tolerates another connection/process having added it first."""
+    try:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e):
+            raise
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
     # Decided before anything runs SCHEMA (migrate_outreach_drafts does, on an older db)
     new_tags_table = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'crm_tags'").fetchone() is None
@@ -572,7 +613,7 @@ def create_schema(conn: sqlite3.Connection) -> None:
         have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         for name, kind in columns.items():
             if name not in have:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+                _add_column(conn, table, name, kind)
     # Backfill for drafts saved before the prospect_drafted_on_draft trigger existed.
     conn.execute("UPDATE prospects SET status = 'drafted' WHERE status = 'new' AND id IN "
                  "(SELECT prospect_id FROM outreach_drafts WHERE prospect_id IS NOT NULL)")
@@ -600,6 +641,7 @@ def migrate_outreach_drafts(conn: sqlite3.Connection) -> bool:
 
 
 def drop_all(conn: sqlite3.Connection) -> None:
+    _MIGRATED.clear()
     for table in TABLES:
         conn.execute(f"DROP TABLE IF EXISTS {table}")
     conn.commit()
