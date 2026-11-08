@@ -90,6 +90,7 @@ Hard rules:
 - Use ONLY the numbered facts and the donor's own gift history. Never invent a number, name,
   program, date or outcome. Copy figures exactly as the fact states them.
 - Cite at least one O-fact (a Foundation accomplishment). List every fact id you used in fact_ids.
+- If an R fact names the donor's interest, connect the message to that interest (and cite it).
 - Gifts are made only at miamifoundation.org or givemiamiday.org. Never mention WhatsApp,
   text-to-give, or automated calls.
 - The call script is for a human staff member to read, in the same voice.

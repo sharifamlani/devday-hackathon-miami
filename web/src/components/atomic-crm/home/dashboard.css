@@ -162,21 +162,6 @@
     animation: none;
   }
 }
-.home-overview > .home-projects {
-  flex: 1 0 200px;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-}
-.home-project-list {
-  min-height: 0;
-  overflow-y: auto;
-  overflow-anchor: none;
-  scrollbar-width: thin;
-}
-.home-project-list > li {
-  margin-bottom: 2px;
-}
 .home-project-toggle {
   display: flex;
   align-items: center;
@@ -243,11 +228,6 @@
     overflow: visible;
     padding: 0;
   }
-  .home-overview > .home-projects {
-    flex: none;
-    min-height: 220px;
-    max-height: 360px;
-  }
 }
 @media (max-width: 767px) {
   .home-mobile-shell {
@@ -285,7 +265,7 @@
     rgb(34 36 37 / 92%);
 }
 
-/* The complete overview collapses together; Projects belongs to this stack. */
+/* The complete overview collapses together;. */
 .home-board.home-overview-hidden {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -359,34 +339,6 @@
 .home-quarter-summary dd {
   font-size: 20px;
 }
-.home-shortcuts h2 {
-  margin-bottom: 10px;
-}
-.home-shortcut-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 7px 10px;
-  background: var(--background);
-  color: var(--muted-foreground);
-}
-.home-shortcut-search input {
-  min-width: 0;
-  width: 100%;
-  background: transparent;
-  border: 0;
-  font-size: 13px;
-  outline: none;
-}
-.home-shortcut-search:focus-within {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-.home-shortcut-group {
-  margin-top: 10px;
-}
 .home-calendar-heading {
   display: flex;
   align-items: center;
@@ -414,142 +366,6 @@
   border: 1px solid var(--border);
   border-radius: 50%;
 }
-.home-week-days {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: 24px repeat(7, minmax(0, 1fr));
-  text-align: center;
-}
-.home-week-days > div > span {
-  font-size: 9px;
-  color: var(--muted-foreground);
-}
-.home-week-days button {
-  display: grid;
-  place-items: center;
-  width: 23px;
-  height: 23px;
-  margin: 2px auto 7px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 50%;
-}
-.home-week-days button[aria-current="date"] {
-  background: #e95b55;
-  color: white;
-}
-.home-week-days button:focus-visible {
-  outline: 2px solid var(--ring);
-}
-.home-week-hours {
-  position: relative;
-  height: 136px;
-  margin-left: 24px;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 33px,
-    rgb(36 39 40 / 5.5%) 33px,
-    rgb(36 39 40 / 5.5%) 34px
-  );
-}
-.home-week-hour {
-  position: absolute;
-  left: -24px;
-  width: 21px;
-  font-size: 8px;
-  color: var(--muted-foreground);
-  transform: translateY(-5px);
-}
-.home-week-column {
-  position: relative;
-  min-width: 0;
-  border-left: 1px solid rgb(36 39 40 / 3.5%);
-}
-.home-calendar-event {
-  position: absolute;
-  left: 1px;
-  right: 1px;
-  overflow: hidden;
-  border: 0;
-  border-left: 2px solid var(--event-ink);
-  border-radius: 4px;
-  background: var(--event-bg);
-  color: var(--event-ink);
-  padding: 3px 2px;
-  text-align: left;
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 1.3;
-}
-.home-calendar-event > span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.home-calendar-event time {
-  display: block;
-  font-size: 8px;
-  font-weight: 500;
-  margin-bottom: 2px;
-}
-.home-calendar-event:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-  z-index: 1;
-}
-.home-calendar-event:hover {
-  filter: brightness(0.97);
-  z-index: 1;
-}
-.home-calendar-event.call {
-  --event-bg: #cbdfff;
-  --event-ink: #285a9a;
-}
-.home-calendar-event.meeting {
-  --event-bg: #e4d0f5;
-  --event-ink: #80519d;
-}
-.home-calendar-event.campaign {
-  --event-bg: #d3e8bc;
-  --event-ink: #50763a;
-}
-.home-week-all-day {
-  max-height: 72px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  display: grid;
-  grid-template-columns: 24px repeat(7, minmax(0, 1fr));
-  margin-bottom: 8px;
-  gap: 1px;
-}
-.home-week-all-day > span {
-  align-self: start;
-  padding-top: 8px;
-  font-size: 8px; /* same as the hour labels, so "All day" reads as a row label */
-  line-height: 1.1;
-  color: var(--muted-foreground);
-}
-.home-week-all-day > div {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.home-week-all-day .home-calendar-event {
-  position: static;
-  min-height: 20px; /* one line (no time): three kind blocks fit the row without scrolling */
-  padding: 2px;
-}
-.home-calendar-status {
-  height: 136px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-  padding: 20px 0;
-}
 @media (max-width: 767px) {
   .home-mobile-shell {
     padding-left: 64px;
@@ -558,5 +374,113 @@
     top: 12px;
     bottom: 12px;
     height: calc(100dvh - 24px);
+  }
+}
+
+/* Overview calendar: month heading, a 7-day strip from today, then a day-grouped list (no hour grid). */
+.home-calendar-heading {
+  margin-bottom: 8px;
+}
+.home-agenda-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  text-align: center;
+  margin-bottom: 10px;
+}
+.home-agenda-strip > li > span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.home-agenda-strip button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 2px auto 0;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 50%;
+}
+.home-agenda-strip button:hover {
+  background: var(--accent);
+}
+.home-agenda-strip button[aria-current="date"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.home-agenda-strip i {
+  display: block;
+  width: 4px;
+  height: 4px;
+  margin: 3px auto 0;
+  border-radius: 50%;
+}
+.home-agenda-strip i[data-on] {
+  background: var(--muted-foreground);
+}
+.home-agenda-list {
+  position: relative;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.home-agenda-day + .home-agenda-day {
+  margin-top: 12px;
+}
+.home-agenda-day h3 {
+  margin-bottom: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.home-agenda-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 4px;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+}
+.home-agenda-row:hover {
+  background: var(--accent);
+}
+.home-agenda-row time {
+  flex: none;
+  width: 56px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.home-agenda-row span {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.home-agenda-row i {
+  flex: none;
+  font-style: normal;
+  font-size: 12px;
+}
+
+/* Donor/organization filter popover (contacts/DonorList). */
+.desk-directory-filters {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(680px, 80dvh);
+  overflow-y: auto;
+  border-radius: 20px;
+  padding: 20px;
+}
+.desk-directory-filters > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+@media (max-width: 767px) {
+  .desk-directory-filters > div {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

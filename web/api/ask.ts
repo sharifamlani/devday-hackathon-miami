@@ -8,6 +8,7 @@
  *
  * Env (Vercel → Settings → Environment Variables): OPENAI_API_KEY (Sensitive),
  * optional OPENAI_MODEL_FAST, else OPENAI_MODEL_DEFAULT, else the SDK default.
+ * Also set VITE_ASK_API=on (build-time): without it the site never calls this function.
  */
 import {
   AnswerCache,

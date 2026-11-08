@@ -86,6 +86,44 @@ export const campaignOutcomeLabel = (
   };
 };
 
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
+/**
+ * The counter line under a campaign: "3 messages · 0 approved · 2 sent via Gmail · 1 dry run".
+ * 'sent' in the DB only means processed, so the sent messages are split by their outbox rows.
+ * Rows not loaded (undefined) or missing for a message: "processed", never a claim of delivery.
+ */
+export const campaignCounterSegments = (
+  counts: { total: number; approved: number; sent: number },
+  entries: OutboxLike[] | undefined,
+): Segment[] => {
+  const out: Segment[] = [
+    { text: count(counts.total, "message"), tone: "dry" },
+    { text: `${counts.approved} approved`, tone: "dry" },
+  ];
+  if (!counts.sent) return out;
+  const rows = entries ?? [];
+  const byProvider = new Map<string, number>();
+  let dry = 0;
+  let failed = 0;
+  for (const e of rows) {
+    const o = outboxOutcome(e);
+    if (o === "dryrun") dry += 1;
+    else if (o === "failed") failed += 1;
+    else {
+      const name = providerName(e.provider);
+      byProvider.set(name, (byProvider.get(name) ?? 0) + 1);
+    }
+  }
+  for (const [name, n] of byProvider)
+    out.push({ text: `${n} sent via ${name}`, tone: "ok" });
+  if (dry) out.push({ text: `${dry} dry run`, tone: "dry" });
+  if (failed) out.push({ text: `${failed} failed`, tone: "error" });
+  const unknown = Math.max(0, counts.sent - rows.length);
+  if (unknown) out.push({ text: `${unknown} processed`, tone: "dry" });
+  return out;
+};
+
 /** The confirmation after pressing send: one segment per outcome. Empty when nothing happened. */
 export const sendSummary = (result: SendCampaignResult): Segment[] => {
   const out: Segment[] = [];
@@ -124,6 +162,13 @@ export const sendSummary = (result: SendCampaignResult): Segment[] => {
   if (!out.length)
     out.push({ text: "Nothing was sent: no approved messages.", tone: "dry" });
   return out;
+};
+
+/** Text colour per tone, for inline counters. */
+export const TEXT_TONE_CLASS = {
+  ok: "",
+  dry: "",
+  error: "text-destructive",
 };
 
 /** Pill colours per tone (Tailwind classes). */
