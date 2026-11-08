@@ -446,7 +446,10 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   const summary = useHomeSummary();
   const chips = summary.data?.suggestions?.length
     ? summary.data.suggestions.slice(0, 3)
-    : HOME_SUGGESTIONS;
+    : DATA_MODE === "local"
+      ? HOME_SUGGESTIONS
+      : // An older snapshot without home_summary answers only these two (ask.ts chipAnswer).
+        ["Who's late on a usual gift?", "Plan next week"];
   const dictation = useDictationInput(text, setText);
   // Alt+V (useWorkspaceHotkeys) toggles the mic like a click on it.
   const dictationRef = useRef(dictation);
