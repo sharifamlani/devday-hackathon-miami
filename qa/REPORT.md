@@ -247,3 +247,8 @@ Upstream trap still live locally: dev/ingest-v2 and feat/ingest-adapter-v2 track
 | #80 docs/contract-sync | f873011 | all 10 drifted endpoints now in ui-integration §2/§2.1; accept shape explicit; owner note: /tasks 3a (ui) vs 86 (plan §21.5 l.1034) | APPROVE |
 
 Merged by the lead on QA verdict: #73 (918cd24), #77 (067fa19). #69 parked (Christian's #78 shipped its own Ask pane; B10 reuses #69's pieces).
+| retro d5e3812 (stat-mcp, pushed to main) | 970c5ca..d5e3812 | 5 stat-mcp tests pass; 5 fixes have code + tests; stat-mcp only; no secrets | OK |
+| retro 6976578 (ingest adapter, pushed to main) | d5e3812..6976578 | gifts exact both runs (113 / $1,269,470, declined excluded); people 82 and 85 vs 68; tabs 39/28/15, 39/31/15 vs 33/20/15; NOT deterministic (LLM extraction + tab judge); grouping key (name, org) leaves same-name dupes | PROBLEM (adapter owner) |
+| dedupe 10-vs-6 | — | the cause is the adapter (pre-merges + uncollapsed dupes + fragments), not dedupe.py or the key; Marrow Lane ~ Okoye is a true pair per key D32 | diagnosed |
+| #49 feat/events | 4dd9847 | 11 passed; weekdays right; runsignup/eventbrite state Nov 15; givemiamiday verified earlier in real Chrome; no Community ask | APPROVE |
+| #57 feat/refresh | c2ff468 | superset of #49 + refresh.py; 35 targeted tests pass | APPROVE |
