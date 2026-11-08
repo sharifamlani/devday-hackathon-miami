@@ -249,8 +249,8 @@ def build_brief(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
                   "FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id WHERE d.id = ?", (person_id,))
     if not donor:
         return {"error": f"person {person_id} not found"}
-    gifts = query("SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? ORDER BY gift_date DESC LIMIT 6",
-                  (person_id,))
+    gifts = query("SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? AND COALESCE(status, 'ok') = 'ok' "
+                  "ORDER BY gift_date DESC LIMIT 6", (person_id,))   # declined/failed charges are not gifts
     facts = query("SELECT fact, source_url FROM research_facts WHERE donor_id = ? LIMIT 5", (person_id,))
     d = donor[0]
     d["why"] = json.loads(d["why"] or "{}").get("reasons", [])

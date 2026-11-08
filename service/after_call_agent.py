@@ -78,7 +78,9 @@ Propose only what the call actually supports; every action quotes the transcript
   list whose date matches what they said. If no listed event matches, do not propose rsvp_event.
 - record_pledge: the supporter promised a future gift. Copy the amount exactly; set frequency.
 - add_context_note: something worth remembering about the supporter (a life change, why they give, how long).
-- tag_interest: an interest the call shows, only from the given tags list; skip if the list is empty.
+- tag_interest: ONLY when the supporter states an interest outright ("I care about...", "we fund...",
+  "...matters to me"), never inferred from an event they'll attend or a passing mention; only from the given
+  tags list; skip if the list is empty.
 Never invent a date, amount, event or name."""
 
 
@@ -175,6 +177,18 @@ def find_event(events: list[dict], evidence: str, today: date) -> dict | None:
     named = [e for e in hits if words & set(re.findall(r"[a-z]{4,}", e["title"].lower()))]
     hits = named or hits
     return hits[0] if len(hits) == 1 else None
+
+
+INTEREST_RE = re.compile(
+    r"\b(i|we)\s+(really\s+|truly\s+|deeply\s+)?(care|cares)\s+(a\s+lot\s+)?about\b"
+    r"|\b(i'?m|i\s+am|we'?re|we\s+are)\s+(really\s+|very\s+)?(passionate|interested)\s+(about|in)\b"
+    r"|\b(we|our\s+(family|foundation|company))\s+(fund|funds|support|supports|give\s+to)\b"
+    r"|\bmatters?\s+(a\s+lot\s+)?to\s+(me|us)\b|\b(i|we)\s+love\s+supporting\b", re.I)
+
+
+def states_interest(evidence: str) -> bool:
+    """A tag needs the supporter saying it outright; attending an event or a passing mention isn't enough."""
+    return bool(INTEREST_RE.search(evidence or ""))
 
 
 def figures(text: str) -> set[float]:
@@ -287,6 +301,8 @@ def check_action(a: ProposedAction, text: str, person: dict | None, events: list
     elif a.type == "tag_interest":
         if not tags or a.tag not in tags:
             return None, "not one of the interest tags (or tags aren't available yet)"
+        if not states_interest(a.evidence):
+            return None, "the call doesn't state this interest outright"
     return a, None
 
 
