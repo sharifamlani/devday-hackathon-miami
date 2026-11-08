@@ -22,6 +22,8 @@ LAUNCH_ARGS = [
     "--disable-backgrounding-occluded-windows",
     "--force-device-scale-factor=1",
 ]
+# Real GPU raster/compositing; software rendering (SwiftShader) makes every frame slow.
+GPU_ARGS = ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"]
 VIEWS = ["calendar", "crm", "tasks", "impact"]
 SIZES = [(1440, 900), (1366, 768)]
 CYCLES = 10
@@ -54,10 +56,23 @@ GEOMETRY = """
   const railRight = rail ? rail.getBoundingClientRect().right : 0;
   const p = panel ? panel.getBoundingClientRect() : null;
   const c = chat && chat.offsetParent !== null ? chat.getBoundingClientRect() : null;
-  return { pw: p ? p.width : 0, cw: c ? c.width : 0, space: innerWidth - railRight,
+  return { vw: innerWidth, pw: p ? p.width : 0, cw: c ? c.width : 0, space: innerWidth - railRight,
            view: new URLSearchParams(location.hash.split('?')[1] || '').get('workspace'), has: !!panel };
 }
 """
+
+
+def print_renderer(browser, base):
+    """Print the WebGL renderer + browser version, so a software-rendered run is obvious."""
+    page = browser.new_page()
+    page.goto("about:blank")
+    r = page.evaluate(
+        """() => { const gl = document.createElement('canvas').getContext('webgl');
+        if (!gl) return 'no webgl'; const e = gl.getExtension('WEBGL_debug_renderer_info');
+        return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; }"""
+    )
+    print(f"browser {browser.version} renderer: {r}")
+    page.close()
 
 
 IDLE = {"p95": 0.0, "max": 0.0}
@@ -145,6 +160,7 @@ def measure(browser, base, view, w, h, shots: Path):
     lo, hi = LIMITS["ratio"]
     ok = (
         lo <= ratio <= hi
+        and geo["pw"] / geo["vw"] >= 0.63
         and geo["cw"] >= LIMITS["chat_min"]
         and (not frames_measurable() or (p95(gaps) <= LIMITS["p95"] and max(gaps or [0]) <= LIMITS["max"]))
         and cls == 0
@@ -153,7 +169,7 @@ def measure(browser, base, view, w, h, shots: Path):
     idle_p95 = IDLE["p95"]
     note = "" if frames_measurable() else f" [frames NOT MEASURABLE: env rAF cap, idle p95={idle_p95:.1f}]"
     print(
-        f"{view} {w}x{h} ratio={ratio:.2f} chat={geo['cw']:.0f} p95={p95(gaps):.1f} "
+        f"{view} {w}x{h} ratio={ratio:.2f} vs_viewport={geo['pw']/geo['vw']:.3f} chat={geo['cw']:.0f} p95={p95(gaps):.1f} "
         f"max={max(gaps or [0]):.1f} cls={cls:g} console={len(errors)} {'PASS' if ok else 'FAIL'}"
         f"{note}"
         f"  (cold first cycle max={cycle_max[0]:.0f}ms; content mount after the zoom: worst gap {max(mount[1:]):.0f}ms)"
@@ -161,6 +177,104 @@ def measure(browser, base, view, w, h, shots: Path):
     for e in errors[:3]:
         print("   console:", e[:200])
     return ok
+
+
+TILE_SEL = {"calendar": ".home-agenda", "tasks": '[data-tour="tasks"]', "crm": '[data-tour="crm"]', "impact": ".home-overview > section:first-child"}
+
+# Samples the animated card's rect every frame: the real panel (open) or the ghost frame (close).
+SHAPE_JS = """
+async ([kind, view, sel, dur]) => {
+  const tile = document.querySelector(sel);
+  tile.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  const rect = (el) => { const r = el.getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; };
+  const tileBefore = rect(tile);
+  const panelBefore = document.querySelector('.desk-main-panel') ? rect(document.querySelector('.desk-main-panel')) : null;
+  const samples = [];
+  const bad = [];
+  const chat = document.querySelector('.home-conversation');
+  const chain = []; for (let e = chat; e; e = e.parentElement) chain.push(e);
+  // a horizontal scrollbar can come from the page or from any scrollable ancestor of the chat
+  const overflow = () => {
+    if (document.scrollingElement.scrollWidth > innerWidth) return 'page ' + document.scrollingElement.scrollWidth;
+    for (const e of chain) {
+      const ox = getComputedStyle(e).overflowX;
+      if ((ox === 'auto' || ox === 'scroll') && e.scrollWidth > e.clientWidth + 1) return e.className + ' ' + e.scrollWidth;
+    }
+    return null;
+  };
+  let on = true;
+  const t0 = performance.now();
+  const tick = () => {
+    if (!on) return;
+    const o = overflow(); if (o) bad.push(o);
+    const el = kind === 'open' ? document.querySelector('.desk-main-panel') : document.querySelector('[data-zoom-ghost]');
+    if (el) {
+      // animation time (not wall time): the card starts moving a couple of frames after the call
+      const a = el.getAnimations().find((x) => x.effect.getKeyframes().some((k) => k.transform && k.transform !== 'none') || (x.effect.getKeyframes().length && x.effect.getKeyframes()[0].transform));
+      samples.push([a ? Number(a.currentTime) : performance.now() - t0, rect(el)]);
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  if (kind === 'open') window.__desk.openWorkspace(view); else window.__desk.closeWorkspace();
+  await new Promise((r) => setTimeout(r, dur + 250));
+  on = false;
+  const panelAfter = document.querySelector('.desk-main-panel') ? rect(document.querySelector('.desk-main-panel')) : null;
+  return { bad, samples, tileBefore, tileAfter: rect(document.querySelector(sel)), panelBefore, panelAfter };
+}
+"""
+
+
+def between(v, a, b, slack=1.0):
+    lo, hi = min(a, b), max(a, b)
+    return lo + slack < v < hi - slack
+
+
+def check_shape(browser, base):
+    """Open must GROW out of the tile and close must SHRINK back into it (not fade/snap):
+    at ~50% of the animation the card is strictly between the tile box and the panel box in
+    width and height; at the end of a close the frame sits on the tile box (+-2px)."""
+    ok_all = True
+    errors: list[str] = []
+    ctx, page = fresh(browser, base, 1440, 900, errors)
+    for view in VIEWS:  # warm-up: the first open of a view loads data and modules
+        page.evaluate(f"window.__desk.openWorkspace('{view}')")
+        page.wait_for_timeout(1200)
+        page.evaluate("window.__desk.closeWorkspace()")
+        page.wait_for_timeout(900)
+    for view in VIEWS:
+        sel = TILE_SEL[view]
+        for kind, dur in (("open", OPEN_MS), ("close", CLOSE_MS)):
+            page.evaluate("window.scrollTo(0,0)")
+            r = page.evaluate(SHAPE_JS, [kind, view, sel, dur])
+            page.wait_for_timeout(700)
+            smp = r["samples"]
+            if not smp:
+                print(f"shape {kind} {view}: no card samples FAIL")
+                ok_all = False
+                continue
+            mid = min(smp, key=lambda s: abs(s[0] - dur * 0.5))[1]
+            if kind == "open":
+                a, b = r["tileBefore"], r["panelAfter"]
+                first = smp[0][1]
+            else:
+                a, b = r["panelBefore"], r["tileAfter"]
+                first = smp[0][1]
+            grows = between(mid[2], a[2], b[2]) and between(mid[3], a[3], b[3])
+            last = smp[-1][1]
+            end_ref = r["tileAfter"] if kind == "close" else r["panelAfter"]
+            tol = 2.5
+            ends = all(abs(last[i] - end_ref[i]) <= tol for i in range(4)) if kind == "close" else True
+            ok = grows and ends and not r["bad"]
+            ok_all &= ok
+            word = "grows" if kind == "open" else "shrinks"
+            print(
+                f"shape {kind} {view}: mid w={mid[2]:.0f} h={mid[3]:.0f} between w {a[2]:.0f}->{b[2]:.0f} h {a[3]:.0f}->{b[3]:.0f} "
+                f"({word}={grows}); last ghost vs tile dx={last[0]-end_ref[0]:.1f} dy={last[1]-end_ref[1]:.1f} dw={last[2]-end_ref[2]:.1f} dh={last[3]-end_ref[3]:.1f} "
+                f"hscroll_frames={len(r['bad'])} {'PASS' if ok else 'FAIL'}"
+            )
+    ctx.close()
+    return ok_all
 
 
 def check_rapid(browser, base):
@@ -365,13 +479,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("base")
     ap.add_argument("--shots", required=True)
+    ap.add_argument("--channel", default="chrome", help="Playwright channel: chrome (installed Google Chrome, real GPU) or chromium")
     a = ap.parse_args()
     shots = Path(a.shots)
     shots.mkdir(parents=True, exist_ok=True)
     base = a.base.rstrip("/")
     results = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=LAUNCH_ARGS)
+        kw = {} if a.channel == "chromium" else {"channel": a.channel}
+        browser = p.chromium.launch(headless=False, args=LAUNCH_ARGS + GPU_ARGS, **kw)
+        print_renderer(browser, base)
         idle_baseline(browser, base)
         record_video(browser, base, shots)
         for w, h in SIZES:
@@ -379,6 +496,7 @@ def main():
                 results.append(measure(browser, base, v, w, h, shots))
         results += [
             functional(browser, base, shots),
+            check_shape(browser, base),
             check_rapid(browser, base),
             check_reduced(browser, base),
             check_cold_and_back(browser, base),

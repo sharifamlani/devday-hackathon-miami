@@ -103,7 +103,12 @@ function request(
   const kind: ZoomKind =
     next === null ? "close" : current === null ? "open" : "switch";
   target = next;
-  runZoomTransition({ kind, update: syncToTarget, sourceEl });
+  runZoomTransition({
+    kind,
+    update: syncToTarget,
+    sourceEl,
+    view: next ?? current,
+  });
   return true;
 }
 
