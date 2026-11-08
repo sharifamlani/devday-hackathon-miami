@@ -86,7 +86,7 @@ connected to the main app; see `stat-mcp/AGENT_INTEGRATION.md`.
 
 ## Run it on a laptop from an empty start
 
-Needs Python 3.12 and Node 20+. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` (and `GEMINI_API_KEY` for
+Tested with Python 3.12.13 and Node 22.23 on Windows 10 (the run-from-empty below). Copy `.env.example` to `.env` and set `OPENAI_API_KEY` (and `GEMINI_API_KEY` for
 voice). Never commit `.env`.
 
 ```bash
@@ -145,7 +145,8 @@ Sending is a **dry run** by default: email goes out only with `EMAIL_SEND=on` an
 - **Social media is not read.** Social links are "Saved for later; the agent doesn't read them yet." Official X,
   LinkedIn and Instagram APIs need tokens we don't have; the reader in `service/social_context.py` isn't wired in.
 - **The public tunnel is off by default.** The service listens on 127.0.0.1 and phone calls need no webhooks.
-  `python scripts/public_tunnel.py on` with `PUBLIC_MODE=1` lets the Vercel app reach the laptop
+  `python scripts/public_tunnel.py on --port 8000` (the service's port; the script defaults to 8001) with
+  `PUBLIC_MODE=1` lets the Vercel app reach the laptop
   (`docs/public-tunnel.md`): then only an allow-list of read routes plus chat and Ask are served, contact details
   are masked, the agent is read-only, every send stays simulated, and model routes are rate-limited.
 - **Enrichment researches public organizations only.** Individuals are never looked up on the web, and the
