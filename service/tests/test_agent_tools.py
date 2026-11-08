@@ -770,3 +770,78 @@ def test_a_call_seen_twice_in_a_resumed_run_is_one_step():
 
 def test_the_protocol_no_longer_asks_for_a_dismiss_after_a_decline():
     assert "call dismiss_duplicate for\n  that pair" not in ca.INSTRUCTIONS and "comes back declined" not in ca.INSTRUCTIONS
+
+
+FAKE_ENRICHMENT = {
+    "identity_match": "confirmed", "identity_basis": ["name", "city"],
+    "facts": [{"id": "f1", "fact": "Sponsors the Biscayne Bay cleanup.", "source_url": "https://example.org/bay",
+               "retrieved_at": "2026-11-08T10:00:00+00:00"}],
+    "interests": [{"id": "i1", "tag": "climate_resilience", "label": "Climate & resilience", "sub_tag": None, "confidence": "high",
+                   "evidence": "Bay cleanup sponsor", "source_url": "https://example.org/bay",
+                   "source_type": "event_sponsor"}],
+    "contact": {}, "notes": None, "searched_at": "2026-11-08T10:00:00+00:00",
+}
+
+
+def test_enrich_person_researches_and_saves_nothing_until_accepted(db_file, monkeypatch):
+    from service import enrich_agent, routes_interests
+    calls = []
+    monkeypatch.setattr(enrich_agent, "enrich_full", lambda *a, **k: calls.append(a) or FAKE_ENRICHMENT)
+    pid = one(db_file, "SELECT id FROM donors WHERE donor_type = 'organization' ORDER BY id LIMIT 1")["id"]
+    before = one(db_file, "SELECT COUNT(*) AS n FROM research_facts WHERE donor_id = ?", pid)["n"]
+    out = invoke("enrich_person", person_id=pid)
+    assert calls and out["facts"] == [{"id": "f1", "fact": "Sponsors the Biscayne Bay cleanup.",
+                                        "source_url": "https://example.org/bay"}]
+    assert out["interests"] == [{"tag": "climate_resilience", "label": "Climate & resilience", "confidence": "high",
+                                 "evidence": "Bay cleanup sponsor"}]
+    assert one(db_file, "SELECT COUNT(*) AS n FROM research_facts WHERE donor_id = ?", pid)["n"] == before   # nothing saved
+    assert routes_interests.PROPOSALS[pid] == FAKE_ENRICHMENT                  # accept_enrichment reads this
+    assert ca.summarize(out).endswith("1 fact, 1 interest tag proposed (nothing saved yet)")
+    saved = invoke("accept_enrichment", person_id=pid, fact_ids=["f1"], tags=["climate_resilience"])
+    assert "error" not in saved
+    assert one(db_file, "SELECT COUNT(*) AS n FROM research_facts WHERE donor_id = ?", pid)["n"] == before + 1
+    assert "enrich_person" not in ca.APPROVAL_TOOLS
+
+
+def test_enrich_person_says_when_nothing_was_found(db_file, monkeypatch):
+    from service import enrich_agent
+    monkeypatch.setattr(enrich_agent, "enrich_full", lambda *a, **k: enrich_agent.empty_enrichment(
+        "Individuals aren't researched live.", "not_researched"))
+    pid = one(db_file, "SELECT id FROM donors WHERE donor_type = 'individual' ORDER BY id LIMIT 1")["id"]
+    out = invoke("enrich_person", person_id=pid)
+    assert out["facts"] == [] and out["interests"] == [] and out["note"] == "Individuals aren't researched live."
+    assert "error" in invoke("enrich_person", person_id=999999)
+
+
+def test_enrich_person_is_refused_in_the_public_preview():
+    """It leads to a write (accept_enrichment), so the read-only preview must refuse it."""
+    assert "enrich_person" not in ca.READ_ONLY_TOOLS and not "enrich_person".startswith(ca.READ_PREFIXES)
+
+
+def test_a_saved_enrichment_step_reads_as_a_sentence():
+    out = {"saved": {"facts": 4, "interests": 6, "contact": {"employer": None}, "skipped_staff_tags": []},
+           "undo": "int_x", "undo_token": "int_x"}
+    assert ca.summarize(out) == "saved 4 facts and 6 interest tags"
+    one_each = {"saved": {"facts": 1, "interests": 1, "skipped_staff_tags": ["arts_culture"]}, "undo_token": "t"}
+    assert ca.summarize(one_each) == "saved 1 fact and 1 interest tag (1 staff tag kept as is)"
+
+
+def test_enrich_person_gives_up_at_the_cap_instead_of_hanging(db_file, monkeypatch):
+    import time
+    from service import enrich_agent, routes_interests
+    monkeypatch.setattr(enrich_agent, "enrich_full", lambda *a, **k: time.sleep(3) or FAKE_ENRICHMENT)
+    monkeypatch.setattr(routes_interests, "ENRICH_TIMEOUT_S", 0.2)
+    pid = one(db_file, "SELECT id FROM donors ORDER BY id LIMIT 1")["id"]
+    started = time.time()
+    out = invoke("enrich_person", person_id=pid)
+    assert "error" in out and time.time() - started < 1.5
+
+
+def test_saving_with_tag_labels_works_like_codes(db_file, monkeypatch):
+    """The agent may pass the display label ("Climate & resilience"); it must save, not show an error card."""
+    from service import enrich_agent
+    monkeypatch.setattr(enrich_agent, "enrich_full", lambda *a, **k: FAKE_ENRICHMENT)
+    pid = one(db_file, "SELECT id FROM donors WHERE donor_type = 'organization' ORDER BY id LIMIT 1")["id"]
+    invoke("enrich_person", person_id=pid)
+    saved = invoke("accept_enrichment", person_id=pid, fact_ids=["f1"], tags=["climate & RESILIENCE"])
+    assert "error" not in saved and saved["saved"]["interests"] == 1
