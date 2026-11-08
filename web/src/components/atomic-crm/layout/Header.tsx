@@ -1,6 +1,7 @@
 import { ThemeToggleButton } from "@/components/admin/theme-mode-toggle";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
+import { SampleDataBadge } from "./SampleDataBadge";
 
 /** Page identity and appearance; workspace actions live in the shared left rail. */
 const Header = () => {
@@ -10,6 +11,7 @@ const Header = () => {
       <span className="min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
         {title}
       </span>
+      <SampleDataBadge />
       <span className="flex-1" />
       <ThemeToggleButton />
       <span className="hidden">

@@ -14,6 +14,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { useOnboarding } from "../onboarding/onboardingState";
 import { DATA_MODE, donorDeskMethods } from "../providers/local";
 import type { IngestResult } from "../providers/local/types";
@@ -159,6 +160,18 @@ export const KindredLanding = () => {
       aria-labelledby="kindred-heading"
     >
       <div className="kindred-landing-content">
+        {DATA_MODE === "snapshot" && (
+          <div className="fixed right-4 top-4 z-10">
+            <Badge
+              variant="outline"
+              title="Read-only sample export. Not real donor records."
+              aria-label="Sample data. Read-only sample export. Not real donor records."
+              data-testid="sample-data-badge"
+            >
+              Sample data
+            </Badge>
+          </div>
+        )}
         <p className="kindred-wordmark">kindred</p>
         <h1 id="kindred-heading" className="kindred-headline">
           <span>Less time on tasks.</span>
@@ -380,7 +393,7 @@ const SampleDialog = ({
           {result
             ? summarize(result)
             : cachedRun
-              ? "This preview can’t import files, so it opens a cached sample workspace instead. It wasn’t built from these files."
+              ? "This sample workspace was built from the 8 example files in data/sample_inputs. It’s read-only here; run it on a laptop to upload your own files."
               : canUpload
                 ? "The example files from data/sample_inputs/. Every name, email and amount is invented. You can also drag them onto the landing page yourself."
                 : "Fictional records for a Miami nonprofit: every name, email and amount is invented."}
