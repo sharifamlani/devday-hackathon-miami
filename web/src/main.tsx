@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import App from "./App.tsx";
+import { probeAndFlag } from "./components/atomic-crm/providers/local/apiProbe";
 
 // After a new deploy, the service worker may replace its pre-cache while
 // the page still holds old chunk references. A reload picks up the new
@@ -15,8 +15,15 @@ window.addEventListener("vite:preloadError", () => {
   }
 });
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+// Local/live builds check the API first (2 s). Unreachable (e.g. the tunnel is off): run on the snapshot.
+// App loads after the check because config.ts reads the result once, at import.
+const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+probeAndFlag(import.meta.env.VITE_DATA_MODE, apiUrl)
+  .then(() => import("./App.tsx"))
+  .then(({ default: App }) => {
+    createRoot(document.getElementById("root")!).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+  });

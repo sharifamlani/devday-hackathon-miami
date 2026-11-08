@@ -50,6 +50,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from service import db
+from service.public_mode import PublicModeMiddleware, enabled as public_mode_enabled
 from service.routes_ask import router as ask_router
 from service.routes_calls import router as calls_router
 from service.routes_crm import router as crm_router
@@ -59,6 +60,7 @@ from service.routes_targets import router as targets_router
 log = logging.getLogger("service")
 
 app = FastAPI(title="Donor service", version="0.1.0")
+app.add_middleware(PublicModeMiddleware)   # no-op unless PUBLIC_MODE=1; added first so CORS wraps its 429s
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
@@ -110,6 +112,12 @@ ALERTS_MOUNTED = mount_optional("service.gift_alerts")
 def health() -> dict:
     return {"ok": True, "model": config.MODEL_DEFAULT, "openai_key": config.HAS_OPENAI_KEY,
             "score_as_of": config.SCORE_AS_OF, "db": str(db.db_path()), "ingest": INGEST_MOUNTED, "alerts": ALERTS_MOUNTED}
+
+
+@app.get("/public-mode")
+def public_mode_flag() -> dict:
+    """The web app shows a 'public demo' banner when this is true (docs/public-tunnel.md)."""
+    return {"enabled": public_mode_enabled()}
 
 
 def load_donor_row(donor_id: int) -> dict:
