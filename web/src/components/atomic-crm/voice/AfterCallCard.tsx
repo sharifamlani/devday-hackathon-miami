@@ -4,6 +4,7 @@ import { Check, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NoteDestination } from "./callNotes";
 import { listServerCallNotes } from "../providers/local/calls";
+import { useDonors } from "../providers/local/hooks";
 import { DATA_MODE } from "../providers/local/config";
 import {
   proposeAfterCall,
@@ -61,17 +62,26 @@ export const proposeOnce = (noteId: string, fresh = false): Promise<AfterCallPro
 };
 export const forgetProposals = () => proposals.clear();
 
-const firstOf = (name: string) => name.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+/** Case, accents and spacing folded: "Rosa  Martínez" and "rosa martinez" are the same name. */
+export const foldName = (name: string) =>
+  name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
 /**
- * The agent's matched person is trusted for the note's donor only when it agrees with who the
- * call was with (the pane's contact name): same full name, or same first name.
+ * The agent's matched person becomes the note's donor only on a full-name match (first and last,
+ * folded) with who the call was with, and only when exactly one donor has that name. A first-name
+ * match once attached a "Rosa Delgado" call to Rosa Elena Martinez; two "Rosa Martinez" records
+ * before a merge would be a coin toss. Anything else leaves the chip empty for staff to choose.
  */
-export const confidentMatch = (person: AfterCallProposal["person"], contactName: string | null | undefined): person is MatchedPerson => {
-  if (!person?.full_name || !contactName?.trim()) return false;
-  const full = person.full_name.trim().toLowerCase();
-  if (full === contactName.trim().toLowerCase()) return true;
-  return !!person.first_name && person.first_name.trim().toLowerCase() === firstOf(contactName);
+export const confidentMatch = (
+  person: AfterCallProposal["person"],
+  contactName: string | null | undefined,
+  donors: { id: number; full_name: string | null }[] | undefined,
+): person is MatchedPerson => {
+  if (!person?.full_name || !contactName || !donors) return false;
+  const name = foldName(person.full_name);
+  if (name.split(" ").length < 2 || name !== foldName(contactName)) return false;
+  const same = donors.filter((d) => d.full_name && foldName(d.full_name) === name);
+  return same.length === 1 && same[0].id === person.id;
 };
 
 /** The note's destinations with the matched donor added, unless a donor is already set. */
@@ -106,6 +116,8 @@ export const AfterCallCard = ({
   const edited = useRef(false);
   const onMatched = useRef(onMatchedPerson);
   onMatched.current = onMatchedPerson;
+  const donors = useDonors();
+  const matchChecked = useRef(false);
 
   useEffect(() => {
     // Once the person has changed a tick, their card stands: no reset, no new request.
@@ -129,7 +141,6 @@ export const AfterCallCard = ({
         if (stale()) return; // a superseded run must not even ask (each /actions is a model call)
         const p = await proposeOnce(noteId, attempt > 0);
         if (stale() || edited.current) return;
-        if (confidentMatch(p.person, contactName)) onMatched.current?.(p.person);
         setProposal(p);
         setTicked(new Set(p.actions.map((a) => a.id)));
         setPhase("ready");
@@ -149,6 +160,13 @@ export const AfterCallCard = ({
     // contactName is read once per proposal; a later change must not ask the model again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId, attempt, retryMs]);
+
+  // Pre-fill the note's donor once, when both the proposal and the donor list are in.
+  useEffect(() => {
+    if (matchChecked.current || !proposal || !donors.data) return;
+    matchChecked.current = true;
+    if (confidentMatch(proposal.person, contactName, donors.data)) onMatched.current?.(proposal.person);
+  }, [proposal, donors.data, contactName]);
 
   const name = proposal?.person?.first_name || proposal?.person?.full_name || contactName || null;
   const title = name ? `Agent · from your call with ${name}` : "Agent · from your call";

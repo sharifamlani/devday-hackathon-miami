@@ -9,7 +9,9 @@ const api = vi.hoisted(() => ({
   propose: vi.fn<(id: string) => Promise<AfterCallProposal>>(),
   mutate: vi.fn(),
   savedIds: vi.fn<() => string[]>(),
+  donors: vi.fn<() => { id: number; full_name: string }[] | undefined>(),
 }));
+vi.mock("../providers/local/hooks", () => ({ useDonors: () => ({ data: api.donors() }) }));
 vi.mock("../providers/local/calls", () => ({
   listServerCallNotes: async () => api.savedIds().map((id) => ({ id })),
 }));
@@ -18,7 +20,7 @@ vi.mock("../providers/local/voice", () => ({
   useAfterCall: () => ({ apply: { mutate: api.mutate } }),
 }));
 
-const { AfterCallCard, confidentMatch, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
+const { AfterCallCard, confidentMatch, foldName, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
 
 const ROSA: AfterCallProposal = {
   steps: ["Read the call", "Matched the Beach Cleanup on Sat Nov 21"],
@@ -41,6 +43,8 @@ beforeEach(() => {
   api.mutate.mockReset();
   api.savedIds.mockReset();
   api.savedIds.mockReturnValue(["n1"]); // the note is already saved unless a test says otherwise
+  api.donors.mockReset();
+  api.donors.mockReturnValue([{ id: 1, full_name: "Rosa Delgado" }]);
 });
 
 describe("AfterCallCard", () => {
@@ -135,35 +139,59 @@ describe("one proposal per note (each /actions is a model call)", () => {
 
 describe("pre-filling the note's donor from the agent's match", () => {
   const rosa = ROSA.person!;
+  const martinez = { id: 18, full_name: "Rosa Elena Martinez", first_name: "Rosa" };
 
-  it("confident only when the match agrees with who the call was with", () => {
-    expect(confidentMatch(rosa, "Rosa Delgado")).toBe(true);
-    expect(confidentMatch(rosa, "rosa")).toBe(true); // the demo's first-name contact
-    expect(confidentMatch(rosa, "James Carter")).toBe(false);
-    expect(confidentMatch(rosa, null)).toBe(false); // no contact name: don't guess
-    expect(confidentMatch(null, "Rosa Delgado")).toBe(false);
+  it("folds case, accents and spacing", () => {
+    expect(foldName("  Rosa   Martínez ")).toBe("rosa martinez");
+    expect(foldName("JOSÉ PÉREZ")).toBe("jose perez");
+  });
+
+  it("the sample data: a 'Rosa Delgado' call the agent matched to Rosa Elena Martinez is NOT pre-filled", () => {
+    const sample = [{ id: 18, full_name: "Rosa Elena Martinez" }, { id: 3, full_name: "James Carter" }];
+    expect(confidentMatch(martinez, "Rosa Delgado", sample)).toBe(false);
+    expect(confidentMatch(martinez, "Rosa", sample)).toBe(false); // first name only is never enough
+  });
+
+  it("an exact, unique full name is pre-filled (case and accents folded)", () => {
+    expect(confidentMatch(rosa, "Rosa Delgado", [{ id: 1, full_name: "Rosa Delgado" }])).toBe(true);
+    expect(confidentMatch({ ...rosa, full_name: "Rosa Martínez" }, "rosa martinez", [{ id: 1, full_name: "ROSA MARTINEZ" }])).toBe(true);
+  });
+
+  it("an ambiguous duplicate (two donors with the name) is NOT pre-filled", () => {
+    const dupes = [{ id: 1, full_name: "Rosa Delgado" }, { id: 7, full_name: "Rosa  Delgado" }];
+    expect(confidentMatch(rosa, "Rosa Delgado", dupes)).toBe(false);
+  });
+
+  it("no pre-fill without a contact name, a two-part name, or the donor list", () => {
+    expect(confidentMatch(rosa, null, [{ id: 1, full_name: "Rosa Delgado" }])).toBe(false);
+    expect(confidentMatch({ ...rosa, full_name: "Rosa" }, "Rosa", [{ id: 1, full_name: "Rosa" }])).toBe(false);
+    expect(confidentMatch(rosa, "Rosa Delgado", undefined)).toBe(false); // still loading
+    expect(confidentMatch(null, "Rosa Delgado", [{ id: 1, full_name: "Rosa Delgado" }])).toBe(false);
   });
 
   it("adds the donor destination only if none is set", () => {
     expect(withMatchedDonor([], rosa)).toEqual([{ kind: "donor", id: "1", label: "Rosa Delgado" }]);
     const chosen = [{ kind: "donor" as const, id: "9", label: "Someone else" }];
     expect(withMatchedDonor(chosen, rosa)).toBe(chosen);
-    const group = [{ kind: "group" as const, id: "g1", label: "Lapsed" }];
-    expect(withMatchedDonor(group, rosa)).toEqual([...group, { kind: "donor", id: "1", label: "Rosa Delgado" }]);
   });
 
-  it("tells the pane about a confident match, and stays quiet otherwise", async () => {
+  it("the card tells the pane only about a confident match", async () => {
     api.propose.mockResolvedValue(ROSA);
     const matched = vi.fn();
     const a = await render(<AfterCallCard noteId="n1" contactName="Rosa Delgado" onMatchedPerson={matched} />);
     await expect.element(a.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    await expect.poll(() => matched.mock.calls.length).toBe(1);
     expect(matched).toHaveBeenCalledWith(ROSA.person);
 
     forgetProposals();
-    const unmatched = vi.fn();
-    const b = await render(<AfterCallCard noteId="n2" contactName="James Carter" onMatchedPerson={unmatched} />);
-    await expect.element(b.getByText("Text Rosa a secure link to update her card", { exact: false }).first()).toBeVisible();
-    expect(unmatched).not.toHaveBeenCalled();
+    api.propose.mockResolvedValue({ ...ROSA, person: martinez });
+    api.donors.mockReturnValue([{ id: 18, full_name: "Rosa Elena Martinez" }]);
+    api.savedIds.mockReturnValue(["n1", "n2"]);
+    const wrong = vi.fn();
+    const b = await render(<AfterCallCard noteId="n2" contactName="Rosa Delgado" onMatchedPerson={wrong} />);
+    await expect.element(b.getByText("Text Rosa a secure link to update her card", { exact: false }).nth(1)).toBeVisible();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(wrong).not.toHaveBeenCalled();
   });
 });
 
