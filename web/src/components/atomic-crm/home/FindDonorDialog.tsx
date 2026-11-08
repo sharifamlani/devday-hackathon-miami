@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Search, Sparkles } from "lucide-react";
 
 import {
@@ -10,9 +10,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { EmailLink, PhoneLink } from "../contacts/ContactLinks";
 import { SourceLink } from "../contacts/ResearchPanel";
 import { formatUsd } from "../contacts/donorFormat";
 import { DATA_MODE } from "../providers/local/config";
+import { contactEmail, contactPhone } from "../providers/local/crmDonors";
 import { usePeople } from "../providers/local/crmHooks";
 import { TAB_LABELS } from "../providers/local/crmTypes";
 import { useDonor } from "../providers/local/hooks";
@@ -24,7 +26,6 @@ import {
   donorMeta,
   donorTag,
   initials,
-  maskEmail,
   searchDonors,
 } from "./homeData";
 import { searchPeople } from "./searchPeople";
@@ -193,7 +194,7 @@ export const FindDonorDialog = ({
                           {[
                             TAB_ONE[person.tab],
                             person.city,
-                            person.email && maskEmail(person.email),
+                            contactEmail(person.email),
                           ]
                             .filter(Boolean)
                             .join(" · ")}
@@ -223,7 +224,7 @@ export const FindDonorDialog = ({
   );
 };
 
-const Fact = ({ label, value }: { label: string; value: string }) => (
+const Fact = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="rounded-xl bg-surface px-3 py-2">
     <dt className="text-xs text-muted-foreground">{label}</dt>
     <dd className="truncate font-semibold">{value}</dd>
@@ -294,7 +295,14 @@ const DonorSummaryView = ({
       <dl className="grid grid-cols-2 gap-2 text-sm">
         <Fact label="Lifetime" value={formatUsd(donor.total_given)} />
         <Fact label="Gifts" value={String(donor.gift_count)} />
-        <Fact label="Email" value={maskEmail(donor.email)} />
+        <Fact
+          label="Email"
+          value={<EmailLink email={contactEmail(donor.email)} />}
+        />
+        <Fact
+          label="Phone"
+          value={<PhoneLink phone={contactPhone(donor.phone)} />}
+        />
         <Fact label="Pattern" value={donorMeta(donor) || "—"} />
       </dl>
       <Saved donor={donor} live={live} />

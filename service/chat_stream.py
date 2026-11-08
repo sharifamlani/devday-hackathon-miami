@@ -55,8 +55,7 @@ async def map_events(controller, result, ctx: ca.ChatContext, spec: dict) -> Non
             if call_id in open_calls:
                 open_calls.pop(call_id).set_response({**step, "result": data}, is_error=step["status"] == "error")
 
-    approvals = [{"call_id": i.call_id, "tool": i.name, "args": ca.output_data(i.arguments)}
-                 for i in (getattr(result, "interruptions", None) or [])]
+    approvals = ca.approval_items(getattr(result, "interruptions", None))
     if approvals:
         run_id = uuid.uuid4().hex
         ca.PENDING[run_id] = {**spec, "state": result.to_state().to_string(), "steps": steps}

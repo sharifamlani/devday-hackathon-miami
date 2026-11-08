@@ -9,8 +9,8 @@ import {
   isRecurring,
   lastGiftRange,
   LINKED_ORG_ID_BASE,
-  maskEmail,
-  maskPhone,
+  contactEmail,
+  contactPhone,
   orgKind,
   paginate,
   parseApiCallNotes,
@@ -135,22 +135,38 @@ describe("donorTags", () => {
   });
 });
 
-describe("masking", () => {
-  it("masks emails to the first letter and the domain", () => {
-    expect(maskEmail("maria.delgado@example.com")).toBe("m•••@example.com");
-    expect(maskEmail(null)).toBeNull();
-    expect(maskEmail("noatsign")).toBe("•••");
+describe("contact details", () => {
+  it("shows the full email on the laptop and masks it in the snapshot build", () => {
+    expect(contactEmail("maria.delgado@example.com", "local")).toBe(
+      "maria.delgado@example.com",
+    );
+    expect(contactEmail("maria.delgado@example.com", "snapshot")).toBe(
+      "m•••@example.com",
+    );
+    expect(contactEmail("noatsign", "snapshot")).toBe("•••");
   });
 
-  it("keeps the last four phone digits", () => {
-    expect(maskPhone("+13055550101")).toBe("•••-•••-0101");
-    expect(maskPhone("(305) 555-0101")).toBe("•••-•••-0101");
-    expect(maskPhone("")).toBeNull();
+  it("formats the phone on the laptop and keeps the last four digits in the snapshot build", () => {
+    expect(contactPhone("+13055550101", "local")).toBe("(305) 555-0101");
+    expect(contactPhone("305-555-0101", "local")).toBe("(305) 555-0101");
+    expect(contactPhone("+44 20 7946 0958", "local")).toBe("+44 20 7946 0958");
+    expect(contactPhone("+13055550101", "snapshot")).toBe("•••-•••-0101");
   });
 
-  it("leaves values the API already masked alone", () => {
-    expect(maskEmail("r***@example.com")).toBe("r***@example.com");
-    expect(maskPhone("***-***-0101")).toBe("***-***-0101");
+  it("returns null for a donor with no email or phone, in either mode", () => {
+    for (const mode of ["local", "snapshot"] as const) {
+      expect(contactEmail(null, mode)).toBeNull();
+      expect(contactEmail("", mode)).toBeNull();
+      expect(contactPhone(undefined, mode)).toBeNull();
+      expect(contactPhone("  ", mode)).toBeNull();
+    }
+  });
+
+  it("leaves values that are already masked alone in the snapshot build", () => {
+    expect(contactEmail("r***@example.com", "snapshot")).toBe(
+      "r***@example.com",
+    );
+    expect(contactPhone("***-***-0101", "snapshot")).toBe("***-***-0101");
   });
 });
 
@@ -181,6 +197,31 @@ describe("giving", () => {
       { year: "2025", total: 3500, count: 2 },
       { year: "2023", total: 2500, count: 1 },
     ]);
+  });
+
+  it("leaves a declined charge out of every total (Hye-jin Park: lifetime $480, last gift Sep 10)", () => {
+    const ok = (gift_date: string, amount: number) => ({
+      amount,
+      gift_date,
+      status: "ok",
+    });
+    const summary = givingSummary([
+      { amount: 40, gift_date: "2026-10-10", status: "declined" },
+      ok("2026-09-10", 40),
+      ok("2026-08-10", 40),
+      ok("2026-07-10", 40),
+      ok("2026-06-10", 40),
+      ok("2025-11-20", 120),
+      ok("2024-11-21", 100),
+      ok("2023-11-16", 100),
+    ]);
+    expect(summary).toMatchObject({
+      lifetime: 480,
+      count: 7,
+      last_gift_date: "2026-09-10",
+      last_gift_amount: 40,
+    });
+    expect(summary.by_year[0]).toEqual({ year: "2026", total: 160, count: 4 });
   });
 
   it("handles a donor with no gifts", () => {
@@ -223,19 +264,20 @@ describe("labels", () => {
 });
 
 describe("toDonorContact", () => {
-  it("maps a row to an Atomic CRM contact with masked contact info", () => {
+  it("maps a row to an Atomic CRM contact with full contact info on the laptop", () => {
     const contact = toDonorContact(row(), AS_OF, {
       companyId: 7,
       companyName: "Harbor Bakery",
       overlay: { tags: [2], last_seen: "2026-11-01T12:00:00Z" },
       extras: { open_tasks: 2 },
+      mode: "local",
     });
     expect(contact).toMatchObject({
       id: 1,
       first_name: "Ana",
       last_name: "Example",
-      email: "a•••@example.com",
-      phone: "•••-•••-0199",
+      email: "ana.example@example.com",
+      phone: "(305) 555-0199",
       company_id: 7,
       company_name: "Harbor Bakery",
       tier: "mid",
@@ -250,6 +292,12 @@ describe("toDonorContact", () => {
       nb_tasks: 2,
       last_seen: "2026-11-01T12:00:00Z",
     });
+  });
+
+  it("masks contact info when the row comes from the public snapshot", () => {
+    const contact = toDonorContact(row(), AS_OF, { mode: "snapshot" });
+    expect(contact.email).toBe("a•••@example.com");
+    expect(contact.phone).toBe("•••-•••-0199");
     expect(JSON.stringify(contact)).not.toContain("ana.example@example.com");
   });
 
@@ -323,6 +371,27 @@ const detail = (over: Partial<RawDonorDetail> = {}): RawDonorDetail => ({
 });
 
 describe("details", () => {
+  it("ignores declined charges for the thank-you check and the first gift", () => {
+    const base = detail();
+    const declined = (id: number, gift_date: string) => ({
+      id,
+      donor_id: base.id,
+      amount: 40,
+      gift_date,
+      channel: null,
+      fund_type: null,
+      status: "declined",
+    });
+    const withDeclined = detail({
+      gifts: [
+        ...(base.gifts ?? []),
+        declined(901, "2026-11-01"),
+        declined(902, "2024-01-01"),
+      ],
+    });
+    expect(extrasFromDetail(withDeclined)).toEqual(extrasFromDetail(base));
+  });
+
   it("finds the thank-you, the drafts awaiting approval and the first gift", () => {
     expect(extrasFromDetail(detail())).toEqual({
       thanked_at: "2026-10-03T09:00:00Z",

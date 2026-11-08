@@ -303,3 +303,22 @@ def test_plain_enrich_live_path_is_gated_too(live_agent):
     live_agent["e"] = found("Greenville", "SC")
     assert enrich_agent.enrich_donor("Whitaker Family Charitable Fund", "Whitaker Family Charitable Fund", "Miami",
                                      donor_type="organization") == []
+
+
+def test_plain_enrich_passes_state_and_email_to_the_identity_check(db_file, monkeypatch):
+    """POST /enrich/{id} (no dry run) must give the identity rule the donor's state and email, not just the city."""
+    conn = db.connect()
+    pid = conn.execute("SELECT id FROM donors WHERE donor_type = 'organization' LIMIT 1").fetchone()[0]
+    conn.execute("UPDATE donors SET city = 'Miami', state = 'FL', email = 'grants@knightfoundation.org' WHERE id = ?", (pid,))
+    conn.commit()
+    conn.close()
+    seen = {}
+
+    def fake_full(name, org_name=None, city=None, donor_type=None, refresh=False, state=None, email=None):
+        seen.update(city=city, state=state, email=email, refresh=refresh)
+        return {"identity_match": "ambiguous", "facts": [], "interests": [], "contact": {}, "notes": None}
+
+    monkeypatch.setattr(enrich_agent, "enrich_full", fake_full)
+    body = TestClient(app).post(f"/enrich/{pid}").json()
+    assert body["saved"] == 0
+    assert seen == {"city": "Miami", "state": "FL", "email": "grants@knightfoundation.org", "refresh": True}

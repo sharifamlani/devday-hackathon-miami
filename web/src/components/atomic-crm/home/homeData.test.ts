@@ -19,7 +19,6 @@ import {
   giveMiamiDay,
   goalEnds,
   kindLabel,
-  maskEmail,
   searchDonors,
   tasksFromApi,
   type CalendarItem,
@@ -122,11 +121,6 @@ describe("home data: donors", () => {
     expect(donorMeta(donor(1, { gift_count: 0 }))).toBe("No gifts yet");
   });
 
-  it("masks email addresses", () => {
-    expect(maskEmail("priya@example.org")).toBe("p•••@example.org");
-    expect(maskEmail(null)).toBe("—");
-    expect(maskEmail("@example.org")).toBe("•••");
-  });
 
   it("searches name, email and organization word by word", () => {
     const list = [
@@ -185,6 +179,16 @@ describe("home data: tasks from GET /tasks", () => {
       chips: ["Lifetime $100"],
     });
     expect(tasksFromApi(undefined)).toEqual([]);
+  });
+
+  it("keeps overdue and undated open tasks, drops only done ones, whatever the kind", () => {
+    const list = tasksFromApi([
+      task(1, { due: "2026-11-06" }),
+      task(2, { due: null, kind: "prep" }),
+      task(3, { due: "2026-11-08", done: true }),
+      task(4, { due: "2026-11-08", kind: "follow_up" }),
+    ]);
+    expect(list.map((t) => t.id)).toEqual([1, 2, 4]);
   });
 
   it("names the kind and links Draft email only for person tasks", () => {

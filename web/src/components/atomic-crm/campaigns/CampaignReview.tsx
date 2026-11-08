@@ -97,7 +97,7 @@ const Review = ({ campaign }: { campaign: CampaignDetail }) => {
               counts,
               outbox?.filter((o) => o.campaign_id === campaign.id),
             ).map((seg, i) => (
-              <span key={seg.text} className={TEXT_TONE_CLASS[seg.tone]}>
+              <span key={`${i}-${seg.text}`} className={TEXT_TONE_CLASS[seg.tone]}>
                 {i ? " · " : ""}
                 {seg.text}
               </span>
@@ -168,9 +168,9 @@ const Review = ({ campaign }: { campaign: CampaignDetail }) => {
             `Approved ${approved.approved} small-donor draft${approved.approved === 1 ? "" : "s"}. ${approved.left_for_individual_approval} still need individual approval${approved.flagged ? `, ${approved.flagged} flagged` : ""}.`}
           {sent && (
             <>
-              {sendSummary(sent).map((seg) => (
+              {sendSummary(sent).map((seg, i) => (
                 <span
-                  key={seg.text}
+                  key={`${i}-${seg.text}`}
                   className={cn(
                     "block",
                     seg.tone === "error" && "font-semibold text-destructive",
@@ -379,8 +379,8 @@ const MessageCard = ({
         <div className="flag rounded-[12px] bg-warn p-4 text-xs leading-relaxed text-warn-foreground">
           <strong className="block text-sm">Flagged by the guardrail</strong>
           <ul className="ml-4 mt-1 list-disc">
-            {m.flags.map((flag) => (
-              <li key={flag}>{flag}</li>
+            {m.flags.map((flag, i) => (
+              <li key={`${i}-${flag}`}>{flag}</li>
             ))}
           </ul>
           <p className="mt-1">
@@ -393,9 +393,9 @@ const MessageCard = ({
         <div className="text-xs">
           <p className="text-muted-foreground">↳ facts used:</p>
           <ul className="ml-3 mt-1 space-y-1">
-            {m.facts_used.map((fact) => (
+            {m.facts_used.map((fact, i) => (
               <li
-                key={fact.source_url + fact.fact}
+                key={`${i}-${fact.source_url}-${fact.fact}`}
                 className="[overflow-wrap:anywhere]"
               >
                 {fact.fact} <SourceLink href={fact.source_url} />

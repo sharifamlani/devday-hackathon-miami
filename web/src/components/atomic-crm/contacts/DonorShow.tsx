@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ListPlus, Megaphone } from "lucide-react";
 import { InfiniteListBase, ShowBase, useShowContext } from "ra-core";
 import { Link, useSearchParams } from "react-router";
@@ -8,9 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NoteCreate, NotesIterator } from "../notes";
+import { DATA_MODE } from "../providers/local/config";
 import { reasonLabel } from "../providers/local/crmDonors";
 import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
+import { EmailLink, PhoneLink } from "./ContactLinks";
 import type { DonorDetail } from "../providers/local/types";
 import { TaskCreateSheet } from "../tasks/TaskCreateSheet";
 import { PhoneCallButton } from "../voice/PhoneCallButton";
@@ -115,7 +117,7 @@ const DonorShowContent = () => {
             Tasks{record.nb_tasks ? ` (${record.nb_tasks})` : ""}
           </TabsTrigger>
         </TabsList>
-        <div className="grid items-start gap-3 @min-[900px]:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 @min-[900px]:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             <TabsContent value="overview" className="mt-0 space-y-3">
               <Overview
@@ -214,6 +216,11 @@ const ProfileHeader = ({
           <DonorTagList tags={record.status_tags ?? []} />
           {record.is_sample && <SampleHistoryBadge />}
         </div>
+        {!isNonGiver(record.contact_type) && record.next_step && (
+          <p className="mt-2 text-sm" data-testid="donor-next-step">
+            <span className="font-medium">Next step:</span> {record.next_step}
+          </p>
+        )}
       </div>
       <div className="text-right">
         <div className="text-xs font-medium text-muted-foreground">
@@ -309,11 +316,11 @@ const Overview = ({
 };
 
 const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
-  <aside className="space-y-3" aria-label="Donor details">
+  <aside className="min-w-0 space-y-3" aria-label="Donor details">
     <ProfileSection title="Contact">
       <dl className="space-y-2 text-sm">
-        <Row label="Email" value={record.email ?? "Not recorded"} />
-        <Row label="Phone" value={record.phone ?? "Not recorded"} />
+        <Row label="Email" value={<EmailLink email={record.email} />} />
+        <Row label="Phone" value={<PhoneLink phone={record.phone} />} />
         <Row
           label="Location"
           value={
@@ -324,9 +331,11 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
         <Row label="Fund" value={record.fund_type ?? "Not recorded"} />
         <Row label="Source list" value={record.source} />
       </dl>
-      <p className="text-xs text-muted-foreground">
-        Contact details are masked on screen.
-      </p>
+      {DATA_MODE === "snapshot" ? (
+        <p className="text-xs text-muted-foreground">
+          Contact details are masked in this public demo.
+        </p>
+      ) : null}
     </ProfileSection>
 
     <ProfileSection
@@ -372,10 +381,10 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
   </aside>
 );
 
-const Row = ({ label, value }: { label: string; value: string }) => (
+const Row = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="flex justify-between gap-3">
     <dt className="text-muted-foreground">{label}</dt>
-    <dd className="min-w-0 truncate text-right font-medium" title={value}>
+    <dd className="min-w-0 truncate text-right font-medium" title={typeof value === "string" ? value : undefined}>
       {value}
     </dd>
   </div>

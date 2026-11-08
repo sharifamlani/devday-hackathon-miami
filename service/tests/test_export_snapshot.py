@@ -32,3 +32,17 @@ def test_snapshot_mirrors_routes(db_file, tmp_path):
     assert loaded["meta"]["as_of"] == "2026-11-07"     # conftest pins SCORE_AS_OF
     assert loaded["meta"]["donor_count"] == 12                        # givers
     assert len(loaded["donor_details"]) == 18                          # every person, every tab
+
+
+def test_campaign_drafts_cover_every_giver_and_only_givers(db_file):
+    conn = db.connect(db_file)
+    snap = build_snapshot(conn, rescore=False)
+    givers = {str(r[0]) for r in conn.execute("SELECT id FROM donors WHERE contact_type = 'giver'")}
+    conn.close()
+    demo = snap["campaigns_demo"]
+    if demo is None:
+        return                                                 # outreach lane absent on this build
+    assert set(demo["drafts"]) <= givers                       # nothing unreachable from the Givers-only picker
+    reachable = {str(d["id"]) for d in client().get("/donors").json()}
+    assert reachable <= set(demo["drafts"]) or len(reachable) > 60   # every pickable donor has its drafts
+    assert all(len(v) == 6 for v in demo["drafts"].values())  # all intent x channel combinations kept

@@ -531,6 +531,12 @@ const DonorRows = () => {
                   .filter(Boolean)
                   .join(" · ")}
               </p>
+              {donor.next_step && (
+                <p className="truncate text-xs" data-testid="donor-next-step">
+                  <span className="font-medium">Next step:</span>{" "}
+                  {donor.next_step}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground @min-[640px]:hidden">
                 Last gift {formatDay(donor.last_gift_date)} ·{" "}
                 {formatUsd(donor.total_given)} lifetime
@@ -658,7 +664,7 @@ const ExportAllButton = () => {
   );
 };
 
-/** CSV of what the screen shows: masked contact details, no raw addresses. */
+/** CSV of what the screen shows (contact details are masked only in the snapshot build). */
 const exportDonors = (records: DonorContact[]) =>
   jsonExport(
     records.map((d) => ({
@@ -674,7 +680,8 @@ const exportDonors = (records: DonorContact[]) =>
       gifts: d.gift_count,
       usual_timing: d.usual_cadence ?? "",
       city: d.city ?? "",
-      email_masked: d.email ?? "",
+      email: d.email ?? "",
+      phone: d.phone ?? "",
       source_list: d.source,
     })),
     {},
