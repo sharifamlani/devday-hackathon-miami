@@ -65,7 +65,7 @@ def test_transcribe_file_returns_transcript_lines(client, db_file, monkeypatch):
         return SEGMENTS
 
     monkeypatch.setattr(transcribe, "transcribe_file", fake)
-    r = client.post("/transcribe/file", files={"audio": ("call.webm", b"Eß£fake", "audio/webm;codecs=opus")},
+    r = client.post("/transcribe/file", files={"audio": ("call.webm", b"webmfake", "audio/webm;codecs=opus")},
                     data={"you_name": "Denise", "them_name": "Rosa"})
     assert r.status_code == 200, r.text
     assert [(s["speaker"], s["name"]) for s in r.json()["segments"]] == [("you", "Denise"), ("them", "Rosa"), ("you", "Denise")]

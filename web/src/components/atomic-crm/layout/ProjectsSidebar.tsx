@@ -137,12 +137,13 @@ export const ProjectsSidebarToggle = ({
       aria-label="Projects sidebar"
       title={sidebar.open ? "Hide projects" : "Show projects"}
       className={cn(
-        "grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-        sidebar.open && "bg-card text-foreground",
+        "tile grid size-10 shrink-0 place-items-center rounded-full text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        sidebar.open &&
+          "border-strong bg-strong text-brand hover:bg-strong dark:border-border",
         className,
       )}
     >
-      <PanelLeft className="size-5" aria-hidden="true" />
+      <PanelLeft className="size-[19px]" aria-hidden="true" />
     </button>
   );
 };
@@ -293,14 +294,15 @@ export const ProjectsSidebar = () => {
       id={SIDEBAR_ID}
       aria-label="Projects"
       className={cn(
-        "flex w-[264px] shrink-0 flex-col gap-4 overflow-y-auto rounded-[24px] bg-card p-3 shadow-sm",
+        "tile flex w-64 shrink-0 flex-col gap-4 overflow-y-auto p-4",
         overlay
-          ? "fixed inset-y-3 left-3 z-50 max-w-[calc(100vw-24px)] shadow-[0_20px_70px_#24272833]"
-          : "sticky top-4 max-h-[calc(100vh-4rem)] self-start",
+          ? // Over a scrim: opaque.
+            "fixed inset-y-4 left-4 z-50 max-w-[calc(100vw-32px)] shadow-[0_20px_70px_#24272833] [--tile:var(--card)]"
+          : "relative h-full min-h-0",
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-1 pt-1">
-        <p className="text-sm font-semibold">Projects</p>
+      <div className="flex min-h-10 items-center justify-between gap-2">
+        <p className="text-[15px] font-semibold">Projects</p>
         {overlay && (
           <button
             type="button"
@@ -309,7 +311,7 @@ export const ProjectsSidebar = () => {
               document.getElementById(SIDEBAR_TOGGLE_ID)?.focus();
             }}
             aria-label="Close projects"
-            className="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+            className="grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
           >
             <X className="size-4" aria-hidden="true" />
           </button>
@@ -330,7 +332,7 @@ export const ProjectsSidebar = () => {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search"
-          className="min-h-11 w-full rounded-full border border-border bg-surface pr-3 pl-9 text-sm placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="min-h-10 w-full rounded-full border border-border bg-tile pr-3 pl-9 text-sm placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
         />
       </div>
       <p role="status" aria-live="polite" className="sr-only">
@@ -402,7 +404,7 @@ const Group = ({
           onClick={onToggle}
           aria-expanded={expanded}
           aria-controls={listId}
-          className="flex min-h-11 w-full items-center gap-2 rounded-full px-2 text-left text-[13px] font-semibold text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="flex min-h-10 w-full items-center gap-2 rounded-lg px-1 text-left text-sm font-semibold text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronRight
             className={cn(
@@ -413,12 +415,16 @@ const Group = ({
           />
           <FolderIcon className="size-4" aria-hidden="true" />
           <span className="flex-1">{group.label}</span>
-          <span className="text-xs font-normal tabular-nums">
+          <span className="text-xs font-medium text-muted-foreground tabular-nums">
             {group.items.length}
           </span>
         </button>
       </h2>
-      <ul id={listId} hidden={!expanded} className="flex flex-col gap-0.5 pl-3">
+      <ul
+        id={listId}
+        hidden={!expanded}
+        className="flex flex-col gap-0.5 pl-[18px]"
+      >
         {group.items.length === 0 ? (
           <li className="px-3 py-2 text-sm text-muted-foreground">
             {group.empty}
@@ -438,16 +444,26 @@ const Group = ({
                   aria-current={current ? "page" : undefined}
                   title={item.label}
                   className={cn(
-                    "flex min-h-11 items-center gap-2.5 rounded-2xl px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+                    "flex min-h-10 items-center gap-2 rounded-lg px-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring",
                     current
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-strong text-strong-foreground"
                       : "hover:bg-accent",
                   )}
                 >
-                  <Icon className="size-4 shrink-0 opacity-80" />
+                  <Icon
+                    className={cn(
+                      "size-4 shrink-0",
+                      !current && "text-muted-foreground",
+                    )}
+                  />
                   <span className="min-w-0 flex-1 truncate">{item.label}</span>
                   {item.count != null && (
-                    <span className="text-xs tabular-nums opacity-80">
+                    <span
+                      className={cn(
+                        "text-xs tabular-nums",
+                        !current && "text-muted-foreground",
+                      )}
+                    >
                       {item.count}
                       <span className="sr-only">
                         {" "}
@@ -465,7 +481,7 @@ const Group = ({
             <Link
               to={group.action.to}
               onClick={onNavigate}
-              className="flex min-h-11 items-center gap-2.5 rounded-2xl px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              className="flex min-h-10 items-center gap-2 rounded-lg px-1.5 text-sm text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
             >
               <Plus className="size-4" aria-hidden="true" />
               {group.action.label}

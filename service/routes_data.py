@@ -4,7 +4,7 @@
     app.include_router(data_router)
 
 GET  /donors                     every donor with score fields, highest score first
-GET  /donors/{id}                one donor: gifts, score + why, research_facts, outreach_drafts, merges
+GET  /donors/{id}                one donor: gifts, score + why, research_facts, outreach_drafts, merges, call_notes (newest 5)
 GET  /duplicates                 pending duplicate suggestions with both donors
 POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id": n, "approved_by": "name"}) → includes merge_id
 POST /merges/{id}/undo           undo the newest merge into a donor → {kept_id, restored_id, donor, restored}
@@ -40,6 +40,7 @@ from service import db
 from service.db import connect, create_schema
 
 router = APIRouter(tags=["data"])
+DONOR_CALL_NOTES = 5   # newest saved call notes shown on GET /donors/{id}
 
 
 def get_conn() -> Iterator[sqlite3.Connection]:
@@ -96,6 +97,7 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
         "SELECT d.*, (SELECT ed.event_id FROM event_drafts ed WHERE ed.draft_id = d.id) AS event_id "
         "FROM outreach_drafts d WHERE d.donor_id = ? ORDER BY d.created_at DESC, d.id DESC", (donor_id,))]   # event_id: an invite
     donor["merges"] = dedupe.merges_for(conn, donor_id)
+    donor["call_notes"] = db.list_call_notes(conn, donor_id=donor_id, limit=DONOR_CALL_NOTES)   # routes_calls.py
     return donor
 
 
