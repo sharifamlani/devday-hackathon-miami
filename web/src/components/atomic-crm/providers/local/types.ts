@@ -1,3 +1,8 @@
+import type { CampaignMethods } from "./campaignTypes";
+
+export type * from "./campaignTypes";
+import type { AskAnswer, AskFilter, AskIntent } from "./ask";
+
 /**
  * The view model the Donor Desk screens render. parse.ts builds it from the
  * API shapes in apiTypes.ts. Every number here comes from score.py; the UI
@@ -311,12 +316,50 @@ export interface ImportInput {
   rows: ImportedDonorRow[];
 }
 
+/* ---------- Donation targets (issue #37) ---------- */
+
+export type TargetPeriod = "month" | "quarter";
+
+/** Raised vs. goal for one calendar month or quarter. Every number comes
+ *  from service/targets.py; goals are SAMPLE values from org_config.json. */
+export interface DonationTarget {
+  period: TargetPeriod;
+  label: string; // "November 2026", "Q4 2026"
+  start: string; // YYYY-MM-DD
+  end: string;
+  as_of: string;
+  goal: number | null; // null when no goal is configured
+  goal_is_sample: boolean;
+  raised: number;
+  percent: number | null; // of goal, one decimal; null without a goal
+  days_left: number;
+  donors_count: number;
+  gifts_count: number;
+  by_channel: { channel: string; amount: number }[]; // biggest first
+  new_donors: number; // first gift ever fell in this period
+  returning_donors: number;
+  new_amount: number | null;
+  returning_amount: number | null;
+  give_miami_day: {
+    date: string;
+    days_until: number;
+    in_period: boolean;
+  } | null; // null once it has passed this year
+  top_donor_ids: number[];
+  donor_ids: number[]; // everyone who gave in the period, biggest first
+}
+
+import type { CrmMethods, UploadTarget } from "./crmTypes";
+
+/** GET /targets: one entry per period the service returned. */
+export type TargetsByPeriod = Partial<Record<TargetPeriod, DonationTarget>>;
+
 /**
  * Donor Desk methods, added to the ra-core data provider as custom methods.
  * Writes resolve when the server is done; screens then refetch GET
  * /donors/{id}, so they never depend on a POST's response body.
  */
-export interface DonorDeskMethods {
+export interface DonorDeskMethods extends CampaignMethods, CrmMethods {
   getDonors(): Promise<DonorSummary[]>;
   getDonor(id: number): Promise<DonorDetail>;
   getDuplicates(): Promise<DuplicatePair[]>;
@@ -333,8 +376,9 @@ export interface DonorDeskMethods {
   getProspect(id: number): Promise<ProspectDetail>;
   draftProspectOutreach(id: number): Promise<void>;
   dismissProspect(id: number): Promise<void>;
-  /** Screen 1: multipart POST /ingest with every file under "files". */
-  uploadFiles(files: File[]): Promise<IngestResult>;
+  /** Screen 1: multipart POST /ingest with every file under "files" and the
+   *  tab under "target" (default "auto": the agent sorts, plan.md §17). */
+  uploadFiles(files: File[], target?: UploadTarget): Promise<IngestResult>;
   /** Import dialog. Live: uploadFiles(files) to Carlos's /ingest, which maps
    *  columns itself. Snapshot: adds the parsed rows to this tab's data and
    *  flags duplicates by email or phone. */
@@ -349,4 +393,18 @@ export interface DonorDeskMethods {
   getOrgProfile(): Promise<OrgProfile | null>;
   /** "Cached sample" in snapshot mode; null when live. */
   getSourceLabel(): Promise<string | null>;
+  /** Raised vs. SAMPLE goal; both periods when period is omitted. Empty
+   *  ({}) for a snapshot exported before targets existed. */
+  getTargets(period?: TargetPeriod): Promise<TargetsByPeriod>;
+
+  /** Ask Donor Desk (ask.ts): question → read-only filter → matching donors.
+   *  Pass `filter` (chip-edited) to skip the model and re-run it as given. */
+  ask(
+    question: string,
+    filter?: AskFilter | null,
+    intent?: AskIntent | null,
+  ): Promise<AskAnswer>;
 }
+
+/** What httpClient/snapshotClient implement; the CRM methods live in crm*.ts. */
+export type BaseDonorDeskMethods = Omit<DonorDeskMethods, keyof CrmMethods>;

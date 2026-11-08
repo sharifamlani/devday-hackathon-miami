@@ -30,6 +30,7 @@ import {
 import { DATA_MODE } from "../providers/local/config";
 import { useDonors, useSourceLabel } from "../providers/local/hooks";
 import type { DonorSummary } from "../providers/local/types";
+import { TargetsCard } from "./TargetsCard";
 import "./donor-inbox.css";
 
 type InboxFilter = "all" | "attention" | "due" | "on_track" | "stars";
@@ -93,6 +94,8 @@ export const CallToday = () => {
           </span>
         </div>
       </header>
+
+      <TargetsCard />
 
       <div className="donor-inbox-workspace">
         <aside className="inbox-folders" aria-label="Outreach views">

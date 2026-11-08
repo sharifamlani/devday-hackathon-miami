@@ -7,7 +7,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { readFile } from "node:fs/promises";
 
-const endpoint = new URL(process.env.STAT_MCP_URL ?? "http://127.0.0.1:8000/mcp");
+const endpoint = new URL(process.env.STAT_MCP_URL ?? "http://127.0.0.1:8010/mcp");
 const client = new Client({ name: "donor-demo-js", version: "1.0.0" });
 const transport = new StreamableHTTPClientTransport(endpoint);
 const scoreAll = process.argv.includes("--score-all");
@@ -15,7 +15,7 @@ const scoreAll = process.argv.includes("--score-all");
 // Stable columns for a UI/export. Criterion names come from the server's rubric catalog.
 const BASE_COLUMNS = [
   "dataset_id", "record_index", "id", "first_name", "last_name",
-  "email_address", "donation_amount", "phone_number", "date_of_last_donation",
+  "email_address", "donation_amount", "phone_number", "contact_type", "date_of_last_donation",
   "contact_preference", "source", "organization", "employer", "gift_count",
   "giving_history", "engagement_notes", "stated_interests",
   "relationship_owner", "score", "score_label", "coverage",
@@ -61,7 +61,7 @@ async function main() {
     let scoredResults;
     if (scoreAll) {
       scoredResults = [];
-      for (let recordIndex = 0; recordIndex < imported.valid_rows; recordIndex += 1) {
+      for (let recordIndex = 0; recordIndex < imported.person_count; recordIndex += 1) {
         scoredResults.push(await call("score_donor", {
           dataset_id: datasetId,
           record_index: recordIndex,

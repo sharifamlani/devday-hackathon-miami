@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDonorDesk } from "./index";
-import type { ContextRunInput, ImportInput } from "./types";
+import type { AskFilter, AskIntent } from "./ask";
+import type { UploadTarget } from "./crmTypes";
+import type { ContextRunInput, ImportInput, TargetPeriod } from "./types";
 
 const ROOT = "donor-desk";
 
@@ -15,6 +17,7 @@ export const donorDeskKeys = {
   prospect: (id: number) => [ROOT, "prospect", id] as const,
   context: [ROOT, "context"] as const,
   orgProfile: [ROOT, "org-profile"] as const,
+  targets: (period?: TargetPeriod) => [ROOT, "targets", period ?? "all"] as const,
 };
 
 export const useDonors = () => {
@@ -177,7 +180,9 @@ export const useUploadFiles = () => {
   const dataProvider = useDonorDesk();
   const invalidateAll = useInvalidateAll();
   return useMutation({
-    mutationFn: (files: File[]) => dataProvider.uploadFiles(files),
+    // target: "giver" | "neighbor" | "community" | "auto" (the agent sorts)
+    mutationFn: ({ files, target = "auto" }: { files: File[]; target?: UploadTarget }) =>
+      dataProvider.uploadFiles(files, target),
     onSuccess: invalidateAll,
   });
 };
@@ -221,5 +226,40 @@ export const useOrgProfile = () => {
   return useQuery({
     queryKey: donorDeskKeys.orgProfile,
     queryFn: () => dataProvider.getOrgProfile(),
+  });
+};
+
+/* ---------- Donation targets (issue #37) ---------- */
+
+/** Raised vs. SAMPLE goal. Omit period for both (one request; toggle locally). */
+export const useTargets = (period?: TargetPeriod) => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: donorDeskKeys.targets(period),
+    queryFn: () => dataProvider.getTargets(period),
+  });
+};
+
+/* ---------- Campaigns (#38): simulated outbox ---------- */
+export * from "./campaignHooks";
+
+/* ---------- Ask Donor Desk (issue #36) ---------- */
+
+/**
+ * Read-only: nothing refetches after it. `filter` re-runs a chip-edited
+ * filter without the model (live) or in the browser (snapshot).
+ */
+export const useAsk = () => {
+  const dataProvider = useDonorDesk();
+  return useMutation({
+    mutationFn: ({
+      question,
+      filter,
+      intent,
+    }: {
+      question: string;
+      filter?: AskFilter | null;
+      intent?: AskIntent | null;
+    }) => dataProvider.ask(question, filter, intent),
   });
 };

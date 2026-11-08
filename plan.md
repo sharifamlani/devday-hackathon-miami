@@ -666,7 +666,7 @@ web/.../providers/local/      80: hooks for the classes, brief and demographics
 
 ## Appendix: separate `stat-mcp` prototype
 
-The repository also contains `stat-mcp/`, a FastMCP prototype for CSV/JSON/text import, required-field normalization, duplicate suggestions, and configurable criterion scoring. It is a separate implementation with in-memory datasets and a canonical one-row-per-donor contract; the primary product described above uses the FastAPI/SQLite service and its donors/gifts and person-classification contracts. The prototype is not wired into the primary service or web UI. Do not treat its score as the deterministic gift-history propensity score, or substitute its schema without an explicit integration decision. See `stat-mcp/AGENT_INTEGRATION.md`, `stat-mcp/REQUIRED_FIELDS.md`, and `stat-mcp/TOOLS.md`.
+The repository also contains `stat-mcp/`, a separate FastMCP prototype with transaction-first import readers for CSV, JSON, XLSX, DOCX, Markdown, and text. It preserves individual source gift events and derives person summaries, but its MCP datasets remain in process memory and it is not wired into the primary FastAPI/SQLite service or web UI. The primary app does not currently mount `/ingest`. When that adapter is implemented, it should call the Python reader library directly and map valid gift events to `gifts`, person projections to `donors`, and `contact_type` to the agreed person class. Do not treat its rubric score as the live app's deterministic gift-history score. See `stat-mcp/README.md`, `stat-mcp/AGENT_INTEGRATION.md`, `stat-mcp/REQUIRED_FIELDS.md`, and `stat-mcp/TOOLS.md`.
 
 ---
 
@@ -760,3 +760,28 @@ web/.../providers/local/   80: hooks for tabs, upload target, events, chat
 | Nothing sends without approval; orgs/★ need individual approval | 0 unapproved sends | text_log + email log audit |
 | Community texts contain no donation ask | 0 | regex + review |
 | Demo path clean | 0 console errors, 0 4xx/5xx | Playwright |
+
+
+### §17 amendment: one context database + a daily refresh agent (Sharif, Sat Nov 7 night)
+**Onboarding step 2 is the backbone**: it fills the calendar, the audiences and every draft. So:
+
+**One context database** (SQLite, `data/donors.db`) holds everything the organization *is* and *is doing*, linked to
+its people:
+| Table | Holds |
+|---|---|
+| `org_profile` | name, website, X / Instagram / LinkedIn URLs, priorities, voice, `last_refreshed_at` |
+| `org_context` | dated, sourced facts (website, news, social when reachable) |
+| `events` (the calendar) | title, starts_at, place, audience rule, source URL, status (upcoming / changed / past) |
+| `event_audience` | event ↔ people links across Givers / Neighbors / Community, with the reason |
+| `event_drafts` | event ↔ outreach drafts / campaign |
+| `context_refresh_log` | each run: when, sources read, facts added / removed, events added / changed / removed, errors |
+
+**Daily refresh agent:** runs every morning (and on "Refresh now"): re-reads the website + news (social when
+reachable), updates facts and the calendar, logs what changed, and when an event is **new or changed** it
+re-picks the audience and re-drafts the invites (drafts only; sending still needs approval). The UI shows
+"Context updated today, 7:00 AM · 2 new events". A failed run never wipes good data (same rule as /context/run).
+Locally it's a scheduler inside the service plus a CLI (`python -m service.refresh --daily`) that Windows Task
+Scheduler can run.
+
+**Coming soon (not built):** posting to Instagram, LinkedIn and X from the agent. The UI shows it as a disabled
+"Coming soon" action.
