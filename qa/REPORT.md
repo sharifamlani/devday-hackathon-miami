@@ -287,3 +287,4 @@ Main 5ecf010 baseline: answer key unchanged; ingest_check cold + 2 warm, 0 FAIL,
 |---|---|---|---|
 | #108 docs/readme-demo | 5d20dba | models/limits/licenses/dates/Vercel ok; Knight Enrich beat premature (no add-contact path, no Save button on main); counts stated without "after approvals" and without excluding answer_key.json/_README.md; "Let the agent sort" not in UI | CHANGES (owner 86) |
 | #108 docs/readme-demo (re-check) | 82602de | 8 named inputs = main's folder (excl. key/_README); counts after approval; steps match OnboardingSteps.tsx strings; Knight beat gated on #111 + Enrich UI; fallback model row | APPROVE |
+| #109 context-note undo (3a) | e74ebd7 | 464 passed; after_call change minimal (2 hunks), smoke #11 1/1/2/1; undo add/delete/newer-change 409/reuse 409/malformed 4xx; deleted notes invisible to all research_facts readers + snapshot; cold-store re-apply writes 0 | APPROVE |
