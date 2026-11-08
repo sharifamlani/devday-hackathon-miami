@@ -76,6 +76,8 @@ export interface FilesSummary {
   /** Declined charges the importer kept on record; they are not gifts and not in `gifts`. */
   declined?: number | null;
   duplicates: number | null;
+  /** Confirmed exact-identity consolidations; absent on older services. */
+  duplicatesRemoved?: number | null;
   files: number;
   /** People per tab, when the service reports it. */
   byTab: TabCounts | null;
@@ -86,9 +88,14 @@ export interface FilesSummary {
 /**
  * How step 3 ended. done: the website was read · background: the read was
  * slow and goes on in the background · saved: v2's "showed saved context" ·
- * failed: nothing was read.
+ * failed: nothing was read · preview: the read-only public preview refused the read.
  */
-export type ContextOutcome = "done" | "background" | "saved" | "failed";
+export type ContextOutcome =
+  | "done"
+  | "background"
+  | "saved"
+  | "failed"
+  | "preview";
 export interface ContextSummary {
   outcome: ContextOutcome;
   items: number;
@@ -254,8 +261,13 @@ const readFiles = (value: unknown): FilesSummary | null =>
     ? {
         people: count(value.people),
         gifts: count(value.gifts),
-        ...(count(value.declined) != null ? { declined: count(value.declined) } : {}),
+        ...(count(value.declined) != null
+          ? { declined: count(value.declined) }
+          : {}),
         duplicates: count(value.duplicates),
+        ...(count(value.duplicatesRemoved) != null
+          ? { duplicatesRemoved: count(value.duplicatesRemoved) }
+          : {}),
         files: count(value.files) ?? 0,
         byTab: readTabCounts(value.byTab),
         review: count(value.review),
@@ -266,6 +278,7 @@ const OUTCOMES: readonly ContextOutcome[] = [
   "done",
   "background",
   "saved",
+  "preview",
   "failed",
 ];
 

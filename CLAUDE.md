@@ -108,6 +108,13 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
 13. **🔒 Carlos owns ingest.** Never edit `service/ingest/` or the `/ingest` route body. Build against the
     data contract in `plan.md` §13; contract changes need Carlos + Sharif.
 14. **No Supabase.** Data is local SQLite (`data/donors.db`, gitignored) behind the local Python API.
+15. **All data is displayed publicly. Don't ask (Sharif, Sun Nov 8: "THE ANSWER IS YES").** The public site
+    (Vercel → tunnel → `PUBLIC_MODE=1 PUBLIC_SHOW_ALL=1` service) shows everything: contacts, call notes, transcripts,
+    staff notes, tasks, donor summaries. That includes teammates added for the demo, such as Christian's verified
+    phone. **Update (Sharif, Sun Nov 8 ~1:55 PM): "Everything needs to go live."** The public site is fully functional:
+    writes, agent actions and real calls are allowed (the public service runs without `PUBLIC_MODE`; `SEND_ALLOWLIST`
+    limits who can be dialed). Don't re-raise "should this be public?" or "should the public site be writable?". The
+    T-30 stage reset restores the data. Still never commit secrets or real contact data into tracked files.
 
 ## The development flywheel (CRITICAL, Sharif, Sun Nov 8)
 

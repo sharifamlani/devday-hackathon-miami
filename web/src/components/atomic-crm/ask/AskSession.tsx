@@ -78,9 +78,10 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
   // after: runs once the change is on the page (still inside the transition).
   const inPaneTransition = useCallback(
-    (change: () => void, after?: () => void) => {
+    (change: () => void, after?: () => void, exit = false) => {
       runZoomTransition({
         kind: "pane",
+        exit,
         update: () => {
           flushSync(change);
           after?.();
@@ -92,12 +93,16 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
 
   const setSidebarOpen = useCallback(
     (open: boolean, byUser: boolean) =>
-      inPaneTransition(() => commitOpen(open, byUser)),
+      inPaneTransition(() => commitOpen(open, byUser), undefined, !open),
     [inPaneTransition, commitOpen],
   );
   const setPaneExpanded = useCallback(
     (expanded: boolean) =>
-      inPaneTransition(() => setPaneExpandedState(expanded)),
+      inPaneTransition(
+        () => setPaneExpandedState(expanded),
+        undefined,
+        !expanded,
+      ),
     [inPaneTransition],
   );
 
@@ -130,20 +135,29 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
           commitOpen(true, true);
         }),
       closeSidebar: (afterClose) =>
-        inPaneTransition(() => {
-          commitOpen(false, true);
-        }, afterClose),
+        inPaneTransition(
+          () => {
+            commitOpen(false, true);
+          },
+          afterClose,
+          true,
+        ),
       // The Ask buttons: open in Ask mode, switch to Ask if the pane shows
       // the transcript, close only when Ask is already showing.
       toggleSidebar: () =>
-        inPaneTransition(() => {
-          if (openRef.current && modeRef.current === "ask")
-            commitOpen(false, true);
-          else {
-            commitMode("ask");
-            commitOpen(true, true);
-          }
-        }),
+        inPaneTransition(
+          () => {
+            if (openRef.current && modeRef.current === "ask")
+              commitOpen(false, true);
+            else {
+              commitMode("ask");
+              commitOpen(true, true);
+            }
+          },
+          undefined,
+          // Timing only: the change itself re-reads the refs when it applies.
+          openRef.current && modeRef.current === "ask",
+        ),
       openedByUser,
       paneMode,
       openPane: (mode) =>

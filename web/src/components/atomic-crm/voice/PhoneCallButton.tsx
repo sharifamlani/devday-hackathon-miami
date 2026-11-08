@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Phone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { DATA_MODE, type DataMode } from "../providers/local/config";
+import {
+  DATA_MODE,
+  PUBLIC_READ_ONLY,
+  type DataMode,
+} from "../providers/local/config";
 import { PhoneCallDialog } from "./PhoneCallDialog";
 
 /**
@@ -18,7 +22,7 @@ export const PhoneCallButton = ({
   mode?: DataMode;
 }) => {
   const [open, setOpen] = useState(false);
-  if (mode !== "local") return null;
+  if (mode !== "local" || PUBLIC_READ_ONLY) return null; // public mode refuses /phone/*
   return (
     <>
       <Button size="sm" className="rounded-full" onClick={() => setOpen(true)}>

@@ -1,6 +1,7 @@
 import { XIcon } from "lucide-react";
 import { type ReactNode, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Drawer,
   DrawerClose,
@@ -15,7 +16,7 @@ export interface FormDrawerProps {
 }
 
 /**
- * A full-screen bottom drawer for mobile forms. Unlike a Sheet, it keeps its
+ * A full-screen bottom drawer for mobile forms (a centred card on desktop). Unlike a Sheet, it keeps its
  * content above the iOS software keyboard and stops drags from panning the
  * page behind it.
  *
@@ -48,7 +49,11 @@ export const FormDrawer = ({
         <DrawerContent
           ref={popupRef}
           initialFocus={focusField}
-          className="h-dvh max-h-none data-[swipe-direction=down]:rounded-t-none pb-(--drawer-keyboard-inset)"
+          className={cn(
+            "h-dvh max-h-none data-[swipe-direction=down]:rounded-t-none pb-(--drawer-keyboard-inset)",
+            // Desktop: a centred card above the page instead of an edge-to-edge sheet.
+            "md:mx-auto md:h-auto md:max-h-[min(85dvh,640px)] md:max-w-xl md:rounded-2xl md:border md:[--drawer-inset:24px] md:data-[swipe-direction=down]:rounded-t-2xl md:after:hidden",
+          )}
           aria-describedby={undefined}
         >
           {children}

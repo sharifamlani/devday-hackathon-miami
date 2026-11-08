@@ -208,6 +208,12 @@ CASES = [
          setup=note_last_batch, probe=gmd_probe),
     Case("email prep", "Prep the Give Miami Day email to lapsing givers", tools_all={"prep_email"},
          tools_none={"draft_email", "send"}, ui=r"^Draft \d+ emails?$", ui_count=1, after=draft_from_the_prep),
+
+
+    Case("enrich a donor", "Enrich Veloria Bay Foundation", tools_all={"enrich_person"},
+         tools_none={"accept_enrichment"}, reply=r"save|add (these|them)|keep"),
+    Case("call prep sheet", "Prep a call sheet for Elizabeth Fontaine", tools_all={"prep_call"},
+         tools_none={"call_person"}, ui=r"^Call$", ui_count=1),
     Case("streams live", "Which donors are lapsing, and what should I do about each one?",
          tools_any={"find_people", "get_alerts"}, live=True),
     Case("two pending cards", "Delete both of today's tasks 'Walk test task A' and 'Walk test task B'.",

@@ -53,13 +53,13 @@ import {
   DonorsTabs,
   DonorTagBadge,
   InitialsAvatar,
-  tileClass,
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { AutoMergeFlag } from "./AutoMergeFlag";
 import { DonorRowDetails } from "./DonorRowDetails";
 import { DuplicateBanner } from "./DuplicateMerge";
 import { countSourceFiles } from "./sourceFiles";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 const SORTS = [
   { value: "score:DESC", label: "Priority score" },
@@ -99,66 +99,72 @@ const DonorListLayout = () => {
 
   return (
     <div className="@container mx-auto w-full max-w-6xl space-y-3 px-4 pt-4 pb-24 md:px-0 md:pt-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">Donors</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <h1 className="text-[28px] leading-tight font-normal tracking-[-0.02em]">
+              Donors
+            </h1>
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {isPending
+                ? "Loading donors…"
+                : error
+                  ? ""
+                  : `${total ?? 0} donor${total === 1 ? "" : "s"}`}
+            </p>
+          </div>
           <DonorsTabs />
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={() => setImportOpen(true)}
-          >
-            <Upload aria-hidden />
-            Import donors
-          </Button>
+          {!PUBLIC_READ_ONLY && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload aria-hidden />
+              Import donors
+            </Button>
+          )}
           <ExportAllButton />
         </div>
       </div>
       <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
       <DuplicateBanner />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchBox />
-        <SortSelect />
-        <Popover>
-          <PopoverTrigger
-            render={
-              <Button
-                variant="outline"
-                className="relative min-h-11 rounded-full"
-              />
-            }
-          >
-            <Filter aria-hidden /> Filter
-            {activeFilters.length > 0 && (
-              <span className="ml-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
-                {activeFilters.length}
-              </span>
-            )}
-          </PopoverTrigger>
-          <PopoverContent
-            align="end"
-            sideOffset={8}
-            className="desk-directory-filters"
-          >
-            <DonorFilters facets={facets} />
-          </PopoverContent>
-        </Popover>
-      </div>
-
       <div className="flex gap-4">
         <div className="min-w-0 flex-1 space-y-2">
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {isPending
-              ? "Loading donors…"
-              : error
-                ? ""
-                : `${total ?? 0} donor${total === 1 ? "" : "s"}`}
-          </p>
-          <div className={cn(tileClass, "overflow-hidden")}>
+          <div className="desk-tile overflow-hidden">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border/60 p-3">
+              <SearchBox />
+              <SortSelect />
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      className="relative min-h-11 rounded-full"
+                    />
+                  }
+                >
+                  <Filter aria-hidden /> Filter
+                  {activeFilters.length > 0 && (
+                    <span className="ml-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                      {activeFilters.length}
+                    </span>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  sideOffset={8}
+                  className="desk-directory-filters"
+                >
+                  <DonorFilters facets={facets} />
+                </PopoverContent>
+              </Popover>
+            </div>
+
             {isPending ? (
               <div className="space-y-2 p-3">
                 {Array.from({ length: 5 }, (_, i) => (
@@ -706,7 +712,7 @@ const EmptyState = ({
         >
           Clear filters
         </Button>
-      ) : (
+      ) : PUBLIC_READ_ONLY ? null : (
         <Button className="rounded-full" onClick={onImport}>
           <Upload aria-hidden />
           Import donors
@@ -731,14 +737,18 @@ const BulkBar = () => {
       <span className="mr-auto text-sm font-medium" aria-live="polite">
         {n} selected
       </span>
-      <Link
-        to={`/campaigns/new?donors=${selectedIds.join(",")}`}
-        className={cn(buttonVariants({ size: "sm" }), "rounded-full")}
-      >
-        <Megaphone aria-hidden />
-        Add to a campaign
-      </Link>
-      <BulkTagButton />
+      {!PUBLIC_READ_ONLY && (
+        <>
+          <Link
+            to={`/campaigns/new?donors=${selectedIds.join(",")}`}
+            className={cn(buttonVariants({ size: "sm" }), "rounded-full")}
+          >
+            <Megaphone aria-hidden />
+            Add to a campaign
+          </Link>
+          <BulkTagButton />
+        </>
+      )}
       <BulkExportButton label="Export CSV" />
       <Button
         size="icon"

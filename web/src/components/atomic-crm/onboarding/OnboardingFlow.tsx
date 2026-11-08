@@ -10,20 +10,24 @@ import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 
-import { ContextStep, FilesStep, OrganizationStep } from "./OnboardingSteps";
-import { STEP_COUNT, useOnboarding } from "./onboardingState";
+import { FilesStep, OrganizationStep } from "./OnboardingSteps";
+import { useQueryClient } from "@tanstack/react-query";
+import { readOrganizationInBackground } from "./backgroundRead";
+import { useOnboarding } from "./onboardingState";
 import { useFocusTrap } from "./useFocusTrap";
 import "./onboarding.css";
+
+const SETUP_SCREEN_COUNT = 2;
 
 /**
  * First run (plan.md §21.2.2), full screen and keyboard accessible:
  * drag in your files → tell us about your organization → the context agent
- * runs on its own → the dashboard. Esc (or "Finish later") closes it and
+ * runs in the background while the dashboard opens. Esc (or "Finish later") closes it and
  * keeps progress, except while an import or a read is in flight.
  */
 export const OnboardingFlow = () => {
-  const { step, data, finishLater, finish, next, back, update } =
-    useOnboarding();
+  const { step, finishLater, finish, next, back, update } = useOnboarding();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -32,6 +36,14 @@ export const OnboardingFlow = () => {
   const goHome = () => {
     if (location.pathname !== "/") navigate("/");
   };
+
+  // Older saved sessions may still point at the retired context receipt.
+  useEffect(() => {
+    if (step < 2) return;
+    finish();
+    if (location.pathname !== "/") navigate("/");
+  }, [step, finish, location.pathname, navigate]);
+  if (step >= 2) return null;
 
   return (
     <StepsScreen step={step} busy={busy} onBack={back} onEscape={finishLater}>
@@ -58,26 +70,21 @@ export const OnboardingFlow = () => {
               <OrganizationStep
                 {...frame}
                 onContinue={(links) => {
-                  update({ links, linksSavedTo: "local" });
-                  next();
-                }}
-              />
-            );
-          default:
-            return (
-              <ContextStep
-                {...frame}
-                links={data.links}
-                onDone={(context, savedLive) => {
                   update({
-                    context,
-                    linksSavedTo: savedLive ? "live" : "local",
+                    links,
+                    linksSavedTo: "local",
+                    tourOffer: "dismissed",
                   });
+                  void readOrganizationInBackground(links).finally(() =>
+                    queryClient.invalidateQueries(),
+                  );
                   finish();
                   goHome();
                 }}
               />
             );
+          default:
+            return null;
         }
       }}
     </StepsScreen>
@@ -104,6 +111,12 @@ const StepsScreen = ({
   const ref = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const progressId = useId();
+  // A new step slides in from the side you're heading (forward from the right, back from the left).
+  const previousStep = useRef(step);
+  const direction = step >= previousStep.current ? "forward" : "back";
+  useEffect(() => {
+    previousStep.current = step;
+  }, [step]);
   // Esc means "Finish later", but not while files upload or the site is read.
   const busyRef = useRef(busy);
   busyRef.current = busy;
@@ -165,20 +178,24 @@ const StepsScreen = ({
           </div>
           <div>
             <p id={progressId} className="onb-progress-text">
-              Step {step + 1} of {STEP_COUNT}
+              Step {step + 1} of {SETUP_SCREEN_COUNT}
             </p>
             <div
               className="onb-progress"
-              style={{ gridTemplateColumns: `repeat(${STEP_COUNT}, 1fr)` }}
+              style={{
+                gridTemplateColumns: `repeat(${SETUP_SCREEN_COUNT}, 1fr)`,
+              }}
               aria-hidden="true"
             >
-              {Array.from({ length: STEP_COUNT }, (_, i) => (
+              {Array.from({ length: SETUP_SCREEN_COUNT }, (_, i) => (
                 <span key={i} data-done={i < step} data-current={i === step} />
               ))}
             </div>
           </div>
         </div>
-        {children(headingRef)}
+        <div key={step} className="onb-step-motion" data-direction={direction}>
+          {children(headingRef)}
+        </div>
       </div>
     </div>,
     document.body,

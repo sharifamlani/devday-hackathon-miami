@@ -24,6 +24,7 @@ import type { Contact, Task as TData } from "../types";
 import { TaskEdit } from "./TaskEdit";
 import { TaskEditSheet } from "./TaskEditSheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 export const Task = ({
   task,
@@ -93,13 +94,13 @@ export const Task = ({
       <div className="flex items-start justify-between">
         <div
           className="flex items-start gap-2 flex-1"
-          onClick={isMobile ? handleCheck() : undefined}
+          onClick={isMobile && !PUBLIC_READ_ONLY ? handleCheck() : undefined}
         >
           <Checkbox
             id={labelId}
             checked={!!task.done_date}
             onCheckedChange={handleCheck()}
-            disabled={isUpdatePending}
+            disabled={isUpdatePending || PUBLIC_READ_ONLY}
             className="mt-1"
           />
           <div className={`flex-grow ${task.done_date ? "line-through" : ""}`}>
@@ -149,6 +150,7 @@ export const Task = ({
           </div>
         </div>
 
+        {!PUBLIC_READ_ONLY && (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -209,6 +211,7 @@ export const Task = ({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
 
       {isMobile ? (

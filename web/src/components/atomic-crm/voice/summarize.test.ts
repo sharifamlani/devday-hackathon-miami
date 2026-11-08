@@ -15,7 +15,7 @@ import { demoCallScript } from "./transcriptSource";
 
 const NOV_7 = new Date(2026, 10, 7); // Sat, Nov 7 2026
 
-const demoTranscript = (donor = "Rosa Delgado"): TranscriptLine[] =>
+const demoTranscript = (donor = "Hye-jin Park"): TranscriptLine[] =>
   demoCallScript(donor).map((line, i) => ({
     speaker: line.speaker,
     name: line.speaker === "you" ? "You" : donor.split(" ")[0],
@@ -37,17 +37,16 @@ describe("summarizeTranscript", () => {
   it("summarizes the demo call into key points and next steps", () => {
     const result = summarizeTranscript({
       transcript: demoTranscript(),
-      donorName: "Rosa Delgado",
+      donorName: "Hye-jin Park",
       today: NOV_7,
     });
     expect(result.summary).toEqual([
-      "Rosa's card changed; they'll update it from a secure link.",
-      "Wants to keep giving $50 a month, as they have since 2021.",
-      "Signed up for the beach cleanup on Sat, Nov 21.",
+      "Hye-jin's card changed; they'll update it from a secure link.",
+      "Signed up for the Give Miami 5K on Sun, Nov 15.",
     ]);
     expect(result.nextSteps).toEqual([
       "Send card-update link",
-      "Add Nov 21 to calendar",
+      "Add Nov 15 to calendar",
     ]);
   });
 

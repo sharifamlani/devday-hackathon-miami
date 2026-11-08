@@ -20,6 +20,17 @@ export const DATA_MODE: DataMode = resolveDataMode(
 );
 
 /**
+ * True when the live API is in public mode (main.tsx's startup check, apiProbe.ts): it refuses every write, so
+ * screens hide their write controls instead of sending one it would refuse. Keyed on the public-mode flag,
+ * not on redaction (PUBLIC_SHOW_ALL shows everything but still refuses writes).
+ */
+export const PUBLIC_READ_ONLY: boolean =
+  DATA_MODE === "local" && Boolean((globalThis as Record<string, unknown>).__DONOR_DESK_PUBLIC_MODE__);
+
+/** Copy for the hint shown where write controls are hidden in public mode. */
+export const READ_ONLY_PREVIEW = "Read-only preview: changes are made in the app on the laptop.";
+
+/**
  * True only for the build made as the sample (Vercel): not a laptop build that fell back to the snapshot
  * because its API was unreachable. Setup state is shared with live mode, so only the real sample build may
  * mark it done (the landing's sample path).

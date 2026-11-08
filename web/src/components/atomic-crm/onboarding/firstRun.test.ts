@@ -28,6 +28,7 @@ import {
   type Receipt,
 } from "./firstRun";
 import { EMPTY_LINKS, type FilesSummary } from "./onboardingState";
+import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 const file = (name: string, size = 1200) => ({ name, size });
 
@@ -84,7 +85,13 @@ describe("what ingest found", () => {
       result({
         gifts: 131,
         duplicates: 9,
-        raw: { people_added: 77, gifts_added: 132, gifts: 131, declined_on_record: 1, duplicate_suggestions: 9 },
+        raw: {
+          people_added: 77,
+          gifts_added: 132,
+          gifts: 131,
+          declined_on_record: 1,
+          duplicate_suggestions: 9,
+        },
       }),
       8,
     );
@@ -97,10 +104,32 @@ describe("what ingest found", () => {
 
   it("shows no declined note when there are no declined charges (S-neg)", () => {
     const summary = ingestSummary(
-      result({ gifts: 47, duplicates: 0, raw: { people_added: 12, gifts: 47, declined_on_record: 0 } }),
+      result({
+        gifts: 47,
+        duplicates: 0,
+        raw: { people_added: 12, gifts: 47, declined_on_record: 0 },
+      }),
       2,
     );
     expect(filesLine(summary)).toBe("12 people · 47 gifts found");
+  });
+
+  it("keeps confirmed removals separate from possible duplicates", () => {
+    const summary = ingestSummary(
+      result({ donors: 18, duplicates: 7, raw: { duplicates_removed: 2 } }),
+      1,
+    );
+    expect(summary.people).toBe(18);
+    expect(summary.duplicates).toBe(7);
+    expect(summary.duplicatesRemoved).toBe(2);
+    expect(
+      ingestSummary(result({ raw: { duplicate_suggestions: 7 } }), 1)
+        .duplicatesRemoved,
+    ).toBeUndefined();
+    expect(
+      ingestSummary(result({ raw: { duplicates_removed: -1 } }), 1)
+        .duplicatesRemoved,
+    ).toBeUndefined();
   });
 
   it("reads POST /ingest's own fields: people_added, by_tab, flagged_for_review", () => {
@@ -655,6 +684,27 @@ describe("the dashboard card's copy", () => {
     expect(offerCopy({ context: null, background: null }).body).toContain(
       "wasn't read",
     );
+  });
+
+  it("the public preview's refused read shows saved facts, not an unread website", () => {
+    const reading = contextReducer(
+      { phase: "reading" },
+      { type: "run_failed", message: PUBLIC_PREVIEW_MESSAGE },
+    );
+    expect(contextSummary(reading)?.outcome).toBe("preview");
+    const copy = offerCopy({
+      context: { outcome: "preview", items: 13, tasks: null },
+      background: null,
+    });
+    expect(copy.body).toContain("can't read websites");
+    // v2's "saved" outcome (showed saved context) never gets the preview copy.
+    expect(
+      offerCopy({
+        context: { outcome: "saved", items: 3, tasks: null },
+        background: null,
+      }).body,
+    ).not.toContain("preview");
+    expect(copy.body).not.toContain("wasn't read");
   });
 
   it("the sample build talks about the sample desk, never an unread website", () => {

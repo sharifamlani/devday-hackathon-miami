@@ -111,7 +111,7 @@ def get_calendar(from_: date | None = Query(None, alias="from"), to: date | None
 @router.get("/artifacts")
 def get_artifacts(limit: int = Query(50, ge=1, le=500), conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
     out = tasks.artifacts(conn, limit)
-    return [a for a in out if a.get("kind") != "call_note"] if public_mode.enabled() else out   # no call titles public
+    return [a for a in out if a.get("kind") != "call_note"] if public_mode.redacting() else out   # no call titles public
 
 
 @router.post("/undo/{token}")

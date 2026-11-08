@@ -19,10 +19,13 @@ export const GivingPanel = ({
   donor,
   recurring,
   compact = false,
+  byYear = !compact,
 }: {
   donor: DonorDetail;
   recurring?: boolean;
   compact?: boolean;
+  /** The "By year" totals; on by default unless compact (the full record keeps them). */
+  byYear?: boolean;
 }) => {
   const [showAll, setShowAll] = useState(false);
   const summary = givingSummary(donor.gifts);
@@ -158,7 +161,7 @@ export const GivingPanel = ({
         <p className="text-sm text-muted-foreground">No gifts on record.</p>
       )}
 
-      {!compact && summary.by_year.length > 1 && (
+      {byYear && summary.by_year.length > 1 && (
         <div>
           <h3 className="mb-1 text-xs font-medium text-muted-foreground">
             By year

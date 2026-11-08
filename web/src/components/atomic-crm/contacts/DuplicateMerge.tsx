@@ -52,10 +52,10 @@ export const DuplicateBanner = ({ donorId }: { donorId?: number } = {}) => {
     <>
       <div
         role="status"
-        className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] bg-brand-soft px-5 py-3.5 text-sm text-brand-soft-foreground"
+        className="desk-tile flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm text-foreground"
       >
         <span className="flex items-center gap-3 font-medium">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-card text-brand-soft-foreground">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-soft-foreground">
             <AlertTriangle className="size-[18px]" aria-hidden />
           </span>
           {donorId != null
@@ -69,7 +69,7 @@ export const DuplicateBanner = ({ donorId }: { donorId?: number } = {}) => {
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
-            className="min-h-11 rounded-[28px] bg-primary px-5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="min-h-10 rounded-full bg-card px-4 text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             onClick={() => setOpen(true)}
           >
             Review merges →

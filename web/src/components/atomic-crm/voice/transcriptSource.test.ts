@@ -114,10 +114,10 @@ describe("demoTranscriptSource", () => {
 
 describe("demoCallScript", () => {
   it("greets the donor by first name", () => {
-    const lines = demoCallScript("Rosa Delgado");
+    const lines = demoCallScript("Hye-jin Park");
     expect(lines[0]).toEqual({
       speaker: "you",
-      text: "Hi Rosa, I'm calling from the foundation. Do you have a minute?",
+      text: "Hi Hye-jin, it's Denise from The Miami Foundation. Do you have a minute?",
     });
     expect(lines.some((l) => l.speaker === "them")).toBe(true);
     expect(firstName("  Ana  María Ruiz ")).toBe("Ana");

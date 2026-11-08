@@ -32,11 +32,21 @@ const TILE: Record<string, string> = {
 
 export const EASE = "cubic-bezier(0.32,0.72,0,1)";
 /** Read from the motion variables (src/index.css) at each transition, so one edit retimes them all. */
-const duration = (kind: ZoomKind): number => {
+const duration = (kind: ZoomKind, exit = false): number => {
   const slow = motionMs("slow");
+  // An exiting overview or pane closes faster (--exit-ratio). The panel close keeps its own
+  // staged timing, tuned with the FLIP choreography (#214).
+  if (exit) return Math.round(slow * exitRatio());
   if (kind === "close") return Math.round(slow * 0.875);
   if (kind === "switch") return Math.round(motionMs("base") * 0.9);
   return slow;
+};
+/** --exit-ratio (index.css): closing takes this share of opening's time. */
+const exitRatio = (root: HTMLElement = document.documentElement): number => {
+  const value = parseFloat(
+    getComputedStyle(root).getPropertyValue("--exit-ratio"),
+  );
+  return Number.isNaN(value) ? 0.75 : value;
 };
 /** Reduced motion: a short crossfade instead of movement. */
 const REDUCED_FADE_MS = 120;
@@ -189,6 +199,7 @@ let activeVT: VT | null = null;
 function runViewTransition(opts: {
   kind: ZoomKind;
   update: () => void | Promise<void>;
+  exit?: boolean;
   doc?: FlipDoc;
   win?: Window;
 }): { mechanism: "instant" | "view-transition" } {
@@ -208,7 +219,7 @@ function runViewTransition(opts: {
   root.dataset.zoom = reduced ? "fade" : kind;
   root.style.setProperty(
     "--zoom-dur",
-    `${reduced ? REDUCED_FADE_MS : duration(kind)}ms`,
+    `${reduced ? REDUCED_FADE_MS : duration(kind, opts.exit)}ms`,
   );
   const vt = doc.startViewTransition(async () => {
     await update();
@@ -228,6 +239,8 @@ function runViewTransition(opts: {
 export function runZoomTransition(opts: {
   kind: ZoomKind;
   update: () => void | Promise<void>;
+  /** The overview or pane is going away: time it as a close (see --exit-ratio). */
+  exit?: boolean;
   /** false when the DOM is about to change anyway (browser Back): skip the staged unmount. */
   preUnmount?: boolean;
   sourceEl?: HTMLElement | null;

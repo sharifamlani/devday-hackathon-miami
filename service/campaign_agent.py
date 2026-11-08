@@ -384,15 +384,17 @@ def draft_message(donor: dict, gifts: list[dict], why: dict | None, research: li
         raise ValueError(f"unknown intent/channel {intent}/{channel}")
     today = today or oa.as_of_date(why)
     # story={} (an email prep's Draft): cite only the org facts given, no story facts from the context store
-    story, story_notes = oa.story_facts() if story is None else (story, [])
+    restricted = story is not None             # an email prep's Draft: only the given facts
+    story, story_notes = (story, []) if restricted else oa.story_facts()
     facts = numbered_facts(donor, gifts, research, org_facts, story)
     use_model = model_available() if use_model is None else use_model
 
     draft = None
     if use_model:
         try:
+            only = {"story": story} if restricted else {}              # passed only when a prep restricts facts
             subject, body, used = model_write(donor, gifts, why, research, org_facts, facts, intent, channel, today,
-                                              story)
+                                              **only)
             draft = CampaignDraft(subject=subject, body=body, facts_used=used, drafted_by="model")
         except Exception as e:  # model error or a draft that failed its checks: never leave the row empty
             draft = template_draft(donor, gifts, why, facts, intent, channel, today,

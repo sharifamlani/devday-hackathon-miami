@@ -23,6 +23,7 @@ import {
   TAB_NAMES,
   readTabCounts,
 } from "./onboardingState";
+import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 /* ---------- Step 1: files ---------- */
 
@@ -107,6 +108,11 @@ export const ingestSummary = (
       ? { declined: raw.declined_on_record }
       : {}),
     duplicates: result.duplicates,
+    ...(typeof raw.duplicates_removed === "number" &&
+    Number.isInteger(raw.duplicates_removed) &&
+    raw.duplicates_removed >= 0
+      ? { duplicatesRemoved: raw.duplicates_removed }
+      : {}),
     files: fileCount,
     byTab,
     review: Array.isArray(raw.flagged_for_review)
@@ -154,7 +160,9 @@ export const filesLine = (summary: FilesSummary) => {
     : "";
   const parts = [
     summary.people != null ? plural(summary.people, "person", "people") : null,
-    summary.gifts != null ? plural(summary.gifts, "gift", "gifts") + declined : null,
+    summary.gifts != null
+      ? plural(summary.gifts, "gift", "gifts") + declined
+      : null,
     summary.duplicates
       ? plural(summary.duplicates, "possible duplicate", "possible duplicates")
       : null,
@@ -497,7 +505,8 @@ export const contextSummary = (phase: ContextPhase): ContextSummary | null => {
       };
     case "error":
       return {
-        outcome: "failed",
+        // The public preview refuses the read; that isn't a failed read of the website.
+        outcome: phase.message === PUBLIC_PREVIEW_MESSAGE ? "preview" : "failed",
         items: phase.run?.facts.length ?? 0,
         tasks: null,
       };
@@ -637,6 +646,11 @@ export const offerCopy = (
     return {
       title: "Your desk is ready.",
       body: "Want a one-minute tour of where things are?",
+    };
+  if (outcome === "preview")
+    return {
+      title: "Your desk is open.",
+      body: "This preview can't read websites, so it shows what's already here. Want a one-minute tour of where things are?",
     };
   if (outcome === "background" && data.background?.status !== "failed")
     return {

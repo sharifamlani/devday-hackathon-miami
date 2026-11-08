@@ -7,6 +7,7 @@ import { useCompleteTask, useUndo, type Task } from "../../providers/local/tasks
 import { tasksFromApi, type HomeTask } from "../homeData";
 import { focusRing } from "../tile";
 import "./tasks-panel.css";
+import { PUBLIC_READ_ONLY } from "../../providers/local/config";
 
 /** The tile's folders: Donor outreach, Donor records, Preparation. */
 export const taskGroups = (tasks: HomeTask[]) =>
@@ -81,13 +82,15 @@ export const TasksPanelView = ({
     <div className="tasks-panel">
       <div className="tasks-panel-head">
         <h3>Tasks · {open.length}</h3>
-        <button
-          type="button"
-          onClick={onAdd}
-          className={cn("tasks-panel-add", focusRing)}
-        >
-          <Plus className="size-4" aria-hidden="true" /> Add
-        </button>
+        {!PUBLIC_READ_ONLY && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className={cn("tasks-panel-add", focusRing)}
+          >
+            <Plus className="size-4" aria-hidden="true" /> Add
+          </button>
+        )}
       </div>
       {undo && (
         <p className="tasks-panel-undo" role="status">
@@ -220,7 +223,7 @@ export const TasksPanel = ({
     <TasksPanelView
       {...rest}
       tasks={tasks}
-      onDone={(task) =>
+      onDone={PUBLIC_READ_ONLY ? undefined : (task) =>
         complete.mutate(task.id, {
           onSuccess: (done) =>
             setUndo(

@@ -1,3 +1,5 @@
+import { UploadProcessing } from "../upload/UploadProcessing";
+import { ingestSummary } from "../onboarding/firstRun";
 import {
   useEffect,
   useRef,
@@ -88,7 +90,9 @@ const useHasPeople = (): boolean | null => {
  * /ingest reads .json and .md, so without this the answer key and the README would be imported as data.
  */
 const isNotDonorData = (name: string) =>
-  /answer[_-]?key/i.test(name) || /^_?readme\b/i.test(name) || name.startsWith(".");
+  /answer[_-]?key/i.test(name) ||
+  /^_?readme\b/i.test(name) ||
+  name.startsWith(".");
 
 const splitDonorFiles = (incoming: File[]) => ({
   keep: incoming.filter((f) => !isNotDonorData(f.name)),
@@ -123,7 +127,12 @@ const useElapsed = (active: boolean) => {
   return seconds;
 };
 
-export const KindredLanding = () => {
+export const KindredLanding = ({
+  onPreviewUpload,
+}: {
+  /** Development-only click-through: no file is read or sent by this action. */
+  onPreviewUpload?: () => void;
+} = {}) => {
   const [areColorsPaused, setColorsPaused] = useState(false);
   const [isUploadOpen, setUploadOpen] = useState(false);
   const [isSampleOpen, setSampleOpen] = useState(false);
@@ -138,6 +147,7 @@ export const KindredLanding = () => {
   const elapsed = useElapsed(pending);
   const [error, setError] = useState("");
   const [result, setResult] = useState<IngestResult | null>(null);
+  const onboarding = useOnboarding();
   const canUpload = DATA_MODE === "local";
   const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
     accept: ACCEPTED_TYPES,
@@ -146,13 +156,16 @@ export const KindredLanding = () => {
     noKeyboard: true,
     disabled: pending,
     onDrop: (accepted, rejected) => {
+      if (onPreviewUpload) return onPreviewUpload();
       setResult(null);
       setError("");
       if (canUpload) {
         chooseFiles(accepted);
         // The answer key (.json) is refused by type too: list it as skipped, not as a wrong file
         const wrong = rejected.filter((r) => !isNotDonorData(r.file.name));
-        const notData = rejected.filter((r) => isNotDonorData(r.file.name)).map((r) => r.file.name);
+        const notData = rejected
+          .filter((r) => isNotDonorData(r.file.name))
+          .map((r) => r.file.name);
         if (notData.length) setSkipped((s) => [...s, ...notData]);
         if (wrong.length)
           setError("Please choose .csv, .xlsx, .docx, .md or .txt files.");
@@ -178,13 +191,31 @@ export const KindredLanding = () => {
     }
   };
 
+  if (pending || result)
+    return (
+      <UploadProcessing
+        pending={pending}
+        summary={result ? ingestSummary(result, files.length) : null}
+        onContinue={() => {
+          if (!result) return;
+          onboarding.update({ files: ingestSummary(result, files.length) });
+          onboarding.start(1);
+          window.location.hash = "#/";
+        }}
+        onReviewDuplicates={() => {
+          onboarding.finishLater();
+          window.location.hash = "#/contacts";
+        }}
+      />
+    );
+
   return (
     <main
       className={`kindred-landing${areColorsPaused ? " colors-paused" : ""}`}
       aria-labelledby="kindred-heading"
     >
       <div className="kindred-landing-content">
-        {DATA_MODE === "snapshot" && (
+        {DATA_MODE === "snapshot" && !onPreviewUpload && (
           <div className="fixed right-4 top-4 z-10">
             <Badge
               variant="outline"
@@ -221,6 +252,7 @@ export const KindredLanding = () => {
             className="kindred-upload"
             type="button"
             onClick={() => {
+              if (onPreviewUpload) return onPreviewUpload();
               setResult(null);
               setError("");
               if (canUpload) open();
@@ -239,7 +271,9 @@ export const KindredLanding = () => {
         <button
           className="kindred-sample"
           type="button"
-          onClick={() => setSampleOpen(true)}
+          onClick={() =>
+            onPreviewUpload ? onPreviewUpload() : setSampleOpen(true)
+          }
         >
           Try sample data
         </button>

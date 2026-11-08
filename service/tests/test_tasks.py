@@ -241,6 +241,8 @@ def test_generate_on_the_sample_upload_is_exact_and_idempotent(conn):
     assert park["title"] == "Call Hye-jin Park"
     assert park["why"] == "Monthly gift on Oct 10 failed, with no gift since."            # dates read "Oct 10"
     assert park["chips"][0].startswith("Lifetime $") and park["chips"][1] == "Last gift $40 · Sep 10"
+    quintero = next(t for t in calls if by_id[t["person_id"]] == "D19")    # missed Sep, resumed Oct
+    assert quintero["why"].startswith("Skipped a monthly gift around ") and "no gift since" not in quintero["why"]
     brandt = next(t for t in calls if by_id[t["person_id"]] == "D09")
     assert brandt["why"] == "Yearly giver; the gift due Mar 18 is 235 days late."
     assert "Last gift $400 · Mar 18, 2025" in brandt["chips"]                              # the year when it differs
@@ -1001,3 +1003,10 @@ def test_alert_task_text_keeps_give_miami_day_capitalized():
     assert _alert_why(failed, today).startswith("Yearly (Give Miami Day) gift on Nov 20, 2025 failed")
     assert _alert_why({**late, "cadence": "monthly", "expected_date": "2026-10-10", "days_late": 29}, today) == \
         "Monthly giver; the gift due Oct 10 is 29 days late."
+
+
+def test_review_title_names_each_record_once():
+    assert tasks.review_title(["Robert Nguyen", "Rob Nguyen"]) == "Review possible duplicate: Robert Nguyen, Rob Nguyen"
+    assert tasks.review_title(["Veloria Bay Foundation", "Veloria Bay Foundation"]) == (
+        "Review possible duplicate: Veloria Bay Foundation (2 records)")
+    assert tasks.review_title(["Ann Lee", "Ann Lee", "Ann B. Lee"]) == "Review possible duplicate: Ann Lee, Ann B. Lee"

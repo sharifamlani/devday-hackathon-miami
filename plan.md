@@ -1827,3 +1827,252 @@ store + story-first campaigns, tasks, voice, after-call, agent write tools.
 - Q4 example sheet (D2): included by default; say if you'd rather lower the sample goal instead.
 - Sessions 12 and 37: roles confirmed on brief (12 already confirmed as the deploy watcher).
 - Nit from 12's walk: Vercel's "Live AI isn't configured" answer shows a "Cached answer" badge (UI owner).
+
+## 22. Demo run plan (Sharif, Sun Nov 8). The plan an agent executes; `docs/demo-script.md` stays the word-for-word script
+
+Sharif: *"Start with showing the onboarding about putting in the data and then taking it to the dashboard."* This
+section is the run order, the checks around it and the fallbacks. The bold labels, spoken lines and per-step timings
+are in `docs/demo-script.md` (the script wins on wording; this section wins on order and checks). It describes main
+as of Sun Nov 8 afternoon: no suggestion chips, the dashboard briefing, streaming agent replies, calendar v3. Nothing
+here is run until Sharif says go.
+
+### 22.1. Files touched
+```
+plan.md                         §22 (this section): run order, T-minus checklist, smokes, criteria, roles, fallbacks
+docs/demo-script.md             read only here: the words and bold labels for every step below
+scripts/demo_reset.py           T-30: --warm empties the db, warms the upload cache, checks the stage numbers
+scripts/public_tunnel.py        T-15: on | off | status for the public site (the tunnel runs on --port 8401)
+scripts/live_stack.ps1          T-30: stops / starts LIVE's service (:8001) and web (:5173) in C:\Users\Shari\dd-live-main
+scripts/smoke-openai.py         smoke 1: key + model tiers + one Agents SDK tool call (7/7)
+data/sample_inputs/             the 8 files dragged in on stage (not answer_key.json or _README.md)
+```
+No UI or code changes: this section only orders what is already on main.
+
+### 22.2. The stage run (flow)
+```
+ T-30  +-----------------------------------------------+
+       | venv python: scripts\demo_reset.py --warm      |  service stopped
+       |  -> "PASS stage numbers: 77 people / 9 ..."    |--(exit 1)--> run it again
+       +-----------------------+-----------------------+
+                               v
+       +-----------------------------------------------+
+       | LIVE service :8001 + web :5173 (local mode)    |  scripts\live_stack.ps1 (IT lane)
+       | smokes 1-4 (22.4)  ->  browser on Step 1 of 3  |
+       +-----------------------+-----------------------+
+                               v
+ T-0   +-----------------------------------------------+
+  (1)  | EMPTY APP: "Donor Desk · Step 1 of 3"          |  "Nothing is preloaded."
+       +-----------------------+-----------------------+
+                               v
+  (2)  +-----------------------------------------------+
+       | ONBOARDING                                    |
+       |  drag 8 files -> Import 8 files (~10 s)       |
+       |  receipt: 77 people · 131 gifts · 40/22/15 ·  |
+       |           9 possible duplicates               |
+       |  website miamifoundation.org -> Continue      |
+       |  Reading your website (~30 s) -> "Your desk   |--("Still reading your site.")--> Continue to the
+       |  is set up." -> Go to the dashboard           |                                  dashboard
+       +-----------------------+-----------------------+
+                               v
+  (3)  +-----------------------------------------------+
+       | DASHBOARD TOUR: tour card -> Not now          |
+       |  "Here's your day." (4 lines) · Q4 gauge ·    |
+       |  Impact & story · week strip (4 events) ·     |
+       |  Tasks · CRM · Files & drafts                 |
+       +-----------------------+-----------------------+
+                               v
+  (4)  +-----------------------------------------------+
+       | DEMO MOMENTS (in this order)                  |
+       |  a agent chat streams ("Plan next week")      |
+       |  b duplicates in chat (Review -> inbox ->     |
+       |    Ask the agent to fix)                      |
+       |  c live call: "Call Christian Gonzalez"       |
+       |  d transcript -> after-call card -> Apply     |
+       |  e calendar v3 (next week -> 5K ⓘ -> batch)   |
+       |  f Impact & story (Copy for a grant report)   |
+       |  g CRM row expand + Enhance (Knight)          |
+       |  h donor summary ("About <name>")             |
+       +-----------------------+-----------------------+
+                               v
+  (5)  +-----------------------------------------------+
+       | CLOSE: the closing line (demo-script "Close") |
+       +-----------------------------------------------+
+   any step fails --> its fallback (22.7) --> next step
+   laptop or network dies --> Vercel preview tab (read-only sample data), say so
+```
+
+Step details (labels and timings from the Nov 8 dress rehearsals on main):
+
+| # | Step | Operator does | Screen shows |
+|---|---|---|---|
+| 1 | Empty app | Hard refresh http://localhost:5173 | **Donor Desk · Step 1 of 3**, **Drag in your files.** |
+| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | **Import finished: 77 people · 131 gifts (+1 declined charge on record)**, **40 Givers · 22 Neighbors · 15 Community**, **9 possible duplicates to review** |
+| 2b | Website | Type `miamifoundation.org`, **Continue** | **Reading your website · m:ss**, then **Your desk is set up.** (e.g. 15 facts) |
+| 3 | Dashboard | **Go to the dashboard**, **Not now** on the tour card | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
+| 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
+| 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
+| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* → his call sheet → the sheet's **Call**: the panel **Call Christian Gonzalez** opens in the card: "Your phone (…) rings first. When you pick up, Christian Gonzalez (…) is called and sees your number.", the notice line "Christian Gonzalez hears “Hello. This call is recorded for our notes.” before the call connects.", and **Cancel** / **Call** → the panel's **Call** dials → answer the staff phone and **press any key** at the trial message → Christian answers and **presses any key** too → keep it under 30 s → **Hang up** | **Ringing your phone…** → **Calling Christian Gonzalez…** (his phone rings; the recording notice plays) → **Connected · recording** → after **Hang up**: **Getting the recording…**, **Transcribing…**, **Summarizing…**, **Suggesting follow-ups…** → **Saved to the call notes**, the **Summary** and **Suggested follow-ups**, each with its own **Apply** (the in-card call has no **Apply selected**; that's the Live transcript card in 4d) |
+| 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the scripted call with Hye-jin Park streams in (~10 s); the summary and **Suggested next steps** (~4 s); the after-call card proposes a card-update task, the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") and a context note → **Apply selected** writes the ticked ones |
+| 4e | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
+| 4f | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
+| 4g | CRM + Enhance | Type *"Add the Knight Foundation as a contact."*; **CRM** heading → expand the Knight row → **Enhance** → **Save to profile** | **Enhancing…**, sourced interest tags (cached: under 1 s) |
+| 4h | Donor summary | Open a donor's profile (e.g. Hye-jin Park) | **About Hye-jin** · **written by the agent** at the top of the Overview |
+| 5 | Close | Presenter says the closing line | the dashboard |
+
+The Live transcript demo call (4d) is with Hye-jin Park (#210): her failed $40 gift, then an RSVP to the Give Miami
+5K, then the after-call card and **Apply selected**; `docs/demo-script.md` step 11 carries the words.
+
+**4c, the live call.** Christian Gonzalez is a teammate added as a donor on LIVE only. His real number never goes in
+a committed doc: write "his verified number". The T-30 reset empties LIVE's db, and anyone added before onboarding
+would break the empty start (setup treats existing people as "already set up"). So **the IT lane adds him off-screen
+during step 3 (the dashboard tour)**, in its own terminal, never on the projector:
+`cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" -c "from service import db, agent_writes; c = db.connect(); print(agent_writes.add_contact(c, 'Christian Gonzalez', phone='<his verified number>')[0]['id']); c.commit()"`
+(prints only his id). Then it checks `(Invoke-RestMethod "http://localhost:8001/phone/preview?donor_id=<his id>").ready`
+→ `True` before the presenter reaches 4c (only the flag is shown, no numbers). The panel shows both phone numbers;
+everything is public (Sharif), but this doc never quotes the digits: it writes "(…)". If it's not ready, 4c is skipped for 4d (fallback below). The staff phone (`STAFF_PHONE`) rings
+first, so the person answering it is part of the call. Labels are from the code (`phone.ts` `statusLabel`,
+`PhoneCallInline`); 54's live test call confirms them.
+
+Live-call notes (19, from the real test call):
+- The staff phone (Sharif's) rings first, from **the Twilio number**: save it as a contact on that phone before the
+  demo, or iPhone call screening answers it. Docs write "the Twilio number", never its digits.
+- **Press any key, on both phones.** Each leg opens with Twilio's trial message ("You have a trial account… press any
+  key to execute your code"), and **Twilio hangs up that leg if no key is pressed**. So Sharif presses any key when his
+  phone rings and the message plays; then Christian presses any key when his phone rings. Brief Christian beforehand.
+  If either doesn't, the call drops silently and the transcript is empty (the two failed Nov 8 test calls broke this
+  way; the third, with the keys pressed, worked end to end). Say the message out loud as a known limit ("a trial account, so Twilio reads a notice first").
+- Christian hears "Hello. This call is recorded for our notes." before he joins.
+- Don't restart LIVE's service between **Call** and the summary (about a minute after **Hang up**): the call's
+  worker runs inside the service. If the transcript fails, the card offers **Try again** (it keeps the recording and
+  places no new call).
+- The trial balance covers a few short calls: keep each under 30 s. No callback URL is needed.
+
+### 22.3. T-minus checklist (laptop operator)
+- [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
+- [ ] **T-30 (reset), OWNER: the IT lane (session 20).** The stage laptop runs LIVE: the service on :8001 (the
+      writable one; :5173's `VITE_API_URL` points there) and the web on :5173. `demo_reset.py` resets the db of the
+      folder it runs from, so it runs from `C:\Users\Shari\dd-live-main`, **never the Dropbox repo**.
+      1. Stop :8401 (the public copy: a second service with `PUBLIC_MODE=1` over LIVE's db; the IT lane owns it).
+      2. Stop LIVE's service only: `scripts\live_stack.ps1 stop -Stack live -Only service`.
+      3. From `C:\Users\Shari\dd-live-main`, with the repo venv's Python (the one `live_stack.ps1` uses; plain
+         `python` may lack the deps), in PowerShell:
+         `cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" scripts\demo_reset.py --warm --port 8001`. It must end with
+         **`PASS stage numbers: 77 people / 9 duplicate suggestions`**. Exit 1 means run it again.
+      4. Start LIVE's service: `scripts\live_stack.ps1 start -Stack live -Only service`.
+      5. Smokes 3–4 (22.4) on :8001 / :5173.
+      6. Restart :8401 (the IT lane), then the T-15 checks.
+- [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
+      key, and a busy key slows invites and agent replies (Nov 8: 429s).
+- [ ] **T-20:** smokes 1–4 (22.4), in order.
+- [ ] **T-15 (public site):** the public site stays live for the whole run (Sharif: no public-link switch during the
+      demo); T-15 only checks it. The public link (https://devday-donor-desk.vercel.app) shows the laptop's live data
+      through the tunnel (`docs/public-tunnel.md`). The tunnel runs on `--port 8401`: the public copy with
+      `PUBLIC_MODE=1` over LIVE's db. :8001 stays the writable laptop service and is never tunnelled.
+      1. `python scripts/public_tunnel.py status` must print the pid, the tunnel URL and `health: HTTP 200`, and
+         `curl -s http://localhost:8401/public-mode` must return `{"enabled": true}` (with #254 merged:
+         `"enabled": true, "redacted": false`, the show-all mode).
+      2. Open the public link in a fresh incognito window: no **Sample data** badge; the dashboard, the CRM and the
+         calendar (4 events) all load with the live data, and the DevTools console shows 0 errors.
+      **Fallback (the snapshot):** if `status` prints `off`, the health check fails, or the page shows **Sample
+      data**, the public link is serving the read-only snapshot, which is fine for judges: say "the public link
+      shows a snapshot of the same data". Only with 10+ minutes to spare, bring it back with
+      **`python scripts/public_tunnel.py on --port 8401`** (always with `--port 8401`: a bare `on` defaults to 8001 and
+      would tunnel LIVE's unrestricted, writable API), then the 3 steps it prints, in order:
+      (1) restart the public copy from `C:\Users\Shari\dd-live-main` (LIVE's db):
+      `PUBLIC_MODE=1 PUBLIC_ORIGINS=https://devday-donor-desk.vercel.app uvicorn service.main:app --host 127.0.0.1 --port 8401`;
+      (2) from `web/`, in Git Bash: `printf '%s' "<tunnel url>" | vercel env add VITE_API_URL production`, then
+      `local` for `VITE_DATA_MODE` (`vercel env rm` the old values first);
+      (3) `vercel --prod --yes`.
+      Write down which state it's in.
+- [ ] **T-15 (phone, IT lane):** LIVE's `.env` has the six call settings, checked without printing their values:
+      `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^(PHONE_CALLS|TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|TWILIO_PHONE_NUMBER|STAFF_PHONE|SEND_ALLOWLIST)=' | % { $_.Line.Split('=')[0] }`
+      must print all six names; `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^PHONE_CALLS=on'`
+      must match; `SEND_ALLOWLIST` must include his verified number. (The `/phone/preview` check for Christian comes
+      after he's added, during step 3; see 4c.)
+- [ ] **T-15 (staff phone):** the Twilio number is saved as a contact on the staff phone (Sharif's), so iPhone call
+      screening doesn't answer it. **Christian is briefed:** answer, and press any key when the trial message plays
+      (Sharif does the same on his phone); without the key press Twilio hangs up. During the run, nobody restarts LIVE's service between 4c's **Call** and its
+      summary.
+- [ ] **T-10 (mic):** open **Live transcript** (it should show **Listening**), then **Open Ask sidebar** →
+      **Dictate** → **Stop dictation**. Grant the browser mic permission.
+- [ ] **T-5 (screen):** browser zoom 110%, notifications off, DevTools console open on a second screen; close other
+      apps (Dropbox sync paused, no other dev servers).
+- [ ] **T-5 (fallback):** the Vercel preview open in a second tab (https://devday-donor-desk.vercel.app); a hotspot
+      ready as Wi-Fi backup.
+- [ ] **T-0:** hard refresh: the app shows **Donor Desk · Step 1 of 3** with nothing behind it.
+
+### 22.4. Derisking: smokes in dependency order
+1. **What it proves:** the API key, the model tiers and the Agents SDK work.
+   **Command:** `.venv/Scripts/python.exe scripts/smoke-openai.py` · **Expected:** `7/7`, exit 0.
+   **If it fails →** check `.env` (`OPENAI_API_KEY`, `OPENAI_MODEL_*`), then rerun; don't start the demo on a failing key.
+2. **What it proves:** the upload reads the 8 files to the stage numbers, and the cache is warm.
+   **Command:** T-30 step 3 (from `dd-live-main`, the venv Python, `--warm --port 8001`; LIVE's service
+   stopped; never from the Dropbox repo) · **Expected:** `PASS stage numbers: 77 people
+   / 9 duplicate suggestions (expected 77 / 9, …)`, exit 0. **If it fails →** run it again (it retries the model read);
+   twice FAIL means demo the counts the receipt shows and say "the agent sorted them".
+3. **What it proves:** the service is up, empty and private.
+   **Command:** `curl -s http://localhost:8001/health` · `curl -s http://localhost:8001/events` ·
+   `curl -s http://localhost:8001/public-mode` · **Expected:** HTTP 200 · `[]` · `{"enabled":false}` (:8001 is
+   never in public mode).
+   **If it fails →** restart the service from the reset's printout; a non-empty `/events` means rerun step 2.
+4. **What it proves:** the web talks to that service in local mode.
+   **Command:** open http://localhost:5173 · **Expected:** **Donor Desk · Step 1 of 3**, 0 errors in the DevTools
+   console. **If it fails →** check `VITE_API_URL=http://localhost:8001` and `VITE_DATA_MODE=local`; restart the web
+   (`scripts\live_stack.ps1 restart -Stack live -Only web`).
+5. **What it proves:** the public link serves the live laptop data (or, knowingly, the snapshot).
+   **Command:** `python scripts/public_tunnel.py status`; `curl -s http://localhost:8401/public-mode`; then open
+   https://devday-donor-desk.vercel.app incognito · **Expected:** the pid + URL + `health: HTTP 200`;
+   `"enabled": true` (with #254: `"redacted": false` too); the page loads without the **Sample data** badge.
+   **If it fails →** the snapshot is the fallback (see T-15); restart the tunnel only with 10+ minutes to spare, and
+   only as `python scripts/public_tunnel.py on --port 8401` (never a bare `on`: it tunnels :8001).
+6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
+   **Command:** run 22.2 in the browser; right after step 2's import (before the IT lane adds Christian in step 3),
+   the IT lane runs `scripts\demo_reset.py --check` from `dd-live-main` with the same venv Python (it approves the
+   suggested merges on a COPY of the db); then the browser run continues through 4c and the close · **Expected:**
+   `PASS` lines for people / gifts / alerts against `answer_key.json` (68 people: 33 givers, 20 neighbors,
+   15 community; 131 gifts). With Christian added later, the screen reads 68 + Christian = 69 people (34 givers),
+   which is expected. **If it fails →** note which
+   count differs, tell the lead, and demo without the merge step. Then reset (smoke 2) before T-30.
+
+### 22.5. Evaluation criteria (definition of done for the stage run)
+| Criterion | Metric + threshold | How measured | Evidence |
+|---|---|---|---|
+| Stage numbers before going on | `PASS stage numbers: 77 people / 9` | `demo_reset.py --warm` output | the terminal line, kept on screen |
+| Import receipt matches the answer key | 77 people · 131 gifts · 40/22/15 · 9 duplicates on screen | read the receipt (step 2a) | rehearsal screenshot |
+| Setup is fast enough for a stage | import ≤ 15 s; context ≤ 45 s (or the "Still reading" path taken) | stopwatch from click to screen | rehearsal timing table |
+| All 4 events land | Sat 14 Early Giving, Sun 15 5K + Festival, Thu 19 Give Miami Day on the week strip | read the week strip / calendar | rehearsal screenshot |
+| Agents feel live | first step card ≤ 3 s; "Plan next week" done ≤ 15 s; call sheet ≤ 35 s | stopwatch | rehearsal timing table |
+| Calendar to campaign | **Open batch** opens the campaign page ≤ 5 s | stopwatch | rehearsal timing table |
+| Data stays right | with the suggested merges approved: 68 people, 131 gifts (on screen after the live-call setup: 68 + Christian = 69, 34 givers) | `demo_reset.py --check` (smoke 6: on a copy, right after step 2's import, before Christian is added in step 3) | its PASS lines |
+| No visible errors | 0 console errors, 0 failed requests during the run | DevTools console + Network on the operator's screen | rehearsal note |
+| Fits the slot | machine wait ≤ 3 min in total (rehearsal #2: ~131 s) | sum of the stopwatch times | rehearsal timing table |
+
+Each criterion is graded at the T-60 rehearsal by someone who isn't the operator. Any FAIL is fixed or covered by its
+fallback before T-30.
+
+### 22.6. Who does what
+| Role | Does | Doesn't |
+|---|---|---|
+| Presenter | speaks every line from `docs/demo-script.md`, points at the screen, takes questions | touch the laptop mid-step |
+| Laptop operator | the T-minus checklist, every click and typed prompt, watches the console, triggers fallbacks | improvise prompts (type them exactly) |
+| Backup | holds the Vercel tab and the hotspot; times the steps at the rehearsal | interrupt the run |
+
+### 22.7. Fallbacks (if X fails → say/do Y)
+| Step | If | Say / do |
+|---|---|---|
+| 1 Empty app | **Step 1 of 3** isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
+| 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: **Use the example files**, then continue. |
+| 2b Context | **Still reading your site.** | **Continue to the dashboard**: "It keeps reading in the background; the facts land in a minute." |
+| 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
+| 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
+| 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
+| 4c Live call (dropped) | the call drops, or the transcript comes back empty (a key wasn't pressed at the trial message); the card reads e.g. "You hung up before Christian Gonzalez answered." or "Twilio has no recording for this call, so there is no transcript." | "That's a trial-account limit: Twilio needs a key press first." Go to 4d. |
+| 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the recording is kept, so the transcript can be finished later, then go to 4d. |
+| 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do 4d (the Live transcript demo call). |
+| 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
+| 4e Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
+| 4f Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
+| 4g Enhance | slow (cache miss) | "It's reading the public web; every tag will carry its source." Skip **Save to profile** if over 30 s. |
+| 4h Summary | **About …** says no notes | "The agent writes this from calls and notes as they come in." |
+| Public link | the tunnel is down or the page shows **Sample data** | "The public link shows a snapshot of the same data." Keep demoing on the laptop. |
+| Any | laptop, network or service down | Switch to the Vercel tab: "This is the read-only preview of the same data." |
