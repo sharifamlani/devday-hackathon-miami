@@ -9,6 +9,7 @@ import {
   answerSummary,
   appendAnswer,
   artifactRows,
+  artifactTarget,
   calendarMarks,
   crmTag,
   donorMeta,
@@ -298,6 +299,27 @@ describe("home data: week, agenda and artifacts", () => {
     expect(rows[0].to).toBe("/campaigns/7");
     expect(rows[1].to).toBeNull();
     expect(artifactRows(undefined)).toEqual([]);
+  });
+
+  it("opens each artifact kind where it lives, and leaves the rest unlinked", () => {
+    const owners = { drafts: { "98": 12 }, notes: { n9: 4 } };
+    const target = (kind: string, ref: string | number | null) =>
+      artifactTarget({ kind, ref }, owners);
+    expect(target("draft", "campaign:3")).toBe("/campaigns/3");
+    expect(target("campaign", 7)).toBe("/campaigns/7");
+    expect(target("draft", "draft:98")).toBe("/contacts/12/show");
+    expect(target("call_note", "call_note:n9")).toBe("/contacts/4/show");
+    expect(target("draft", "draft:99")).toBeNull(); // owner unknown
+    expect(target("call_note", "call_note:other")).toBeNull();
+    expect(target("report", "report:1")).toBeNull();
+    expect(target("draft", null)).toBeNull();
+    expect(target("draft", "campaign:")).toBeNull();
+    const rows = artifactRows(
+      [{ kind: "draft", title: "Draft", date: "2026-11-08", ref: "draft:98" }],
+      5,
+      owners,
+    );
+    expect(rows[0].to).toBe("/contacts/12/show");
   });
 });
 

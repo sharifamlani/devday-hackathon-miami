@@ -482,6 +482,28 @@ def test_an_allowed_call_still_waits_on_the_card_and_never_dials_unapproved(db_f
     assert context.refused_calls == {} and dialed == []                     # a card, and no call without it
 
 
+@pytest.mark.parametrize("approve_b", [True, False])
+def test_live_approving_one_of_two_cards_leaves_the_other_pending(db_file, approve_b):
+    """Two delete cards: deciding the first must not decide the second. It comes back under a new run id
+    (same call id) and still works."""
+    a = invoke("create_task", kind="other", title="Old flyer reprint")
+    b = invoke("create_task", kind="other", title="Stale banner order")
+    gone = lambda t: bool(one(db_file, "SELECT deleted_at FROM tasks WHERE id = ?", t["id"])["deleted_at"])
+
+    paused = ca.run_chat(f"Delete task {a['id']} (Old flyer reprint) and task {b['id']} (Stale banner order).",
+                         "givers")
+    by_task = {c["args"]["task_id"]: c["call_id"] for c in paused["approvals"] if c["tool"] == "delete_task"}
+    assert set(by_task) == {a["id"], b["id"]}
+
+    first = ca.resume_chat(paused["run_id"], {by_task[a["id"]]: True}, "Test approver")
+    assert gone(a) and not gone(b)                                           # B wasn't declined...
+    assert [c["call_id"] for c in first["approvals"]] == [by_task[b["id"]]]  # ...it's still pending
+    assert first["run_id"] and first["run_id"] != paused["run_id"]
+
+    done = ca.resume_chat(first["run_id"], {by_task[b["id"]]: approve_b}, "Test approver")
+    assert gone(b) is approve_b and not done["approvals"]                  # approve deletes B; decline leaves it
+
+
 def failed_gift_and_task(db_file) -> tuple[int, int]:
     """Robert Nguyen (5, a quarterly giver) gets a declined charge after his last good gift: a failed gift. The
     top lapsing giver gets an open task, so they have a saved next step."""

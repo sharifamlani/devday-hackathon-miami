@@ -181,7 +181,7 @@ export const CalendarPage = ({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [planDate, setPlanDate] = useState<string | null>(null);
-  const [date, setDate] = useState<Date | null>(null);
+  const [date, setDate] = useState<Date | null>(takeCalendarFocus);
 
   const [hidden, setHidden] = useState<Family[]>([]);
   const [showPlan, setShowPlan] = useState(true);
@@ -891,3 +891,4 @@ const PanelBody = ({
     </>
   );
 };
+import { takeCalendarFocus } from "./calendarFocus";

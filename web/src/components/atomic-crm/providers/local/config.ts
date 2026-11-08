@@ -9,10 +9,15 @@
 export type DataMode = "local" | "snapshot";
 
 // "live" (the laptop path, plan.md §21) is the same as "local".
-export const DATA_MODE: DataMode =
-  import.meta.env.VITE_DATA_MODE === "local" || import.meta.env.VITE_DATA_MODE === "live"
-    ? "local"
-    : "snapshot";
+// If main.tsx's startup health check found the API unreachable (tunnel off), it set a flag and the app runs
+// on the snapshot, with the "Sample data" badge, instead of a blank page (apiProbe.ts).
+export const resolveDataMode = (requested: string | undefined, apiUnreachable: boolean): DataMode =>
+  (requested === "local" || requested === "live") && !apiUnreachable ? "local" : "snapshot";
+
+export const DATA_MODE: DataMode = resolveDataMode(
+  import.meta.env.VITE_DATA_MODE,
+  Boolean((globalThis as Record<string, unknown>).__DONOR_DESK_API_UNREACHABLE__),
+);
 
 /**
  * Dev only: answer routes the API build doesn't serve yet with the

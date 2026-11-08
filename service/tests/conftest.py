@@ -1,5 +1,7 @@
 from datetime import date
 
+import sys
+
 import pytest
 
 from service import db
@@ -31,3 +33,13 @@ def no_live_events_search(monkeypatch):
     online: it's off unless a test sets ONBOARDING_EVENTS=on (and stands in extract_events). No import here:
     importing service.events_agent would bypass tests that swap in a fake module."""
     monkeypatch.setenv("ONBOARDING_EVENTS", "off")
+
+
+@pytest.fixture(autouse=True)
+def no_slow_read_between_tests():
+    """A timed-out /context/run leaves its read for the next refresh (service.main.SLOW_READ); never let one
+    test's read reach another test's refresh. sys.modules, not an import, for the same reason as above."""
+    yield
+    main = sys.modules.get("service.main")
+    if main is not None and hasattr(main, "SLOW_READ"):
+        main.SLOW_READ.clear()

@@ -6,6 +6,7 @@ import { useBackgroundWatcher } from "./backgroundRead";
 import { OnboardingFlow } from "./OnboardingFlow";
 import {
   readOnboardingParam,
+  shouldAdopt,
   shouldAutoShow,
   shouldOfferTour,
   shouldShowBackground,
@@ -61,9 +62,10 @@ export const OnboardingGate = () => {
   useEffect(() => {
     if (open || tour || firedThisPageLoad) return;
     if (!shouldAutoShow(data, pathname, param)) return;
-    if (param !== "force") {
+    // Only a browser that never started setup can adopt; one mid-setup resumes at its saved step below.
+    if (param !== "force" && data.status === "new") {
       if (hasPeople === null) return; // still asking the service
-      if (hasPeople) {
+      if (shouldAdopt(data, hasPeople)) {
         adopt(); // set up already (another browser): done here too, no overlay
         return;
       }

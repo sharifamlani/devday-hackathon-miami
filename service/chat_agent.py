@@ -6,6 +6,7 @@ that sends: a draft batch is a campaign (routes_campaigns) that a human approves
 orgs, star and big donors need per-item approval there. Community outreach never asks for a donation.
 """
 import asyncio
+import dataclasses
 import json
 import os
 import re
@@ -18,7 +19,7 @@ from agents import Agent, ModelSettings, RunContextWrapper, Runner, RunState, fu
 from agents.items import ToolCallItem, ToolCallOutputItem
 from openai.types.shared import Reasoning
 
-from service import db
+from service import db, public_mode
 
 Tab = Literal["givers", "neighbors", "community", "calendar", "home"]
 # The UI's screen names (context.screen) -> tabs
@@ -75,6 +76,7 @@ class ChatContext:
     selection: list[int] = field(default_factory=list)
     batches: list[int] = field(default_factory=list)
     approved_by: str | None = None              # set when a person approves a paused run
+    blocked: bool = False                       # public preview: a write tool was asked for and refused
     refused_calls: dict[int, str] = field(default_factory=dict)   # person id -> why call_person won't dial
 
 
@@ -90,13 +92,39 @@ def query(sql: str, args: tuple = ()) -> list[dict]:
 TAB_CONTACT = {"givers": "giver", "neighbors": "neighbor", "community": "community"}
 
 
+GAVE_VIA_ALIASES = ({"gmd", "give miami day"},)   # "GMD" and "Give Miami Day" are the same thing
+JOINED_MIN = 6       # letters run together ("GiveMiamiDay") count only for a phrase this long: never "gmd" in "Big MD"
+
+
+def _words(text: str | None) -> list[str]:
+    """'give_miami_day_export_2022-2025.xlsx | sheet:GMD gifts:row:9' -> ['give', 'miami', 'day', ..., 'gmd', ...]."""
+    return re.findall(r"[a-z0-9]+", (text or "").lower())
+
+
+def _says(text: str | None, phrase: list[str]) -> bool:
+    """The phrase as whole words in order ("give miami day" in the file name, "gmd" in "sheet:GMD gifts", but not
+    "gmd" inside "Big MD"), or, for a long phrase, its letters run together ("GiveMiamiDay")."""
+    words, n = _words(text), len(phrase)
+    if any(words[i:i + n] == phrase for i in range(len(words) - n + 1)):
+        return True
+    joined = "".join(phrase)
+    return len(joined) >= JOINED_MIN and joined in "".join(words)
+
+
 def gave_via_ids(channel: str | None) -> set[int] | None:
-    """Donor ids with a gift through a matching channel (case-insensitive substring); None = no filter."""
-    if not channel:
+    """Donor ids with an ok gift through a matching channel; None = no filter. Matches gifts.channel or the
+    gift's source row (an upload often leaves channel empty: "Give Miami Day" lives only in the file name,
+    give_miami_day_export_2022-2025.xlsx), ignoring case and punctuation; "GMD" = "Give Miami Day"."""
+    asked = _words(channel)
+    if not asked:
         return None
-    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ? "
-                                         "AND COALESCE(status, 'ok') = 'ok'",       # a declined charge isn't a gift
-                                         (f"%{channel.strip().lower()}%",))}
+    alias = next((a for a in GAVE_VIA_ALIASES
+                  if " ".join(asked) in a or "".join(asked) in {p.replace(" ", "") for p in a}), None)
+    phrases = [p.split() for p in alias] if alias else [asked]
+    rows = query("SELECT donor_id, channel, source_row FROM gifts "
+                 "WHERE COALESCE(status, 'ok') = 'ok'")                    # a declined charge isn't a gift
+    return {r["donor_id"] for r in rows
+            if any(_says(r["channel"], p) or _says(r["source_row"], p) for p in phrases)}
 
 
 def tab_people(tab: str) -> list[dict] | None:
@@ -483,10 +511,12 @@ def get_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
 
 def person_record(donor: dict) -> dict:
     """What the agent sees about a person: gifts are only charges that went through; a declined or failed
-    charge moves to declined_charges, so a draft can never thank anyone for it. The UI route is unchanged."""
+    charge moves to declined_charges, so a draft can never thank anyone for it. A 'duplicate' row (the same gift
+    recorded on a merged twin) is in neither list: it isn't a second gift and it isn't a charge that failed.
+    The UI route is unchanged."""
     gifts = donor.get("gifts") or []
     ok = [g for g in gifts if (g.get("status") or "ok") == "ok"]
-    return donor | {"gifts": ok, "declined_charges": [g for g in gifts if g not in ok]}
+    return donor | {"gifts": ok, "declined_charges": [g for g in gifts if g.get("status") in ("declined", "failed")]}
 
 
 @function_tool
@@ -841,6 +871,25 @@ TOOLS = [
 ]
 APPROVAL_TOOLS = {t.name for t in TOOLS if getattr(t, "needs_approval", False)}
 
+# Public preview (PUBLIC_MODE=1): the agent's server-side tools bypass the HTTP allow-list, so every tool that
+# is not a plain read is swapped for one that refuses without touching the db.
+READ_ONLY_TOOLS = {"find_people", "get_person", "segment", "get_context", "search_context", "get_events", "get_alerts",
+                   "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats"}
+READ_ONLY_REPLY = "This is a read-only preview, so I can't make changes, draft or send anything. I can look things up for you."
+
+
+def refuse_in_preview(tool):
+    async def invoke(ctx, _input):
+        ctx.context.blocked = True
+        return json.dumps({"error": public_mode.NOT_AVAILABLE})
+    return dataclasses.replace(tool, on_invoke_tool=invoke, needs_approval=False)
+
+
+def tools_for_mode() -> list:
+    if not public_mode.enabled():
+        return TOOLS
+    return [t if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
+
 
 def summarize(output) -> str:
     """One line for the UI's step list."""
@@ -971,7 +1020,7 @@ def build_agent(tab: str, selection: list[int], event_id: int | None, first_turn
     return Agent(name="CRM assistant",
                  instructions=INSTRUCTIONS.format(tab=tab, role=TAB_ROLE.get(tab, tab), selection=picked,
                                                   first_turn=first, today=today),
-                 model=os.getenv("OPENAI_MODEL_DEFAULT"), tools=TOOLS,
+                 model=os.getenv("OPENAI_MODEL_DEFAULT"), tools=tools_for_mode(),
                  model_settings=ModelSettings(reasoning=Reasoning(effort="low")))
 
 
@@ -1084,6 +1133,8 @@ def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = Non
     reply = result.final_output if not approvals else (
         result.final_output or "Waiting for you: " + "; ".join(a["summary"] or a["tool"].replace("_", " ")
                                                               for a in approvals) + ".")
+    if ctx.blocked:
+        reply = READ_ONLY_REPLY
     return {"reply": reply, "tab": ctx.tab, "steps": steps, "run_id": run_id, "approvals": approvals,
             "pending_batch": batches[-1] if batches else None, "batches": batches}
 
@@ -1102,7 +1153,9 @@ def run_chat(message: str, tab: str, selection: list[int] | None = None, history
 
 
 def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> dict:
-    """A person approved or declined the paused calls (call_id -> approve). Unanswered calls are declined."""
+    """A person approved or declined some of the paused calls (call_id -> approve). Only those are decided:
+    a call left out stays pending, so the run pauses on it again (same call_id, new run_id) and its card still
+    works. Approving one of two cards must never decline the other."""
     spec = PENDING.pop(run_id, None)
     if spec is None:
         raise KeyError(f"no paused run {run_id}")
@@ -1110,6 +1163,7 @@ def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> di
     agent = build_agent(spec["tab"], spec["selection"], spec["event_id"], spec["first_turn"])
     state = asyncio.run(RunState.from_string(agent, spec["state"], context_override=ctx))
     for item in state.get_interruptions():
-        (state.approve if decisions.get(item.call_id) else state.reject)(item)
+        if item.call_id in decisions:
+            (state.approve if decisions[item.call_id] else state.reject)(item)
     result = Runner.run_sync(agent, state, context=ctx, max_turns=12)
     return respond(result, ctx, spec, spec["steps"])
