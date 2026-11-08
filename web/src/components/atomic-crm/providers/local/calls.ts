@@ -222,10 +222,23 @@ export const useSaveCallNote = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (note: CallNote) => saveCallNoteEverywhere(note),
-    onSuccess: () => {
+    onSuccess: (_saved, note) => {
       // GET /donors/{id} lists recent call notes; hooks.ts donorDeskKeys.donor(id) starts with this prefix.
       queryClient.invalidateQueries({ queryKey: ["donor-desk", "donor"] });
       queryClient.invalidateQueries({ queryKey: callKeys.all });
+      // The service rewrites each donor's "About" summary from the note after it answers (donor_summary.py,
+      // a background task with one model call): look again once it has had time to finish.
+      if (note.destinations.some((d) => d.kind === "donor")) {
+        for (const ms of [8000, 20000]) {
+          setTimeout(
+            () =>
+              queryClient.invalidateQueries({
+                queryKey: ["donor-desk", "donor"],
+              }),
+            ms,
+          );
+        }
+      }
     },
   });
 };

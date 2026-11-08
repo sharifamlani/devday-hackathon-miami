@@ -44,13 +44,18 @@ export const SCOPE_KEYS: Record<RefetchScope, readonly (readonly unknown[])[]> =
 /** Which scopes each agent tool's write touches (plan.md §21.6.3 B10 tool names). */
 export const TOOL_SCOPES: Record<string, RefetchScope[]> = {
   update_person: ["people", "summary"],
+  update_donor_summary: ["people"],
   add_contact: ["people", "summary"],
   add_interest: ["interests", "people"],
   remove_interest: ["interests", "people"],
   accept_enrichment: ["interests", "people"],
   log_gift: ["people", "targets", "summary"],
   merge_duplicate: ["people", "summary", "tasks", "calendar"],   // the generator retires/creates tasks (3a)
+  resolve_duplicates: ["people", "summary", "tasks", "calendar"],   // the agent's 80%+ merges, same refresh
   dismiss_duplicate: ["people", "summary", "tasks", "calendar"],   // the generator retires/creates tasks (3a)
+  add_event: ["calendar", "summary"],
+  move_event: ["calendar", "summary"],
+  delete_event: ["calendar", "summary"],
   add_calendar_item: ["calendar", "summary"],
   move_calendar_item: ["calendar", "summary"],
   delete_calendar_item: ["calendar", "summary"],

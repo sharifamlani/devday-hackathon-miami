@@ -34,6 +34,7 @@ import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
 import { TagsListEdit } from "./TagsListEdit";
 import { AutoMergeFlag } from "./AutoMergeFlag";
+import { AboutPanel } from "./AboutPanel";
 import { isNonGiver, TAB_ONE } from "./personTab";
 
 const TABS = ["overview", "notes", "tasks"] as const;
@@ -275,6 +276,7 @@ const Overview = ({
   if (!donor) return <Skeleton className="h-64 w-full rounded-2xl" />;
   return (
     <>
+      <AboutPanel donor={donor} />
       <ScoreWhyPanel
         donor={donor}
         title="Why they're ranked here"

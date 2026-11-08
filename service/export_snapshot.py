@@ -50,7 +50,7 @@ import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from service import dedupe, score, targets, tasks
+from service import dedupe, donor_summary, score, targets, tasks
 from service.ask_agent import snapshot_examples
 from service.db import REPO_ROOT, connect, create_schema
 from service.routes_data import (get_donor, get_org_profile_or_none, get_prospect, latest_icp, list_context,
@@ -138,9 +138,10 @@ def snapshot_id(donors: list[dict]) -> str:
 
 
 def snapshot_donor(donor_id: int, conn) -> dict:
-    """GET /donors/{id}, minus saved call notes: transcripts stay on the laptop, never in the public snapshot."""
+    """GET /donors/{id}, minus saved call notes and the agent's summary (written from calls and chats): they stay
+    on the laptop, never in the public snapshot."""
     detail = tasks.with_next_steps(conn, [get_donor(donor_id, conn)], public_only=True)[0]
-    return {**detail, "call_notes": []}
+    return {**detail, "call_notes": [], **donor_summary.BLANK}
 
 
 # The snapshot has a 2 MB budget. Each event lists at most this many drafted invites; every invite is still in its

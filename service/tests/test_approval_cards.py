@@ -46,9 +46,11 @@ def test_merge_and_delete_cards_name_the_records(db_file):
     conn.commit()
     task, _ = tasks.create_task(conn, kind="call", title="Call Liz", person_id=drop)
     conn.close()
-    assert ca.approval_summary("merge_duplicate", {"suggestion_id": sid}) == "Merge Liz Fontaine into Elizabeth Fontaine"
-    assert ca.approval_summary("merge_duplicate", {"suggestion_id": sid, "keep_id": drop}) == \
-        "Merge Elizabeth Fontaine into Liz Fontaine"
+    # the card names the records first; #219 appends the match evidence "(90% match: ...)" after them
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": sid}).startswith(
+        "Merge Liz Fontaine into Elizabeth Fontaine")
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": sid, "keep_id": drop}).startswith(
+        "Merge Elizabeth Fontaine into Liz Fontaine")
     assert ca.approval_summary("delete_task", {"task_id": task["id"]}) == "Delete task: Call Liz"
     assert ca.approval_summary("delete_calendar_item", {"ref": f"task:{task['id']}"}) == "Delete calendar item: Call Liz"
     assert ca.approval_summary("delete_calendar_item", {"ref": "event:3"}) is None

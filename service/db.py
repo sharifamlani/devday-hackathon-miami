@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sqlite3
 import threading
 from pathlib import Path
@@ -356,8 +357,8 @@ CREATE TABLE IF NOT EXISTS events (
     ends_at       TEXT,
     place         TEXT,
     audience_hint TEXT,                   -- giving | community | pet (events_agent)
-    source_url    TEXT NOT NULL CHECK (source_url <> ''),   -- every event has a source
-    source        TEXT,                   -- website | news | search
+    source_url    TEXT CHECK (source_url IS NULL OR source_url <> ''),   -- found events cite their page
+    source        TEXT,                   -- website | news | search (found) · staff | agent (added in the app)
     verification  TEXT,                   -- e.g. page-verified
     quote         TEXT,                   -- the page snippet the event rests on
     captured_at   TEXT,                   -- when the agent read it
@@ -365,7 +366,10 @@ CREATE TABLE IF NOT EXISTS events (
     event_kind    TEXT,                   -- from suggest_audience
     rationale     TEXT,                   -- why this audience (suggest_audience)
     first_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    notes         TEXT,                   -- staff/agent events (calendar v3)
+    -- Calendar v3: events found on the web always cite a page; events staff or the agent add need none.
+    CHECK (source_url IS NOT NULL OR source IN ('staff', 'agent'))
 );
 -- An event is the same event when title + date + source match (save_events); a time change is 'changed'.
 CREATE INDEX IF NOT EXISTS idx_events_match ON events(title, substr(starts_at, 1, 10), source);
@@ -645,6 +649,19 @@ CREATE INDEX IF NOT EXISTS idx_auto_merges_donor ON auto_merges(donor_id);
 SCHEMA += AUTO_MERGE_SCHEMA
 TABLES = ["auto_merges"] + TABLES
 
+# "About <donor>": the agent's running summary of one person (service/donor_summary.py). Its own block so other
+# branches editing db.py merge cleanly; CREATE ... IF NOT EXISTS is the migration for an older donors.db.
+DONOR_SUMMARY_SCHEMA = """
+CREATE TABLE IF NOT EXISTS donor_summaries (
+    donor_id    INTEGER PRIMARY KEY REFERENCES donors(id) ON DELETE CASCADE,
+    summary     TEXT NOT NULL,                -- 3-5 sentences, rewritten by the agent on each new fact
+    sources     TEXT NOT NULL DEFAULT '[]',   -- JSON [{kind: chat|call_note|note|gift, ref, at}], newest first
+    updated_at  TEXT NOT NULL
+);
+"""
+SCHEMA += DONOR_SUMMARY_SCHEMA
+TABLES = ["donor_summaries"] + TABLES
+
 ADDED_COLUMNS = {
     "icp_profile": {"recent_context": "TEXT"},
     "prospects": {"fit_breakdown": "TEXT", "matched_context": "TEXT"},
@@ -730,6 +747,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
             if name not in have:
                 _add_column(conn, table, name, kind)
     migrate_gifts_status_check(conn)
+    migrate_events_v3(conn)
     # Backfill for drafts saved before the prospect_drafted_on_draft trigger existed.
     conn.execute("UPDATE prospects SET status = 'drafted' WHERE status = 'new' AND id IN "
                  "(SELECT prospect_id FROM outreach_drafts WHERE prospect_id IS NOT NULL)")
@@ -756,6 +774,42 @@ def migrate_gifts_status_check(conn: sqlite3.Connection) -> bool:
         conn.execute("INSERT INTO gifts_new SELECT * FROM gifts")
         conn.execute("DROP TABLE gifts")
         conn.execute("ALTER TABLE gifts_new RENAME TO gifts")
+        for sql in indexes:
+            conn.execute(sql.replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ", 1)
+                         if "IF NOT EXISTS" not in sql else sql)
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute(f"PRAGMA foreign_keys = {'ON' if fk else 'OFF'}")
+    return True
+
+
+def migrate_events_v3(conn: sqlite3.Connection) -> bool:
+    """Calendar v3: an older events table requires source_url on every row. Rebuild it from EVENTS_SCHEMA's
+    definition (source_url optional for staff/agent events, plus notes), copying every row with its id. Idempotent:
+    a table already on the new definition is left alone. Returns True when a migration ran."""
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'events'").fetchone()
+    if row is None or not re.search(r"source_url\s+TEXT\s+NOT\s+NULL", row[0]):
+        return False
+    start = EVENTS_SCHEMA.index("CREATE TABLE IF NOT EXISTS events (")
+    new_sql = EVENTS_SCHEMA[start:EVENTS_SCHEMA.index("\n);", start) + 3]
+    new_sql = new_sql.replace("CREATE TABLE IF NOT EXISTS events (", "CREATE TABLE events_new (", 1)
+    old_cols = [r[1] for r in conn.execute("PRAGMA table_info(events)")]
+    indexes = [r[0] for r in conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'events' AND sql IS NOT NULL")]
+    fk = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = OFF")              # event_audience / event_drafts keep their rows
+    try:
+        conn.execute("DROP TABLE IF EXISTS events_new")                # left behind by a rebuild that crashed
+        conn.execute(new_sql)
+        new_cols = {r[1] for r in conn.execute("PRAGMA table_info(events_new)")}
+        keep = ", ".join(c for c in old_cols if c in new_cols)
+        conn.execute(f"INSERT INTO events_new ({keep}) SELECT {keep} FROM events")
+        conn.execute("DROP TABLE events")
+        conn.execute("ALTER TABLE events_new RENAME TO events")
         for sql in indexes:
             conn.execute(sql.replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ", 1)
                          if "IF NOT EXISTS" not in sql else sql)

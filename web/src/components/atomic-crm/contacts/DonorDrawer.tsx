@@ -17,6 +17,7 @@ import type { DonorContactDetail } from "../providers/local/crmResources";
 import { AutoMergeFlag } from "./AutoMergeFlag";
 import { isNonGiver, TAB_ONE } from "./personTab";
 import { useDonor } from "../providers/local/hooks";
+import { AboutPanel } from "./AboutPanel";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { EmailLink, PhoneLink } from "./ContactLinks";
 import { DonorTagList, Stat } from "./donorCrmUi";
@@ -154,6 +155,7 @@ export const DonorDrawer = ({
                   <ArrowRight aria-hidden />
                 </Link>
               </div>
+              <AboutPanel donor={donor} />
               {record && (
                 <dl className="grid grid-cols-2 gap-2 text-sm">
                   <Stat label="Email" value={<EmailLink email={record.email} />} />
