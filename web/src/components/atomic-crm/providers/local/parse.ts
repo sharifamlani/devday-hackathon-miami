@@ -122,7 +122,9 @@ export const cadenceLabel = (why: ApiWhy | null): string | null => {
 /** "2022–2025" for consecutive years, else "2021, 2023, 2025". */
 const yearSpan = (years: number[]) => {
   const sorted = [...years].sort();
-  const consecutive = sorted.every((y, i) => i === 0 || y === sorted[i - 1] + 1);
+  const consecutive = sorted.every(
+    (y, i) => i === 0 || y === sorted[i - 1] + 1,
+  );
   return consecutive && sorted.length > 1
     ? `${sorted[0]}–${sorted[sorted.length - 1]}`
     : sorted.join(", ");
@@ -162,7 +164,11 @@ export const whyShort = (why: ApiWhy | null): string => {
   } else {
     text = why.status.replace("_", " ");
   }
-  if (why.give_miami_day && isGiveMiamiDayGiver(why) && why.status !== "on_track") {
+  if (
+    why.give_miami_day &&
+    isGiveMiamiDayGiver(why) &&
+    why.status !== "on_track"
+  ) {
     text += ` · Give Miami Day in ${plural(why.give_miami_day.days_away, "day")}`;
   }
   return text;
@@ -180,7 +186,9 @@ export const whySentence = (why: ApiWhy | null): string => {
   const parts: string[] = [];
   const year = why.as_of.slice(0, 4);
   if (why.pattern && why.pattern.years.length > 1) {
-    const via = why.pattern.channel ? `, usually via ${why.pattern.channel}` : "";
+    const via = why.pattern.channel
+      ? `, usually via ${why.pattern.channel}`
+      : "";
     parts.push(
       `Gave every ${why.pattern.month_name} ${yearSpan(why.pattern.years)}${via}.`,
     );
@@ -313,7 +321,8 @@ export const parseDonorRow = (row: ApiDonorRow): DonorSummary => {
     id: row.id,
     full_name: row.full_name,
     org_name: row.org_name,
-    donor_type: row.donor_type ?? (row.org_name ? "organization" : "individual"),
+    donor_type:
+      row.donor_type ?? (row.org_name ? "organization" : "individual"),
     email: row.email,
     city: row.city,
     fund_type: row.fund_type,
@@ -383,7 +392,9 @@ export const parseMergeResult = (raw: ApiMergeResult): MergeResult => ({
       : null,
 });
 
-export const parseUndoMergeResult = (raw: ApiUndoMergeResult): UndoMergeResult => ({
+export const parseUndoMergeResult = (
+  raw: ApiUndoMergeResult,
+): UndoMergeResult => ({
   kept_id: raw.kept_id,
   restored_id: raw.restored_id,
 });
@@ -395,12 +406,13 @@ export const parseDonorDetail = (raw: ApiDonorDetail): DonorDetail => ({
   why: whySentence(raw.why),
   score_factors: scoreFactors(raw.why),
   gifts: (raw.gifts ?? []).map(
-    ({ id, amount, gift_date, channel, fund_type }) => ({
+    ({ id, amount, gift_date, channel, fund_type, status }) => ({
       id,
       amount,
       gift_date,
       channel,
       fund_type,
+      status: status ?? null,
     }),
   ),
   research: (raw.research_facts ?? []).map(
@@ -413,7 +425,9 @@ export const parseDonorDetail = (raw: ApiDonorDetail): DonorDetail => ({
   ),
   merges: parseMerges(raw.merges),
   // outreach_drafts comes newest first.
-  draft: raw.outreach_drafts?.length ? parseDraft(raw.outreach_drafts[0]) : null,
+  draft: raw.outreach_drafts?.length
+    ? parseDraft(raw.outreach_drafts[0])
+    : null,
   // Absent on older servers; always [] in the snapshot (export_snapshot.py).
   call_notes: parseApiCallNotes(raw.call_notes),
 });
@@ -543,11 +557,16 @@ const parseDatedFacts = (raw: ApiJson<ApiContextFactLite[]>): DatedFact[] => {
     .sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""));
 };
 
-const parseFitBreakdown = (raw: ApiJson<Record<string, number>>): FitComponent[] => {
+const parseFitBreakdown = (
+  raw: ApiJson<Record<string, number>>,
+): FitComponent[] => {
   const map = fromJson(raw);
   if (!map || typeof map !== "object" || Array.isArray(map)) return [];
   return Object.entries(map)
-    .map(([key, points]) => ({ label: humanize(key), points: Number(points) || 0 }))
+    .map(([key, points]) => ({
+      label: humanize(key),
+      points: Number(points) || 0,
+    }))
     .sort((a, b) => b.points - a.points);
 };
 
@@ -586,12 +605,18 @@ export const parseProspect = (raw: ApiProspect): ProspectSummary => {
 export const parseProspectDetail = (raw: ApiProspect): ProspectDetail => ({
   ...parseProspect(raw),
   created_at: raw.created_at,
-  draft: raw.outreach_drafts?.length ? parseDraft(raw.outreach_drafts[0]) : null,
+  draft: raw.outreach_drafts?.length
+    ? parseDraft(raw.outreach_drafts[0])
+    : null,
 });
 
 /* ---------- Onboarding (plan.md §15) ---------- */
 
-const SOCIALS: { platform: SocialPlatform; label: string; key: keyof ApiOrgProfile }[] = [
+const SOCIALS: {
+  platform: SocialPlatform;
+  label: string;
+  key: keyof ApiOrgProfile;
+}[] = [
   { platform: "x", label: "X", key: "x_url" },
   { platform: "linkedin", label: "LinkedIn", key: "linkedin_url" },
   { platform: "instagram", label: "Instagram", key: "instagram_url" },
@@ -627,7 +652,8 @@ export const parseOrgProfile = (raw: ApiOrgProfile): OrgProfile => ({
     if (typeof url !== "string" || !url.trim()) return [];
     // Scope (Sat Nov 7): social URLs are saved, only the website is researched.
     const connected =
-      (raw as unknown as Record<string, unknown>)[`${platform}_connected`] === true;
+      (raw as unknown as Record<string, unknown>)[`${platform}_connected`] ===
+      true;
     return [
       {
         platform,
@@ -735,11 +761,26 @@ const pickCount = (raw: Record<string, unknown>, keys: string[]) => {
 };
 
 export const parseIngestResult = (raw: unknown): IngestResult => {
-  const obj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const obj =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   return {
-    donors: pickCount(obj, ["donors", "donors_added", "donor_count", "inserted_donors"]),
-    gifts: pickCount(obj, ["gifts", "gifts_added", "gift_count", "inserted_gifts"]),
-    duplicates: pickCount(obj, ["duplicates", "pending_duplicates", "duplicate_suggestions"]),
+    donors: pickCount(obj, [
+      "donors",
+      "donors_added",
+      "donor_count",
+      "inserted_donors",
+    ]),
+    gifts: pickCount(obj, [
+      "gifts",
+      "gifts_added",
+      "gift_count",
+      "inserted_gifts",
+    ]),
+    duplicates: pickCount(obj, [
+      "duplicates",
+      "pending_duplicates",
+      "duplicate_suggestions",
+    ]),
     message: typeof obj.message === "string" ? obj.message : null,
     raw,
   };

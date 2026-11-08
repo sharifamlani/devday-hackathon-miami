@@ -13,7 +13,8 @@ import type { CallNote } from "../../voice/callNotes";
 export type DonorType = "individual" | "organization";
 export type Tier = "big" | "mid" | "small";
 /** donor_scores.status, written by score.py */
-export type DonorStatus = "lapsing" | "due" | "on_track" | "lapsed" | "no_gifts";
+export type DonorStatus =
+  "lapsing" | "due" | "on_track" | "lapsed" | "no_gifts";
 
 export interface Gift {
   id: number;
@@ -21,6 +22,8 @@ export interface Gift {
   gift_date: string; // ISO YYYY-MM-DD
   channel: string | null;
   fund_type: string | null;
+  /** "ok", or "declined"/"failed": a charge kept on record that is never a gift. */
+  status?: string | null;
 }
 
 export interface DonorSummary {
@@ -221,11 +224,7 @@ export interface ContextRunInput {
 }
 
 export type SourceState =
-  | "done"
-  | "blocked"
-  | "failed"
-  | "not_provided"
-  | "saved_not_connected"; // social URLs: saved, never fetched (scope cut)
+  "done" | "blocked" | "failed" | "not_provided" | "saved_not_connected"; // social URLs: saved, never fetched (scope cut)
 
 export interface ContextRunSource {
   source: string; // "website", "news", "x", "linkedin", "instagram"
