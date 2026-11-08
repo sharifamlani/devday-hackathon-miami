@@ -50,15 +50,16 @@ echo "  health $h | events $e | public-mode $pm"
 [ "$h" = 200 ] && [ "$e" = "[]" ] && echo "$pm" | grep -q '"enabled":false' || { say "FAIL smoke 3"; exit 5; }
 say "    people now: $(curl -s "http://127.0.0.1:$SVC/people" | "$PY" -c "import sys,json;print(json.load(sys.stdin)['counts'])")"
 
-say "(e) smoke 4: web :$WEB shows the upload step (Drag in your files), 0 console errors"
+say "(e) smoke 4: web :$WEB shows the first screen (the Gatherly landing, or the upload step), 0 console errors"
 PYTHONIOENCODING=utf-8 "$PY" -c "
 from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
     b=p.chromium.launch(); pg=b.new_page(); errs=[]
     pg.on('console', lambda m: m.type=='error' and errs.append(m.text[:100]))
     pg.goto('http://localhost:$WEB/'); pg.wait_for_timeout(4000)
-    ok=pg.get_by_text('Drag in your').count()>0 and pg.locator('input[type=file]').count()>0   # #264 dropped the 'Step 1 of 3' label
-    print('  upload step shown:', ok, '| console errors:', errs[:2]); b.close()
+    # #297: the Gatherly landing ('More time for people.' + Try sample data) comes first; before it, the upload step
+    ok=(pg.get_by_text('Try sample data').count()>0 or pg.get_by_text('Drag in your').count()>0) and pg.locator('input[type=file]').count()>0
+    print('  first screen shown:', ok, '| console errors:', errs[:2]); b.close()
     raise SystemExit(0 if ok and not errs else 6)
 " || { say "FAIL smoke 4"; exit 6; }
 if [ -n "${WARM_FAILED:-}" ]; then say "NOT READY: warm FAILED twice; fallback §22.7 (the service is up and empty)"; exit 7; fi
@@ -66,6 +67,6 @@ say "READY: $STACK is empty + warm on :$SVC/:$WEB (stage numbers 77 people / 9 P
 # Setup shows only while onboarding isn't completed in THAT browser (KindredLandingGate keeps it in browser storage);
 # an empty app with setup already done in the browser shows the landing page instead (82, #288 review).
 say "Then, in the demo browser: clear site data for localhost:$WEB (or open a fresh profile / incognito window),"
-say "  open http://localhost:$WEB/ and confirm the upload step shows (\"Drag in your files\")."
+say "  open http://localhost:$WEB/ and confirm the first screen shows (\"More time for people.\" + Try sample data)."
 [ "$STACK" = live ] && say "Then ask 22 to restart :8401 on the fresh db."
 exit 0
