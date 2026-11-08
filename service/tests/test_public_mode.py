@@ -256,20 +256,28 @@ def test_call_notes_and_staff_notes_never_appear_in_any_allowed_get(client):
         conn.commit()
     finally:
         conn.close()
+    from service import score
+    private = "PRIVATE-TASK-9931"                                      # a Donors-tab task (tasks.crm): private staff text
+    due = score.default_as_of().isoformat()
     public_mode.set_enabled(False)
+    made = client.post("/crm/tasks", json={"contact_id": donor_id, "type": "call", "text": f"{private} call back",
+                                           "due_date": due})
+    assert made.status_code in (200, 201), made.text
     assert marker in client.get(f"/donors/{donor_id}").text           # local mode still shows it
+    for path in ("/tasks", "/tasks?due=today", "/calendar", "/people?type=giver"):
+        assert private in client.get(path).text, path                  # ... and the private task
     public_mode.set_enabled(True)
     h = {"Origin": VERCEL}
     paths = ["/health", "/public-mode", "/home/summary", "/people", "/people/attention",
              f"/people/{donor_id}/merges", f"/people/{donor_id}/pledges", f"/people/{donor_id}/interests",
              "/donors", f"/donors/{donor_id}", "/duplicates", "/targets", "/targets/quarters", "/targets/donors",
-             "/calendar", "/tasks", "/artifacts", "/events", "/context", f"/context/search?q={marker}",
+             "/calendar", "/tasks", "/tasks?due=today", "/people?type=giver", "/artifacts", "/events", "/context", f"/context/search?q={marker}",
              "/context/search?q=call", "/context/status", "/community/stats", "/alerts", "/icp", "/prospects",
              "/org-profile", "/interest-tags", "/campaigns", "/outbox"]
     for path in paths:
         r = client.get(path, headers=h)
         assert r.status_code in (200, 404), (path, r.status_code)
-        assert marker not in r.text and "4242" not in r.text, path
+        assert marker not in r.text and "4242" not in r.text and private not in r.text, path
     assert client.get(f"/donors/{donor_id}", headers=h).json()["call_notes"] == []
     # every allow-listed GET pattern is covered by a probed path above
     for method, rx in public_mode.ALLOW:
