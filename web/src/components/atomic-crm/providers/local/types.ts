@@ -97,6 +97,18 @@ export interface DonorDetail extends DonorSummary {
   merges: MergeLogEntry[]; // merges into this donor, newest first ([] if none)
   draft: OutreachDraft | null; // newest outreach_drafts row
   call_notes: CallNote[]; // the service's saved call notes, newest first ([] if none)
+  // "About <donor>": the agent's running summary (service/donor_summary.py); null/[] when none yet,
+  // under PUBLIC_MODE and in the snapshot.
+  summary: string | null;
+  summary_updated_at: string | null;
+  summary_sources: SummarySource[];
+}
+
+/** Where one fact in a donor's summary came from, newest first. */
+export interface SummarySource {
+  kind: "chat" | "call_note" | "note" | "gift";
+  ref: string;
+  at: string;
 }
 
 export interface DuplicateDonor {
