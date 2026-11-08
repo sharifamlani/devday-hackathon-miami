@@ -176,11 +176,16 @@ def step(name: str):
 def s1_upload(page: Page, api: Api, web: str, shots: Path):
     files = [f for f in sorted(glob.glob(str(INPUTS / "*"))) if not f.endswith(SKIP_FILES)]
     page.goto(web)
-    page.get_by_text("Drag in your").wait_for(timeout=30000)
-    page.locator("input[type=file]").set_input_files(files)
-    dialog = page.get_by_role("dialog").first
+    sample = page.get_by_role("button", name="Try sample data")
+    page.get_by_text(re.compile(r"Drag in your|Try sample data")).first.wait_for(timeout=30000)
     t0 = time.time()
-    dialog.get_by_role("button", name=f"Import {len(files)} files").click()
+    if sample.count():
+        # #297: the Gatherly landing; the demo clicks Try sample data (it imports web/public/sample, = INPUTS since #302)
+        sample.first.click()
+    else:
+        page.locator("input[type=file]").set_input_files(files)
+        t0 = time.time()
+        page.get_by_role("dialog").first.get_by_role("button", name=f"Import {len(files)} files").click()
     # #264: a processing view, then the results view ("A clearer picture of your people.") replaces the receipt
     create = page.get_by_role("button", name="Create organization profile")
     create.wait_for(timeout=300000)
