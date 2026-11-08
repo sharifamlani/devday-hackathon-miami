@@ -147,12 +147,13 @@ describe("ImpactPanel", () => {
     ).toHaveLength(11);
   });
 
-  it("header, Q4 line with sample goal, and refresh time", () => {
+  it("header, Q4 line (no sample-goal label), and refresh time", () => {
     const html = view();
     expect(html).toContain("Impact & story");
     expect(html).toContain("Last refreshed Nov 8, 10:06 AM");
     expect(html).toContain("$98,815");
-    expect(html).toContain("of $150,000 (sample goal)");
+    expect(html).toContain("of $150,000");
+    expect(html).not.toContain("(sample goal)");
     expect(html).toContain("66%");
   });
 

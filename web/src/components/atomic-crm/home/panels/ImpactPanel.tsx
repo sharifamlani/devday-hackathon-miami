@@ -134,6 +134,7 @@ const q4Line = (q: DonationTarget | undefined) => {
   if (!q) return null;
   if (q.goal == null) return `${q.label}: ${usd(q.raised)} raised`;
   const pct = q.goal > 0 ? ` (${Math.round((q.raised / q.goal) * 100)}%)` : "";
+  // The copied report leaves the app, so it keeps saying the goal is a sample (the panel doesn't show it).
   return `${q.label}: ${usd(q.raised)} of ${usd(q.goal)}${q.goal_is_sample ? " (sample goal)" : ""}${pct}`;
 };
 
@@ -330,7 +331,6 @@ export const ImpactView = ({
                 <span className="text-xl font-normal text-muted-foreground">
                   {" "}
                   of {usd(quarter.goal)}
-                  {quarter.goal_is_sample && " (sample goal)"}
                 </span>
               )}
             </p>
