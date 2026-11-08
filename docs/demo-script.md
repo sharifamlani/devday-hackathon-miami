@@ -22,7 +22,7 @@ Button and heading text below is what's on screen on main today, in **bold**. Co
 Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
 
 1. **Empty start.** Open **http://localhost:5173/** (the bare URL, not `#/welcome`: that's the marketing landing).
-   The app opens straight on setup (the **gatherly** wordmark · **Step 1 of 2**; "Set up Gatherly") with nothing behind it: no
+   The app opens straight on setup (the **gatherly** wordmark, with **Step 1 of 2** on its own row below) with nothing behind it: no
    people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–3): with
    people already uploaded, a reload could skip the website step (#193 should prevent it; keep the habit).
 2. **Step 1, "Drag in your files."** Drop the **8 input files** from `data/sample_inputs/` on **Drop your files here**
@@ -32,8 +32,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**.
    (**Use the example files** loads the same eight with one click.) A full-screen processing view takes over: the
    **gatherly** wordmark, folders shuffling into a box, **Bringing your data together.** with a progress bar ("Reading
-   files and recognizing accounts."), then **Everything's in place.** ("Ready for your next step."). About 5 s after
-   **Import 8 files** (4–7 s on a warm cache) the results:
+   files and recognizing accounts."), then **Everything's in place.** ("Ready for your next step."). About 8 s after
+   **Import 8 files** (7.9 s in T1 on the freeze build) the results:
    **Your donor data is ready.** "A clearer picture of your people." with the tiles **77 Accounts recognized** and
    **19 Duplicates removed** (source rows that matched an existing person exactly and were merged on upload; if the
    count isn't available the tile reads
@@ -41,13 +41,13 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    with **Review matches**. Say: "19 exact copies merged automatically; 9 look-alikes wait for you." Don't click
    **Review matches** on stage: it pauses setup and opens the donor list (the
    close calls come back in step 13). Click **Create organization profile**.
-3. **Step 2, "Your organization."** (**Step 2 of 2**, the **gatherly** wordmark, "Start with your website.") Type
+3. **Step 2, "Your organization."** (the **gatherly** wordmark and "Start with your website."; this screen shows no step label) Type
    `miamifoundation.org` in the **Website** field (placeholder **yourorganization.org**) and click **Continue**
    (skip **+ Add social links**: they're saved, not read). The dashboard opens in under 2 s.
 4. **The dashboard opens at once; the agent reads in the background.** There's no waiting screen: "It reads the
    site and news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing."
    The briefing opens with e.g. **15 tasks today**; the events, prep tasks and Impact & story facts land when the read
-   finishes, about 30–40 s after **Continue** (the events go 0 → 4, then e.g. 18 tasks; the invites about a minute
+   finishes, about 30 s after **Continue** (27.5 s in T1) (the events go 0 → 4, then e.g. 18 tasks; the invites about a minute
    later). Start the dashboard tour (step 5) while it reads.
 5. **Dashboard (home).** A card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?" (or,
    while the read is still running, "We're still reading your website. Want a one-minute tour while it finishes?"):
@@ -73,7 +73,12 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      week"*, *"Enrich Desmond Achebe-Wells"*).
    The tile headings open their panels beside the chat. The icon rail on the left holds **Live transcript** and
    **Open Ask sidebar**.
-6. **Home chat agent.** In **Ask the agent…** type (or say) *"Plan next week"* (about 10 s in all). The agent's step
+6. **Home chat agent.** First the duplicates, while the briefing is still on screen: on the briefing line **9
+   possible duplicates to review.** click **Review** (it opens the inbox, with the duplicates banner), then **Ask the
+   agent to fix**: the agent works the duplicates in the chat (about 6 s; 5.8 s in T1), and merging still waits for a
+   click. (After "Plan next week" the briefing's **Review** scrolls out of reach; if it's gone, use the **CRM** tile's
+   banner → **Ask the agent to fix** instead.) Then in **Ask the agent…** type (or say) *"Plan next week"* (about 6 s:
+   first text 4.9 s, done 6.4 s in T1). The agent's step
    cards appear about 2 s after you ask and the reply types out live, so there's always something to point at. The conversation
    shows the agent's tool steps (e.g. **Get context**, **Get events**, **Get calendar**, **Get tasks**), then a plan for
    **November 9–15** with a priority per day, and it says it hasn't changed your calendar. (The wording varies run to
@@ -92,12 +97,12 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    unless someone clicks **Send approved messages**. (Use *"Give Miami Day donors"* again once the fix for uploaded
    Give Miami Day gifts merges: today that wording finds 0 donors.)
 9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
-   *"Add the Knight Foundation as a contact."* (about 5 s): **Add contact** · added organization John S. and James L.
-   Knight Foundation (person …, giver), with **Undo**. Then type *"Enrich John S. and James L. Knight Foundation"*: the steps **Find
+   *"Add the Knight Foundation as a contact."* (about 3.5 s): **Add contact** · added organization John S. and James L.
+   Knight Foundation (person …, giver), with **Undo**. Then type *"Enrich John S. and James L. Knight Foundation"* (about 7 s): the steps **Find
    people** and **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)"), then a reply
    listing each fact with a **Source** link (e.g. its local-journalism and arts funding in the 26 communities where the
    Knight brothers published newspapers) and the interest tags, asking whether to save them. Type *"Yes, save all of
-   them"*: **Accept enrichment** ("saved 4 facts and 4 interest tags") with **Undo**. "Nothing is saved until staff say
+   them"* (about 8 s): **Accept enrichment** ("saved 4 facts and 4 interest tags") with **Undo**. "Nothing is saved until staff say
    so, and every fact shows where it came from." (Never enrich a sample donor on stage: individuals aren't
    researched (the step says so), and the sample organizations are fictional. The same research is on the **CRM** tile: expand the Knight row → **Enhance** →
    **Save to profile**.)
@@ -114,7 +119,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     someone approves it.
 11. **A call, transcribed.**
     **The live call (the only call on stage).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate
-    added as a donor for the demo, off-screen, after setup). About 10–13 s later the agent shows **Get context · Get
+    added as a donor for the demo, off-screen, after setup). About 5 s later (5.3 s in T1) the agent shows **Get context · Get
     events · Find people** ("1 people: Christian Gonzalez") and the card **Call sheet: Christian Gonzalez** (Phone
     (the full number), a **Call** button, GIVING "No gifts on record.", TALKING POINTS). Click the card's **Call**: the panel
     **Call Christian Gonzalez** opens in the card ("Your phone (…) rings first. When you pick up, Christian Gonzalez (…)
@@ -146,8 +151,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
 12. **Dictation.** **Open Ask sidebar** and use **Dictate** to speak a question instead of typing it (**Stop
     dictation** to finish; it needs the live service and a microphone: test it before going on stage).
 13. **Duplicates review.** Click the **CRM** tile's heading: the banner reads **9 possible duplicates found** with
-    **Review merges →** and **Ask the agent to fix**; click **Review merges →**. (The briefing's **Review** opens the inbox, with the same banner; **Ask the agent to fix** hands the
-    duplicates to the agent.) Exact matches were already merged on upload; these are the close calls, one pair at a
+    **Review merges →** and **Ask the agent to fix**; click **Review merges →**. (Step 6 already used the briefing's **Review** → **Ask the agent to fix** to hand the duplicates to the
+    agent; this is the click-through review of the same close calls.) Exact matches were already merged on upload; these are the close calls, one pair at a
     time in **We found this donor twice** with its reason badges (e.g. **similar name + same phone**, **90% match**,
     **8 more after this one**). Pick the record to keep (**✓ Keep** / **Merge in**), then **Merge ✓** (**Merging…**) or
     **Keep separate**. "Merge only after a person approves; the gift history moves to the kept record." Open the kept

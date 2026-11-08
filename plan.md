@@ -1863,11 +1863,11 @@ No UI or code changes: this section only orders what is already on main.
        +-----------------------+-----------------------+
                                v
  T-0   +-----------------------------------------------+
-  (1)  | EMPTY APP: "gatherly · Step 1 of 2"            |  "Nothing is preloaded."
+  (1)  | EMPTY APP: "gatherly" / "Step 1 of 2"          |  "Nothing is preloaded."
        +-----------------------+-----------------------+
                                v
   (2)  +-----------------------------------------------+
-       | ONBOARDING (Step 1 of 2, Step 2 of 2)         |
+       | ONBOARDING (Step 1 of 2, then the org step)   |
        |  drag 8 files -> Import 8 files               |
        |  processing view: "Bringing your data         |
        |  together." -> "Everything's in place."       |
@@ -1888,14 +1888,14 @@ No UI or code changes: this section only orders what is already on main.
                                v
   (4)  +-----------------------------------------------+
        | DEMO MOMENTS (in this order)                  |
-       |  a agent chat streams ("Plan next week")      |
-       |  b duplicates in chat (Review -> inbox ->     |
-       |    Ask the agent to fix)                      |
+       |  a duplicates in chat (briefing Review ->     |
+       |    inbox -> Ask the agent to fix)             |
+       |  b agent chat streams ("Plan next week")      |
        |  c live call: "Call Christian Gonzalez"       |
        |  d calendar v3 (next week -> 5K ⓘ -> batch)   |
        |  e Impact & story (Copy for a grant report)   |
        |  f enrich the Knight Foundation (chat)        |
-       |  g donor summary ("About <name>")             |
+       |  g donor summary ("written by the agent")     |
        +-----------------------+-----------------------+
                                v
   (5)  +-----------------------------------------------+
@@ -1909,17 +1909,17 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 
 | # | Step | Operator does | Screen shows |
 |---|---|---|---|
-| 1 | Empty app | Hard refresh http://localhost:5173 | **gatherly** · **Step 1 of 2**, **Drag in your files.** |
-| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | the processing view (**gatherly**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **19 Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage), ~5 s after Import (4.3–6.4 s in 20's TEST walks) → **Create organization profile** |
-| 2b | Website | **Step 2 of 2** **Your organization.**: type `miamifoundation.org`, **Continue** | the dashboard opens in under 2 s (e.g. **15 tasks today**); the site and news are read in the background, and the 4 events, prep tasks and facts land ~30–40 s after **Continue** |
+| 1 | Empty app | Hard refresh http://localhost:5173 | **gatherly** (wordmark) over **Step 1 of 2** (its own row), **Drag in your files.** |
+| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | the processing view (**gatherly**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **19 Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage), ~8 s after Import (7.9 s in T1 on the freeze build) → **Create organization profile** |
+| 2b | Website | **Your organization.** ("Start with your website."; no step label on this screen): type `miamifoundation.org`, **Continue** | the dashboard opens in under 2 s (e.g. **15 tasks today**); the site and news are read in the background, and the 4 events, prep tasks and facts land ~30 s after **Continue** (27.5 s in T1) |
 | 3 | Dashboard | **Not now** on the tour card (it may read "We're still reading your website…") | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, the calendar tile's week grid (Sat 14; after **›**, next week's Sun 15 ×2 as one block reading "T… / T…", Thu 19: use the day view or **By day** for full names) |
-| 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
-| 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
-| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* (~10–13 s) → the card's **Call** → the panel's **Call** → answer the staff phone, **press any key** at the trial message; Christian answers and presses any key → once it says **Connected**, both talk clearly for about 20 s (Christian says something actionable, e.g. "send me the Give Miami Day link") → **Hang up** from the panel at about 0:20–0:25 | steps **Get context · Get events · Find people** ("1 people: Christian Gonzalez") → card **Call sheet: Christian Gonzalez** (Phone (the full number), **Call**, GIVING "No gifts on record.", TALKING POINTS) → panel **Call Christian Gonzalez** (description with (…) numbers, the notice line, **Cancel** / **Call**) → **Ringing your phone…** (0–4 s) → **Calling Christian Gonzalez…** (~4 s) → **Connected · recording · 0:03** (~12 s; ~15 s of trial preamble before anyone can talk) → after **Hang up**: **Getting the recording…** → **Transcribing…** → **Summarizing…** → **Suggesting follow-ups…** → **✓ Saved to the call notes · 0:39** with the **Summary** (1–3 short bullets) and **Close**, ~25 s after Hang up; **Suggested follow-ups** with **Apply** appear only if something actionable was said |
+| 4a | Duplicates in chat (do it first) | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix**. Do this before "Plan next week": after it the briefing's **Review** scrolls out of reach | the agent works the duplicates in the chat (~6 s, 5.8 s in T1); merging still waits for a click |
+| 4b | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~6 s: first text 4.9 s, done 6.4 s in T1) |
+| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* (~5 s, 5.3 s in T1) → the card's **Call** → the panel's **Call** → answer the staff phone, **press any key** at the trial message; Christian answers and presses any key → once it says **Connected**, both talk clearly for about 20 s (Christian says something actionable, e.g. "send me the Give Miami Day link") → **Hang up** from the panel at about 0:20–0:25 | steps **Get context · Get events · Find people** ("1 people: Christian Gonzalez") → card **Call sheet: Christian Gonzalez** (Phone (the full number), **Call**, GIVING "No gifts on record.", TALKING POINTS) → panel **Call Christian Gonzalez** (description with (…) numbers, the notice line, **Cancel** / **Call**) → **Ringing your phone…** (0–4 s) → **Calling Christian Gonzalez…** (~4 s) → **Connected · recording · 0:03** (~12 s; ~15 s of trial preamble before anyone can talk) → after **Hang up**: **Getting the recording…** → **Transcribing…** → **Summarizing…** → **Suggesting follow-ups…** → **✓ Saved to the call notes · 0:39** with the **Summary** (1–3 short bullets) and **Close**, ~25 s after Hang up; **Suggested follow-ups** with **Apply** appear only if something actionable was said |
 | 4d | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
 | 4e | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
-| 4f | Enrich the Knight Foundation (chat) | Type *"Add the Knight Foundation as a contact."* (~4 s), then *"Enrich John S. and James L. Knight Foundation"*; when asked, type *"Yes, save all of them"* | **Add contact** · added organization John S. and James L. Knight Foundation (person …, giver) + **Undo** → **Find people** · **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)") → a reply listing each fact with a **Source** link and the interest tags, asking whether to save them (instant: cached) → **Accept enrichment** ("saved 4 facts and 4 interest tags") + **Undo**. Never enrich a sample donor on stage: individuals aren't researched (the step says so), and the sample organizations are fictional |
-| 4g | Donor summary | Open Christian Gonzalez's profile about a minute after the call (or any donor's) | **About Christian** · **written by the agent**, rewritten from the call note |
+| 4f | Enrich the Knight Foundation (chat) | Type *"Add the Knight Foundation as a contact."* (~3.5 s), then *"Enrich John S. and James L. Knight Foundation"* (7.1 s in T1); when asked, type *"Yes, save all of them"* (8.0 s) | **Add contact** · added organization John S. and James L. Knight Foundation (person …, giver) + **Undo** → **Find people** · **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)") → a reply listing each fact with a **Source** link and the interest tags, asking whether to save them (instant: cached) → **Accept enrichment** ("saved 4 facts and 4 interest tags") + **Undo**. Never enrich a sample donor on stage: individuals aren't researched (the step says so), and the sample organizations are fictional |
+| 4g | Donor summary | Open Christian Gonzalez's profile about a minute after the call (or any donor's) | the panel headed **ABOUT CHRISTIAN** (set in capitals) · **written by the agent**, rewritten from the call note |
 | 5 | Close | Presenter says the closing line | the dashboard |
 
 **The live call to Christian (4c) is the only call on stage** (Sharif: "We're not calling Hye-jin. We're going to be calling Christian Gonzalez."). The Live transcript demo call with Hye-jin Park (#210) is out of the run and kept only as 4c's fallback (22.7); `docs/demo-script.md` step 11 carries both.
@@ -2006,7 +2006,7 @@ Live-call notes (19, from the real test call):
       apps (Dropbox sync paused, no other dev servers).
 - [ ] **T-5 (fallback):** the Vercel preview open in a second tab (https://devday-donor-desk.vercel.app); a hotspot
       ready as Wi-Fi backup.
-- [ ] **T-0:** hard refresh: the app shows **gatherly** · **Step 1 of 2** with nothing behind it.
+- [ ] **T-0:** hard refresh: the app shows **gatherly** (wordmark) over **Step 1 of 2** (its own row) with nothing behind it.
 
 ### 22.4. Derisking: smokes in dependency order
 1. **What it proves:** the API key, the model tiers and the Agents SDK work.
@@ -2023,7 +2023,7 @@ Live-call notes (19, from the real test call):
    never in public mode).
    **If it fails →** restart the service from the reset's printout; a non-empty `/events` means rerun step 2.
 4. **What it proves:** the web talks to that service in local mode.
-   **Command:** open http://localhost:5173 · **Expected:** **gatherly** · **Step 1 of 2**, 0 errors in the DevTools
+   **Command:** open http://localhost:5173 · **Expected:** **gatherly** (wordmark) over **Step 1 of 2** (its own row), 0 errors in the DevTools
    console. **If it fails →** check `VITE_API_URL=http://localhost:8001` and `VITE_DATA_MODE=local`; restart the web
    (`scripts\live_stack.ps1 restart -Stack live -Only web`).
 5. **What it proves:** the public link serves the live laptop data (or, knowingly, the snapshot).
@@ -2071,8 +2071,8 @@ fallback before T-30.
 | 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: **Use the example files**, then continue. |
 | 2b Background read | the events or facts aren't on the dashboard yet | Keep touring: "The agent is still reading the site; the events land in a moment." If nothing lands after 2 min, carry on: the uploaded data carries every other moment. |
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
-| 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
-| 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
+| 4a Duplicates | the briefing's **Review** isn't on screen (e.g. after "Plan next week"), or the agent stalls | **CRM** tile heading → the banner's **Ask the agent to fix** (what T1 used); if the agent stalls, the same banner's **Review merges →**: show the pair and **Merge ✓** there instead. |
+| 4b Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4c Live call (dropped) | the call drops, or the transcript comes back empty (a key wasn't pressed at the trial message); the card reads e.g. "You hung up before Christian Gonzalez answered." or "Twilio has no recording for this call, so there is no transcript." | "That's a trial-account limit: Twilio needs a key press first." Then do the fallback demo call (below). |
 | 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the recording is kept, so the transcript can be finished later, then do the fallback demo call (below). |
 | 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do the fallback demo call (below). |
@@ -2080,6 +2080,6 @@ fallback before T-30.
 | 4d Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
 | 4e Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
 | 4f Enrich | the agent is slow (cache miss) or finds nothing | "It's reading the public web; every tag will carry its source." Over 30 s: **CRM** heading → expand the Knight row → **Enhance** → **Save to profile** instead. |
-| 4g Summary | **About …** says no notes | "The agent writes this from calls and notes as they come in." |
+| 4g Summary | the **ABOUT …** panel says no notes | "The agent writes this from calls and notes as they come in." |
 | Public link | the tunnel is down or the page shows **Sample data** | "The public link shows a snapshot of the same data." Keep demoing on the laptop. |
 | Any | laptop, network or service down | Switch to the Vercel tab: "This is the read-only preview of the same data." |
