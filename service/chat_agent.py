@@ -1082,6 +1082,9 @@ APPROVAL_TOOLS = {t.name for t in TOOLS if getattr(t, "needs_approval", False)}
 READ_ONLY_TOOLS = {"find_people", "get_person", "segment", "get_context", "search_context", "get_events", "get_alerts",
                    "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats", "get_call_notes"}
 READ_PREFIXES = ("get_", "find_", "search_", "list_")
+# More reads of private data (call list, call sheets, after-call suggestions): allowed in public mode only with
+# PUBLIC_SHOW_ALL (redacting() False).
+PRIVATE_READ_TOOLS = {"get_call_list", "prep_call", "get_after_call_actions"}
 READ_ONLY_REPLY = "This is a read-only preview, so I can't make changes, draft or send anything. I can look things up for you."
 
 
@@ -1128,7 +1131,8 @@ def masked_in_preview(tool):
 def tools_for_mode() -> list:
     if not public_mode.enabled():
         return TOOLS
-    return [masked_in_preview(t) if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
+    reads = READ_ONLY_TOOLS if redacting() else READ_ONLY_TOOLS | PRIVATE_READ_TOOLS
+    return [masked_in_preview(t) if t.name in reads else refuse_in_preview(t) for t in TOOLS]
 
 
 def summarize(output) -> str:

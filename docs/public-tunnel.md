@@ -38,6 +38,15 @@ The script prints (and does not run) these:
 
 Quick tunnel URLs change on every start, so repeat steps 2 and 3 after each `on`.
 
+## Show everything (`PUBLIC_SHOW_ALL=1`)
+
+The demo data is fictional, so the demo runs public mode with `PUBLIC_SHOW_ALL=1` (Sharif, Sun Nov 8): every GET
+is served (still only with the Vercel `Origin`), nothing is masked or blanked (contacts, call notes, transcripts,
+staff notes, summaries and staff tasks all show), and the chat agent may read call notes and call sheets.
+**Writes stay refused** and the rate limit stays. `GET /public-mode` answers `{"enabled": true, "redacted": false}`,
+and the web then loads everything as in local mode. Unset, public mode redacts as described below. Anything saved
+to the db later (a real call, a real number) goes public too.
+
 ## Allow-list (everything else is 403)
 
 The Origin header is not authentication (any script can send it). The allow-list, the masking and the rate limit
