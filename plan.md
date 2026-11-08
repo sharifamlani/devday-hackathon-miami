@@ -1911,7 +1911,7 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | 3 | Dashboard | **Go to the dashboard**, **Not now** on the tour card | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
 | 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
-| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* → his call sheet → the sheet's **Call**: the panel **Call Christian Gonzalez** opens in the card: "Your phone (…) rings first. When you pick up, Christian Gonzalez (…) is called and sees your number.", the notice line "Christian Gonzalez hears “Hello. This call is recorded for our notes.” before the call connects.", and **Cancel** / **Call** → the panel's **Call** dials → answer the staff phone → keep it under 30 s → **Hang up** | **Ringing your phone…** → **Calling Christian Gonzalez…** (his phone rings; the recording notice plays) → **Connected · recording** → after **Hang up**: **Getting the recording…**, **Transcribing…**, **Summarizing…**, **Suggesting follow-ups…** → **Saved to the call notes**, the **Summary** and **Suggested follow-ups**, each with its own **Apply** (the in-card call has no **Apply selected**; that's the Live transcript card in 4d) |
+| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* → his call sheet → the sheet's **Call**: the panel **Call Christian Gonzalez** opens in the card: "Your phone (…) rings first. When you pick up, Christian Gonzalez (…) is called and sees your number.", the notice line "Christian Gonzalez hears “Hello. This call is recorded for our notes.” before the call connects.", and **Cancel** / **Call** → the panel's **Call** dials → answer the staff phone and **press any key** at the trial message → Christian answers and **presses any key** too → keep it under 30 s → **Hang up** | **Ringing your phone…** → **Calling Christian Gonzalez…** (his phone rings; the recording notice plays) → **Connected · recording** → after **Hang up**: **Getting the recording…**, **Transcribing…**, **Summarizing…**, **Suggesting follow-ups…** → **Saved to the call notes**, the **Summary** and **Suggested follow-ups**, each with its own **Apply** (the in-card call has no **Apply selected**; that's the Live transcript card in 4d) |
 | 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the scripted call with Hye-jin Park streams in (~10 s); the summary and **Suggested next steps** (~4 s); the after-call card proposes a card-update task, the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") and a context note → **Apply selected** writes the ticked ones |
 | 4e | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
 | 4f | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
@@ -1936,8 +1936,11 @@ first, so the person answering it is part of the call. Labels are from the code 
 Live-call notes (19, from the real test call):
 - The staff phone (Sharif's) rings first, from **the Twilio number**: save it as a contact on that phone before the
   demo, or iPhone call screening answers it. Docs write "the Twilio number", never its digits.
-- Each leg opens with Twilio's trial-account message. Say it out loud as a known limit ("a trial account, so Twilio
-  reads a notice first").
+- **Press any key, on both phones.** Each leg opens with Twilio's trial message ("You have a trial account… press any
+  key to execute your code"), and **Twilio hangs up that leg if no key is pressed**. So Sharif presses any key when his
+  phone rings and the message plays; then Christian presses any key when his phone rings. Brief Christian beforehand.
+  If either doesn't, the call drops silently and the transcript is empty (the two failed Nov 8 test calls broke this
+  way; the third, with the keys pressed, worked end to end). Say the message out loud as a known limit ("a trial account, so Twilio reads a notice first").
 - Christian hears "Hello. This call is recorded for our notes." before he joins.
 - Don't restart LIVE's service between **Call** and the summary (about a minute after **Hang up**): the call's
   worker runs inside the service. If the transcript fails, the card offers **Try again** (it keeps the recording and
@@ -1987,7 +1990,8 @@ Live-call notes (19, from the real test call):
       must match; `SEND_ALLOWLIST` must include his verified number. (The `/phone/preview` check for Christian comes
       after he's added, during step 3; see 4c.)
 - [ ] **T-15 (staff phone):** the Twilio number is saved as a contact on the staff phone (Sharif's), so iPhone call
-      screening doesn't answer it. During the run, nobody restarts LIVE's service between 4c's **Call** and its
+      screening doesn't answer it. **Christian is briefed:** answer, and press any key when the trial message plays
+      (Sharif does the same on his phone); without the key press Twilio hangs up. During the run, nobody restarts LIVE's service between 4c's **Call** and its
       summary.
 - [ ] **T-10 (mic):** open **Live transcript** (it should show **Listening**), then **Open Ask sidebar** →
       **Dictate** → **Stop dictation**. Grant the browser mic permission.
@@ -2062,6 +2066,7 @@ fallback before T-30.
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
+| 4c Live call (dropped) | the call drops, or the transcript comes back empty (a key wasn't pressed at the trial message); the card reads e.g. "You hung up before Christian Gonzalez answered." or "Twilio has no recording for this call, so there is no transcript." | "That's a trial-account limit: Twilio needs a key press first." Go to 4d. |
 | 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the recording is kept, so the transcript can be finished later, then go to 4d. |
 | 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do 4d (the Live transcript demo call). |
 | 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
