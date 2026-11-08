@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import type {
   CreateCampaignInput,
@@ -34,6 +39,32 @@ export const useCampaign = (id: number | null) => {
     queryFn: () => dataProvider.getCampaign(id as number),
     enabled: id != null,
   });
+};
+
+/**
+ * The projects (campaigns) a donor is in: every campaign whose messages include them.
+ * Reads each campaign's detail (cached per campaign), so it's cheap for a team's handful.
+ */
+export const useDonorProjects = (donorId: number | null) => {
+  const dataProvider = useDonorDesk();
+  const list = useCampaigns();
+  const details = useQueries({
+    queries: (donorId == null ? [] : (list.data ?? [])).map((c) => ({
+      queryKey: campaignKeys.detail(c.id),
+      queryFn: () => dataProvider.getCampaign(c.id),
+    })),
+  });
+  const projects = details
+    .map((q) => q.data)
+    .filter(
+      (c): c is NonNullable<typeof c> =>
+        !!c && c.messages.some((m) => m.donor_id === donorId),
+    )
+    .map((c) => ({ id: c.id, name: c.name }));
+  return {
+    projects,
+    isPending: list.isPending || details.some((q) => q.isPending),
+  };
 };
 
 /** One draft per donor; live with a key this is about 11 s per donor (4 at a time). */
