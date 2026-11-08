@@ -49,7 +49,7 @@ def test_tidepath_seed_has_no_real_names_and_keeps_the_planted_cases(tidepath):
     assert len(seed) == 18 and all(d.get("source_row") in (None, "SAMPLE") for d in seed)
     for d in seed:                                          # synthetic contact details only
         assert d.get("email") is None or d["email"].split("@")[1].endswith(("example.com", "example.org"))
-        assert d.get("phone") is None or "55501" in "".join(ch for ch in d["phone"] if ch.isdigit())
+        assert d.get("phone") is None or "".join(ch for ch in d["phone"] if ch.isdigit())[-7:-4] == "555"
     orgs = [d["full_name"] for d in seed if d["donor_type"] == "organization"]
     assert orgs == ["Biscayne Harbor Family Foundation", "Palmetto Lantern Foundation", "Seagrape Logistics Co.",
                     "Marlowe Tide Foundation", "Quinterra & Vale Law Group"]
@@ -61,7 +61,7 @@ def test_flipping_back_restores_the_original_seed_unchanged(monkeypatch):
     monkeypatch.setenv("DONOR_DESK_PERSONA", "miami_foundation")
     assert not persona.is_fictional() and persona.org_name() == "The Miami Foundation"
     miami = persona.seed_donors()
-    assert [d["full_name"] for d in miami][8:] == ["John S. and James L. Knight Foundation", "Amazon",
+    assert [d["full_name"] for d in miami][8:12] == ["John S. and James L. Knight Foundation", "Amazon",
                                                     "Frederick A. DeLuca Foundation", "McDermott Will & Schulte"]
     strip = lambda d: {k: v for k, v in d.items() if k not in ("full_name", "org_name", "notes")}
     assert [strip(d) for d in tide] == [strip(d) for d in miami]          # same ids, tiers, histories

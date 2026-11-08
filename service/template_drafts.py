@@ -16,6 +16,11 @@ from service import outreach_agent as oa
 from service import persona
 
 
+def _mid_sentence(text: str) -> str:
+    """'The X Fund gives...' reads 'the X Fund gives...' after 'We noticed that'."""
+    return "t" + text[1:] if text.startswith("The ") else text
+
+
 def _facts_used(used: list[dict]) -> list[oa.FactUsed]:
     return [oa.FactUsed(fact=f["fact"], url=f["url"], date=f.get("date")) for f in used if f]
 
@@ -63,7 +68,7 @@ def draft_prospect(prospect: dict, profile: dict, org_facts: list[dict], today: 
         f"Dear {name} team,",
         f"I'm reaching out from {ca.ORG}." + (f" {mission}" if mission else ""),
         f"Recently: {lead['fact']}" if lead else "",
-        f"We noticed that {why['fact'].removeprefix('SAMPLE: ')}" if why else "",
+        f"We noticed that {_mid_sentence(why['fact'].removeprefix('SAMPLE: '))}" if why else "",
         persona.localize("Would you be open to a short call or coffee to talk about Miami's priorities?"),
         f"Warmly,\n{ca.SIGN_OFF}") if p)
     script = "\n".join(p for p in (
