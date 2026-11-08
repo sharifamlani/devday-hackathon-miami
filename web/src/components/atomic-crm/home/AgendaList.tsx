@@ -138,7 +138,9 @@ export const AgendaList = ({
   const headingId = useId();
   const bodyId = useId();
   const [collapsed, toggle] = useTileCollapsed("calendar");
-  const [daysFolded, toggleDays] = useTileCollapsed("calendarDays");
+  // Folded each time the site opens (not remembered): one tap shows the day-by-day list.
+  const [daysFolded, setDaysFolded] = useState(true);
+  const toggleDays = () => setDaysFolded((v) => !v);
   const daysId = useId();
   const [offset, setOffset] = useState(0);
   /** null = the week; a date = that day's view. */
