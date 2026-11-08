@@ -4,6 +4,7 @@ import { UserMenu } from "@/components/admin/user-menu";
 import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { MotionMenuItems } from "./MotionMenuItems";
+import { PublicLinkMenuItem } from "./PublicLinkMenuItem";
 import { avatarSlot } from "./shellState";
 
 export const DashboardControls = () => {
@@ -36,6 +37,7 @@ export const DashboardControls = () => {
         <span className={avatarSlot("size-10")}>
           <UserMenu>
             <RestartOnboardingMenuItem />
+            <PublicLinkMenuItem />
             <MotionMenuItems />
           </UserMenu>
         </span>

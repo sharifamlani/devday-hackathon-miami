@@ -16,13 +16,14 @@ import re
 import time
 from collections import defaultdict, deque
 
-from service import config
+from service import config, public_gate
 
 RATE_LIMIT = 20          # requests per window, per client IP, per route group
 RATE_WINDOW_S = 60.0
 MAX_LIVE_SOCKETS = 3     # concurrent WS /transcribe/live, all clients together
 
 NOT_AVAILABLE = "not available in the public preview"
+LINK_OFF = "The public link is off right now."
 
 # (method, path regex). Everything else, including every PATCH/PUT/DELETE, /phone/*, /ingest, /send*, /calls*,
 # /crm/*, /merges*, /enrich*, /context/run|refresh, /events/refresh, /chat/stream, is refused.
@@ -165,6 +166,11 @@ class PublicModeMiddleware:
         global _live_sockets
         if scope["type"] not in ("http", "websocket") or not config.PUBLIC_MODE:
             return await self.app(scope, receive, send)
+        if not public_gate.is_on():                  # the laptop switched the public link off: nothing, not even /health
+            if scope["type"] == "websocket":
+                await receive()
+                return await send({"type": "websocket.close", "code": 1013})
+            return await respond_json(send, 503, {"detail": LINK_OFF})
         path = scope["path"]
         if scope["type"] == "websocket":
             if path != "/transcribe/live":

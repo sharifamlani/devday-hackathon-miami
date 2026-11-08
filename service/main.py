@@ -50,7 +50,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from service import db
-from service.public_mode import PublicModeMiddleware, enabled as public_mode_enabled, redacting as public_mode_redacting
+from service import public_gate
+from service.public_mode import (NOT_AVAILABLE, PublicModeMiddleware, enabled as public_mode_enabled,
+                                 redacting as public_mode_redacting)
 from service.routes_ask import router as ask_router
 from service.routes_calls import router as calls_router
 from service.routes_crm import router as crm_router
@@ -119,6 +121,24 @@ def health() -> dict:
 def public_mode_flag() -> dict:
     """The web app shows a 'public demo' banner when this is true (docs/public-tunnel.md)."""
     return {"enabled": public_mode_enabled(), "redacted": public_mode_redacting()}
+
+
+class PublicLinkBody(BaseModel):
+    on: bool
+
+
+@app.get("/public-link")
+def public_link_state() -> dict:
+    """The laptop's switch for the public site (service/public_gate.py): {"on": bool}."""
+    return {"on": public_gate.is_on()}
+
+
+@app.put("/public-link")
+def public_link_set(body: PublicLinkBody) -> dict:
+    """Flip the public site between live (on) and the snapshot (off). Laptop only: public mode refuses it."""
+    if public_mode_enabled():
+        raise HTTPException(403, NOT_AVAILABLE)
+    return public_gate.set_on(body.on)
 
 
 def load_donor_row(donor_id: int) -> dict:
