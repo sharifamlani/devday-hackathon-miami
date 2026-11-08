@@ -37,7 +37,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    **19 Duplicates removed** (source rows that matched an existing person exactly and were merged on upload; if the
    count isn't available the tile reads
    **Duplicate check complete**), and "**9 possible matches still need review.**"
-   with **Review matches**. Don't click **Review matches** on stage: it pauses setup and opens the donor list (the
+   with **Review matches**. Say: "19 exact copies merged automatically; 9 look-alikes wait for you." Don't click
+   **Review matches** on stage: it pauses setup and opens the donor list (the
    close calls come back in step 13). Click **Create organization profile**.
 3. **Step 2, "Your organization."** (**Step 2 of 2**, the **kindred** wordmark, "Start with your website.") Type
    `miamifoundation.org` in the **Website** field (placeholder **yourorganization.org**) and click **Continue**
@@ -45,7 +46,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
 4. **The dashboard opens at once; the agent reads in the background.** There's no waiting screen: "It reads the
    site and news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing."
    The briefing opens with e.g. **15 tasks today**; the events, prep tasks and Impact & story facts land when the read
-   finishes, about 30–40 s after **Continue** (the invites about a minute later). Start the dashboard tour (step 5) while it reads.
+   finishes, about 30–40 s after **Continue** (the events go 0 → 4, then e.g. 18 tasks; the invites about a minute
+   later). Start the dashboard tour (step 5) while it reads.
 5. **Dashboard (home).** A card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?" (or,
    while the read is still running, "We're still reading your website. Want a one-minute tour while it finishes?"):
    click **Not now**. Point at:
