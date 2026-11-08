@@ -98,7 +98,7 @@ export const SignupPage = () => {
   return (
     <div className="h-screen p-8">
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold">{title}</h1>
+        <h1 className="wordmark">{title}</h1>
       </div>
       <div className="h-full">
         <div className="max-w-sm mx-auto h-full flex flex-col justify-center gap-4">

@@ -216,6 +216,14 @@
 /* Kindred tile: thin border, white fill, a yellow-green glow at the bottom
    corners. Use `tile` on any card or panel; set `[--tile:var(--card)]` where
    it floats over a scrim and must be opaque. */
+/* The product name as a logo: the Kindred wordmark's type (see .kindred-wordmark). */
+@utility wordmark {
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -1px;
+}
+
 @utility tile {
   border: 1px solid var(--border);
   border-radius: 18px;

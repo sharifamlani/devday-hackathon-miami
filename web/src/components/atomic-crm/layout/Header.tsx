@@ -22,7 +22,7 @@ const Header = () => {
     <header className="flex h-[46px] shrink-0 items-center gap-2">
       <span
         data-testid="wordmark"
-        className="flex min-w-0 items-center text-xl font-bold tracking-[-0.02em]"
+        className="wordmark flex min-w-0 items-center"
       >
         <span className="truncate">{title}</span>
       </span>
