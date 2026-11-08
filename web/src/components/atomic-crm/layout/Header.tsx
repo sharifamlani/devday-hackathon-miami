@@ -7,6 +7,7 @@ import { useConfigurationContext } from "../root/ConfigurationContext";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { MotionMenuItems } from "./MotionMenuItems";
+import { PublicLinkMenuItem } from "./PublicLinkMenuItem";
 import { avatarSlot } from "./shellState";
 import { SampleDataBadge } from "./SampleDataBadge";
 
@@ -42,6 +43,7 @@ const Header = () => {
           <span className={avatarSlot("size-10")}>
             <UserMenu>
               <RestartOnboardingMenuItem />
+              <PublicLinkMenuItem />
               <MotionMenuItems />
             </UserMenu>
           </span>
