@@ -75,6 +75,8 @@ class Case:
     reply: str | None = None                             # regex the reply must match (case-insensitive)
     approve: bool | str = False                          # True: approve every card; "each": one card per resume
     ui: str | None = None                                # role=button name regex that must be on screen
+    ui_count: int | None = None                          # with ui: exactly this many such buttons
+    tools_none: set[str] = field(default_factory=set)    # none of these may run (e.g. nothing that dials)
     probe: Callable[[str], tuple[bool, str]] | None = None
     setup: Callable[[str], None] | None = None
     start: Callable[[Page], None] | None = None          # how the conversation starts (default: type prompt)
@@ -93,9 +95,11 @@ def task_probe(base):
 
 
 def calendar_probe(base):
+    """A dated task (GET /calendar) or, since #211, an event (GET /events) for the lunch on Friday."""
     rows = api(base, "/calendar", **{"from": FRIDAY.isoformat(), "to": FRIDAY.isoformat()})
-    hit = [i for i in rows if "lunch" in json.dumps(i).lower()]
-    return bool(hit), f"{len(hit)} lunch item(s) on {FRIDAY}"
+    events = [e for e in api(base, "/events") if str(e.get("starts_at") or "").startswith(FRIDAY.isoformat())]
+    hit = [i for i in rows + events if "lunch" in json.dumps(i).lower()]
+    return bool(hit), f"{len(hit)} lunch item(s) on {FRIDAY} (calendar + events)"
 
 
 SEEN: dict[str, int] = {}
@@ -151,10 +155,10 @@ def click_work_on_task(page: Page):
 
 
 CASES = [
-    # With PHONE_CALLS off (every test stack: never ring a phone) call_person refuses at once and the agent
-    # says why; with calls on it pauses on a Call / Not now card. Either is a pass; the card is never clicked.
-    Case("call a donor", "Call Elizabeth Fontaine", tools_all={"call_person"},
-         reply=r"(calls?|calling) (are|is) (disabled|off|turned off)|no phone|Waiting for you: Call"),
+    # Call protocol (#219): "call <person>" shows the call sheet with one Call button; nothing dials (the button
+    # is never clicked here, and every test stack runs PHONE_CALLS=off).
+    Case("call a donor", "Call Elizabeth Fontaine", tools_all={"prep_call"}, tools_none={"call_person"},
+         ui=r"^Call$", ui_count=1),
     Case("CRM write", "Update Carmen Ibarra's city to Coral Gables", tools_all={"update_person"},
          probe=crm_probe),
     Case("events read", "What are the next events coming up?", tools_any={"get_events", "get_calendar"},
@@ -165,7 +169,7 @@ CASES = [
          tools_all={"draft_email", "send"}, approve=True, probe=outbox_probe),
     Case("task write", "Add a task to call Priya Raman on Tuesday", tools_all={"create_task"}, probe=task_probe),
     Case("calendar write", "Put a donor lunch on the calendar for Friday at noon",
-         tools_any={"add_calendar_item", "create_task"}, probe=calendar_probe),
+         tools_any={"add_calendar_item", "create_task", "add_event"}, probe=calendar_probe),
     Case("context read", "What has the Foundation been doing lately?",
          tools_any={"get_context", "search_context"}, reply=r"\w{20,}|\."),
     Case("task -> agent", "(home task card: Work on it with the agent)", tools_all={"get_task"},
@@ -246,8 +250,13 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
     text = " ".join(replies)
     if case.reply and not re.search(case.reply, text, re.I):
         ok, _ = False, notes.append(f"reply doesn't match /{case.reply}/")
-    if case.ui and page.locator("[role=log]").get_by_role("button", name=re.compile(case.ui, re.I)).count() == 0:
-        ok, _ = False, notes.append(f"no /{case.ui}/ button in the conversation")
+    if case.ui:
+        n = page.locator("[role=log]").get_by_role("button", name=re.compile(case.ui, re.I)).count()
+        if (n != case.ui_count) if case.ui_count is not None else n == 0:
+            ok, _ = False, notes.append(f"{n} /{case.ui}/ button(s) in the conversation"
+                                        + (f", want {case.ui_count}" if case.ui_count is not None else ""))
+    if case.tools_none & set(tools):
+        ok, _ = False, notes.append(f"must not run {sorted(case.tools_none & set(tools))}")
     if case.probe:
         good, detail = case.probe(base)
         notes.append(f"db: {detail}")

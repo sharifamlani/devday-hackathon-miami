@@ -1,18 +1,21 @@
 import {
   startTransition,
+  useLayoutEffect,
   useEffect,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import { ArrowLeft, X } from "lucide-react";
+import { closeAfterHistoryNav, onZoomClosing } from "../zoomTransition";
 import type { WorkspaceView } from "../workspaceView";
 
 export const PANEL_TITLES: Record<WorkspaceView, string> = {
   calendar: "Calendar",
   tasks: "Tasks",
   crm: "Donors",
-  impact: "Impact",
+  impact: "Impact & story",
 };
 
 /** The shared zoom frame: toolbar (heading, back, close) around a named content layer. */
@@ -26,6 +29,14 @@ export const PanelFrame = ({
   children: ReactNode;
 }) => {
   const heading = useRef<HTMLHeadingElement>(null);
+  // Browser Back unmounts the frame with no zoom running: play the shrink from here, while the
+  // DOM is still attached. (Skipped within 150 ms of mounting: dev StrictMode's fake cleanup.)
+  useLayoutEffect(() => {
+    const mounted = performance.now();
+    return () => {
+      if (performance.now() - mounted > 150) closeAfterHistoryNav();
+    };
+  }, []);
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, []);
@@ -65,6 +76,9 @@ export const PanelFrame = ({
  */
 const DeferredBody = ({ children }: { children: ReactNode }) => {
   const [ready, setReady] = useState(false);
+  const [closing, setClosing] = useState(false);
+  // Close starts by unmounting the body on its own frame (see zoomTransition.ts).
+  useEffect(() => onZoomClosing(() => flushSync(() => setClosing(true))), []);
   useEffect(() => {
     const start = performance.now();
     let raf = 0;
@@ -92,7 +106,7 @@ const DeferredBody = ({ children }: { children: ReactNode }) => {
       clearTimeout(timer);
     };
   }, []);
-  return ready ? <>{children}</> : null;
+  return ready && !closing ? <>{children}</> : null;
 };
 
 export const PlaceholderPanel = ({ title }: { title: string }) => (

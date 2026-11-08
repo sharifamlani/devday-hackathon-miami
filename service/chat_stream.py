@@ -44,9 +44,9 @@ async def map_events(controller, result, ctx: ca.ChatContext, spec: dict) -> Non
         elif event.type == "run_item_stream_event" and event.name == "tool_output":
             call_id = call_id_of(event.item.raw_item)
             data = ca.output_data(event.item.output)
-            summary = ca.summarize(event.item.output)
+            summary = ca.step_summary(getattr(open_calls.get(call_id), "tool_name", "") or "", event.item.output)
             tool_name = getattr(open_calls.get(call_id), "tool_name", "") or ""
-            if tool_name.startswith("delete_") and not summary.startswith("error"):
+            if tool_name.startswith("delete_") and not summary.startswith("error") and summary != "declined":
                 summary = "deleted: " + summary.split(": ", 1)[-1]
             step = {"tool": tool_name or None, "call_id": call_id,
                     "summary": summary, "status": "error" if summary.startswith("error") else "done",
