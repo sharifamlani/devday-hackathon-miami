@@ -335,7 +335,7 @@ def s8_enrich(page: Page, api: Api, shots: Path):
     dialog = page.get_by_role("dialog").filter(has_text="Find a donor")
     dialog.get_by_placeholder("Name, email or organization").fill("Knight")
     page.wait_for_timeout(1500)
-    dialog.get_by_role("list", name="Donors").get_by_role("button").first.click()
+    dialog.get_by_role("list", name=re.compile(r"^(People|Donors)$")).get_by_role("button").first.click()
     page.wait_for_timeout(1500)
     dialog.get_by_role("button", name="Enrich profile").click()
     sugg = dialog.get_by_role("region", name="Enrichment suggestions")
