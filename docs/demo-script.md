@@ -101,13 +101,13 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
 11. **A call, transcribed.** Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
     **Live transcript** in the rail: the panel
     opens on **Listening** with **Demo call**, **Generate summary** and **Pause**. **Demo call** plays a scripted call
-    with **Hye-jin Park**, a real sample donor (about 10 s): Denise from The Miami Foundation calls about her $40
+    with **Hye-jin Park**, a donor from the sample data (about 10 s): Denise from The Miami Foundation calls about her $40
     monthly gift that didn't go through on October 10th; Hye-jin has a new card, asks to be put down for the Give
     Miami 5K on the 15th, and prefers a call. Click **Generate summary** (about 4 s): the summary and **Suggested
     next steps**. The after-call card then proposes the follow-ups, each with a checkbox: a card-update task, the RSVP
-    (**RSVP goes to: The Give Miami 5K · Sun, Nov 15**) and a context note (new card, prefers the phone). Tick what to
+    (**RSVP goes to: The Give Miami 5K · Sun, Nov 15**) and a context note (e.g. her new card). Tick what to
     keep and click **Apply selected**: "A call becomes tasks and an RSVP, and nothing is written until staff click
-    Apply." (Or ask a question in **Ask about this call**.)
+    Apply selected." (Or ask a question in **Ask about this call**.)
 12. **Dictation.** **Open Ask sidebar** and use **Dictate** to speak a question instead of typing it (**Stop
     dictation** to finish; it needs the live service and a microphone: test it before going on stage).
 13. **Duplicates review.** Click the **CRM** tile's heading: the banner reads **9 possible duplicates found** with
