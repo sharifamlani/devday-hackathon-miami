@@ -883,3 +883,18 @@ def test_a_generate_rerun_leaves_no_open_transaction(tmp_path):
     b.commit()
     a.close()
     b.close()
+
+
+def test_alert_task_text_keeps_give_miami_day_capitalized():
+    """capitalize() lowercased everything after the first letter: "(give miami day)" in task text."""
+    from datetime import date as _date
+
+    from service.tasks import _alert_why
+
+    today = _date(2026, 11, 8)
+    late = {"kind": "late", "cadence": "yearly_gmd", "expected_date": "2024-11-21", "days_late": 717}
+    failed = {"kind": "failed", "cadence": "yearly_gmd", "expected_date": "2025-11-20", "days_late": 353}
+    assert _alert_why(late, today) == ("Yearly (Give Miami Day) giver; the gift due Nov 21, 2024 is 717 days late.")
+    assert _alert_why(failed, today).startswith("Yearly (Give Miami Day) gift on Nov 20, 2025 failed")
+    assert _alert_why({**late, "cadence": "monthly", "expected_date": "2026-10-10", "days_late": 29}, today) == \
+        "Monthly giver; the gift due Oct 10 is 29 days late."
