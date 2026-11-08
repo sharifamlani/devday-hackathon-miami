@@ -14,9 +14,9 @@ add_context_note, tag_interest), each with an evidence quote. Code then checks e
 Without an OpenAI key, a rule-based proposer covers the same five action types.
 
 apply(conn, note_id, action_ids) writes through the shared service functions: tasks.create_task
-(3a, actor="call", with an undo token), event_audience.rsvp, pledges, research_facts (a call-sourced
+(3a, actor="call", with an undo token), agent_writes.rsvp_event (undo token), pledges, research_facts (a call-sourced
 note about the person, source "call-note:<id>"), interests.add_interest (42, guarded). Applying an
-action twice does nothing the second time. Pledges are promises: no total, target or score reads them.
+action twice does nothing the second time, and a write staff undid stays undone. Pledges are promises: no total, target or score reads them.
 """
 
 from __future__ import annotations
@@ -424,11 +424,11 @@ def write_action(conn: sqlite3.Connection, action: dict, note_id: str) -> dict:
         task, token = made
         return {"task_id": task["id"], "undo_token": token}
     if kind == "rsvp_event":
+        from service import agent_writes                # the chat path's writer: undo token + agent_actions log
         conn.execute("INSERT OR IGNORE INTO event_audience (event_id, person_id, reason) VALUES (?, ?, ?)",
                      (p["event_id"], p["person_id"], "said so on a call"))
-        conn.execute("UPDATE event_audience SET rsvp = ? WHERE event_id = ? AND person_id = ?",
-                     (p["rsvp"], p["event_id"], p["person_id"]))
-        return {"event_id": p["event_id"], "person_id": p["person_id"], "rsvp": p["rsvp"]}
+        result, token = agent_writes.rsvp_event(conn, p["event_id"], p["person_id"], p["rsvp"], actor="call")
+        return result | {"undo_token": token}
     if kind == "record_pledge":
         cur = conn.execute("INSERT INTO pledges (person_id, amount, frequency, expected_by, note, call_note_id) "
                            "VALUES (?, ?, ?, ?, ?, ?)", (p["person_id"], p["amount"], p["frequency"], p.get("expected_by"),
@@ -458,16 +458,26 @@ def already_written(conn: sqlite3.Connection, action: dict, note_id: str) -> dic
     if action["type"] == "rsvp_event":
         row = conn.execute("SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = ?",
                            (p["event_id"], p["person_id"])).fetchone()
-        return ({"event_id": p["event_id"], "person_id": p["person_id"], "rsvp": row[0]}
-                if row and row[0] == p["rsvp"] else None)
+        if row and row[0] == p["rsvp"]:
+            return {"event_id": p["event_id"], "person_id": p["person_id"], "rsvp": row[0]}
+        undone = conn.execute("SELECT 1 FROM agent_actions WHERE action = 'rsvp_event' AND actor = 'call' AND target = ? "
+                              "AND undone_at IS NOT NULL", (f"rsvp:{p['event_id']}:{p['person_id']}",)).fetchone()
+        return {"event_id": p["event_id"], "person_id": p["person_id"], "undone_by_staff": True} if undone else None
     if action["type"] == "add_context_note":
         row = conn.execute("SELECT id FROM research_facts WHERE donor_id = ? AND source_url = ?",
                            (p["person_id"], p["source"])).fetchone()
         return {"research_fact_id": row[0]} if row else None
     if action["type"] == "create_task" and (m := re.search(r"\[call .+ · [^\]]+\]$", p.get("why") or "")):
-        row = conn.execute("SELECT id FROM tasks WHERE person_id IS ? AND source = 'call' AND deleted_at IS NULL "
-                           "AND instr(why, ?) > 0", (p.get("person_id"), m.group(0))).fetchone()
-        return {"task_id": row[0]} if row else None
+        marker = m.group(0)
+        row = conn.execute("SELECT id, deleted_at FROM tasks WHERE person_id IS ? AND source = 'call' "
+                           "AND instr(why, ?) > 0", (p.get("person_id"), marker)).fetchone()
+        if row:                                        # open, or soft-deleted by staff: either way, done
+            return {"task_id": row[0]} | ({"undone_by_staff": True} if row[1] else {})
+        # undoing a create deletes the row, but the log keeps it (json escapes the marker's middle dot)
+        logged = conn.execute("SELECT target FROM agent_actions WHERE action = 'create_task' AND "
+                              "(instr(after, ?) > 0 OR instr(after, ?) > 0)",
+                              (marker, json.dumps(marker)[1:-1])).fetchone()
+        return {"task_id": int(logged[0].split(":")[1]), "undone_by_staff": True} if logged else None
     return None
 
 
@@ -503,6 +513,15 @@ def apply(conn: sqlite3.Connection, note_id: str, action_ids: list[str]) -> dict
         applied.append({"id": aid, "type": by_id[aid]["type"], "ref": ref})
     _remember(note_id, entry)
     return {"applied": applied, "skipped": skipped}
+
+
+def apply_actions(conn: sqlite3.Connection, note_id: str, action_ids: list[str], actor: str = "agent") -> dict:
+    """The chat agent's apply_after_call_actions tool (90). Writes are attributed to the call, as from the
+    route; errors come back as {"error"} so the model can say what failed."""
+    try:
+        return apply(conn, note_id, action_ids)
+    except NotFound as e:
+        return {"error": str(e)}
 
 
 def list_pledges(conn: sqlite3.Connection, person_id: int) -> list[dict]:

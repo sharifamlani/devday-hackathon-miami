@@ -208,3 +208,30 @@ def test_a_cold_store_after_a_restart_writes_nothing_even_when_the_model_rewords
     out = aca.apply(conn, "note-1", [a["id"] for a in second["actions"]])
     assert out["applied"] == [] and counts(conn) == before
     assert all(s["why"] == "already applied" for s in out["skipped"])
+
+
+def test_staff_undo_sticks_through_a_cold_store_reapply(env):
+    from service import agent_writes
+    conn, rosa, beach = env
+    first = aca.propose(conn, "note-1", TODAY)
+    out = aca.apply(conn, "note-1", [a["id"] for a in first["actions"]])
+    for a in out["applied"]:                                                     # staff undo the task and the RSVP
+        if a["type"] in ("create_task", "rsvp_event"):
+            agent_writes.undo(conn, a["ref"]["undo_token"])
+    assert conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 0
+    assert conn.execute("SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = ?", (beach, rosa)).fetchone()[0] is None
+    before = counts(conn)
+    aca._PROPOSALS.clear(); aca.PROPOSALS_FILE.unlink()                          # restart, store lost
+    second = aca.propose(conn, "note-1", TODAY)
+    again = aca.apply(conn, "note-1", [a["id"] for a in second["actions"]])
+    assert again["applied"] == [] and counts(conn) == before                     # the undone task and RSVP stay undone
+    assert conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 0
+
+
+def test_rsvp_writes_through_agent_writes_with_an_undo_token(env):
+    conn, rosa, beach = env
+    got = aca.propose(conn, "note-1", TODAY)
+    out = aca.apply(conn, "note-1", [a["id"] for a in got["actions"] if a["type"] == "rsvp_event"])
+    ref = out["applied"][0]["ref"]
+    assert ref["rsvp"] == "yes" and ref["undo_token"]
+    assert conn.execute("SELECT actor, target FROM agent_actions WHERE token = ?", (ref["undo_token"],)).fetchone()[:] == ("call", f"rsvp:{beach}:{rosa}")
