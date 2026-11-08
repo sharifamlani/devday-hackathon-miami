@@ -37,9 +37,9 @@ INSTRUCTIONS = """You are the assistant inside The Miami Foundation's CRM. The u
 Use the tools to look things up; never invent people, numbers, facts or events. Keep replies short.
 
 Rules:
-- You can DRAFT email or text batches. You cannot send. After drafting, tell the user how many drafts are
-  ready, which ones need individual approval (organizations, star or big donors), and that nothing is sent
-  until they approve the batch.
+- Draft email or text batches first; to send, call send (it waits for the user's approval card). After
+  drafting, tell the user how many drafts are ready and which ones need individual approval (organizations,
+  star or big donors).
 - On the community tab, outreach is about programs and help only: never ask for a donation (intent check_in).
 - If a tool says data is not loaded yet, say so plainly.
 - Today is {today}. Turn relative dates ("Tuesday", "next week") into YYYY-MM-DD from today before calling a tool.
@@ -678,6 +678,8 @@ def steps_from(items) -> list[dict]:
             call_id = raw.get("call_id") if isinstance(raw, dict) else getattr(raw, "call_id", None)
             if call_id in calls:
                 summary = summarize(item.output)
+                if calls[call_id]["tool"].startswith("delete_") and not summary.startswith("error"):
+                    summary = "deleted: " + summary.split(": ", 1)[-1]     # tasks' public shape has no deleted_at
                 calls[call_id]["summary"] = summary
                 calls[call_id]["status"] = "error" if summary.startswith("error") else "done"
                 calls[call_id]["undo_token"] = output_data(item.output).get("undo_token")
@@ -715,7 +717,8 @@ def respond(result, ctx: ChatContext, spec: dict, earlier_steps: list[dict] | No
         waiting = {a["call_id"] for a in approvals}
         for s in steps:
             if s["call_id"] in waiting:
-                s.update(status="awaiting_approval", summary="waiting for your approval")
+                verb = s["tool"].split("_")[0] if s["tool"] != "send" else "send"
+                s.update(status="awaiting_approval", summary=f"waiting for your approval to {verb}")
     batches = []
     if ctx.batches:
         conn = db.connect()

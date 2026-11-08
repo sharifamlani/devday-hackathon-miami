@@ -208,3 +208,16 @@ def test_post_undo_route_reverts_any_write_not_just_tasks(db_file):
     assert c.post(f"/undo/{task['undo_token']}").json()["undone"] is True
     assert c.post(f"/undo/{task['undo_token']}").status_code == 409            # already undone (tasks.undo)
     assert c.post("/undo/nope").status_code == 404
+
+
+def test_delete_steps_say_deleted_and_the_prompt_allows_send_via_approval():
+    from agents.items import ToolCallItem, ToolCallOutputItem
+    from openai.types.responses import ResponseFunctionToolCall
+    call = ResponseFunctionToolCall(type="function_call", call_id="c1", name="delete_task", arguments='{"task_id": 4}')
+    from agents import Agent
+    who = Agent(name="t")
+    items = [ToolCallItem(agent=who, raw_item=call),
+             ToolCallOutputItem(agent=who, raw_item={"call_id": "c1", "type": "function_call_output", "output": ""},
+                                output={"id": 4, "kind": "other", "title": "Order badges", "undo_token": "t"})]
+    assert ca.steps_from(items)[0]["summary"] == "deleted: Order badges"
+    assert "You cannot send" not in ca.INSTRUCTIONS and "call send" in ca.INSTRUCTIONS

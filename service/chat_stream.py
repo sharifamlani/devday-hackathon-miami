@@ -45,7 +45,10 @@ async def map_events(controller, result, ctx: ca.ChatContext, spec: dict) -> Non
             call_id = call_id_of(event.item.raw_item)
             data = ca.output_data(event.item.output)
             summary = ca.summarize(event.item.output)
-            step = {"tool": getattr(open_calls.get(call_id), "tool_name", None), "call_id": call_id,
+            tool_name = getattr(open_calls.get(call_id), "tool_name", "") or ""
+            if tool_name.startswith("delete_") and not summary.startswith("error"):
+                summary = "deleted: " + summary.split(": ", 1)[-1]
+            step = {"tool": tool_name or None, "call_id": call_id,
                     "summary": summary, "status": "error" if summary.startswith("error") else "done",
                     "undo_token": data.get("undo_token")}
             steps.append(step)
@@ -60,7 +63,8 @@ async def map_events(controller, result, ctx: ca.ChatContext, spec: dict) -> Non
         for a in approvals:
             if a["call_id"] in open_calls:
                 open_calls.pop(a["call_id"]).set_response(
-                    {"tool": a["tool"], "status": "awaiting_approval", "summary": "waiting for your approval",
+                    {"tool": a["tool"], "status": "awaiting_approval",
+                     "summary": f"waiting for your approval to {a['tool'].split('_')[0]}",
                      "run_id": run_id, "call_id": a["call_id"]})
         controller.add_data({"type": "approvals", "run_id": run_id, "approvals": approvals})
     for tool in open_calls.values():          # anything left unanswered (e.g. max turns): close its card
