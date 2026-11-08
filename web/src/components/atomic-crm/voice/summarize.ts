@@ -100,7 +100,7 @@ export const findSpokenDate = (text: string, today: Date): Date | null => {
 };
 
 const EVENT_PATTERN =
-  /\bthe\s+((?:[a-z]+\s+){0,2}(?:cleanup|clean-up|gala|event|tour|lunch|luncheon|breakfast|dinner|walk|run|meeting|open house|fundraiser))\b/i;
+  /\bthe\s+((?:[a-z]+\s+){0,2}(?:cleanup|clean-up|gala|event|tour|lunch|luncheon|breakfast|dinner|walk|run|5k|race|meeting|open house|fundraiser))\b/i;
 
 const has = (lines: TranscriptLine[], pattern: RegExp) =>
   lines.some((line) => pattern.test(line.text));
@@ -158,7 +158,7 @@ export const summarizeTranscript = ({
     const event = line.text.match(EVENT_PATTERN);
     if (!event) continue;
     const date = findSpokenDate(line.text, today);
-    const what = `the ${event[1].toLowerCase()}`;
+    const what = `the ${event[1]}`; // as spoken: a name like the Give Miami 5K keeps its case
     summary.push(
       date
         ? `Signed up for ${what} on ${formatDayDate(date)}.`
