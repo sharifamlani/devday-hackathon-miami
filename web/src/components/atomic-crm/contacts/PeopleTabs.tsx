@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import { ArrowRightLeft, Dog, Search } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 
 import {
@@ -25,6 +25,7 @@ import {
   type Person,
   type Tab,
 } from "../providers/local/crmTypes";
+import { searchPeople } from "../home/searchPeople";
 import { InitialsAvatar, tileClass } from "./donorCrmUi";
 import { usePeopleTab } from "./usePeopleTab";
 
@@ -152,8 +153,67 @@ export const PeopleTabPanel = ({ tab }: { tab: Exclude<Tab, "giver"> }) => {
           </ul>
         )}
       </div>
+      <AlsoFound query={query} current={tab} />
       {tab === "community" && <CommunityStatsPanel />}
     </div>
+  );
+};
+
+/**
+ * A search finds people in the other two tabs too: "Also found: 1 in
+ * Neighbors · 1 in Community", then the names. A name switches to that tab
+ * and opens the person (Back returns to the list on that tab).
+ */
+export const AlsoFound = ({
+  query,
+  current,
+}: {
+  query: string;
+  current: Tab;
+}) => {
+  const q = query.trim();
+  const [first, second] = TABS.filter((t) => t !== current);
+  const a = usePeople(first, !!q);
+  const b = usePeople(second, !!q);
+  const navigate = useNavigate();
+  const [, setTab] = usePeopleTab();
+  if (!q) return null;
+  const hits = [
+    ...searchPeople(a.data?.people ?? [], q, 50),
+    ...searchPeople(b.data?.people ?? [], q, 50),
+  ];
+  if (hits.length === 0) return null;
+  const counts = [first, second]
+    .map((t) => [t, hits.filter((p) => p.tab === t).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([t, n]) => `${n} in ${TAB_LABELS[t]}`)
+    .join(" · ");
+  return (
+    <section
+      aria-label="Matches in other tabs"
+      className="rounded-2xl bg-muted px-3 py-2 text-sm"
+    >
+      <p className="font-medium">Also found: {counts}</p>
+      <ul className="mt-1 flex flex-wrap gap-1.5">
+        {hits.slice(0, 8).map((person) => (
+          <li key={person.id}>
+            <button
+              type="button"
+              onClick={() => {
+                setTab(person.tab);
+                navigate(`/contacts/${person.id}/show`);
+              }}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-card px-3 text-xs font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {person.name}
+              <span className="text-muted-foreground">
+                {TAB_LABELS[person.tab]}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 };
 

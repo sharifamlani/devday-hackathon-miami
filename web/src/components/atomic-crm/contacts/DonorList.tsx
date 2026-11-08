@@ -42,7 +42,7 @@ import {
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { DuplicateBanner } from "./DuplicateMerge";
-import { PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
+import { AlsoFound, PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
 import { usePeopleTab } from "./usePeopleTab";
 
 const SORTS = [
@@ -176,6 +176,9 @@ const DonorListLayout = () => {
           )}
         </div>
       </div>
+      {tab === "giver" && (
+        <AlsoFound query={String(filterValues.q ?? "")} current="giver" />
+      )}
       {tab === "giver" && <BulkBar />}
     </div>
   );
