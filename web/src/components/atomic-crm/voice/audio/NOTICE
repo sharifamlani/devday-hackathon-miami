@@ -1,0 +1,14 @@
+Audio capture lifted from google-gemini/live-api-web-console
+https://github.com/google-gemini/live-api-web-console at commit 0a4542fe0e39d07956ea7af5de45d7c81fde8960
+Copyright 2024 Google LLC. Licensed under the Apache License, Version 2.0 (LICENSE in this folder).
+
+Files copied from src/lib/ with their license headers kept:
+  audio-recorder.ts, audioworklet-registry.ts, utils.ts, worklets/audio-processing.ts, worklets/vol-meter.ts
+
+Modification (Apache-2.0 §4b):
+  audio-recorder.ts: the eventemitter3 import now points to ./eventEmitter.ts (our own minimal
+  on/off/emit), because eventemitter3 is not a dependency of this app; and the unused Promise
+  executor parameter `reject` is renamed `_reject` so the app's strict tsc (noUnusedParameters)
+  passes. No other changes.
+
+eventEmitter.ts is ours and not part of the lift.
