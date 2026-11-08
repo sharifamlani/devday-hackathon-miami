@@ -4,6 +4,7 @@ import type { TranscriptLine } from "./callNotes";
 import {
   geminiTranscriptSource,
   liveTranscribeUrl,
+  takeCallRecordings,
   warmUpCaptions,
   type CallRecorderLike,
   type RecorderLike,
@@ -209,9 +210,33 @@ describe("geminiTranscriptSource", () => {
     const finishing = source.finishRecording();
     source.stop(); // the pane stops the source right after taking the recording
     const rec = await finishing;
-    expect(rec?.lines).toBe(2);
+    expect(rec?.texts).toEqual(["One.", "Two."]);
     expect(await rec?.audio.text()).toBe("atail"); // the last chunk is not lost
     expect(rec?.audio.type).toBe("audio/webm;codecs=opus");
+    const tape = await takeCallRecordings();
+    expect(tape).toHaveLength(1); // finishRecording + stop() put the stretch on the tape once
+    expect(tape[0].texts).toEqual(["One.", "Two."]);
+    expect(await takeCallRecordings()).toEqual([]); // taking empties it
+  });
+
+  it("a stop() alone (the pane's Pause) leaves the stretch on the call tape", async () => {
+    await takeCallRecordings(); // start from an empty tape
+    const first = setup();
+    await Promise.resolve();
+    first.sockets[0].open();
+    first.recorders[0].frame([0, 0]);
+    first.callRecorder.chunk("a");
+    first.sockets[0].server({ type: "final", text: "Before the pause." });
+    first.source.stop();
+    const second = setup(); // Resume starts a new source
+    await Promise.resolve();
+    second.sockets[0].open();
+    second.recorders[0].frame([0, 0]);
+    second.callRecorder.chunk("b");
+    second.sockets[0].server({ type: "final", text: "After it." });
+    second.source.stop();
+    const tape = await takeCallRecordings();
+    expect(tape.map((s) => s.texts)).toEqual([["Before the pause."], ["After it."]]);
   });
 
   it("gives no recording where the browser can't record", async () => {
