@@ -21,24 +21,28 @@ Community 15**), but the demo stays on **Givers**.
 Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run; the
 Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
 
-1. **Empty start.** The app opens on the setup dialog (**Donor Desk · Step 1 of 3**) with nothing behind it: no
-   people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–4): with
-   people already uploaded, a reload could skip the website and context steps (#193 should prevent it; keep the habit).
+1. **Empty start.** The app opens straight on setup (**Donor Desk · Step 1 of 2**) with nothing behind it: no
+   people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–3): with
+   people already uploaded, a reload could skip the website step (#193 should prevent it; keep the habit).
 2. **Step 1, "Drag in your files."** Drop the **8 input files** from `data/sample_inputs/` on **Drop your files here**
    (or click **Choose files**): `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`,
    `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`,
    `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`. Not
-   `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**
-   (it reads **Importing…**, about 10 s on a warm cache). **Import finished: 77 people · 131 gifts (+1 declined charge
-   on record) from 8 files**, then **40 Givers · 22 Neighbors · 15 Community**, **9 possible duplicates to
-   review**, and e.g. **3 people to double-check: the agent wasn't sure which tab they belong in.** Click **Continue**. (**Use the example files** loads the same eight with one click.)
-3. **Step 2, "Tell us about your organization."** Type `miamifoundation.org` in the **Website** field and click
-   **Continue**. Social links are saved, not read.
-4. **Step 3, "Building your context."** It shows **Reading your website · m:ss** (about 30 s). "It reads the site and
-   news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing." The
-   heading becomes **Your desk is set up.** with e.g. **15 facts found about your organization** (website + news).
-   Click **Go to the dashboard**. If the screen says **Still reading your site.**, click **Continue to the
-   dashboard**: the facts appear when the read finishes in the background.
+   `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**.
+   (**Use the example files** loads the same eight with one click.) A full-screen processing view takes over: the
+   **kindred** wordmark, folders shuffling into a box, **Bringing your data together.** with a progress bar ("Reading
+   files and recognizing accounts."), then **Everything's in place.** ("Ready for your next step."). Then the results:
+   **Your donor data is ready.** "A clearer picture of your people." with the tiles **77 Accounts recognized** and
+   **<N> Duplicates removed** (the exact matches merged on upload), and "**9 possible matches still need review.**"
+   with **Review matches**. Don't click **Review matches** on stage: it pauses setup and opens the donor list (the
+   close calls come back in step 13). Click **Create organization profile**.
+3. **Step 2, "Your organization."** (**Step 2 of 2**, the **kindred** wordmark, "Start with your website.") Type
+   `miamifoundation.org` in the **Website** field (placeholder **yourorganization.org**) and click **Continue**.
+   Social links are saved, not read.
+4. **The dashboard opens at once; the agent reads in the background.** There's no waiting screen: "It reads the
+   site and news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing."
+   The events, prep tasks and Impact & story facts land on the dashboard when the read finishes (about half a minute;
+   the invites about a minute later). Start the dashboard tour (step 5) while it reads.
 5. **Dashboard (home).** A card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?" (or,
    while the read is still running, "We're still reading your website. Want a one-minute tour while it finishes?"):
    click **Not now**. Point at:
@@ -152,7 +156,7 @@ within about 2 s and the answer types out live, so narrate the steps as they app
 
 | Step | Can vary because | If it's slow or off, say |
 |---|---|---|
-| 4 Building your context (~30 s) | the site read can run past its limit; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | If it says **Still reading your site.**, click **Continue to the dashboard** and say "It keeps reading in the background; the facts land in a minute." |
+| 4 Background read (~30 s) | the site read runs in the background; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | Events or facts not there yet: keep touring and say "the agent is still reading the site; the events land in a moment." |
 | 6 / 7 agent replies (~10 s / ~28 s) | live model calls; step 7 also preps a call sheet | "It's pulling the task, the donor's record, a call sheet and a draft; every step it takes shows here." |
 | 8 campaign (~38 s) | 25 live drafts | "Twenty-five personal drafts, each citing a real Foundation story. Nothing is sent without approval." |
 | 9 Enrich | fast while the research cache holds Knight; otherwise a live web search | "It's reading the public web; every tag will carry its source." |
