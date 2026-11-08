@@ -70,7 +70,7 @@ class FakeSocket {
   }
 }
 
-const { useDictation, NO_AUDIO_MESSAGE } = await import("./dictation");
+const { useDictation, NO_AUDIO_MESSAGE, MIC_BLOCKED_MESSAGE } = await import("./dictation");
 // Load the modules the hook imports on demand, so its dynamic import resolves from cache
 // instead of racing the fake clock.
 await Promise.all([import("./audio/audio-recorder"), import("./audio/utils")]);
@@ -148,5 +148,14 @@ describe("useDictation errors are not silent", () => {
     await vi.advanceTimersByTimeAsync(4000);
     await h.rerender();
     expect(h.result.current.error).toBeNull();
+  });
+
+  it("a blocked microphone says so at once, and never opens a socket", async () => {
+    vi.stubGlobal("navigator", { ...navigator, permissions: { query: async () => ({ state: "denied" }) } });
+    FakeSocket.last = null;
+    const h = await press();
+    expect(h.result.current.status).toBe("error");
+    expect(h.result.current.error).toBe(MIC_BLOCKED_MESSAGE);
+    expect(FakeSocket.last).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowRight,
   AudioLines,
@@ -25,7 +25,9 @@ import { DATA_MODE } from "../providers/local/config";
 import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
 import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
-import { ApprovalCard, StepCard } from "./AgentCards";
+import { ApprovalCard, StepCard, UndoneNote, undoneSummary } from "./AgentCards";
+import { DictationButton, DictationHint } from "../voice/DictationButton";
+import { useDictationInput } from "../voice/useDictationInput";
 import {
   answerSummary,
   appendAnswer,
@@ -253,12 +255,14 @@ const UserMessage = ({ text }: { text: string }) => (
 /** On the laptop API the Home chat is the main-UI agent (B10): steps as cards, Undo, approval cards. */
 const LIVE_AGENT = DATA_MODE === "local";
 
-const LiveAgentThread = () => {
+const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
   const { messages, pending, error } = useAgentChat();
   const refetch = useAgentRefetch();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Nothing said yet: stay at the top so an opening briefing is read from its first line.
+    if (messages.length === 0 && !pending) return;
     endRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [messages.length, pending]);
 
@@ -268,7 +272,8 @@ const LiveAgentThread = () => {
       aria-label="Conversation with the agent"
       className="flex min-h-[120px] flex-1 flex-col gap-3 overflow-y-auto px-[22px] py-4"
     >
-      {messages.length === 0 && !pending && (
+      {intro}
+      {!intro && messages.length === 0 && !pending && (
         <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
           Ask about donors, plan outreach, or add to the calendar.
         </p>
@@ -293,14 +298,20 @@ const LiveAgentThread = () => {
               <ApprovalCard
                 key={a.call_id}
                 approval={a}
-                decided={Boolean(m.decided)}
+                decided={Boolean(m.handled) || m.decisions?.[a.call_id] !== undefined}
                 decision={m.decisions?.[a.call_id]}
                 handled={m.handled}
                 disabled={pending}
                 onDecide={(approve) => decide(i, { [a.call_id]: approve }, refetch)}
               />
             ))}
-            {m.text && <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>}
+            {m.text && (
+              // every change in this reply undone: grey the prose so "Added …" can't read as still true
+              <div className={cn(undoneSummary(m.steps).all && "opacity-55")} data-undone={undoneSummary(m.steps).all || undefined}>
+                <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>
+              </div>
+            )}
+            <UndoneNote steps={m.steps} />
           </div>
         ),
       )}
@@ -319,9 +330,11 @@ const LiveAgentThread = () => {
   );
 };
 
-export const AgentThread = () => (LIVE_AGENT ? <LiveAgentThread /> : <AskThread />);
+/** `intro` (the daily briefing) opens the thread and replaces the empty placeholder. */
+export const AgentThread = ({ intro }: { intro?: ReactNode }) =>
+  LIVE_AGENT ? <LiveAgentThread intro={intro} /> : <AskThread intro={intro} />;
 
-const AskThread = () => {
+const AskThread = ({ intro }: { intro?: ReactNode }) => {
   const session = useAskSession();
   const { answer, pending, error } = session;
   const [history, setHistory] = useState<AskAnswer[]>(() =>
@@ -334,6 +347,7 @@ const AskThread = () => {
   }, [answer]);
 
   useEffect(() => {
+    if (history.length === 0 && !pending) return; // keep an opening briefing at its top
     endRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [history.length, pending]);
 
@@ -346,7 +360,8 @@ const AskThread = () => {
       aria-label="Conversation with the agent"
       className="home-thread"
     >
-      {history.length === 0 && !pending && (
+      {intro}
+      {!intro && history.length === 0 && !pending && (
         <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
           Ask about donors, plan outreach, or add to the calendar.
         </p>
@@ -394,10 +409,12 @@ export const Composer = ({
   const inputId = useId();
   const [bloomId, setBloomId] = useState(0);
   const busy = LIVE_AGENT ? agent.pending : session.pending;
+  const dictation = useDictationInput(text, setText);
 
   const send = (question: string) => {
     const q = question.trim();
     if (!q || busy) return;
+    dictation.halt();
     if (LIVE_AGENT) void sendToAgent(q, refetch);
     else session.submit(q);
     setText("");
@@ -471,22 +488,17 @@ export const Composer = ({
           id={inputId}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ask the agent…"
+          placeholder={dictation.interim || "Ask the agent…"}
           autoComplete="off"
           className="min-w-0 flex-1 bg-transparent px-1.5 py-2 text-sm outline-none placeholder:text-muted-foreground"
         />
-        <button
-          type="button"
-          onClick={() => session.openPane("voice")}
-          aria-label="Start live transcript"
-          title="Live transcript"
-          className={cn(
-            "grid size-9 shrink-0 place-items-center rounded-full text-[#242728] hover:bg-[#edf0f2]",
-            focusRing,
-          )}
-        >
-          <AudioLines className="size-5" aria-hidden="true" />
-        </button>
+        <DictationButton
+          state={dictation.state}
+          error={dictation.error}
+          available={dictation.available}
+          onToggle={dictation.toggle}
+          className={focusRing}
+        />
         <button
           type="submit"
           onClick={(event) => {
@@ -509,6 +521,7 @@ export const Composer = ({
           <ArrowRight className="size-5" aria-hidden="true" />
         </button>
       </form>
+      <DictationHint error={dictation.error} listening={dictation.state === "listening"} interim={dictation.interim} className="px-2" />
     </div>
   );
 };

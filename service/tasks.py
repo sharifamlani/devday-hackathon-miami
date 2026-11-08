@@ -27,7 +27,7 @@ import uuid
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 
-from service import db
+from service import db, public_mode
 from service.score import default_as_of
 
 KINDS = ("call", "email", "review", "prep", "other")
@@ -262,6 +262,8 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
 # The Donors tab's tasks are private staff records (routes_crm.py): a row it created, migrated or edited carries
 # tasks.crm. The public Vercel snapshot (export_snapshot.py) asks for public_only and never sees them.
 PUBLIC_ONLY = "crm IS NULL"
+# Under PUBLIC_MODE every read behaves as public_only (list_tasks, calendar, with_next_steps, so also /tasks,
+# /calendar, /home/summary tasks_today and people next_step): private titles never leave the laptop.
 
 
 def list_tasks(conn: sqlite3.Connection, *, due: str | None = None, from_: str | None = None,
@@ -270,7 +272,7 @@ def list_tasks(conn: sqlite3.Connection, *, due: str | None = None, from_: str |
     """due='today' → open tasks due today or overdue, plus today's done ones. from/to filter by due date.
     public_only leaves out the Donors tab's private tasks (for the public snapshot)."""
     today = (as_of or default_as_of()).isoformat()
-    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if public_only else []), []
+    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if (public_only or public_mode.enabled()) else []), []
     if due == "today":
         where.append("(due = ? OR (due < ? AND done = 0) OR (due IS NULL AND done = 0))")
         args += [today, today]
@@ -320,7 +322,7 @@ def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None 
             items.append({"date": r["starts_at"][:10], "time": time, "title": r["title"], "kind": "event",
                           "source": r["source"] or "website", "ref": f"event:{r['id']}",
                           "source_url": r["source_url"], "status": r["status"]})
-    private = f" AND {PUBLIC_ONLY}" if public_only else ""
+    private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
     for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL{private} AND due BETWEEN ? AND ?", (lo, hi)):
         items.append({"date": r["due"], "time": r["time"], "title": r["title"], "kind": "task",
                       "source": r["source"], "ref": f"task:{r['id']}", "task_kind": r["kind"],
@@ -330,14 +332,15 @@ def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None 
 
 
 def artifacts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
-    """What the agents have produced: [{kind: call_note|draft|report, title, date, ref}], newest first."""
+    """What the agents have produced: [{kind: call_note|draft|report, title, date, ref}], newest first.
+    Drafts and call notes also carry donor_id (the person they're for, or null) so a row can open the profile."""
     names = {r["id"]: r["full_name"] for r in conn.execute("SELECT id, full_name FROM donors")}
     items = []
     for r in conn.execute("SELECT id, donor_id, prospect_id, channel, subject, status, created_at FROM outreach_drafts"):
         who = names.get(r["donor_id"]) if r["donor_id"] else None
         title = r["subject"] or (f"{(r['channel'] or 'email').capitalize()} draft for {who}" if who else "Outreach draft")
         items.append({"kind": "draft", "title": title, "date": r["created_at"], "ref": f"draft:{r['id']}",
-                      "status": r["status"]})
+                      "status": r["status"], "donor_id": r["donor_id"]})
     if _has_table(conn, "campaigns"):
         counts = dict(conn.execute("SELECT campaign_id, COUNT(*) FROM campaign_messages GROUP BY campaign_id").fetchall())
         for r in conn.execute("SELECT id, name, status, created_at FROM campaigns"):
@@ -346,9 +349,11 @@ def artifacts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
                           "date": r["created_at"], "ref": f"campaign:{r['id']}", "status": r["status"]})
     if _has_table(conn, "call_notes"):   # routes_calls.py (#78): one row per saved call
         for r in conn.execute("SELECT id, title, created_at, saved_at, destinations FROM call_notes"):
-            labels = [d.get("label") for d in json.loads(r["destinations"] or "[]") if d.get("label")]
+            dests = json.loads(r["destinations"] or "[]")
+            labels = [d.get("label") for d in dests if d.get("label")]
+            donor = next((d.get("id") for d in dests if d.get("kind") == "donor" and d.get("id") is not None), None)
             items.append({"kind": "call_note", "title": r["title"] or "Call note", "date": r["created_at"] or r["saved_at"],
-                          "ref": f"call_note:{r['id']}", "destinations": labels})
+                          "ref": f"call_note:{r['id']}", "destinations": labels, "donor_id": donor})
     items.sort(key=lambda i: i["date"] or "", reverse=True)
     return items[:limit]
 
@@ -396,8 +401,8 @@ def _call_chips(f: dict | None, today: date) -> list[str]:
 def _alert_why(alert: dict, today: date) -> str:
     cadence = (alert.get("cadence") or "regular").replace("_gmd", " (Give Miami Day)")
     if alert["kind"] == "failed":
-        return f"{cadence.capitalize()} gift on {nice_date(alert['expected_date'], today)} failed, with no gift since."
-    return (f"{cadence.capitalize()} giver; the gift due {nice_date(alert['expected_date'], today)} "
+        return f"{cadence[:1].upper() + cadence[1:]} gift on {nice_date(alert['expected_date'], today)} failed, with no gift since."
+    return (f"{cadence[:1].upper() + cadence[1:]} giver; the gift due {nice_date(alert['expected_date'], today)} "
             f"is {alert['days_late']} days late.")
 
 
@@ -430,17 +435,23 @@ def _touched_by_people(conn: sqlite3.Connection, task_id: int) -> bool:
                         "AND action != 'create_task' AND undone_at IS NULL", (f"task:{task_id}",)).fetchone() is not None
 
 
+def _undo_generator_retire(conn: sqlite3.Connection, task_id: int, action: str) -> dict | None:
+    """If the task's latest standing change is the generator retiring it (`action`), undo that and return the task;
+    otherwise (staff deleted it, or it isn't retired) None: it stays as it is."""
+    last = conn.execute("SELECT token, action FROM agent_actions WHERE target = ? AND undone_at IS NULL "
+                        "ORDER BY id DESC LIMIT 1", (f"task:{task_id}",)).fetchone()
+    if last is None or last["action"] != action:
+        return None
+    undo(conn, last["token"])
+    return get_task(conn, task_id)
+
+
 def _revive_retired(conn: sqlite3.Connection, gen_key: str) -> dict | None:
     """If the generator retired this alert's task and nothing changed it since, undo the retire."""
     row = conn.execute("SELECT id, deleted_at FROM tasks WHERE gen_key = ?", (gen_key,)).fetchone()
     if row is None or row["deleted_at"] is None:
         return None
-    last = conn.execute("SELECT token, action FROM agent_actions WHERE target = ? AND undone_at IS NULL "
-                        "ORDER BY id DESC LIMIT 1", (f"task:{row['id']}",)).fetchone()
-    if last is None or last["action"] != "retire_stale_alert":
-        return None                                    # staff deleted it: stays deleted
-    undo(conn, last["token"])
-    return get_task(conn, row["id"])
+    return _undo_generator_retire(conn, row["id"], "retire_stale_alert")
 
 
 def generate_safely(conn: sqlite3.Connection, after: str) -> dict | None:
@@ -521,6 +532,10 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
             continue
         keep = candidates[0]
         claimed.add(keep["id"])
+        if keep["deleted_at"] and (back := _undo_generator_retire(conn, keep["id"], "retire_stale_review")):
+            # the generator retired it when its duplicates were resolved; they're pending again (merge undone)
+            created.append(back)
+            keep = {**keep, "deleted_at": None}
         if keep["deleted_at"] or keep["done"]:
             # Handled before. A member that wasn't in that review needs a look: a fresh task for the whole group.
             if group - keep["member_set"]:
@@ -535,6 +550,13 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
             task, _ = update_task(conn, keep["id"], actor="generator", _action="update_duplicate_review",
                                   _raw={"members": json.dumps(ids)}, **fields)
             updated.append(task)
+
+    # 2b. retire open reviews whose duplicates are no longer pending (merged or dismissed): no group claimed them.
+    # Members stay, so undoing the merge revives the same task. Done tasks and ones people changed stay.
+    for r in reviews:
+        if r["id"] not in claimed and not r["deleted_at"] and not r["done"] and not _touched_by_people(conn, r["id"]):
+            delete_task(conn, r["id"], actor="generator", _action="retire_stale_review")
+            retired += 1
 
     # 3. first gift in the last 30 days -> welcome
     for donor_id, f in facts.items():
@@ -724,7 +746,7 @@ def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | 
     if ids and _has_table(conn, "tasks"):
         for chunk in range(0, len(ids), 500):
             part = ids[chunk:chunk + 500]
-            private = f" AND {PUBLIC_ONLY}" if public_only else ""
+            private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
             for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL AND done = 0{private} AND person_id IN "
                                   f"({', '.join('?' * len(part))})", part):
                 r = dict(r)

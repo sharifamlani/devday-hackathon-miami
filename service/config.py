@@ -24,6 +24,12 @@ OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "2"))
 AGENT_DEADLINE_S = float(os.getenv("AGENT_DEADLINE_S", "120"))
 # Onboarding screen 2 waits on this one; past it /context/run serves the cached context
 CONTEXT_DEADLINE_S = float(os.getenv("CONTEXT_DEADLINE_S", "30"))
+# After a website read that ran past CONTEXT_DEADLINE_S, how much longer onboarding waits for the events search
+# (started at the same moment) so the dashboard still lands with events.
+ONBOARDING_EVENTS_GRACE_S = float(os.getenv("ONBOARDING_EVENTS_GRACE_S", "30"))
+# Invites drafted per event during setup (the first calendar): enough to review each event, done in minutes.
+# Refresh now / the daily pass still drafts up to refresh.MAX_DRAFTS_PER_EVENT for new events.
+SETUP_DRAFTS_PER_EVENT = int(os.getenv("SETUP_DRAFTS_PER_EVENT", "12"))
 # The chat panel and event drafting (plan.md §17): 90 s, then 504
 CHAT_DEADLINE_S = float(os.getenv("CHAT_DEADLINE_S", "90"))
 # Daily context + calendar refresh, local time "HH:MM" (e.g. 07:00). Unset = off; always off under pytest
@@ -60,3 +66,12 @@ def cors_origins(extra: str | None) -> list[str]:
 
 # Also gates the dictation WebSocket's Origin check (routes_voice.py)
 CORS_ORIGINS = cors_origins(os.getenv("CORS_ORIGINS"))
+
+# Public mode (docs/public-tunnel.md): the laptop service is reachable from the Vercel app through a tunnel.
+# Off by default. When on, the origins in PUBLIC_ORIGINS join CORS and the /transcribe/live Origin check
+# (routes_voice reads CORS_ORIGINS), and service/public_mode.py rate limits the model-backed routes and
+# forces every send to stay simulated.
+PUBLIC_MODE = (os.getenv("PUBLIC_MODE") or "").strip().lower() in ("1", "true", "on", "yes")
+PUBLIC_ORIGINS = [o.strip().rstrip("/") for o in (os.getenv("PUBLIC_ORIGINS") or "").split(",") if o.strip()]
+if PUBLIC_MODE:
+    CORS_ORIGINS = CORS_ORIGINS + [o for o in PUBLIC_ORIGINS if o not in CORS_ORIGINS]

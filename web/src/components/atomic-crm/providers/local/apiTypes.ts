@@ -59,6 +59,7 @@ export interface ApiDonorRow {
   score_as_of: string | null;
   contact_type?: string | null; // giver | neighbor | community (#60)
   auto_merged?: boolean | null; // an exact-match merge staff haven't reviewed (#125)
+  next_step?: string | null; // the giver's next open task: "Call Hye-jin Park · overdue" (tasks.py)
   merged_from?: number | null; // how many source records it joined
 }
 
@@ -69,6 +70,8 @@ export interface ApiGift {
   gift_date: string;
   channel: string | null;
   fund_type: string | null;
+  /** "ok" counts; a "declined"/"failed" charge stays on record but is never a gift (service gifts.status). */
+  status?: string | null;
 }
 
 export interface ApiResearchFact {
@@ -262,6 +265,8 @@ export interface ApiContextFact {
   fact: string;
   quote?: string | null;
   priority?: string | null;
+  kind?: string | null;
+  title?: string | null;
   captured_at?: string | null;
 }
 

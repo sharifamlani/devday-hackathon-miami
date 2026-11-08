@@ -17,7 +17,10 @@ tables of its own.
 
 import argparse
 import json
+import logging
 import os
+import random
+import threading
 import sqlite3
 import sys
 import time
@@ -33,7 +36,13 @@ from events_agent import (EVENTS_CACHE, EVENTS_LIVE, draft_event_invite, extract
 from org_context import FOUNDATION_URLS, build_context, site_host  # noqa: E402
 
 MAX_DRAFTS_PER_EVENT = 50
-INVITE_WORKERS = 16                                   # concurrent invite model calls
+# Concurrent invite model calls: start at INVITE_WORKERS and drop to INVITE_WORKERS_FLOOR after the first rate
+# limit. 16 at once drew 429s (0 drafts, Nov 8) when several sessions shared the key; a flat 6 then took ~36 min
+# for 128 invites under that load. Adaptive keeps the speed when the key is quiet and backs off when it isn't.
+INVITE_WORKERS = int(os.getenv("INVITE_WORKERS", "12"))
+INVITE_WORKERS_FLOOR = int(os.getenv("INVITE_WORKERS_FLOOR", "6"))
+INVITE_RETRY_DELAYS_S = (2.0, 5.0, 12.0)             # backoff before each retry of a 429 / 5xx / timeout
+log = logging.getLogger(__name__)
 EVENT_FIELDS = ("starts_at", "ends_at", "place")      # what makes an event "changed"; a new citing page doesn't
 
 
@@ -183,10 +192,112 @@ def save_found_events(conn, events: list[dict]) -> tuple[dict, bool]:
     return {event_key(e): i for e, i in zip(events, saved.get("ids") or [])}, True
 
 
+def api_status(ex: BaseException) -> str | None:
+    """The API error behind an invite failure, as a short label ("429", "500", "timeout", "connection"), or
+    None when it isn't one (a failed content check, a bad event). Walks the cause chain: the Agents SDK can
+    wrap the OpenAI error."""
+    seen = 0
+    while ex is not None and seen < 5:
+        code = getattr(ex, "status_code", None)
+        if isinstance(code, int):
+            return str(code)
+        name = type(ex).__name__
+        if name in ("APITimeoutError", "TimeoutError", "ReadTimeout"):
+            return "timeout"
+        if name in ("APIConnectionError", "ConnectError", "ConnectionError"):
+            return "connection"
+        ex, seen = ex.__cause__ or ex.__context__, seen + 1
+    return None
+
+
+def retryable(status: str | None) -> bool:
+    return status in ("429", "timeout", "connection") or (status is not None and status.isdigit() and int(status) >= 500)
+
+
+class InviteGate:
+    """At most `limit` invite calls at once; the first rate limit (429) lowers the limit to the floor for the rest
+    of the batch. Also keeps the batch's numbers (calls, latency, retries by status) for one summary log line."""
+
+    def __init__(self, start: int, floor: int):
+        self.start, self.limit, self.floor, self.active = start, start, min(floor, start), 0
+        self.cond = threading.Condition()
+        self.latencies: list[float] = []
+        self.retries: dict[str, int] = {}
+
+    def __enter__(self):
+        with self.cond:
+            while self.active >= self.limit:
+                self.cond.wait()
+            self.active += 1
+        return self
+
+    def __exit__(self, *exc):
+        with self.cond:
+            self.active -= 1
+            self.cond.notify_all()
+
+    def call_took(self, seconds: float) -> None:
+        with self.cond:
+            self.latencies.append(seconds)
+
+    def failed(self, status: str | None, retrying: bool) -> None:
+        with self.cond:
+            if retrying:
+                self.retries[status or "?"] = self.retries.get(status or "?", 0) + 1
+            if status == "429" and self.limit > self.floor:
+                log.warning("invites: rate limited, concurrency %d -> %d", self.limit, self.floor)
+                self.limit = self.floor
+
+    def stats(self, seconds: float) -> dict:
+        lat = sorted(self.latencies)
+
+        def pick(q):
+            return round(lat[min(len(lat) - 1, int(len(lat) * q))], 1) if lat else None
+        return {"seconds": round(seconds, 1), "calls": len(lat), "median_call_s": pick(0.5), "p90_call_s": pick(0.9),
+                "retries": dict(self.retries), "concurrency": [self.start, self.limit]}
+
+
+def with_retries(invite, event: dict, person: dict, delays=None, gate: InviteGate | None = None):
+    """One invite, retried with backoff (plus jitter) on a rate limit, server error or timeout; any other
+    error (e.g. the draft failed its checks twice) is final at once. The gate (if any) bounds concurrency
+    per attempt (never held during the backoff sleep) and records the numbers."""
+    delays = INVITE_RETRY_DELAYS_S if delays is None else delays
+    for attempt in range(len(delays) + 1):
+        t0 = time.monotonic()
+        try:
+            if gate is None:
+                return invite(event, person)
+            with gate:
+                inv = invite(event, person)
+            gate.call_took(time.monotonic() - t0)
+            return inv
+        except Exception as ex:
+            status = api_status(ex)
+            final = attempt == len(delays) or not retryable(status)
+            if gate is not None:
+                gate.call_took(time.monotonic() - t0)
+                gate.failed(status, retrying=not final)
+            if final:
+                raise
+            wait = delays[attempt] * (1 + random.random() / 2)
+            log.info("invite %s -> %s: %s, retry %d in %.1f s", event.get("title"), person.get("id"), status,
+                     attempt + 1, wait)
+            time.sleep(wait)
+
+
+def invite_error(ex: BaseException) -> str:
+    status = api_status(ex)
+    return f"{type(ex).__name__}" + (f" [{status}]" if status else "") + f": {str(ex)[:120]}"
+
+
 def draft_invites_for(conn, events: list[dict], event_ids: dict, stored_in_db: bool, people: list[dict] | None = None,
-                      *, audience=suggest_audience, invite=draft_event_invite, save=save_invite) -> dict:
-    """Audience + invite drafts (never sent) for these events: {drafts: {title: n}, errors: [...]}. Shared by
-    the daily refresh (new or changed events) and onboarding (every event the first read found)."""
+                      *, audience=suggest_audience, invite=draft_event_invite, save=save_invite,
+                      per_event: int | None = None) -> dict:
+    """Audience + invite drafts (never sent) for these events: {drafts: {title: n}, attempted, drafted,
+    errors: [...], stats}. Shared by the daily refresh (new or changed events) and onboarding (every event the
+    first read found; it passes a smaller per_event so setup finishes in minutes). Each model call is retried on
+    a rate limit / server error (with_retries) through one adaptive InviteGate."""
+    per_event = MAX_DRAFTS_PER_EVENT if per_event is None else per_event
     from concurrent.futures import ThreadPoolExecutor
     w = data_writers(conn)
     errors = []
@@ -206,11 +317,12 @@ def draft_invites_for(conn, events: list[dict], event_ids: dict, stored_in_db: b
             errors.append(f"audience {e.get('title')}: {type(ex).__name__}")
             continue
         drafts[e["title"]] = 0
-        work += [(e, eid, pid) for pid in chosen["person_ids"][:MAX_DRAFTS_PER_EVENT] if pid in by_id]
+        work += [(e, eid, pid) for pid in chosen["person_ids"][:per_event] if pid in by_id]
 
     # every invite for every event in one pool of model calls; writes stay on this thread
+    gate, started = InviteGate(INVITE_WORKERS, INVITE_WORKERS_FLOOR), time.monotonic()
     with ThreadPoolExecutor(max_workers=INVITE_WORKERS) as pool:
-        jobs = [(e, eid, pid, pool.submit(invite, e, by_id[pid])) for e, eid, pid in work]
+        jobs = [(e, eid, pid, pool.submit(with_retries, invite, e, by_id[pid], None, gate)) for e, eid, pid in work]
     for e, eid, pid, job in jobs:
         try:
             inv = job.result()
@@ -220,10 +332,25 @@ def draft_invites_for(conn, events: list[dict], event_ids: dict, stored_in_db: b
                 save(e, by_id[pid], inv)
             drafts[e["title"]] += 1
         except Exception as ex:
-            errors.append(f"invite {e.get('title')} -> {pid}: {type(ex).__name__}")
+            errors.append(f"invite {e.get('title')} -> {pid}: {invite_error(ex)}")
+            log.warning("invite %s -> %s failed: %s", e.get("title"), pid, invite_error(ex))
     if conn is not None:
         conn.commit()
-    return {"drafts": drafts, "errors": errors}
+    drafted = sum(drafts.values())
+    stats = gate.stats(time.monotonic() - started)
+    if work:
+        log.info("invites: %d of %d drafted in %.1f s, %d calls, median %s s, p90 %s s, retries %s, concurrency %s",
+                 drafted, len(work), stats["seconds"], stats["calls"], stats["median_call_s"], stats["p90_call_s"],
+                 stats["retries"], stats["concurrency"])
+    return {"drafts": drafts, "attempted": len(work), "drafted": drafted, "errors": errors, "stats": stats}
+
+
+def invites_failed(out: dict) -> str | None:
+    """A batch that tried invites and drafted none is a failure, never "done" with 0 invites: the reason, else None."""
+    if out.get("attempted") and not out.get("drafted"):
+        first = next((e for e in out.get("errors") or [] if e.startswith("invite ")), "no error recorded")
+        return f"0 of {out['attempted']} invites drafted (first error: {first})"
+    return None
 
 
 def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: list[dict] | None = None,
@@ -288,6 +415,7 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
                             stored_in_db, people, audience=audience, invite=invite, save=save)
     drafts = out["drafts"]
     errors += out["errors"]
+    invites = {"attempted": out["attempted"], "drafted": out["drafted"], "failed": invites_failed(out)}
 
     return {
         "as_of": as_of,
@@ -301,6 +429,7 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
                                for c in events["changed"]],
                    "removed": [e["title"] for e in events["removed"]]},
         "drafts": drafts,
+        "invites": invites,
         "errors": errors,
     }
 

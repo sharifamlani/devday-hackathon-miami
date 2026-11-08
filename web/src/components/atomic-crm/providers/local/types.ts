@@ -13,7 +13,8 @@ import type { CallNote } from "../../voice/callNotes";
 export type DonorType = "individual" | "organization";
 export type Tier = "big" | "mid" | "small";
 /** donor_scores.status, written by score.py */
-export type DonorStatus = "lapsing" | "due" | "on_track" | "lapsed" | "no_gifts";
+export type DonorStatus =
+  "lapsing" | "due" | "on_track" | "lapsed" | "no_gifts";
 
 export interface Gift {
   id: number;
@@ -21,6 +22,8 @@ export interface Gift {
   gift_date: string; // ISO YYYY-MM-DD
   channel: string | null;
   fund_type: string | null;
+  /** "ok", or "declined"/"failed": a charge kept on record that is never a gift. */
+  status?: string | null;
 }
 
 export interface DonorSummary {
@@ -47,6 +50,8 @@ export interface DonorSummary {
   contact_type?: "giver" | "neighbor" | "community" | null;
   /** An automatic merge waiting for staff review (#125); absent on older APIs. */
   auto_merged?: boolean;
+  /** The giver's next open task ("Call Hye-jin Park · Nov 12"); null with none, and for other tabs. */
+  next_step?: string | null;
   merged_from?: number;
 }
 
@@ -204,6 +209,8 @@ export interface ContextFact {
   fact: string;
   quote: string | null; // the exact words the fact was verified against
   priority: string | null; // which Foundation priority it supports
+  kind?: string | null; // success_story | use_of_funds | org_health | program_update | ...
+  title?: string | null; // the fact's short headline
 }
 
 export interface OrgContext {
@@ -221,11 +228,7 @@ export interface ContextRunInput {
 }
 
 export type SourceState =
-  | "done"
-  | "blocked"
-  | "failed"
-  | "not_provided"
-  | "saved_not_connected"; // social URLs: saved, never fetched (scope cut)
+  "done" | "blocked" | "failed" | "not_provided" | "saved_not_connected"; // social URLs: saved, never fetched (scope cut)
 
 export interface ContextRunSource {
   source: string; // "website", "news", "x", "linkedin", "instagram"

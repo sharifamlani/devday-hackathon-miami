@@ -9,6 +9,7 @@ import {
   answerSummary,
   appendAnswer,
   artifactRows,
+  artifactTarget,
   calendarMarks,
   crmTag,
   donorMeta,
@@ -181,6 +182,16 @@ describe("home data: tasks from GET /tasks", () => {
     expect(tasksFromApi(undefined)).toEqual([]);
   });
 
+  it("keeps overdue and undated open tasks, drops only done ones, whatever the kind", () => {
+    const list = tasksFromApi([
+      task(1, { due: "2026-11-06" }),
+      task(2, { due: null, kind: "prep" }),
+      task(3, { due: "2026-11-08", done: true }),
+      task(4, { due: "2026-11-08", kind: "follow_up" }),
+    ]);
+    expect(list.map((t) => t.id)).toEqual([1, 2, 4]);
+  });
+
   it("names the kind and links Draft email only for person tasks", () => {
     expect(kindLabel("call")).toBe("Call");
     expect(kindLabel("prep")).toBe("Prep");
@@ -288,6 +299,41 @@ describe("home data: week, agenda and artifacts", () => {
     expect(rows[0].to).toBe("/campaigns/7");
     expect(rows[1].to).toBeNull();
     expect(artifactRows(undefined)).toEqual([]);
+  });
+
+  it("opens each artifact kind where it lives, and leaves the rest unlinked", () => {
+    const owners = { drafts: { "98": 12 }, notes: { n9: 4 } };
+    const target = (kind: string, ref: string | number | null) =>
+      artifactTarget({ kind, ref }, owners);
+    expect(target("draft", "campaign:3")).toBe("/campaigns/3");
+    expect(target("campaign", 7)).toBe("/campaigns/7");
+    expect(target("draft", "draft:98")).toBe("/contacts/12/show");
+    expect(target("call_note", "call_note:n9")).toBe("/contacts/4/show");
+    expect(target("draft", "draft:99")).toBeNull(); // owner unknown
+    expect(target("call_note", "call_note:other")).toBeNull();
+    expect(target("report", "report:1")).toBeNull();
+    expect(target("draft", null)).toBeNull();
+    expect(target("draft", "campaign:")).toBeNull();
+    const rows = artifactRows(
+      [{ kind: "draft", title: "Draft", date: "2026-11-08", ref: "draft:98" }],
+      5,
+      owners,
+    );
+    expect(rows[0].to).toBe("/contacts/12/show");
+  });
+
+  it("links a draft or call note by the row's own donor_id (local mode), with no owners lookup", () => {
+    const none = { drafts: {}, notes: {} };
+    expect(artifactTarget({ kind: "draft", ref: "draft:5", donor_id: 21 }, none)).toBe("/contacts/21/show");
+    expect(artifactTarget({ kind: "call_note", ref: "call_note:n1", donor_id: 8 }, none)).toBe("/contacts/8/show");
+    expect(artifactTarget({ kind: "draft", ref: "draft:6", donor_id: null }, none)).toBeNull(); // a prospect's draft
+    expect(artifactTarget({ kind: "draft", ref: "campaign:3", donor_id: 21 }, none)).toBe("/campaigns/3"); // campaigns unchanged
+    const rows = artifactRows(
+      [{ kind: "draft", title: "Thank you, Ana", date: "2026-11-08", ref: "draft:5", donor_id: 21 }],
+      5,
+      none,
+    );
+    expect(rows[0].to).toBe("/contacts/21/show");
   });
 });
 

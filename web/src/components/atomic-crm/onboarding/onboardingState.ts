@@ -449,6 +449,16 @@ export const shouldAutoShow = (
   return state.status === "new" || state.status === "in_progress";
 };
 
+/**
+ * Adopt (mark setup done, no overlay) only when THIS browser never started setup and the service already
+ * has people: a fresh browser on a filled service (#128). A setup in progress here resumes at its saved step
+ * instead, so reloading between steps 1 and 3 never skips the website and context steps.
+ */
+export const shouldAdopt = (
+  state: Pick<OnboardingData, "status" | "completedAt">,
+  hasPeople: boolean,
+): boolean => hasPeople && state.status === "new" && !state.completedAt;
+
 /** The "Take a quick tour" card: on the dashboard, once setup is done, until answered. */
 export const shouldOfferTour = (
   state: Pick<OnboardingData, "tourOffer">,

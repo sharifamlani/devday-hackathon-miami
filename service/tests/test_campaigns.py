@@ -265,3 +265,21 @@ def test_snapshot_carries_a_sample_campaign_and_template_drafts(db_file):
     assert "@example.com" not in str(demo).replace("***@example.com", "")   # only masked addresses
     with db.connect(db_file) as c2:
         assert c2.execute("SELECT COUNT(*) FROM campaigns").fetchone()[0] == 0    # the export writes nothing
+
+
+def test_a_dry_run_send_marks_the_campaign_sent_even_with_drafts_left(client):
+    c = client.post("/campaigns", json={"donor_ids": [1, 5, 4], "intent": "thank_you", "channel": "email"}).json()
+    client.post(f"/campaigns/{c['id']}/approve-small")                       # 4 (star) stays a draft
+
+    r = client.post(f"/campaigns/{c['id']}/send").json()
+
+    assert r["simulated"] is True and r["sent"] == 2
+    detail = client.get(f"/campaigns/{c['id']}").json()
+    assert detail["status"] == "sent" and by_donor(detail)[4]["status"] == "draft"
+    assert next(x for x in client.get("/campaigns").json() if x["id"] == c["id"])["status"] == "sent"
+
+
+def test_a_send_that_sends_nothing_leaves_the_campaign_a_draft(client):
+    c = client.post("/campaigns", json={"donor_ids": [4], "intent": "thank_you", "channel": "email"}).json()
+    assert client.post(f"/campaigns/{c['id']}/send").json()["sent"] == 0
+    assert client.get(f"/campaigns/{c['id']}").json()["status"] == "draft"

@@ -231,6 +231,9 @@ export const applyAskFilter = (
     const detail = snapshot.donor_details[String(row.id)];
     const why = row.why;
     const gifts = (detail?.gifts ?? [])
+      // A declined or failed charge is not a gift, as in Python's apply_filter (targets._counted): it must not
+      // make someone a giver to thank, a recent giver, or count toward amounts.
+      .filter((g) => g.status == null || g.status === "ok")
       .map((g) => ({
         day: g.gift_date.slice(0, 10),
         amount: Number(g.amount),
@@ -345,6 +348,113 @@ export const snapshotAnswer = (
   as_of: snapshot.meta.as_of,
 });
 
+/* ---------- Home chips in the snapshot build ---------- */
+
+const NO_MATCH: AskMatch = {
+  period_total: 0,
+  period_gifts: 0,
+  last_gift_date: null,
+};
+const CHECK_IN: AskIntent = { kind: "check_in", channel_hint: null };
+const CONTACT_TASKS = new Set([
+  "call",
+  "email",
+  "text",
+  "welcome",
+  "thank_you",
+]);
+const ATTENTION_LATE = new Set(["late", "failed", "card_failed"]);
+
+interface ChipSnapshot {
+  people_attention?: { id: number; badge: string }[];
+  tasks?: {
+    kind: string;
+    due: string | null;
+    person_id: number | null;
+    done: boolean;
+  }[];
+  calendar?: { date: string; kind: string; title: string }[];
+}
+
+const shortDay = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+
+/**
+ * The home's suggestion chips (GET /home/summary suggestions) answered from
+ * snapshot data the export already holds, so a judge clicking one on the
+ * public build gets an answer. Read-only; null for anything else.
+ */
+export const chipAnswer = (
+  snapshot: ApiSnapshotWithAsk,
+  question: string,
+  rowsById: Map<number, ApiDonorRow>,
+): { interpretation: string; detail: string; ids: number[] } | null => {
+  const q = normalizeQuestion(question);
+  const data = snapshot as unknown as ChipSnapshot;
+  const asOf = snapshot.meta.as_of;
+
+  if (/^who'?s late on (a|their) usual gift\??$/.test(q)) {
+    const ids = (data.people_attention ?? [])
+      .filter((p) => ATTENTION_LATE.has(p.badge))
+      .map((p) => p.id);
+    return {
+      interpretation:
+        "Givers whose usual gift is late, or whose last card payment failed.",
+      detail:
+        "Cached sample: the gift alerts on the home page when the snapshot was exported.",
+      ids,
+    };
+  }
+
+  if (/^plan (next|this) week\??$/.test(q) && asOf) {
+    const end = new Date(`${asOf}T00:00:00Z`);
+    end.setUTCDate(end.getUTCDate() + 6);
+    const until = end.toISOString().slice(0, 10);
+    const inWeek = (d: string | null) => !!d && d >= asOf && d <= until;
+    const ids = (data.tasks ?? [])
+      .filter(
+        (t) =>
+          !t.done &&
+          CONTACT_TASKS.has(t.kind) &&
+          inWeek(t.due) &&
+          t.person_id != null,
+      )
+      .map((t) => t.person_id as number);
+    const events = (data.calendar ?? [])
+      .filter((c) => c.kind === "event" && inWeek(c.date))
+      .map((c) => `${c.title} (${shortDay(c.date)})`);
+    return {
+      interpretation:
+        `This week's plan, ${shortDay(asOf)} to ${shortDay(until)}: the people to contact from the task list.` +
+        (events.length ? ` Coming up: ${events.slice(0, 2).join("; ")}.` : ""),
+      detail:
+        "Cached sample: the task list and calendar when the snapshot was exported.",
+      ids,
+    };
+  }
+
+  const enrich = /^enrich (.+)$/.exec(q);
+  if (enrich) {
+    const name = enrich[1].trim();
+    const ids = [...rowsById.values()]
+      .filter((r) => normalizeQuestion(r.full_name) === name)
+      .map((r) => r.id);
+    if (ids.length) {
+      return {
+        interpretation:
+          "Enrichment looks up public sources on the live laptop. This preview shows what was already saved: open the profile.",
+        detail: "Cached sample: enrichment runs only on the live service.",
+        ids,
+      };
+    }
+  }
+  return null;
+};
+
 /** Snapshot mode: example → precomputed; edited filter → re-run here; free text → live-only note. */
 export const askSnapshot = (
   snapshot: ApiSnapshotWithAsk,
@@ -399,6 +509,26 @@ export const askSnapshot = (
         filter: spec,
         intent: example.intent,
         served_from: "cache",
+      },
+      matched,
+    );
+  }
+
+  const chip = chipAnswer(snapshot, question, rowsById);
+  if (chip) {
+    const seen = new Set<number>();
+    const matched = chip.ids
+      .filter((id) => rowsById.has(id) && !seen.has(id) && seen.add(id))
+      .map((id) => ({ row: rowsById.get(id)!, ask: NO_MATCH }));
+    return snapshotAnswer(
+      snapshot,
+      question,
+      {
+        interpretation: chip.interpretation,
+        filter: EMPTY_FILTER,
+        intent: CHECK_IN,
+        served_from: "cache",
+        detail: chip.detail,
       },
       matched,
     );

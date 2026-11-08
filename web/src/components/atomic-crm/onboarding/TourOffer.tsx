@@ -1,4 +1,4 @@
-import { useId, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   CircleAlert,
@@ -8,9 +8,13 @@ import {
   X as XIcon,
 } from "lucide-react";
 
+import { DATA_MODE } from "../providers/local/config";
 import { backgroundLine, offerCopy } from "./firstRun";
 import { useOnboarding } from "./onboardingState";
 import "./onboarding.css";
+
+/** How long "Your website is read" stays up before the status line hides itself. */
+export const DONE_HIDE_MS = 6000;
 
 const STATUS_ICON = {
   running: <LoaderCircle aria-hidden="true" size={16} className="onb-spin" />,
@@ -29,11 +33,23 @@ export const TourOffer = ({ offer }: { offer: boolean }) => {
   const titleId = useId();
   const background =
     data.background && !data.background.hidden ? data.background : null;
-  const copy = offerCopy(data);
+  const copy = offerCopy(data, DATA_MODE !== "local");
 
   const hideStatus = () =>
     data.background &&
     update({ background: { ...data.background, hidden: true } });
+
+  // A finished read says so briefly, then gets out of the way (a failure stays until closed).
+  const doneAndShown = !offer && background?.status === "done";
+  const hideLatest = useRef(hideStatus);
+  useEffect(() => {
+    hideLatest.current = hideStatus;
+  });
+  useEffect(() => {
+    if (!doneAndShown) return;
+    const timer = window.setTimeout(() => hideLatest.current(), DONE_HIDE_MS);
+    return () => window.clearTimeout(timer);
+  }, [doneAndShown]);
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
@@ -66,7 +82,7 @@ export const TourOffer = ({ offer }: { offer: boolean }) => {
         >
           {STATUS_ICON[background.status]}
           <span>{backgroundLine(background)}</span>
-          {!offer && background.status !== "running" && (
+          {!offer && (
             <button
               type="button"
               className="onb-icon-btn small"

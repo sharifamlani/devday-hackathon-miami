@@ -13,6 +13,7 @@ from pathlib import Path
 
 import httpx
 
+from service.public_mode import forced_simulated
 from service.sms import send_sms
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -20,7 +21,7 @@ SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 
 
 def email_enabled() -> bool:
-    return (os.getenv("EMAIL_SEND") or "").strip().lower() == "on"
+    return not forced_simulated() and (os.getenv("EMAIL_SEND") or "").strip().lower() == "on"
 
 
 def gmail_access_token() -> str:

@@ -20,6 +20,8 @@ import { isIsoDate, toIsoDate } from "../outreach/dates";
 import { FindDonorDialog } from "./FindDonorDialog";
 import { ArtifactsTile, CrmTile, Q4ProgressTile, TasksTile } from "./HomeCards";
 import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
+import { buildBriefing } from "./briefing";
+import { DailyBriefing } from "./DailyBriefing";
 import { sendToAgent, useAgentChat } from "./agentChat";
 import { useAgentRefetch } from "../providers/local/refetch";
 import { taskPrompt } from "./taskPrompt";
@@ -31,13 +33,25 @@ import {
   tasksFromApi,
   type HomeTask,
 } from "./homeData";
+import { CalendarPanel } from "./panels/CalendarPanel";
+import { CrmPanel } from "./panels/CrmPanel";
+import { ImpactPanel } from "./panels/ImpactPanel";
+import { TasksPanel } from "./panels/TasksPanel";
+import {
+  PanelFrame,
+  PlaceholderPanel,
+  PANEL_TITLES,
+} from "./panels/PanelFrame";
+import { useWorkspaceView } from "./workspaceView";
 import "./dashboard.css";
+import "./zoom.css";
 
 /** White conversation canvas with a compact overview on the left.
  * Task actions remain available in a dialog selected from the project list.
  */
 export const HomePage = () => {
   const overview = useOverview();
+  const { view: panel, closeWorkspace } = useWorkspaceView();
   const targets = useTargets();
   // "Today" is the service's as-of date (the demo runs as of Nov 8), not this
   // browser's clock; the browser's date only holds until /targets answers.
@@ -126,6 +140,12 @@ export const HomePage = () => {
   )?.staff_name;
   const name = firstName(staffName);
   const tasksPending = home.tasks.isPending;
+  const briefing = hasData ? buildBriefing(summary, tasks) : null;
+  const startTask = (key: string) => {
+    const task = tasks.find((t) => t.key === key);
+    if (live && task) workOn(task);
+    else openDetails(key);
+  };
 
   return (
     <div className="home-design @container h-full">
@@ -134,12 +154,13 @@ export const HomePage = () => {
       </p>
       <div
         className={
-          overview.open ? "home-board" : "home-board home-overview-hidden"
+          (overview.open ? "home-board" : "home-board home-overview-hidden") +
+          (panel ? " has-panel" : "")
         }
       >
         <aside
           id={OVERVIEW_ID}
-          hidden={!overview.open}
+          hidden={!overview.open || !!panel}
           aria-label="Workspace overview"
           className="home-overview"
         >
@@ -195,7 +216,13 @@ export const HomePage = () => {
               )}
             </h1>
           </div>
-          <AgentThread />
+          <AgentThread
+            intro={
+              briefing ? (
+                <DailyBriefing briefing={briefing} onStartTask={startTask} />
+              ) : undefined
+            }
+          />
           <Composer
             onUploadList={() => setImportOpen(true)}
             suggestions={
@@ -203,6 +230,32 @@ export const HomePage = () => {
             }
           />
         </section>
+        {panel && (
+          <PanelFrame view={panel} onClose={closeWorkspace}>
+            {panel === "crm" ? (
+              <CrmPanel />
+            ) : panel === "calendar" ? (
+              <CalendarPanel />
+            ) : panel === "tasks" ? (
+              <TasksPanel
+                tasks={home.tasks.data ?? []}
+                today={today}
+                live={live}
+                isPending={tasksPending}
+                onWork={(task) => {
+                  if (live) workOn(task);
+                  else openDetails(task.key);
+                }}
+                onInfo={openDetails}
+                onAdd={() => openDay(today)}
+              />
+            ) : panel === "impact" ? (
+              <ImpactPanel />
+            ) : (
+              <PlaceholderPanel title={PANEL_TITLES[panel]} />
+            )}
+          </PanelFrame>
+        )}
       </div>
       <Dialog open={taskOpen && !!focus} onOpenChange={setTaskOpen}>
         <DialogContent className="home-task-dialog">

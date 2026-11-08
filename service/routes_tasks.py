@@ -21,7 +21,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from service import agent_writes, context_notes, tasks
+from service import agent_writes, context_notes, public_mode, tasks
 from service.routes_data import get_conn
 
 router = APIRouter(tags=["tasks"])
@@ -107,7 +107,8 @@ def get_calendar(from_: date | None = Query(None, alias="from"), to: date | None
 
 @router.get("/artifacts")
 def get_artifacts(limit: int = Query(50, ge=1, le=500), conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
-    return tasks.artifacts(conn, limit)
+    out = tasks.artifacts(conn, limit)
+    return [a for a in out if a.get("kind") != "call_note"] if public_mode.enabled() else out   # no call titles public
 
 
 @router.post("/undo/{token}")

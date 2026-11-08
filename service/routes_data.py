@@ -37,7 +37,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from service import dedupe, score, tasks
-from service import db
+from service import db, public_mode
 from service.db import connect, create_schema
 
 router = APIRouter(tags=["data"])
@@ -98,7 +98,7 @@ def list_donors(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
     """Givers only: the call-today list. Every tab's people come from GET /people."""
     rows = conn.execute(DONOR_WITH_SCORE + " WHERE d.contact_type = 'giver'"
                         " ORDER BY s.score IS NULL, s.score DESC, d.id").fetchall()
-    return [_donor_out(r) for r in rows]
+    return tasks.with_next_steps(conn, [_donor_out(r) for r in rows])   # next_step: the giver's next open task (3a)
 
 
 @router.get("/donors/{donor_id}")
@@ -106,7 +106,7 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
     row = conn.execute(DONOR_WITH_SCORE + " WHERE d.id = ?", (donor_id,)).fetchone()
     if row is None:
         raise HTTPException(404, f"donor {donor_id} not found")
-    donor = _donor_out(row)
+    donor = tasks.with_next_steps(conn, [_donor_out(row)])[0]   # next_step (3a)
     donor["gifts"] = [dict(r) for r in conn.execute(
         "SELECT * FROM gifts WHERE donor_id = ? ORDER BY gift_date DESC", (donor_id,))]
     donor["research_facts"] = [dict(r) for r in conn.execute(
@@ -116,6 +116,9 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
         "FROM outreach_drafts d WHERE d.donor_id = ? ORDER BY d.created_at DESC, d.id DESC", (donor_id,))]   # event_id: an invite
     donor["merges"] = dedupe.merges_for(conn, donor_id)
     donor["call_notes"] = db.list_call_notes(conn, donor_id=donor_id, limit=DONOR_CALL_NOTES)   # routes_calls.py
+    if public_mode.enabled():       # like the public snapshot: what was said on a call and staff notes stay private
+        donor["call_notes"] = []
+        donor["notes"] = None
     return donor
 
 
@@ -181,6 +184,7 @@ def dismiss_duplicate(suggestion_id: int, conn: sqlite3.Connection = Depends(get
         dedupe.dismiss(conn, suggestion_id)
     except LookupError as e:
         raise HTTPException(404, str(e))
+    tasks.generate_safely(conn, "dismiss")   # its review task retires (3a)
     return {"suggestion_id": suggestion_id, "status": "dismissed"}
 
 

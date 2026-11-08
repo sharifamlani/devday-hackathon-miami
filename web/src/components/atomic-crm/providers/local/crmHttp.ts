@@ -39,6 +39,34 @@ const detailOf = (error: ApiError) => {
   return typeof detail === "string" && detail !== "Not Found" ? detail : null;
 };
 
+/** GET /context/refresh (service/main.py refresh_job_state). */
+interface RefreshJobState {
+  status?: string | null; // idle | refreshing | done | failed
+  detail?: string | null;
+  changes?: { facts?: { failed_sources?: string[] | null } | null } | null;
+}
+
+/** How often and how long to poll the pass (tests set pollMs to 0). */
+export const refreshTiming = { pollMs: 2000, waitMs: 5 * 60_000 };
+
+/** Poll the background pass until it stops; a failed pass says why. Returns the finished job. */
+const waitForRefresh = async (job: RefreshJobState | null): Promise<RefreshJobState | null> => {
+  const deadline = Date.now() + refreshTiming.waitMs;
+  let current = job;
+  while (current?.status === "refreshing") {
+    if (Date.now() > deadline) {
+      throw new Error("The refresh is still running. Check back in a few minutes.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, refreshTiming.pollMs));
+    current = await request<RefreshJobState>("/context/refresh");
+  }
+  if (current?.status === "failed") {
+    throw new Error(`The refresh failed: ${current.detail ?? "no detail from the service"}.`);
+  }
+
+  return current;
+};
+
 const guard = async <T>(feature: string, call: () => Promise<T>): Promise<T> => {
   try {
     return await call();
@@ -111,16 +139,22 @@ export const crmHttpMethods: CrmMethods = {
     guard("Context status", async () =>
       parseContextStatus(await request<ApiContextStatus>("/context/status")),
     ),
-  // The response may be the new status or anything else; read the status after.
+  // The POST starts a background pass and answers {status: "refreshing"} at
+  // once; wait for it (GET /context/refresh), then read the status.
   refreshContext: () =>
     guard("Refreshing context", async () => {
-      const response = await request<ApiContextStatus | null>("/context/refresh", {
-        method: "POST",
-      });
+      const response = await request<(ApiContextStatus & RefreshJobState) | null>(
+        "/context/refresh",
+        { method: "POST" },
+      );
       if (response && (response.last_refreshed_at || response.refreshed_at)) {
         return parseContextStatus(response);
       }
-      return parseContextStatus(await request<ApiContextStatus>("/context/status"));
+      const finished = await waitForRefresh(response);
+      const status = parseContextStatus(await request<ApiContextStatus>("/context/status"));
+      // "done" can still mean the site or news couldn't be read: say so instead of showing success
+      const unread = finished?.changes?.facts?.failed_sources ?? [];
+      return unread.length ? { ...status, unread_sources: unread } : status;
     }),
   planEventOutreach: (eventId) =>
     guard("Planning event outreach", async () =>

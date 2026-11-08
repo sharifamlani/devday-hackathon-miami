@@ -67,3 +67,13 @@ def test_a_model_draft_that_thanks_the_declined_charge_is_flagged(park, monkeypa
         "Thank you, Hye-jin", "Thank you for giving $40 each month, June\u2013September.", []))
     ok = ca.draft_message(donor, gifts, why, research, [], "thank_you", "email", today=AS_OF, use_model=True)
     assert not any("declined" in f for f in ok.flags)
+
+
+def test_a_duplicate_row_is_not_a_declined_charge(park):
+    from service import chat_agent, routes_data
+    conn, pid = park
+    conn.execute("UPDATE gifts SET status = 'duplicate' WHERE donor_id = ? AND gift_date = '2026-09-10'", (pid,))
+    conn.commit()
+    person = chat_agent.person_record(routes_data.get_donor(pid, conn))
+    assert "2026-09-10" not in [g["gift_date"] for g in person["gifts"]]          # not a second gift
+    assert [g["gift_date"] for g in person["declined_charges"]] == ["2026-10-10"]  # and not a failed charge

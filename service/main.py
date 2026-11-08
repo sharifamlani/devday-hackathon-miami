@@ -36,6 +36,7 @@ import sqlite3
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
@@ -49,6 +50,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from service import db
+from service.public_mode import PublicModeMiddleware, enabled as public_mode_enabled
 from service.routes_ask import router as ask_router
 from service.routes_calls import router as calls_router
 from service.routes_crm import router as crm_router
@@ -58,6 +60,7 @@ from service.routes_targets import router as targets_router
 log = logging.getLogger("service")
 
 app = FastAPI(title="Donor service", version="0.1.0")
+app.add_middleware(PublicModeMiddleware)   # no-op unless PUBLIC_MODE=1; added first so CORS wraps its 429s
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
@@ -109,6 +112,12 @@ ALERTS_MOUNTED = mount_optional("service.gift_alerts")
 def health() -> dict:
     return {"ok": True, "model": config.MODEL_DEFAULT, "openai_key": config.HAS_OPENAI_KEY,
             "score_as_of": config.SCORE_AS_OF, "db": str(db.db_path()), "ingest": INGEST_MOUNTED, "alerts": ALERTS_MOUNTED}
+
+
+@app.get("/public-mode")
+def public_mode_flag() -> dict:
+    """The web app shows a 'public demo' banner when this is true (docs/public-tunnel.md)."""
+    return {"enabled": public_mode_enabled()}
 
 
 def load_donor_row(donor_id: int) -> dict:
@@ -338,7 +347,43 @@ def forget_other_org(conn: sqlite3.Connection, website: str | None) -> bool:
     if "last_refreshed_at" in {r[1] for r in conn.execute("PRAGMA table_info(org_profile)")}:
         reset += ", last_refreshed_at = NULL"
     conn.execute(f"UPDATE org_profile SET {reset} WHERE id = 1")
+    forget_org_calendar(conn)
     return True
+
+
+def forget_org_calendar(conn: sqlite3.Connection) -> None:
+    """The previous org's calendar, on a setup rerun for another organization: every event came from its site
+    and searches, so drop them with their audiences, unsent invite drafts, draft invite batches and the
+    generator's open prep tasks, plus any invite work a slow run queued for them (PENDING_INVITES). Sent invites
+    stay as donor history (unlinked from the event). Open prep tasks are retired through tasks.delete_task, so
+    Undo still restores them; done ones stay. Every prep task's generator key is freed: event ids can be reused,
+    and a kept key would stop the new org's prep task for that id. Retiring a task commits (delete_task);
+    the rest is left for the caller's save, like forget_other_org."""
+    with REFRESH_LOCK:
+        PENDING_INVITES.clear()                       # never draft old-org invites onto new-org events
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    if "events" not in tables:
+        return
+    if {"event_drafts", "outreach_drafts"} <= tables:
+        conn.execute("DELETE FROM outreach_drafts WHERE status != 'sent' "
+                     "AND id IN (SELECT draft_id FROM event_drafts)")
+    if "campaigns" in tables:
+        drafts = "SELECT id FROM campaigns WHERE event_id IS NOT NULL AND status = 'draft'"
+        if "campaign_messages" in tables:
+            conn.execute(f"DELETE FROM campaign_messages WHERE campaign_id IN ({drafts})")
+        conn.execute(f"DELETE FROM campaigns WHERE id IN ({drafts})")
+        conn.execute("UPDATE campaigns SET event_id = NULL WHERE event_id IS NOT NULL")
+    if "tasks" in tables:
+        from service import tasks
+        for (task_id,) in conn.execute("SELECT id FROM tasks WHERE gen_key LIKE 'prep:%' AND done = 0 "
+                                       "AND deleted_at IS NULL").fetchall():
+            tasks.delete_task(conn, task_id, actor="generator", _action="retire_old_org_prep",
+                              _raw={"gen_key": None})
+        conn.execute("UPDATE tasks SET gen_key = NULL WHERE gen_key LIKE 'prep:%'")
+    for table in ("event_drafts", "event_audience"):
+        if table in tables:
+            conn.execute(f"DELETE FROM {table}")
+    conn.execute("DELETE FROM events")
 
 
 def persist_context(result: dict) -> dict | None:
@@ -451,6 +496,38 @@ def with_user_urls(result: dict | None, urls: dict) -> dict | None:
     return {**result, "profile": {**result["profile"], **urls}}
 
 
+# A first-run website read that ran past CONTEXT_DEADLINE_S keeps going in its own thread. The background refresh
+# the web starts next (POST /context/refresh) waits for that read instead of reading the site a second time.
+# Room for several slow reads: a read can't be stopped once started, and a new run must never queue behind them.
+READ_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="context-read")
+SLOW_READ: dict = {}            # {"host", "urls", "future"} of the latest timed-out read, until a refresh takes it
+SLOW_READ_LOCK = threading.Lock()
+
+
+def take_slow_read(urls: dict):
+    """A build(urls, refresh) for refresh() that returns the timed-out onboarding read of this same site, or None
+    (no such read, or another site). If that read failed or is still running after AGENT_DEADLINE_S, it reads
+    the site fresh, as the refresh would have without it."""
+    with SLOW_READ_LOCK:
+        held = dict(SLOW_READ)
+        SLOW_READ.clear()
+    if not held or held["host"] != host_of(urls.get("website")) or held["future"].cancelled():
+        return None
+    future, typed = held["future"], held["urls"]
+
+    def build(read_urls: dict, refresh: bool = True) -> dict:
+        try:
+            result = future.result(timeout=config.AGENT_DEADLINE_S)
+            log.info("background refresh reused the onboarding read of %s", held["host"])
+            return with_user_urls(result, typed) or result
+        except Exception as e:      # that read failed or never finished: read the site now
+            log.warning("onboarding read unusable (%s); reading again", type(e).__name__)
+            from service.org_context import build_context
+            return build_context(read_urls, refresh=refresh)
+
+    return build
+
+
 @app.post("/context/run")
 async def context_run(req: ContextRun) -> dict:
     """Onboarding screen 2, synchronous: reads the website (≤ CONTEXT_DEADLINE_S), saves, returns per-source status.
@@ -474,9 +551,15 @@ async def context_run(req: ContextRun) -> dict:
                 "profile": None, "facts": [], "saved": None}
 
     urls = req.model_dump(exclude={"refresh"})
+    with SLOW_READ_LOCK:
+        SLOW_READ.clear()                            # a new run supersedes an older slow read
     events_job = start_events_search(req.website)    # in parallel with the website read: same wait, not double
+    read = READ_POOL.submit(build_context, urls, True)
+    waiting = asyncio.wrap_future(read)
+    waiting.add_done_callback(lambda f: f.cancelled() or f.exception())   # read later, or never: no warning
     try:
-        result = await asyncio.wait_for(run_in_threadpool(build_context, urls, True), config.CONTEXT_DEADLINE_S)
+        # shield: a timeout stops the wait, not the read, so a background refresh can still use it
+        result = await asyncio.wait_for(asyncio.shield(waiting), config.CONTEXT_DEADLINE_S)
         result = with_user_urls(result, urls)
         state, cached, detail = "done", False, None
         served_from = "live"
@@ -484,6 +567,8 @@ async def context_run(req: ContextRun) -> dict:
         keep_urls = not isinstance(e, ValueError)   # a timeout or model error, not a missing/invalid website
         if isinstance(e, asyncio.TimeoutError):
             detail = f"website read took longer than {config.CONTEXT_DEADLINE_S:.0f} s"
+            with SLOW_READ_LOCK:
+                SLOW_READ.update(host=host_of(req.website), urls=urls, future=read)
         else:
             detail = f"{type(e).__name__}: {e}"
         log.warning("context run failed, serving cached context: %s", detail)
@@ -507,6 +592,10 @@ async def context_run(req: ContextRun) -> dict:
         # The site is still worth reading: keep what the user typed (never their facts) so
         # POST /context/refresh can finish the job in the background on these URLs.
         saved = await run_in_threadpool(persist_urls, urls)
+        # The events search started with the read and is usually nearly done: give it a short grace so the
+        # dashboard lands with events and prep tasks. Invites wait for that background refresh (step 3), so
+        # this job never holds the refresh slot the web is about to ask for.
+        calendar = await onboarding_calendar(events_job, wait_s=config.ONBOARDING_EVENTS_GRACE_S, invites=False)
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,
@@ -557,22 +646,28 @@ def _safe_extract(ea, hints: list[dict], website: str) -> list[dict]:
         return []
 
 
-async def onboarding_calendar(events_job) -> dict | None:
+async def onboarding_calendar(events_job, wait_s: float | None = None, invites: bool = True) -> dict | None:
     """The first run's calendar, so the dashboard isn't empty after onboarding: save the events the search
     found and generate tasks (prep tasks for events within 14 days) before step 3 answers; then draft every
     event's invites in the background (GET /context/refresh shows that job). A search that failed or found
-    nothing leaves the calendar as it was."""
+    nothing leaves the calendar as it was. invites=False (a slow read) leaves the invites to the background
+    refresh the web starts next."""
     if events_job is None:
         return None
     try:
-        events = await asyncio.wait_for(events_job, config.CONTEXT_DEADLINE_S)
+        events = await asyncio.wait_for(events_job, config.CONTEXT_DEADLINE_S if wait_s is None else wait_s)
     except Exception as e:  # timeout or search error: the daily refresh (or "Refresh now") will pick events up
         log.warning("onboarding events search failed: %s", e)
         return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": f"{type(e).__name__}: {e}"[:200]}
     if not events:
         return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": "no upcoming events found"}
     out, ids, stored = await run_in_threadpool(save_onboarding_calendar, events)
-    out["invites"] = start_invites_job(events, ids, stored)["status"]
+    if invites:
+        out["invites"] = start_invites_job(events, ids, stored)["status"]
+    else:   # the refresh only drafts for new/changed events, and these are now saved: hand them to its next pass
+        with REFRESH_LOCK:
+            PENDING_INVITES[:] = [(events, ids, stored)]
+        out["invites"] = "with the background read"
     return out
 
 
@@ -665,7 +760,8 @@ class ApproveRequest(BaseModel):
     run_id: str
     approved_by: str = Field(min_length=1, max_length=120)
     approvals: list[ApprovalDecision] = Field(default_factory=list,
-                                              description="One per pending call; any left out is declined")
+                                              description="The calls decided now; any left out stays pending (the response "
+                                                          "pauses on it again under a new run_id)")
 
 
 @app.post("/chat/approve")
@@ -763,13 +859,15 @@ def run_refresh() -> dict:
         urls = org_urls(conn)
         if urls is None:
             return {"state": "failed", "detail": "no website saved yet: run onboarding first", "changes": None}
-        changes = refresh(conn, urls)
+        build = take_slow_read(urls)                 # a timed-out onboarding read of this site: reuse it
+        changes = refresh(conn, urls, build=build) if build else refresh(conn, urls)
         try:   # §21 B11: new events -> prep tasks; never fails a refresh already saved
             tasks.generate(conn)
         except Exception:
             conn.rollback()
             log.exception("task generator failed after refresh")
-        return {"state": "done", "detail": None, "changes": changes}
+        failed = (changes.get("invites") or {}).get("failed")   # never "done" with 0 of N invites
+        return {"state": "failed" if failed else "done", "detail": failed, "changes": changes}
     finally:
         conn.close()
 
@@ -842,11 +940,14 @@ def invites_after_running_job(events: list[dict], ids: dict, stored: bool, poll_
 
 
 def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
-    from service.refresh import draft_invites_for
+    from service.refresh import draft_invites_for, invites_failed
     conn = db.connect()
     try:
-        out = draft_invites_for(conn, events, ids, stored)
-        status, detail, changes = "done", None, {"drafts": out["drafts"], "errors": out["errors"][:10]}
+        out = draft_invites_for(conn, events, ids, stored, per_event=config.SETUP_DRAFTS_PER_EVENT)
+        detail = invites_failed(out)                         # never "done" with 0 of N invites
+        status = "failed" if detail else "done"
+        changes = {"drafts": out["drafts"], "attempted": out.get("attempted"), "drafted": out.get("drafted"),
+                   "errors": out["errors"][:10], "stats": out.get("stats")}
     except Exception as e:
         log.warning("onboarding invites failed: %s", e)
         status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
@@ -857,6 +958,32 @@ def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
                            finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
 
 
+# Onboarding events saved after a slow read, whose invites the next refresh pass drafts (it skips known events).
+PENDING_INVITES: list[tuple[list[dict], dict, bool]] = []
+
+
+def pending_invites(changes: dict | None) -> tuple[dict | None, str | None]:
+    """Draft the invites a slow onboarding left for this pass: (changes with "onboarding_invites", error or None)."""
+    with REFRESH_LOCK:
+        pending, PENDING_INVITES[:] = PENDING_INVITES[:], []
+    if not pending:
+        return changes, None
+    from service.refresh import draft_invites_for, invites_failed
+    events, ids, stored = pending[0]
+    conn = db.connect()
+    try:
+        out = draft_invites_for(conn, events, ids, stored, per_event=config.SETUP_DRAFTS_PER_EVENT)
+        summary = {"drafts": out["drafts"], "attempted": out.get("attempted"), "drafted": out.get("drafted"),
+                   "errors": out["errors"][:10], "stats": out.get("stats")}
+        failed = invites_failed(out)                         # 0 of N handed-over invites is a failure, not done
+        return {**(changes or {}), "onboarding_invites": summary}, (f"onboarding invites: {failed}" if failed else None)
+    except Exception as e:
+        log.warning("onboarding invites (after the refresh) failed: %s", e)
+        return changes, f"onboarding invites: {type(e).__name__}: {e}"
+    finally:
+        conn.close()
+
+
 def refresh_job() -> None:
     try:
         result = run_refresh()
@@ -864,6 +991,9 @@ def refresh_job() -> None:
     except Exception as e:  # a site or model error: report it, keep the saved context and calendar
         log.warning("context refresh failed: %s", e)
         status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
+    changes, invites_error = pending_invites(changes)     # still "refreshing" until these are drafted too
+    if invites_error and status != "failed":
+        status, detail = "failed", invites_error
     with REFRESH_LOCK:
         REFRESH_JOB.update(status=status, detail=detail, changes=changes,
                            finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))

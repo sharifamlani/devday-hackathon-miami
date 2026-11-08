@@ -184,13 +184,28 @@ def test_artifacts_lists_drafts_campaigns_and_call_notes_when_present(conn):
     items = tasks.artifacts(conn)   # no call notes saved yet
     assert [(i["kind"], i["title"]) for i in items] == [("draft", "Campaign: GMD reminders · 1 message"),
                                                         ("draft", "Thank you, Ana")]
+    assert items[1]["donor_id"] == pid                      # a plain draft links to its donor's profile
+    assert "donor_id" not in items[0]                       # a campaign row is unchanged (many donors)
     conn.execute("INSERT INTO call_notes (id, title, created_at, destinations) VALUES "
                  "('note-1', 'Call with Ana', '2026-11-07T15:00:00', ?)",
                  (json.dumps([{"kind": "donor", "id": pid, "label": "Ana Ruiz"}]),))
     conn.commit()
     first = tasks.artifacts(conn)[0]
     assert first == {"kind": "call_note", "title": "Call with Ana", "date": "2026-11-07T15:00:00",
-                     "ref": "call_note:note-1", "destinations": ["Ana Ruiz"]}
+                     "ref": "call_note:note-1", "destinations": ["Ana Ruiz"], "donor_id": pid}
+
+
+def test_artifact_donor_id_is_null_for_prospect_drafts_and_calls_without_a_donor(conn):
+    prospect = conn.execute("INSERT INTO prospects (name, org_type) VALUES ('Coral Fund', 'foundation')").lastrowid
+    conn.execute("INSERT INTO outreach_drafts (prospect_id, channel, subject, body, created_at) "
+                 "VALUES (?, 'email', 'Intro', 'Hi', '2026-11-05 10:00:00')", (prospect,))
+    conn.execute("INSERT INTO call_notes (id, title, created_at, destinations) VALUES "
+                 "('note-2', 'Team sync', '2026-11-07T16:00:00', ?)",
+                 (json.dumps([{"kind": "project", "id": 4, "label": "Gala"}]),))
+    conn.commit()
+    by_ref = {i["ref"]: i for i in tasks.artifacts(conn)}
+    assert by_ref["call_note:note-2"]["donor_id"] is None
+    assert next(i for i in by_ref.values() if i["kind"] == "draft")["donor_id"] is None
 
 
 # ---------- the generator ----------
@@ -883,3 +898,106 @@ def test_a_generate_rerun_leaves_no_open_transaction(tmp_path):
     b.commit()
     a.close()
     b.close()
+
+
+# ---------- review tasks retire once their duplicates are resolved (QA blocker) ----------
+
+def open_reviews(conn):
+    return [dict(r) for r in conn.execute("SELECT id, members FROM tasks WHERE kind = 'review' AND deleted_at IS NULL "
+                                          "AND done = 0 ORDER BY id")]
+
+
+@pytest.fixture
+def review_env(tmp_path, monkeypatch):
+    """The answer-key sample with its 6 duplicate groups still pending, as a db file the routes read."""
+    monkeypatch.setenv("DONORS_DB", str(tmp_path / "donors.db"))
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    from service.routes_data import router as data_router
+    conn = db.connect()
+    db.create_schema(conn)
+    ids = sample_upload(conn)
+    tasks.generate(conn, AS_OF)
+    app = FastAPI()
+    app.include_router(data_router)
+    yield TestClient(app), conn, ids
+    conn.close()
+
+
+def test_approving_every_duplicate_leaves_no_open_review_tasks(review_env):
+    """S1: after every merge, 0 open reviews; the open tasks are exactly the key's 5 alert calls."""
+    client, conn, ids = review_env
+    by_id = {v: k for k, v in ids.items()}
+    assert len(open_reviews(conn)) == 6
+    for _ in range(50):                    # a merge re-runs dedupe, which rewrites the pending pairs: re-read each time
+        s = conn.execute("SELECT id, donor_a_id FROM duplicate_suggestions WHERE status = 'pending' ORDER BY id").fetchone()
+        if s is None:
+            break
+        assert client.post(f"/duplicates/{s['id']}/merge", json={"keep_id": s["donor_a_id"]}).status_code == 200
+    assert open_reviews(conn) == []
+    open_tasks = tasks.list_tasks(conn, as_of=AS_OF)
+    assert all(t["kind"] == "call" for t in open_tasks)
+    assert {by_id.get(t["person_id"]) for t in open_tasks} == EXPECTED_ALERTS and len(open_tasks) == 5
+    acts = [r[0] for r in conn.execute("SELECT action FROM agent_actions WHERE actor = 'generator'")]
+    assert acts.count("retire_stale_review") == 6
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0, "retired": 0}
+
+
+def test_undoing_a_merge_brings_its_review_task_back(review_env):
+    """S2: the same task returns, not a second one."""
+    client, conn, ids = review_env
+    first = open_reviews(conn)[0]
+    members = json.loads(first["members"])
+    s = conn.execute("SELECT id FROM duplicate_suggestions WHERE donor_a_id = ? AND donor_b_id = ?",
+                     (members[0], members[1])).fetchone()
+    merge_id = client.post(f"/duplicates/{s['id']}/merge", json={"keep_id": members[0]}).json()["merge_id"]
+    still_pending = conn.execute("SELECT COUNT(*) FROM duplicate_suggestions WHERE status = 'pending' AND "
+                                 "(donor_a_id IN (?, ?) OR donor_b_id IN (?, ?))", (*members[:2], *members[:2])).fetchone()[0]
+    if still_pending == 0:
+        assert first["id"] not in [r["id"] for r in open_reviews(conn)]
+    assert client.post(f"/merges/{merge_id}/undo").status_code == 200
+    assert first["id"] in [r["id"] for r in open_reviews(conn)]
+    assert len(open_reviews(conn)) == 6
+
+
+def test_dismissing_retires_the_review_and_undo_brings_it_back(review_env):
+    from service import agent_writes
+
+    client, conn, ids = review_env
+    pairs = conn.execute("SELECT s.id, s.donor_a_id, s.donor_b_id FROM duplicate_suggestions s WHERE status = 'pending' "
+                         "ORDER BY id").fetchall()
+    one = next(p for p in pairs if sum(1 for q in pairs if {q[1], q[2]} & {p[1], p[2]}) == 1)   # a 2-record group
+    task = next(r for r in open_reviews(conn) if set(json.loads(r["members"])) == {one[1], one[2]})
+    assert client.post(f"/duplicates/{one[0]}/dismiss").status_code == 200
+    assert task["id"] not in [r["id"] for r in open_reviews(conn)]
+    conn.execute("UPDATE duplicate_suggestions SET status = 'pending' WHERE id = ?", (one[0],))
+    conn.commit()
+    _, token = agent_writes.dismiss_duplicate(conn, one[0], actor="agent")       # the agent's dismiss
+    assert task["id"] not in [r["id"] for r in open_reviews(conn)]
+    agent_writes.undo(conn, token)
+    assert task["id"] in [r["id"] for r in open_reviews(conn)]
+
+
+def test_a_review_staff_changed_is_never_retired(review_env):
+    client, conn, ids = review_env
+    task = open_reviews(conn)[0]
+    tasks.update_task(conn, task["id"], actor="staff", why="Checked: two different people; leave open for Ana")
+    members = json.loads(task["members"])
+    s = conn.execute("SELECT id FROM duplicate_suggestions WHERE donor_a_id = ? AND donor_b_id = ?",
+                     (members[0], members[1])).fetchone()
+    client.post(f"/duplicates/{s['id']}/dismiss")
+    assert task["id"] in [r["id"] for r in open_reviews(conn)]
+
+
+def test_alert_task_text_keeps_give_miami_day_capitalized():
+    """capitalize() lowercased everything after the first letter: "(give miami day)" in task text."""
+    from datetime import date as _date
+
+    from service.tasks import _alert_why
+
+    today = _date(2026, 11, 8)
+    late = {"kind": "late", "cadence": "yearly_gmd", "expected_date": "2024-11-21", "days_late": 717}
+    failed = {"kind": "failed", "cadence": "yearly_gmd", "expected_date": "2025-11-20", "days_late": 353}
+    assert _alert_why(late, today) == ("Yearly (Give Miami Day) giver; the gift due Nov 21, 2024 is 717 days late.")
+    assert _alert_why(failed, today).startswith("Yearly (Give Miami Day) gift on Nov 20, 2025 failed")
+    assert _alert_why({**late, "cadence": "monthly", "expected_date": "2026-10-10", "days_late": 29}, today) == \
+        "Monthly giver; the gift due Oct 10 is 29 days late."
