@@ -15,7 +15,8 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 
 Demo surface: **the laptop**, http://localhost:5173 (service on :8000, web with `VITE_DATA_MODE=local`). The Vercel
 link is a read-only **preview** of sample data, not the demo. Scope: **Givers only**. Upload still sorts everyone into
-Givers / Neighbors / Community, but the demo stays in Givers; Neighbors and Community aren't shown.
+Givers / Neighbors / Community, and the people page shows all three tabs (e.g. **Givers 40 · Neighbors 22 ·
+Community 15**), but the demo stays on **Givers**.
 
 Button and heading text below is what's on screen on main today, in **bold**.
 
@@ -48,9 +49,11 @@ Button and heading text below is what's on screen on main today, in **bold**.
    and organizations need individual approval; nothing is sent from here.
 9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
    *"Add the Knight Foundation as a contact."* It lands in **Givers**. Open **CRM** → **Find a donor**, search
-   *Knight*, and click **Enrich profile**: a dry run (nothing written) proposes sourced interest tags (**civic
-   engagement & local news, arts & culture, community development, economic mobility**). Tick the ones to keep and
-   click **Save to profile**. "Nothing is saved until staff accept, and every tag shows where it came from."
+   *Knight* (placeholder **Name, email or organization**), and click **Enrich profile** (it reads **Enriching…**):
+   a dry run (nothing written) shows **Enrichment agent found (public web, review before saving):** with **Interest
+   areas** (**civic engagement & local news, arts & culture, community development, economic mobility**) and
+   **Facts**, each with its source link. Tick the ones to keep and click **Save to profile** (or **Discard**). The
+   same panel is on the donor's profile under **ENRICHMENT**. "Nothing is saved until staff accept, and every tag shows where it came from."
 10. **Calendar** _(events need #144, as in step 5)_. Rail → **Calendar**: the Foundation's upcoming events (Give Miami Day early giving Nov 14, the
     Give Miami 5K Nov 15, Give Miami Day Nov 19), each with **N drafts ready** for its audience. Click **Review** to
     open that event's drafts (pending approval; nothing sent).
@@ -59,14 +62,16 @@ Button and heading text below is what's on screen on main today, in **bold**.
     plays a scripted call. Click **Generate summary**, or ask a question in **Ask about this call…**.
 12. **Dictation.** **Open Ask sidebar** and use **Dictate** to speak a question instead of typing it (**Stop
     dictation** to finish; it needs the live service).
-13. **Duplicates review.** Click **N possible duplicates** (or the banner's **Review merges →**). Exact matches were
-    already merged on upload; these are the close calls. For each, **Merge ✓** or **Keep separate**. "Merge only
+13. **Duplicates review.** On **Givers**, the yellow banner reads e.g. **9 possible duplicates found**; click
+    **Review merges →** (or the home glance link **N possible duplicates**). Exact matches were already merged on
+    upload; these are the close calls, one pair at a time in **We found this donor twice** with its reason badges.
+    Pick the **Record to keep**, then **Merge ✓** (**Merging…**) or **Keep separate**. "Merge only
     after a person approves; the gift history moves to the kept record." On the donor, **Merge history** → **Undo
     merge** → **Confirm undo** puts both back. After the suggestions are approved the counts match the answer key:
     68 people (33 givers, 20 neighbors, 15 community) and 131 gifts.
 
 > Not on screen yet (don't demo): the after-call **Apply** card (the backend proposes follow-ups from a call and
-> writes them on Apply, but no screen shows it yet), and the Neighbors / Community tabs (out of scope).
+> writes them on Apply, but no screen shows it yet). Out of scope: the Neighbors / Community tabs.
 
 ### The call (Sharif writes)
 
@@ -116,7 +121,7 @@ Button and heading text below is what's on screen on main today, in **bold**.
       team numbers.
 - [ ] **Enrich only on the hand-added real org** (Knight Foundation). Fictional orgs correctly show "No public
       information found: this looks like a private or fictional organization."
-- [ ] **Stay in Givers** (scope); don't open Neighbors or Community.
+- [ ] **Stay on the Givers tab** (scope); don't open Neighbors or Community.
 - [ ] Mic permission granted in the browser; test the voice panel once.
 - [ ] The Vercel preview open in a second tab (read-only sample data; the backup only).
 - [ ] Browser zoom 110%, notifications off, a hotspot as Wi-Fi backup.
