@@ -88,10 +88,17 @@ numbers off it.
    **November 9–15** with a priority per day, and it says it hasn't changed your calendar. (The wording varies run to
    run; say "a suggested week, built from the events and tasks, and nothing changed until you say so".) A step that
    changes something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
-7. **A call sheet (Sharif's Q2).** In **Ask the agent…** type *"Prep a call sheet for Priya Raman"* (verified on
-   LIVE; about 5 s): the agent's steps, then the card **Call sheet: Priya Raman** (her phone with a **Call** button,
-   GIVING, TALKING POINTS; RECENT CALLS if she has call notes). "Everything you need before you dial, from her record." (A task row in
-   **Tasks**, e.g. **Call Hye-jin Park**, does the same and adds a draft, about 28 s.)
+7. **An email, drafted (Sharif's Q2).** In **Ask the agent…** type *"Prep an email for Priya Raman"* (about 15 s;
+   14.5 s in a browser run on main 579b7e4). The agent's steps (**Get context** and **Get events** only if this is the
+   chat's first turn), **Find people** ("1 people: Priya Raman"), **Draft email** ("batch #…: 1 drafts, pending
+   approval"), **Send** ("waiting for your approval to send"), then the card **Needs your approval** · "Send thank-you
+   email to Priya Raman": **To Priya Raman**, a bold subject (it varies, e.g. "Priya, thank you for showing up for
+   Miami") and the body: thanks for her $500 gift on November 2 and for giving each November since 2023, then sourced
+   Foundation facts (e.g. Give Miami Day 2025's 60,000+ donors and $40M+). Buttons **Send** · **Don't send**: **don't
+   click Send on stage**. "It wrote from her record and our own news; nothing goes out until staff click Send." (A
+   single named person goes straight to the draft. Several people, e.g. *"prep an email to donors who gave in the
+   last 90 days"*, get a prep card first: LAST TIME / WHAT WE'VE BEEN DOING / COMING UP / THE ANGLE / **Draft N
+   emails**.)
 8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to donors who gave in the last 90 days."*
    (about 38 s): **25 thank-you email drafts are ready for review … Nothing has been sent**, with the organizations that
    need individual approval listed by name. Each draft cites a Foundation fact with its source (e.g. Give Miami Day's
@@ -185,7 +192,7 @@ within about 2 s and the answer types out live, so narrate the steps as they app
 | Step | Can vary because | If it's slow or off, say |
 |---|---|---|
 | 4 Background read (~30 s) | the site read runs in the background; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | Events or facts not there yet: keep touring and say "the agent is still reading the site; the events land in a moment." |
-| 6 / 7 agent replies (~6 s / ~28 s) | live model calls; step 7 also preps a call sheet | "It's pulling the task, the donor's record, a call sheet and a draft; every step it takes shows here." |
+| 6 / 7 agent replies (~6 s / ~15 s) | live model calls; step 7 reads her record and our news, then writes the draft | "It's reading her record and our own news, then writing; every step it takes shows here." No draft after ~30 s: type *"Prep a call sheet for Priya Raman"* instead (about 5 s). |
 | 8 campaign (~38 s) | 25 live drafts | "Twenty-five personal drafts, each citing a real Foundation story. Nothing is sent without approval." |
 | 9 Enrich | fast while the research cache holds Knight; otherwise a live web search | "It's reading the public web; every tag will carry its source." |
 | 12 Dictation | needs a mic and the live service | Type the question instead. |
