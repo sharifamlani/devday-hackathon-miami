@@ -94,6 +94,30 @@ function syncToTarget(): void | Promise<void> {
   }
 }
 
+/**
+ * A request can land between the router accepting a navigation and HomePage committing it (the
+ * commit is asynchronous). `target` is then ahead of what is on screen, and the early return in
+ * syncToTarget leaves the old navigation to win (a quick open+close strands the panel open).
+ * After every commit, replay a request that the committed state does not satisfy.
+ */
+function reconcileAfterCommit() {
+  if (!nav || target === undefined || target === actual) return;
+  const want = target;
+  queueMicrotask(() => {
+    if (!nav || target !== want || actual === want) return;
+    const kind: ZoomKind =
+      want === null ? "close" : actual === null ? "open" : "switch";
+    runZoomTransition({ kind, update: syncToTarget, view: want });
+  });
+}
+
+/** What useWorkspaceView does for each committed render (exported so tests can drive it). */
+export function commitWorkspaceForTest(view: WorkspaceView | null) {
+  actual = view;
+  if (target === view) target = undefined;
+  reconcileAfterCommit();
+}
+
 function request(
   next: WorkspaceView | null,
   sourceEl?: HTMLElement | null,
@@ -124,6 +148,17 @@ export const toggleWorkspace = (
   const current = target === undefined ? actual : target;
   return current === view ? request(null) : request(view, sourceEl);
 };
+
+/** Esc closes the panel unless a dialog/menu owns the key; reads the requested state. */
+export function handleWorkspaceEscape(
+  e: Pick<KeyboardEvent, "key" | "defaultPrevented">,
+) {
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  if ((target === undefined ? actual : target) === null) return;
+  if (document.querySelector('[role="dialog"],[role="listbox"],[role="menu"]'))
+    return;
+  closeWorkspace();
+}
 
 /** Mount once (HomePage). Wires the module-level actions to react-router. */
 export function useWorkspaceView() {
@@ -174,6 +209,7 @@ export function useWorkspaceView() {
   const prev = useRef(view);
   useLayoutEffect(() => {
     notifyCommitted();
+    reconcileAfterCommit();
     if (prev.current && !view) {
       const src = getLastSource();
       if (src?.isConnected) {
@@ -186,20 +222,12 @@ export function useWorkspaceView() {
     prev.current = view;
   }, [view]);
 
-  // Esc closes the panel unless a dialog/menu owns the key.
+  // Esc closes the panel unless a dialog/menu owns the key. One listener for the page's life
+  // that reads the requested state, so Esc right after an open (before it commits) still closes.
   useEffect(() => {
-    if (!view) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (
-        document.querySelector('[role="dialog"],[role="listbox"],[role="menu"]')
-      )
-        return;
-      closeWorkspace();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [view]);
+    window.addEventListener("keydown", handleWorkspaceEscape);
+    return () => window.removeEventListener("keydown", handleWorkspaceEscape);
+  }, []);
 
   // Dev builds (or VITE_EXPOSE_DESK=1 builds): lets scripts/verify_home_zoom.py drive the panels.
   useEffect(() => {

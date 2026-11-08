@@ -27,7 +27,7 @@ GPU_ARGS = ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"]
 VIEWS = ["calendar", "crm", "tasks", "impact"]
 SIZES = [(1440, 900), (1366, 768)]
 CYCLES = 10
-OPEN_MS, CLOSE_MS = 340, 280
+OPEN_MS, CLOSE_MS = 320, 280  # --duration-slow and 0.875 of it (src/index.css, home/zoomTransition.ts)
 LIMITS = {"ratio": (0.63, 0.70), "chat_min": 380, "p95": 17.5, "max": 34.0}
 
 # Records rAF timestamps until stopped; returns the frame gaps (ms).
@@ -277,6 +277,44 @@ def check_shape(browser, base):
     return ok_all
 
 
+def check_double_toggle(browser, base):
+    """Alt+T twice, fast, 10 times: the URL and the panel agree and end closed every time (a stale
+    request used to strand the panel open); then Esc ~40 ms after an open closes it."""
+    errors: list[str] = []
+    ctx, page = fresh(browser, base, 1440, 900, errors)
+    ok = True
+    stuck = 0
+    for i in range(10):
+        page.keyboard.press("Alt+KeyT")
+        page.wait_for_timeout(15 + (i % 4) * 20)
+        page.keyboard.press("Alt+KeyT")
+        page.wait_for_timeout(1000)
+        g = page.evaluate(GEOMETRY)
+        agree = (not g["has"]) and g["view"] is None
+        if not agree:
+            stuck += 1
+            page.evaluate("window.__desk.closeWorkspace()")
+            page.wait_for_timeout(600)
+    ok &= stuck == 0
+    print(f"double-toggle Alt+T x2 10 times: stranded={stuck} {'PASS' if stuck == 0 else 'FAIL'}")
+    esc_ok = 0
+    for i in range(10):
+        page.keyboard.press("Alt+KeyT")
+        page.wait_for_timeout(30 + (i % 3) * 25)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1000)
+        g = page.evaluate(GEOMETRY)
+        if not g["has"] and g["view"] is None:
+            esc_ok += 1
+        else:
+            page.evaluate("window.__desk.closeWorkspace()")
+            page.wait_for_timeout(600)
+    ok &= esc_ok == 10 and not errors
+    print(f"Esc right after open closes: {esc_ok}/10 console={len(errors)} {'PASS' if esc_ok == 10 and not errors else 'FAIL'}")
+    ctx.close()
+    return ok
+
+
 def check_rapid(browser, base):
     errors: list[str] = []
     ctx, page = fresh(browser, base, 1440, 900, errors)
@@ -497,6 +535,7 @@ def main():
         results += [
             functional(browser, base, shots),
             check_shape(browser, base),
+            check_double_toggle(browser, base),
             check_rapid(browser, base),
             check_reduced(browser, base),
             check_cold_and_back(browser, base),
