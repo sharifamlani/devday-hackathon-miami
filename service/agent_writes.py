@@ -235,6 +235,9 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
         event_id, person_id = (int(x) for x in ref.split(":"))
         conn.execute("UPDATE event_audience SET rsvp = ? WHERE event_id = ? AND person_id = ?",
                      (before["rsvp"], event_id, person_id))
+    elif kind == "summary":                    # donor_summary.update: put back the paragraph as it was
+        from service import donor_summary
+        donor_summary.restore(conn, int(ref), before)
     elif kind == "note":
         from service import context_notes
         try:

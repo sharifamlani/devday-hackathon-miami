@@ -645,6 +645,19 @@ CREATE INDEX IF NOT EXISTS idx_auto_merges_donor ON auto_merges(donor_id);
 SCHEMA += AUTO_MERGE_SCHEMA
 TABLES = ["auto_merges"] + TABLES
 
+# "About <donor>": the agent's running summary of one person (service/donor_summary.py). Its own block so other
+# branches editing db.py merge cleanly; CREATE ... IF NOT EXISTS is the migration for an older donors.db.
+DONOR_SUMMARY_SCHEMA = """
+CREATE TABLE IF NOT EXISTS donor_summaries (
+    donor_id    INTEGER PRIMARY KEY REFERENCES donors(id) ON DELETE CASCADE,
+    summary     TEXT NOT NULL,                -- 3-5 sentences, rewritten by the agent on each new fact
+    sources     TEXT NOT NULL DEFAULT '[]',   -- JSON [{kind: chat|call_note|note|gift, ref, at}], newest first
+    updated_at  TEXT NOT NULL
+);
+"""
+SCHEMA += DONOR_SUMMARY_SCHEMA
+TABLES = ["donor_summaries"] + TABLES
+
 ADDED_COLUMNS = {
     "icp_profile": {"recent_context": "TEXT"},
     "prospects": {"fit_breakdown": "TEXT", "matched_context": "TEXT"},

@@ -48,6 +48,9 @@ Rules:
 - You can change records directly (people, tasks, calendar, interests, RSVPs, duplicates). Each change applies at
   once and the user sees an Undo button; say what you changed. Sends, merges and deletes wait for the user's
   approval: call the tool, and the user approves or declines on a card.
+- When the user shares something about a person (a conversation, family, plans, preferences: "I talked to
+  Rafael..."), call update_donor_summary with their words, then confirm "Updated <first name>'s summary". If the
+  tool says no one or several people match, ask who they meant; never guess or write it to someone else.
 - To phone someone, call call_person (it waits for the approval card). The user's own phone rings first,
   then the person's; the call is recorded with a spoken notice and saved as a call note afterwards.
 - For event outreach use plan_event_outreach: it makes one batch per event; report each event's drafts and
@@ -810,6 +813,25 @@ def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
         return {"error": str(e)}
 
 
+
+# ----------------------------------------------------------------------------------------------
+# "About <donor>" (service/donor_summary.py): the agent keeps a running summary of each person. Its own block so the
+# other lanes editing this file merge cleanly.
+# ----------------------------------------------------------------------------------------------
+
+@function_tool
+def update_donor_summary(ctx: RunContextWrapper[ChatContext], new_info: str, person_id: int | None = None,
+                         name: str | None = None) -> dict:
+    """Merge something the user shared about a person (a conversation, family, plans, preferences) into that
+    person's About summary; the paragraph is rewritten, never replaced. Pass person_id, or name to look them up.
+    new_info is what the user said about them, in their words. No match or several matches returns an error that
+    asks who they meant: relay it, never guess."""
+    from service import donor_summary
+    try:
+        return write(donor_summary.update, new_info, person_id=person_id, name=name, kind="chat")
+    except donor_summary.WriteError as e:
+        return {"error": str(e)}
+
 TOOLS = [
     # reads
     find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_calendar, get_task, get_tasks,
@@ -817,7 +839,7 @@ TOOLS = [
     # writes (each returns an undo_token)
     update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
     create_task, update_task, complete_task, add_calendar_item, move_calendar_item, get_after_call_actions,
-    apply_after_call_actions,
+    apply_after_call_actions, update_donor_summary,
     draft_email, draft_sms, plan_event_outreach, undo,
     # approval-gated: the run pauses on an approval card
     merge_duplicate, delete_task, delete_calendar_item, send, call_person,
@@ -852,6 +874,8 @@ def summarize(output) -> str:
         return str(output)[:160]
     if "error" in data:
         return f"error: {data['error']}"
+    if data.get("summary_updated"):                                                # update_donor_summary
+        return f"Updated {data.get('first_name') or data.get('full_name')}'s summary"
     if isinstance(data.get("task"), dict):                  # get_task
         t = data["task"]
         return f"task #{t.get('id')}: {t.get('title')}" + (" (done)" if t.get("done") else "")

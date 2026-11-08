@@ -28,7 +28,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from service import config, db
@@ -304,7 +304,7 @@ async def summarize_call(req: SummarizeRequest, conn: sqlite3.Connection = Depen
 # ----------------------------------------------------------------------------------------------
 
 @router.post("/calls")
-def save_call(note: CallNoteIn, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+def save_call(note: CallNoteIn, background: BackgroundTasks, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
     for dest in note.destinations:
         if dest.kind == "donor" and (not dest.id.isdigit() or conn.execute(
                 "SELECT 1 FROM donors WHERE id = ?", (int(dest.id),)).fetchone() is None):
@@ -317,6 +317,9 @@ def save_call(note: CallNoteIn, conn: sqlite3.Connection = Depends(get_conn)) ->
     row["next_steps"] = [s.strip() for s in note.next_steps if s.strip()]
     saved = db.save_call_note(conn, row)
     log.info("calls: saved %s (%d lines, %d destinations)", saved["id"], len(note.transcript), len(note.destinations))
+    if any(d.kind == "donor" for d in note.destinations):   # each donor's "About" summary learns from the note
+        from service import donor_summary
+        background.add_task(donor_summary.refresh_in_background, saved)
     return saved
 
 
