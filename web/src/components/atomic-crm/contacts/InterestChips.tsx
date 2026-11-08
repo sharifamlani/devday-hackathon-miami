@@ -180,7 +180,7 @@ export const InterestAreasEditor = ({ personId }: { personId: number }) => {
   const busy = add.isPending || remove.isPending;
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {interests && interests.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5" aria-label="Interest areas">
           {interests.map((interest) => (
@@ -200,7 +200,7 @@ export const InterestAreasEditor = ({ personId }: { personId: number }) => {
       )}
       {available.length > 0 && (
         <form
-          className="flex items-center gap-2"
+          className="flex min-w-0 items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             if (choice) add.mutate({ personId, tag: choice }, { onSuccess: () => setChoice("") });
