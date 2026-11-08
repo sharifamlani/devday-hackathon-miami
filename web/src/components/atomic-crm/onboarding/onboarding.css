@@ -80,7 +80,7 @@
 }
 .onb-progress {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
 }
 .onb-progress span {
@@ -171,59 +171,6 @@
 .dark .onb-error {
   color: #f19a86;
 }
-.onb-money {
-  position: relative;
-}
-.onb-money > span {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 14px;
-  display: grid;
-  place-items: center;
-  color: var(--muted-foreground);
-  pointer-events: none;
-}
-.onb-money input {
-  padding-inline-start: 28px;
-}
-
-.onb-choices {
-  display: grid;
-  gap: 12px;
-}
-@media (min-width: 640px) {
-  .onb-choices {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-.onb-choice {
-  display: grid;
-  gap: 6px;
-  align-content: start;
-  text-align: left;
-  padding: 18px;
-  min-height: 44px;
-  color: inherit;
-  cursor: pointer;
-}
-.onb-choice:hover {
-  border-color: var(--foreground);
-}
-.onb-choice[aria-pressed="true"] {
-  border-color: var(--foreground);
-  box-shadow: inset 0 0 0 1px var(--foreground);
-}
-.onb-choice b {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-}
-.onb-choice span {
-  font-size: 13px;
-  color: var(--muted-foreground);
-}
-
 .onb-actions {
   display: flex;
   align-items: center;
@@ -293,43 +240,226 @@
   outline-offset: 2px;
 }
 
-.onb-tour-list {
+/* Step 1: drop zone, file lists, destination */
+.onb-drop {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  border-style: dashed;
+  border-width: 1.5px;
+  border-color: var(--muted-foreground);
+}
+.onb-drop[data-active="true"] {
+  border-color: var(--foreground);
+  border-style: solid;
+  box-shadow: inset 0 0 0 1px var(--foreground);
+}
+.onb-drop-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.onb-lede code {
+  font-size: 0.92em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--muted);
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.onb-files {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 10px;
-  counter-reset: onb-tour;
+  gap: 6px;
 }
-.onb-tour-list li {
-  counter-increment: onb-tour;
+.onb-files li {
   display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 2px 10px;
-  padding: 12px;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 2px 4px 2px 12px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--card);
+  font-size: 13.5px;
 }
-.onb-tour-list li::before {
-  content: counter(onb-tour);
-  grid-row: span 2;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+.onb-files.skipped li {
+  grid-template-columns: 16px minmax(0, 1fr);
+  padding: 8px 12px;
+  color: var(--muted-foreground);
+}
+.onb-file-name {
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+}
+.onb-file-size {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.onb-file-why {
+  grid-column: 2;
+  font-size: 12.5px;
+}
+.onb-icon-btn {
   display: grid;
   place-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  background: var(--brand);
-  color: var(--brand-foreground);
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
 }
-.onb-tour-list b {
+.onb-icon-btn:hover:not(:disabled) {
+  background: var(--muted);
+}
+.onb-radios {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.onb-radios legend {
+  width: 100%;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.onb-radios label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.onb-radios input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--foreground);
+}
+
+/* Step 3: what the agent is reading */
+.onb-sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.onb-sources li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
   font-size: 14px;
 }
-.onb-tour-list span {
-  font-size: 13px;
+.onb-sources svg {
+  flex: none;
+}
+.onb-source-label {
+  flex: 0 0 auto;
+  min-width: 6.5em;
+  font-weight: 600;
+}
+/* Wraps under the label when the row is narrow (phones). */
+.onb-source-text {
+  flex: 1 1 9em;
+  min-width: 0;
   color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.onb-sources li[data-tone="done"] svg {
+  color: var(--good-foreground);
+}
+.onb-sources li[data-tone="done"] .onb-source-text {
+  color: var(--foreground);
+}
+.onb-sources li[data-tone="problem"] svg,
+.onb-sources li[data-tone="problem"] .onb-source-text {
+  color: var(--destructive);
+}
+.dark .onb-sources li[data-tone="problem"] svg,
+.dark .onb-sources li[data-tone="problem"] .onb-source-text {
+  color: #f19a86;
+}
+.onb-sources li[data-tone="quiet"] svg {
+  color: var(--muted-foreground);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .onb-spin {
+    animation: onb-spin 1s linear infinite;
+  }
+}
+@keyframes onb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The optional tour, offered on the dashboard after setup */
+.onb-offer {
+  --onb-tglow-y: rgba(244, 217, 88, 0.17);
+  --onb-tglow-g: rgba(196, 220, 120, 0.2);
+  position: fixed;
+  z-index: 50;
+  right: 16px;
+  bottom: 16px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px 12px;
+  color: var(--foreground);
+  box-shadow: 0 18px 50px rgba(20, 22, 23, 0.2);
+}
+.dark .onb-offer {
+  --onb-tglow-y: rgba(244, 217, 88, 0.08);
+  --onb-tglow-g: rgba(196, 220, 120, 0.08);
+}
+.onb-offer h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.onb-offer p {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+.onb-offer-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.onb-offer :focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+/* Phones: above the bottom navigation bar */
+@media (max-width: 767px) {
+  .onb-offer {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
 }
 
 /* Coach marks over the real homepage */

@@ -73,6 +73,8 @@ from service.routes_tasks import router as tasks_router  # noqa: E402  (§21 B11
 app.include_router(tasks_router)
 app.include_router(calls_router)  # live transcript call notes: /calls, /calls/summarize
 app.include_router(importlib.import_module("service.routes_interests").router)  # B1 interests; owns POST /enrich (dry_run)
+from service.routes_voice import router as voice_router  # noqa: E402  (B3: /transcribe/live, /transcribe/file)
+app.include_router(voice_router)
 
 def module_present(name: str) -> bool:
     try:
