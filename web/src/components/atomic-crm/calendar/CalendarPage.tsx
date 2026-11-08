@@ -32,6 +32,7 @@ import {
 } from "../providers/local/crmHooks";
 import { useDonors, useTargets } from "../providers/local/hooks";
 import { useCalendarFeed } from "../providers/local/calendarFeed";
+import { isDateOnly, parseWhen } from "../providers/local/parseWhen";
 import { DATA_MODE } from "../providers/local/config";
 import { TABS, TAB_LABELS } from "../providers/local/crmTypes";
 import type {
@@ -90,7 +91,7 @@ const localizer = dateFnsLocalizer({
 });
 
 const when = (iso: string) =>
-  new Date(iso).toLocaleString("en-US", {
+  parseWhen(iso).toLocaleString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -101,7 +102,7 @@ const when = (iso: string) =>
 interface CalEvent extends RbcEvent {
   id: number | string;
   family: Family | "plan";
-  /** Set for dated tasks (live: GET /calendar; snapshot build: the local plan). */
+  /** Set for dated tasks (live: GET /calendar; snapshot: the calendar feed). */
   task?: CalTask;
 }
 
@@ -177,7 +178,7 @@ export const CalendarPage = ({
     [allEvents, hidden],
   );
   // Open on the month of the next event, not an empty current month.
-  const firstEvent = allEvents[0] ? new Date(allEvents[0].starts_at) : null;
+  const firstEvent = allEvents[0] ? parseWhen(allEvents[0].starts_at) : null;
   const shownDate = date ?? firstEvent ?? new Date();
   const shownMonth = monthOf(toIsoDate(shownDate));
 
@@ -187,13 +188,13 @@ export const CalendarPage = ({
     new Date(shownMonth.year, shownMonth.month + 1, 0),
   );
   const feed = useCalendarFeed(addDays(monthStart, -7), addDays(monthEnd, 7));
-  const tasks: CalTask[] = useMemo(
-    () =>
-      DATA_MODE === "local"
-        ? tasksFromFeed(feed.data ?? [])
-        : tasksFromPlan(plan.items),
-    [feed.data, plan.items],
-  );
+  // Snapshot mode reads dated tasks from the snapshot's calendar feed (the same source as the
+  // home week tile); the local plan is only the fallback when the feed has no tasks.
+  const tasks: CalTask[] = useMemo(() => {
+    const fromFeed = tasksFromFeed(feed.data ?? []);
+    if (DATA_MODE === "local" || fromFeed.length > 0) return fromFeed;
+    return tasksFromPlan(plan.items);
+  }, [feed.data, plan.items]);
 
   const calEvents: CalEvent[] = useMemo(
     () => [
@@ -201,9 +202,9 @@ export const CalendarPage = ({
         id: e.id,
         family: kindInfo(e).family,
         title: e.title,
-        start: new Date(e.starts_at),
-        end: e.ends_at ? new Date(e.ends_at) : new Date(e.starts_at),
-        allDay: !e.ends_at,
+        start: parseWhen(e.starts_at),
+        end: e.ends_at ? parseWhen(e.ends_at) : parseWhen(e.starts_at),
+        allDay: !e.ends_at || isDateOnly(e.starts_at),
       })),
       ...(showPlan
         ? taskCalendarEntries(tasks).map((entry) => ({
