@@ -157,10 +157,7 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
     if skip_reason(org_name, donor_type):
         return []
     try:
-        if focus:   # the CLI's steered search: facts only, no identity data to check
-            return research_live(name, org_name, city, focus)
-        found = enrich_full(name, org_name, city, donor_type, refresh=True)
-        return [Fact(fact=f["fact"], source_url=f["source_url"], retrieved_at=f["retrieved_at"]) for f in found["facts"]]
+        return research_live(name, org_name, city, focus)
     except Exception:
         cached = None if refresh else cached_facts(name)
         if cached is None:
@@ -169,6 +166,11 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
 
 
 def research_live(name: str, org_name: str | None, city: str | None, focus: str | None) -> list[Fact]:
+    """The live run behind enrich_donor. It goes through enrich_full, so an organization's identity must match on
+    its name plus one more attribute (identity_matches); only the CLI's --focus search keeps the facts-only agent."""
+    if not focus:
+        found = enrich_full(name, org_name, city, "organization", refresh=True)
+        return [Fact(fact=f["fact"], source_url=f["source_url"], retrieved_at=f["retrieved_at"]) for f in found["facts"]]
     query = f"Donor: {name}"
     if org_name:
         query += f"\nOrganization: {org_name}"
