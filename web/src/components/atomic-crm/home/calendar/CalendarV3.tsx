@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Info, Pencil, Plus, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { addDays, toIsoDate } from "../../outreach/dates";
-import { useEvents } from "../../providers/local/crmHooks";
+import { useEvents, usePlanEventOutreach } from "../../providers/local/crmHooks";
+import type { CrmEvent } from "../../providers/local/crmTypes";
 import {
   EVENTS_READ_ONLY,
   eventErrorMessage,
@@ -53,6 +55,7 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
   const [open, setOpen] = useState<string | null>(null); // details row key
   const [form, setForm] = useState<{ event: CalendarEvent | null } | null>(null);
   const readOnly = EVENTS_READ_ONLY;
+  const crmEvents = useEvents().data;
 
   const jumpTo = (date: string) => {
     listRef.current
@@ -142,6 +145,7 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
                       row={row}
                       expanded={open === row.key}
                       readOnly={readOnly}
+                      crm={crmEvents?.find((c) => String(row.ref) === `event:${c.id}`)}
                       onInfo={() => setOpen(open === row.key ? null : row.key)}
                       onEdit={() => setForm({ event: row.event })}
                     />
@@ -162,12 +166,14 @@ const EventListRow = ({
   row,
   expanded,
   readOnly,
+  crm,
   onInfo,
   onEdit,
 }: {
   row: EventRow;
   expanded: boolean;
   readOnly: boolean;
+  crm?: CrmEvent;
   onInfo: () => void;
   onEdit: () => void;
 }) => (
@@ -210,6 +216,7 @@ const EventListRow = ({
           <dd>{row.kind}</dd>
           <dt>Source</dt>
           <dd>{row.provenance}</dd>
+          {crm && <InviteReview event={crm} readOnly={readOnly} />}
         </dl>
       )}
     </div>
@@ -333,5 +340,35 @@ const Suggestions = ({ start, today }: { start: string; today: string }) => {
         </ul>
       )}
     </aside>
+  );
+};
+
+/** Review invites -> plan the event's outreach batch -> Open batch (/campaigns/<id>). */
+const InviteReview = ({ event, readOnly }: { event: CrmEvent; readOnly: boolean }) => {
+  const plan = usePlanEventOutreach();
+  const navigate = useNavigate();
+  const batchId = plan.data?.batch_id ?? event.batch_id;
+  const drafts = event.drafts_ready ?? 0;
+  if (!batchId && !drafts && !(event.audience_count ?? 0)) return null;
+  return (
+    <>
+      <dt>Invites</dt>
+      <dd>
+        {batchId ? (
+          <button type="button" className={cn("cal3-add", focusRing)} onClick={() => navigate(`/campaigns/${batchId}`)}>
+            Open batch
+          </button>
+        ) : readOnly ? (
+          <span>{drafts} drafted</span>
+        ) : (
+          <button type="button" className={cn("cal3-add", focusRing)} disabled={plan.isPending} onClick={() => plan.mutate(event.id)}>
+            {plan.isPending ? "Planning…" : "Review invites"}
+          </button>
+        )}
+        {plan.isError && (
+          <span role="alert" className="block text-destructive">{(plan.error as Error).message}</span>
+        )}
+      </dd>
+    </>
   );
 };

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CoreAdminContext } from "ra-core";
+import { useLocation } from "react-router";
 
 import type * as Config from "../../providers/local/config";
 import type { CrmEvent } from "../../providers/local/crmTypes";
@@ -35,13 +36,20 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-const mount = () => {
-  const dataProvider = { getEvents: async () => [GALA], getTargets: async () => ({}) };
+const Where = () => <p data-testid="where">{useLocation().pathname}</p>;
+
+const mount = (events: CrmEvent[] = [GALA]) => {
+  const dataProvider = {
+    getEvents: async () => events,
+    getTargets: async () => ({}),
+    planEventOutreach: vi.fn(async () => ({ batch_id: "42" })),
+  };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <CoreAdminContext dataProvider={dataProvider as never}>
         <CalendarV3 today="2026-11-08" />
+        <Where />
       </CoreAdminContext>
     </QueryClientProvider>,
   );
@@ -77,5 +85,13 @@ describe("CalendarV3 (live, against the contract mocks)", () => {
       body: { title: "Invite 25 people to Donor Gala", kind: "email", due: "2026-11-12" },
     });
     expect(seen.some((s) => s.method === "POST" && s.path === "/events" && JSON.stringify(s.body).includes("Invite"))).toBe(false);
+  });
+
+  it("details offer Review invites, then Open batch navigates to /campaigns/<id>", async () => {
+    const ui = await mount([{ ...GALA, id: 3, drafts_ready: 4 }]);
+    await ui.getByRole("button", { name: /Details for/ }).click();
+    await ui.getByRole("button", { name: "Review invites" }).click();
+    await ui.getByRole("button", { name: "Open batch" }).click();
+    await expect.element(ui.getByTestId("where")).toHaveTextContent("/campaigns/42");
   });
 });
