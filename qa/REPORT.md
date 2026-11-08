@@ -260,3 +260,5 @@ Merged by the lead on QA verdict: #73 (918cd24), #77 (067fa19). #69 parked (Chri
 | #87 feat/empty-start (D1/D2) | e901d5f | fresh start = 0 rows, no seeding; caches only on live failure, flagged; seed/cache only via `python -m service.pipeline`; key 131 = $1,367,535, Q4 $98,815; landing lists 8 files, 1 POST /ingest; first-run walk renders the home (Q4 66%), 0 console errors | APPROVE |
 
 Ingest on #87's dataset: 132 gifts = $1,367,575 vs the key's 131 = $1,367,535 → the declined $40 (Park) is counted as a gift; added to the ingest-fix target.
+| #90 feat/after-call (B6) | e18d4fa | 358 passed; empty start ok; guarded db adds; no own /tasks route; temp file in OS temp; smoke #11 run 1 = 1/1/2/1, idempotent Apply, undo ok. Defects: re-propose wipes `applied`, so a second Apply duplicates the pledge; live run 2 gives 1 note instead of 2 | CHANGES (owner 86) |
+| #96 fix/ingest-adapter-determinism | 63648eb | ingest_check 27/29: 68 people, 33/20/15, 131 = $1,367,535, 5 alerts, routes 200, deterministic; FAIL: 0 pending suggestions (all 6 groups auto-merged, breaks challenge #2) | verdict held for the next head |
