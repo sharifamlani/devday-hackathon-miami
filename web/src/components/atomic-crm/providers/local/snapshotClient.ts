@@ -8,7 +8,8 @@ import type {
   ApiWhy,
 } from "./apiTypes";
 import { campaignSnapshotMethods } from "./campaigns";
-import { askSnapshot, type ApiSnapshotWithAsk } from "./ask";
+import type { ApiSnapshotWithAsk } from "./ask";
+import { askHosted } from "./askHosted";
 import { APPROVER_NAME, SNAPSHOT_URL } from "./config";
 import { requireWebsite } from "./validate";
 import {
@@ -23,7 +24,7 @@ import {
   parseProspectDetail,
   parseTargets,
 } from "./parse";
-import type { DonorDeskMethods, ImportedDonorRow } from "./types";
+import type { BaseDonorDeskMethods, ImportedDonorRow } from "./types";
 
 /**
  * Serves `python -m service.export_snapshot` output (VITE_DATA_MODE=snapshot).
@@ -33,7 +34,7 @@ import type { DonorDeskMethods, ImportedDonorRow } from "./types";
  */
 let snapshotPromise: Promise<ApiSnapshot> | null = null;
 
-const loadSnapshot = () => {
+export const loadSnapshot = () => {
   if (!snapshotPromise) {
     snapshotPromise = fetch(SNAPSHOT_URL).then(async (response) => {
       if (!response.ok) {
@@ -304,7 +305,7 @@ const applyGiftTotals = (
   };
 };
 
-export const snapshotMethods: DonorDeskMethods = {
+export const snapshotMethods: BaseDonorDeskMethods = {
   getDonors: async () => (await loadSnapshot()).donors.map(parseDonorRow),
   getDonor: async (id) => {
     const snapshot = await loadSnapshot();
@@ -545,8 +546,9 @@ export const snapshotMethods: DonorDeskMethods = {
     };
   },
   getContext: async () => contextOf(await loadSnapshot()),
+  // Examples and chip edits stay in the browser; free text asks /api/ask for a filter.
   ask: async (question, filter, intent) =>
-    askSnapshot(
+    askHosted(
       (await loadSnapshot()) as ApiSnapshotWithAsk,
       question,
       filter,

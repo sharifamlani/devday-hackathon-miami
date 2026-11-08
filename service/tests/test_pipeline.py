@@ -21,7 +21,8 @@ def env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def stubs(monkeypatch):
-    calls = {"enriched": [], "drafted": [], "prospect_drafts": [], "excluded": set(), "context_urls": None, "context_calls": []}
+    calls = {"enriched": [], "drafted": [], "prospect_drafts": [], "excluded": set(), "context_urls": None, "context_calls": [],
+             "events_context": None}
 
     enrich = types.ModuleType("service.enrich_agent")
     enrich.read_cache = lambda: {"Amazon": [], "Frederick A. DeLuca Foundation": []}
@@ -105,8 +106,33 @@ def stubs(monkeypatch):
 
     org_context.build_context = build_context
 
+    events = types.ModuleType("service.events_agent")
+
+    def extract_events(context_facts=None, refresh=False):
+        calls["events_context"] = len(context_facts or [])
+        return [{"title": "Give Miami 5K", "starts_at": "2026-11-15T07:00", "audience_hint": "pet",
+                 "source_url": "https://miamifoundation.org/5k", "source": "website"},
+                {"title": "Give Miami Day", "starts_at": "2026-11-19", "audience_hint": "giving",
+                 "source_url": "https://www.givemiamiday.org/", "source": "website"}]
+
+    def suggest_audience(event, people, rationale=True):
+        if event["audience_hint"] == "pet":
+            chosen = [p for p in people if p.get("has_dog")]
+        else:
+            chosen = [p for p in people if p["contact_type"] == "giver" and p.get("status") == "lapsing"]
+        return {"event_kind": event["audience_hint"], "person_ids": [p["id"] for p in chosen],
+                "why": {str(p["id"]): "rule" for p in chosen}, "rationale": "stub"}
+
+    def draft_event_invite(event, person):
+        star_or_org = person.get("is_star") or person.get("donor_type") == "organization"
+        return {"subject": f"Join us: {event['title']}", "email_body": "Hi", "sms": "Join us",
+                "facts_used": [], "status": "draft" if star_or_org else "ready"}
+
+    events.extract_events, events.suggest_audience, events.draft_event_invite = extract_events, suggest_audience, draft_event_invite
+
     for name, mod in [("service.enrich_agent", enrich), ("service.outreach_agent", outreach),
-                      ("service.org_context", org_context), ("service.icp_agent", icp)]:
+                      ("service.org_context", org_context), ("service.icp_agent", icp),
+                      ("service.events_agent", events)]:
         monkeypatch.setitem(sys.modules, name, mod)
     return calls
 
@@ -114,8 +140,8 @@ def stubs(monkeypatch):
 def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     out = env / "snapshot.json"
     report = pipeline.run_pipeline(AS_OF, top_n=3, out=out)
-    assert [r["stage"] for r in report] == ["rebuild", "context", "enrich", "icp", "outreach", "export"]
-    assert [r["status"] for r in report] == ["ok"] * 6, report
+    assert [r["stage"] for r in report] == ["rebuild", "context", "events", "enrich", "icp", "outreach", "export"]
+    assert [r["status"] for r in report] == ["ok"] * 7, report
     stage = {r["stage"]: r for r in report}
 
     # Orgs only, cache only: the two cached orgs; no individual, no uncached org
@@ -129,7 +155,8 @@ def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     assert len(stars) == 2
     for d in [top, *stars]:
         drafts = snap["donor_details"][str(d["id"])]["outreach_drafts"]
-        assert len(drafts) == 1 and drafts[0]["facts_used"]
+        own = [x for x in drafts if x["event_id"] is None]                 # event invites carry event_id
+        assert len(own) == 1 and own[0]["facts_used"]
     for d in stars:
         assert snap["donor_details"][str(d["id"])]["outreach_drafts"][0]["status"] == "draft"
     deluca = next(d for d in snap["donors"] if d["full_name"] == "Frederick A. DeLuca Foundation")
@@ -145,6 +172,17 @@ def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     assert [f["source"] for f in ctx["facts"]] == ["linkedin", "website"]
     assert ctx["profile"]["source_status"]["instagram"] == "blocked"
     assert "1 facts without a URL dropped" in stage["context"]["detail"]
+
+    # Events stage: dog owners for the 5K across tabs, lapsing givers for Give Miami Day, one log row
+    assert stubs["events_context"] == 2                                     # context facts passed as hints
+    fivek = next(e for e in snap["events"] if e["title"] == "Give Miami 5K")
+    detail = snap["event_details"][str(fivek["id"])]
+    assert {r["full_name"] for r in detail["recipients"]} == {"Danielle Okafor", "Keisha Grant"}
+    assert all(r["has_dog"] for r in detail["recipients"]) and fivek["drafts_ready"] == 2
+    gmd = next(e for e in snap["events"] if e["title"] == "Give Miami Day")
+    assert gmd["audience_count"] >= 1 and gmd["drafts_ready"] == gmd["audience_count"]
+    run = snap["context_status"]["last_run"]
+    assert run["events_added"] == 2 and run["facts_added"] == 2 and run["errors"] == []
 
     # ICP stage: profile, prospects best-fit first, current donors excluded, a 'draft' per prospect
     assert "Amazon" in stubs["excluded"]
@@ -162,7 +200,9 @@ def test_pipeline_is_idempotent_on_keep_db(env, stubs):
     pipeline.run_pipeline(AS_OF, out=out)
     pipeline.run_pipeline(AS_OF, keep_db=True, out=out)
     conn = db.connect()
-    assert conn.execute("SELECT COUNT(*) FROM outreach_drafts WHERE donor_id IS NOT NULL").fetchone()[0] == 5  # top 3 + 2 stars
+    assert conn.execute("SELECT COUNT(*) FROM outreach_drafts WHERE donor_id IS NOT NULL "
+                        "AND id NOT IN (SELECT draft_id FROM event_drafts)").fetchone()[0] == 5  # top 3 + 2 stars
+    assert conn.execute("SELECT COUNT(*) FROM event_drafts").fetchone()[0] == 6        # invites kept, not duplicated
     assert conn.execute("SELECT COUNT(*) FROM outreach_drafts WHERE prospect_id IS NOT NULL").fetchone()[0] == 2
     assert conn.execute("SELECT COUNT(*) FROM prospects").fetchone()[0] == 2
     assert conn.execute("SELECT COUNT(*) FROM icp_profile").fetchone()[0] == 2   # one per run; GET /icp serves the latest
@@ -176,12 +216,18 @@ def test_missing_stage_is_named_and_rest_still_runs(env, monkeypatch):
     monkeypatch.setitem(sys.modules, "service.outreach_agent", None)
     monkeypatch.setitem(sys.modules, "service.context_agent", None)
     monkeypatch.setitem(sys.modules, "service.org_context", None)
+    monkeypatch.setitem(sys.modules, "service.events_agent", None)
     out = env / "snapshot.json"
     report = {r["stage"]: r for r in pipeline.run_pipeline(AS_OF, out=out)}
     assert report["enrich"]["status"] == "missing" and "PR #5" in report["enrich"]["detail"]
     assert report["outreach"]["status"] == "missing" and "PR #7" in report["outreach"]["detail"]
     assert report["icp"]["status"] == "missing" and "42" in report["icp"]["detail"]
     assert report["context"]["status"] == "missing" and "build_context" in report["context"]["detail"]
+    assert report["events"]["status"] == "missing" and "PR #49" in report["events"]["detail"]
+    conn = db.connect()
+    errors = json.loads(conn.execute("SELECT errors FROM context_refresh_log ORDER BY id DESC").fetchone()[0])
+    conn.close()
+    assert [e.split(":")[0] for e in errors] == ["context", "events"]           # missing stages are logged
     assert report["export"]["status"] == "ok" and out.exists()
 
 

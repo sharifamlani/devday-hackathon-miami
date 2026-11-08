@@ -8,6 +8,9 @@ Stages, in order:
     1b. context  read the Foundation's website + social URLs (service/org_config.json) into the local
                  context dataset (org_profile, org_context) so ICP, prospects and drafts can use it.
                  build_context is pure; db.save_context is the only writer.
+    1c. events   the Foundation's upcoming events (events_agent, 86) -> save_events -> an audience across the
+                 three tabs -> pre-drafted invites (outreach_drafts linked by event_drafts). One
+                 context_refresh_log row covers context + events.
     2. enrich    research ORGANIZATION donors only (policy: fictional sample individuals are never
                  researched). Cache first (data/research_cache.json); uncached orgs are skipped unless
                  --live-enrich. Writes research_facts via enrich_agent.save_facts.
@@ -26,12 +29,13 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import sqlite3
 import json
 import os
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from service import db, dedupe, score
@@ -47,6 +51,7 @@ STAGE_MODULES = {
     "icp": ["service.icp_agent", "service.outreach_agent", "service.org_context"],
 }
 MISSING_HINT = {
+    "events": "service/events_agent.py (86, PR #49)",
     "context": "build_context in service/context_agent.py or service/org_context.py (86, plan §15)",
     "enrich": "service/enrich_agent.py (PR #5, feat/enrich)",
     "outreach": "service/outreach_agent.py + service/org_context.py (PR #7, feat/outreach)",
@@ -85,7 +90,7 @@ def load_org_config(path: Path = ORG_CONFIG) -> dict:
     return {k: v for k, v in config.items() if not k.startswith("_")}
 
 
-def stage_context(refresh_cache: bool = False, config_path: Path = ORG_CONFIG) -> str:
+def stage_context(refresh_cache: bool = False, config_path: Path = ORG_CONFIG, state: dict | None = None) -> str:
     build_context = None
     for name in CONTEXT_MODULES:
         try:
@@ -106,10 +111,69 @@ def stage_context(refresh_cache: bool = False, config_path: Path = ORG_CONFIG) -
     saved = db.save_context(conn, result)
     conn.close()
     statuses = result.get("sources") or {}
+    if state is not None:
+        state.update(context=saved, sources=statuses)
     detail = (f"{len(saved['context_ids'])} facts from {', '.join(saved['replaced_sources']) or 'no source'}"
               f"; status {json.dumps(statuses, sort_keys=True)}")
     if saved["skipped_facts"]:
         detail += f"; {saved['skipped_facts']} facts without a URL dropped"
+    return detail
+
+
+def stage_events(as_of: date, refresh: bool = False, state: dict | None = None, workers: int = 4) -> str:
+    try:
+        events_agent = importlib.import_module("service.events_agent")
+    except ImportError as e:
+        raise StageMissing(f"events stage unavailable: needs {MISSING_HINT['events']} ({e})") from e
+    bound_model_calls()
+    from service.routes_data import list_context, list_people
+
+    conn = db.connect()
+    found = events_agent.extract_events(list_context(conn), refresh=refresh)
+    # A non-empty, successful extraction is a complete refresh; an empty one never removes anything.
+    saved = db.save_events(conn, found, complete=bool(found))
+    people = list_people(conn)
+    kept = [i for i in saved["ids"] if i is not None]
+    events = [dict(r) for r in conn.execute(
+        f"SELECT * FROM events WHERE id IN ({', '.join('?' * len(kept)) or 'NULL'}) AND status != 'past'", kept)]
+    conn.close()
+    if state is not None:
+        state["events"] = saved
+
+    by_id = {p["id"]: p for p in people}
+    jobs, audiences = [], 0
+    for event in events:
+        audience = events_agent.suggest_audience(event, people)
+        conn = db.connect()
+        audiences += db.save_event_audience(conn, event["id"], audience)
+        conn.close()
+        jobs += [(event, by_id[pid]) for pid in audience.get("person_ids") or [] if pid in by_id]
+
+    def draft(job):
+        event, person = job
+        try:
+            return event, person, events_agent.draft_event_invite(event, person), None
+        except Exception as e:                      # one bad invite must not sink the demo run
+            return event, person, None, f"{type(e).__name__}: {e}"
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(draft, jobs))
+    saved_drafts, failed = 0, []
+    conn = db.connect()
+    for event, person, invite, error in results:
+        if error is None:
+            try:
+                db.save_event_draft(conn, event["id"], person["id"], invite)
+                saved_drafts += 1
+                continue
+            except sqlite3.IntegrityError as e:     # e.g. a star invite marked 'ready'
+                error = f"IntegrityError: {e}"
+        failed.append(f"{event['title']} / {person['full_name']} ({error})")
+    conn.close()
+    detail = (f"{len(kept)} events ({saved['added']} new, {saved['changed']} changed, {saved['removed']} removed); "
+              f"{audiences} audience picks; {saved_drafts} invites drafted")
+    if failed:
+        detail += f"; FAILED: {'; '.join(failed[:5])}" + (f" (+{len(failed) - 5} more)" if len(failed) > 5 else "")
     return detail
 
 
@@ -118,8 +182,10 @@ def stage_enrich(live: bool) -> str:
     cache = enrich_agent.read_cache()
     conn = db.connect()
     orgs = [dict(r) for r in conn.execute(
-        "SELECT id, full_name, org_name, city FROM donors WHERE donor_type = 'organization' ORDER BY id")]
-    individuals = conn.execute("SELECT COUNT(*) FROM donors WHERE donor_type = 'individual'").fetchone()[0]
+        "SELECT id, full_name, org_name, city FROM donors WHERE donor_type = 'organization' "
+        "AND contact_type = 'giver' ORDER BY id")]
+    individuals = conn.execute("SELECT COUNT(*) FROM donors WHERE donor_type = 'individual' "
+                               "AND contact_type = 'giver'").fetchone()[0]
     conn.close()
 
     run_id = f"pipeline-{uuid.uuid4().hex[:8]}"
@@ -194,7 +260,9 @@ def stage_outreach(as_of: date, top_n: int, workers: int = 4) -> str:
             continue
         conn = db.connect()
         with conn:
-            conn.execute("DELETE FROM outreach_drafts WHERE donor_id = ?", (donor_id,))
+            # Replace only this stage's own donor draft; event invites (event_drafts) are kept.
+            conn.execute("DELETE FROM outreach_drafts WHERE donor_id = ? AND id NOT IN (SELECT draft_id FROM event_drafts)",
+                         (donor_id,))
         conn.close()
         outreach_agent.save_draft(donor_id, result)
         saved.append(f"{name} [{result.status}]")
@@ -280,9 +348,11 @@ def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich
     """Run every stage, timing each. Returns [{stage, status, seconds, detail}]; status is
     ok | skipped | missing | failed."""
     # Context first so ICP, prospects and donor drafts can all use it; ICP before outreach.
+    state: dict = {"started_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     stages = [
         ("rebuild", lambda: stage_rebuild(as_of, keep_db)),
-        ("context", lambda: stage_context(refresh_demo_cache)),
+        ("context", lambda: stage_context(refresh_demo_cache, state=state)),
+        ("events", lambda: stage_events(as_of, state=state)),
         ("enrich", lambda: stage_enrich(live_enrich)),
         ("icp", lambda: stage_icp(as_of)),
         ("outreach", lambda: stage_outreach(as_of, top_n)),
@@ -304,11 +374,27 @@ def run_pipeline(as_of: date, top_n: int = 3, keep_db: bool = False, live_enrich
                        "detail": detail})
         if status == "failed" and name == "rebuild":
             break
+        if name == "events":                    # log before export so the snapshot carries it
+            log_refresh(state, report)
+    if not any(r["stage"] == "events" for r in report):
+        log_refresh(state, report)
     return report
 
 
+def log_refresh(state: dict, report: list[dict]) -> None:
+    """One context_refresh_log row for this run's context + events stages (when either ran)."""
+    ran = {r["stage"]: r for r in report if r["stage"] in ("context", "events") and r["status"] != "skipped"}
+    if not ran:
+        return
+    errors = [f"{r['stage']}: {r['detail']}" for r in ran.values() if r["status"] in ("missing", "failed")]
+    conn = db.connect()
+    db.log_context_refresh(conn, state["started_at"], state.get("sources"), state.get("context"),
+                           state.get("events"), errors)
+    conn.close()
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Precompute the demo: rebuild -> context -> enrich -> icp -> outreach -> export")
+    parser = argparse.ArgumentParser(description="Precompute the demo: rebuild -> context -> events -> enrich -> icp -> outreach -> export")
     parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: $SCORE_AS_OF or 2026-11-08)")
     parser.add_argument("--top", type=int, default=3, help="draft outreach for the top N donors (plus every star donor)")
     parser.add_argument("--keep-db", "--no-seed", dest="keep_db", action="store_true",
@@ -316,7 +402,7 @@ def main() -> int:
     parser.add_argument("--live-enrich", action="store_true", help="web-search orgs missing from the cache")
     parser.add_argument("--refresh-demo-cache", action="store_true",
                         help="fetch the Foundation's context live and REWRITE the committed service/context_cache.json")
-    parser.add_argument("--skip", action="append", default=[], choices=["context", "enrich", "icp", "outreach", "export"])
+    parser.add_argument("--skip", action="append", default=[], choices=["context", "events", "enrich", "icp", "outreach", "export"])
     parser.add_argument("--out", default=str(DEFAULT_OUT))
     args = parser.parse_args()
 

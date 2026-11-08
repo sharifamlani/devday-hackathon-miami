@@ -3,7 +3,7 @@
 **Everything here is fictional.** Every person, organization, email (`example.com` / `example.org` only),
 phone (`305-555-01xx`), and amount is invented. Organization names were web-checked and match no real organization.
 
-A staffer uploads these into the CRM; the ingest agent extracts people into the three tabs: **Givers** (donors and their gifts), **Neighbors** (people met, not yet either), and **Community** (people the nonprofit helps).
+These synthetic files are fixtures for the planned CRM ingest workflow and parser experiments. The upload flow is intended to classify people into **Givers** (donors and their gifts), **Neighbors** (people met, not yet either), and **Community** (people the nonprofit helps). The primary FastAPI app does not currently mount `/ingest`; the separate `stat-mcp` prototype reads supported file formats but does not persist them to the CRM database. See `../../stat-mcp/AGENT_INTEGRATION.md` for the prototype contract and integration boundary.
 "As of" date for scoring: **2026-11-08**.
 
 | File | What it is |
@@ -25,7 +25,7 @@ A staffer uploads these into the CRM; the ingest agent extracts people into the 
 - **Gift alerts (`gift_alerts_expected`):** Hye-jin Park (failed: monthly $40, the 2026-10-10 charge is a row in the Online sheet marked "card declined" (status declined), no later good gift), Teodoro Salinas (late: quarterly, missed Jul and Oct), Walter Brandt (late: yearly, due 2026-03-18), Veloria Bay Foundation (late: yearly, due 2026-04-15), Rafael Quintero (failed = missed payment: monthly $50, missed Sep 2026, resumed Oct). A declined charge is NOT a gift: it is excluded from gifts, totals and lifetime giving (`failed_gifts_not_counted`). Totals now: 113 unique gifts, $1,269,470 (the 12 added monthly gifts are $560 over the original $1,268,910).
 - **Cross-file duplicates:** `cross_file_duplicates` lists who reappears on the sign-in sheet under a different spelling.
 
-The answer key is for tests only. The ingest agent must never read it.
+The answer key is for tests and fixture verification only. Do not pass it to an importer or extraction agent as source material.
 
 ## Regenerate
 
