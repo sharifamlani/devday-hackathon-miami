@@ -1,5 +1,13 @@
 import jsonExport from "jsonexport/dist";
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   downloadCSV,
   ListBase,
@@ -49,6 +57,7 @@ import {
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { AutoMergeFlag } from "./AutoMergeFlag";
+import { DonorRowDetails } from "./DonorRowDetails";
 import { DuplicateBanner } from "./DuplicateMerge";
 import { countSourceFiles } from "./sourceFiles";
 
@@ -512,6 +521,22 @@ const DonorRows = () => {
   } = useListContext<DonorContact>();
   const allSelected =
     data.length > 0 && data.every((d) => selectedIds.includes(d.id));
+  const [openId, setOpenId] = useState<number | null>(null);
+  const listId = useId();
+  // Keep the clicked row where it is: opening B closes A, which can sit above B.
+  const anchor = useRef<{ el: HTMLElement; top: number } | null>(null);
+  const toggle = (id: number, el: HTMLElement) => {
+    anchor.current = { el, top: el.getBoundingClientRect().top };
+    setOpenId((cur) => (cur === id ? null : id));
+  };
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    anchor.current = null;
+    if (!a || !a.el.isConnected) return;
+    const delta = a.el.getBoundingClientRect().top - a.top;
+    if (Math.abs(delta) < 1) return;
+    scrollParent(a.el).scrollBy({ top: delta });
+  }, [openId]);
   return (
     <>
       <div className="flex items-center gap-3 border-b border-border px-3 py-2 text-xs text-muted-foreground">
@@ -536,98 +561,128 @@ const DonorRows = () => {
       </div>
       <ul className="divide-y divide-border">
         {data.map((donor) => (
-          <li
-            key={donor.id}
-            className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50"
-          >
-            <Checkbox
-              aria-label={`Select ${donor.full_name}`}
-              checked={selectedIds.includes(donor.id)}
-              onCheckedChange={() => onToggleItem(donor.id)}
-            />
-            <InitialsAvatar name={donor.full_name ?? [donor.first_name, donor.last_name].filter(Boolean).join(" ")} size="sm" />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <Link
-                  to={`/contacts/${donor.id}/show`}
-                  className="truncate rounded-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  {donor.is_star && (
-                    <>
-                      <span aria-hidden className="mr-0.5">
-                        ★
-                      </span>
-                      <span className="sr-only">Star donor: </span>
-                    </>
-                  )}
-                  {donor.full_name}
-                </Link>
-                <AutoMergeFlag
-                  personId={donor.id}
-                  name={donor.full_name}
-                  autoMerged={donor.auto_merged}
-                  mergedFrom={donor.merged_from}
-                />
-                <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
-                  {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
-                    <DonorTagBadge key={tag} tag={tag} />
-                  ))}
-                </span>
-              </div>
-              <p className="truncate text-xs text-muted-foreground">
-                {[
-                  donor.company_name && donor.company_name !== donor.full_name
-                    ? donor.company_name
-                    : null,
-                  donor.city,
-                  donor.usual_cadence ? `gives ${donor.usual_cadence}` : null,
-                  donor.why_short,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              {donor.next_step && (
-                <p className="truncate text-xs" data-testid="donor-next-step">
-                  <span className="font-medium">Next step:</span>{" "}
-                  {donor.next_step}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground @min-[640px]:hidden">
-                Last gift {formatDay(donor.last_gift_date)} ·{" "}
-                {formatUsd(donor.total_given)} lifetime
-              </p>
-            </div>
+          <li key={donor.id}>
             <div
-              className="hidden w-32 flex-wrap gap-1 @min-[900px]:flex"
-              aria-label={`Status for ${donor.full_name}`}
-            >
-              {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
-                <DonorTagBadge key={tag} tag={tag} />
-              ))}
-            </div>
-            <div className="hidden w-28 text-sm @min-[640px]:block">
-              {donor.last_gift_date ? (
-                <>
-                  <div>{formatUsd(donor.last_gift_amount)}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatDay(donor.last_gift_date)}
-                  </div>
-                </>
-              ) : (
-                <span className="text-muted-foreground">None yet</span>
+              className={cn(
+                "relative flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50",
+                openId === donor.id && "bg-muted/40",
               )}
+            >
+              <span className="relative z-10 flex">
+                <Checkbox
+                  aria-label={`Select ${donor.full_name}`}
+                  checked={selectedIds.includes(donor.id)}
+                  onCheckedChange={() => onToggleItem(donor.id)}
+                />
+              </span>
+              <InitialsAvatar
+                name={
+                  donor.full_name ??
+                  [donor.first_name, donor.last_name].filter(Boolean).join(" ")
+                }
+                size="sm"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <button
+                    type="button"
+                    aria-expanded={openId === donor.id}
+                    aria-controls={`${listId}-${donor.id}`}
+                    onClick={(e) => toggle(donor.id, e.currentTarget)}
+                    className="truncate rounded-sm text-left font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring after:absolute after:inset-0 after:content-['']"
+                  >
+                    {donor.is_star && (
+                      <>
+                        <span aria-hidden className="mr-0.5">
+                          ★
+                        </span>
+                        <span className="sr-only">Star donor: </span>
+                      </>
+                    )}
+                    {donor.full_name}
+                  </button>
+                  <span className="relative z-10 inline-flex">
+                    <AutoMergeFlag
+                      personId={donor.id}
+                      name={donor.full_name}
+                      autoMerged={donor.auto_merged}
+                      mergedFrom={donor.merged_from}
+                    />
+                  </span>
+                  <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
+                    {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
+                      <DonorTagBadge key={tag} tag={tag} />
+                    ))}
+                  </span>
+                </div>
+                <p className="truncate text-xs text-muted-foreground">
+                  {[
+                    donor.company_name && donor.company_name !== donor.full_name
+                      ? donor.company_name
+                      : null,
+                    donor.city,
+                    donor.usual_cadence ? `gives ${donor.usual_cadence}` : null,
+                    donor.why_short,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                {donor.next_step && (
+                  <p className="truncate text-xs" data-testid="donor-next-step">
+                    <span className="font-medium">Next step:</span>{" "}
+                    {donor.next_step}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground @min-[640px]:hidden">
+                  Last gift {formatDay(donor.last_gift_date)} ·{" "}
+                  {formatUsd(donor.total_given)} lifetime
+                </p>
+              </div>
+              <div
+                className="hidden w-32 flex-wrap gap-1 @min-[900px]:flex"
+                aria-label={`Status for ${donor.full_name}`}
+              >
+                {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
+                  <DonorTagBadge key={tag} tag={tag} />
+                ))}
+              </div>
+              <div className="hidden w-28 text-sm @min-[640px]:block">
+                {donor.last_gift_date ? (
+                  <>
+                    <div>{formatUsd(donor.last_gift_amount)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDay(donor.last_gift_date)}
+                    </div>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">None yet</span>
+                )}
+              </div>
+              <div className="hidden w-24 text-right text-sm tabular-nums md:block">
+                {formatUsd(donor.total_given)}
+              </div>
+              <div className="w-12 text-right font-semibold tabular-nums">
+                {donor.score}
+              </div>
             </div>
-            <div className="hidden w-24 text-right text-sm tabular-nums md:block">
-              {formatUsd(donor.total_given)}
-            </div>
-            <div className="w-12 text-right font-semibold tabular-nums">
-              {donor.score}
-            </div>
+            {openId === donor.id && (
+              <DonorRowDetails donor={donor} id={`${listId}-${donor.id}`} />
+            )}
           </li>
         ))}
       </ul>
     </>
   );
+};
+
+/** The nearest ancestor that scrolls (the zoomed CRM panel), else the page. */
+const scrollParent = (el: HTMLElement): HTMLElement | Window => {
+  for (let n = el.parentElement; n; n = n.parentElement) {
+    const { overflowY } = getComputedStyle(n);
+    if (/(auto|scroll)/.test(overflowY) && n.scrollHeight > n.clientHeight)
+      return n;
+  }
+  return window;
 };
 
 const EmptyState = ({
