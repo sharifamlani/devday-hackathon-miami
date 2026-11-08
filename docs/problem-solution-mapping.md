@@ -61,27 +61,41 @@ search bar goes (you ask the agent instead); the agent sidebar collapses to icon
 +--+------------+---------------------------------------------------+------------+
 ```
 
-### 3.2 Home: after
+### 3.2 Home: after (Sharif's hand sketch, Sat Nov 7 night)
+
+Three columns, one screen. Left: money raised on top, CRM below. Middle: the agent (interactions
+above, text box below). Right: calendar on top, to-do list below.
 
 ```
-+--+------------------------------------------------------------------+---------+
-|  |  The Miami Foundation                                            | CRM  >  |
-|R |  +----------------------------+  +-----------------------------+ |---------|
-|a |  | TODAY AT A GLANCE          |  | WHERE YOU STAND (quarter)   | | Tasks   |
-|i |  | 3 meetings · 4 follow-ups  |  | $ raised vs goal  ▓▓▓▓░░ 62%| | [ ] Park|
-|l |  | ⚠ 2 failed gifts           |  | Give Miami Day in 12 days   | | [ ] Sali|
-|  |  | 41 invite drafts → review  |  |                             | | [ ] ... |
-|  |  +----------------------------+  +-----------------------------+ |---------|
-|  |  +--------------------------------------------------------------+ | Calendar|
-|  |  |  [🤖] agent chat (center, scrollable)                        | | Nov     |
-|  |  |  ✓ find_people(segment=lapsing)  ✓ draft_email(x4)          | | 14 15 19|
-|  |  |  "4 drafts ready. Approve?"   [Review] [Approve all]         | | (small) |
-|  |  +--------------------------------------------------------------+ |         |
-|  |  | [+] [🎙]  Ask anything: "who should I call today?"     [▶]   | |         |
-|  |  +--------------------------------------------------------------+ |         |
-+--+------------------------------------------------------------------+---------+
-     ↑ [+] = attach files / events      ↑ [🎙] = voice-first panel (3.3)
-       Projects sidebar collapsed; padding cut; chat moves to the center
++--+----------------+------------------------------------------+----------------+
+|  | MONEY RAISED   |  AGENT                                   | CALENDAR       |
+|R |  90% of goal   |  [🤖] "Good evening. 2 gifts failed      |  Nov 2026      |
+|a |  ▓▓▓▓▓▓▓▓▓░    |   overnight; 41 invite drafts are ready  |  S M T W T F S |
+|i |  $1.27M raised |   for Give Miami Day."                   |   ... 14 15 .. |
+|l |  at a glance:  |                                          |   .. 19 ...    |
+|  |  ⚠ 2 failed    |  ✓ find_people(segment=lapsing)          |  (small month) |
+|  |  ⏱ 3 late      |  ✓ draft_email(x4)                       +----------------+
+|  +----------------+  "4 drafts ready. Approve?"              | TO DO          |
+|  | CRM            |   [Review] [Approve all]                 | [ ] Call Park  |
+|  | [Givers 33   ] |                                          |     (failed)   |
+|  | [Neighbors 20] |  (scrolls; room for long threads)        | [ ] Text       |
+|  | [Community 15] |                                          |     Salinas    |
+|  |                |  +------------------------------------+  | [ ] Approve 41 |
+|  | Maria Delgado  |  | [+] [🎙] Ask the agent...      [▶] |  |     invites    |
+|  | Coral Gables R |  +------------------------------------+  | [ ] ...        |
++--+----------------+------------------------------------------+----------------+
+   ↑ money raised:       ↑ [+] = attach files / events            ↑ calendar and
+     upper left            [🎙] = voice-first panel (3.3)            to-do: right
+   ↑ CRM: left, tall     ↑ agent text box + interactions: middle
+```
+
+- **Money raised** (upper left) is the at-a-glance card: % of goal, total, and alert counts.
+- **CRM** (left, tall) holds the three tab counts and a recent-people list; a click opens the full tab.
+- **Agent** (middle, the widest column) replaces the Ask sidebar on home. Tool steps and approval cards
+  show in the thread.
+- **Calendar** (upper right) is a small month view; a click on a day opens the full calendar.
+- **To do** (right, tall) comes from gift alerts, follow-ups and drafts waiting for approval.
+- The Projects sidebar and its search box are gone from home; the Ask sidebar stays on other screens.
 ```
 
 ### 3.3 Voice-first panel (opened by 🎙)
