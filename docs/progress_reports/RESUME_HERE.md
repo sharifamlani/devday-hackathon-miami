@@ -22,9 +22,9 @@ Merged tonight (18 + Christian's + Faye's): #73 #77 #80 #57 #68 #81 #82 #79 #83 
 | # | What | Owner | State at pause | Next step |
 |---|---|---|---|---|
 | leak | Exclude Donors-tab (crm) tasks from every snapshot export | 3a | in progress | PR → c9 → merge first (main is red) |
-| #95 | Real data on the home (tasks, glance, CRM, gauge, calendar, artifacts), Projects removed, overflow, phone header | integration agent (in-lead subagent) | head e93e231, QA 98 re-grading the landing fix | **Faye's #105 rewrote HomePage/HomeCards/HomeChat/Header/MobileLayout**: merge main into #95 keeping #105's design and #95's data wiring, re-walk, then QA |
-| #88 | Interest tags (+ tag_slugs) | 42 | head 5f444aa, with QA 98 | merge on APPROVE (may need a rebase on b3510bf) |
-| #90 | After-call agent | 86 | head 009e670, with QA 98 | merge on APPROVE |
+| #95 | Real data on the home (tasks, glance, CRM, gauge, calendar, artifacts), Projects removed, overflow, phone header | integration agent (in-lead subagent) | head e93e231; QA 98 PARKED mid first-run walk (no verdict) | **Faye's #105 rewrote HomePage/HomeCards/HomeChat/Header/MobileLayout**: merge main into #95 keeping #105's design and #95's data wiring, re-walk, then QA |
+| #88 | Interest tags (+ tag_slugs) | 42 | **QA APPROVED 5f444aaa7a83700414888493069853f8c6309f58** | merge on resume (pinned; check it still merges with b3510bf) |
+| #90 | After-call agent | 86 | **QA APPROVED 009e6701093ca36842dc9629e4e5f529d3b8c963** | merge on resume (pinned) |
 | #102 | Schema-migration race | in-lead builder | c9: fix passes, CHANGES = main.py conflict with #100's startup hook | rebase: migrate_schema first, then migrate_crm_tasks; c9 re-check |
 | #103 | Voice: pause-then-summarize relabels every stretch | Agent Phone | **c9 APPROVED 6e91849ab7e098f2ee6f5805ca331f80e1a44439** | merge first thing on resume (pinned) |
 | #101 | Center chat → agent (step cards, Undo, approval cards) | 90 | based on #95 | retarget to main after #95; also must merge with #105's HomeChat changes; QA 98 |
