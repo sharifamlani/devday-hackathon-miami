@@ -53,9 +53,7 @@ export interface CalTask {
 }
 
 /** GET /calendar rows → the tasks among them (events stay with useEvents). */
-export const tasksFromFeed = (
-  items: (ApiCalendarItem & { done?: boolean; task_kind?: string })[],
-): CalTask[] =>
+export const tasksFromFeed = (items: ApiCalendarItem[]): CalTask[] =>
   items.flatMap((item) =>
     item.kind === "task"
       ? [
