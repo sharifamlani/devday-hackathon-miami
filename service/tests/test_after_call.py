@@ -185,3 +185,26 @@ def test_spoken_facts_the_model_skips_are_added_from_the_rules(env, monkeypatch)
     assert types.count("add_context_note") == 2                                  # "since 2021" restored, "new card" not doubled
     assert "record_pledge" in types and "rsvp_event" in types
     assert types.count("create_task") == 1                                       # tasks stay the model's call
+
+
+def test_a_cold_store_after_a_restart_writes_nothing_even_when_the_model_rewords(env, monkeypatch):
+    conn, _, _ = env
+    P = aca.ProposedAction
+
+    def model(wording):
+        return aca.CallProposal(steps=["x"], actions=[
+            P(type="create_task", label="Link", evidence="I can text you a secure link to update your card.",
+              task_kind="other", task_title=f"{wording} Rosa the card link", task_due=TODAY.isoformat()),
+            P(type="add_context_note", label="Card", evidence="I got a new card last month.", note=f"{wording}: Rosa has a new card."),
+            P(type="add_context_note", label="Since", evidence="Thank you for sticking with us since 2021.", note=f"{wording}: giving since 2021."),
+        ])
+    monkeypatch.setattr(aca, "model_proposal", lambda *a, **k: model("Text"))
+    first = aca.propose(conn, "note-1", TODAY, use_model=True)
+    aca.apply(conn, "note-1", [a["id"] for a in first["actions"]])
+    before = counts(conn)
+    aca._PROPOSALS.clear(); aca.PROPOSALS_FILE.unlink()                          # server stopped, temp file deleted
+    monkeypatch.setattr(aca, "model_proposal", lambda *a, **k: model("Send"))      # restarted model words it all differently
+    second = aca.propose(conn, "note-1", TODAY, use_model=True)
+    out = aca.apply(conn, "note-1", [a["id"] for a in second["actions"]])
+    assert out["applied"] == [] and counts(conn) == before
+    assert all(s["why"] == "already applied" for s in out["skipped"])

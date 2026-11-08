@@ -313,6 +313,24 @@ def line_of(evidence: str, note: dict) -> int:
     return -1
 
 
+def evidence_key(evidence: str, note: dict) -> str:
+    """'line6' for the transcript line the evidence comes from; a short hash when it spans lines."""
+    import hashlib
+    line = line_of(evidence, note)
+    return f"line{line}" if line >= 0 else "ev" + hashlib.sha1(plain(evidence).encode()).hexdigest()[:8]
+
+
+def mark(payload: dict, a: ProposedAction, note: dict, note_id: str) -> dict:
+    """Put the (call, evidence line) marker where the database keeps it, so a duplicate can be found
+    after a restart however the model words it: a note's source, a task's why."""
+    key = evidence_key(a.evidence, note)
+    if a.type == "add_context_note":
+        payload["source"] = f"call-note:{note_id}#{key}"
+    elif a.type == "create_task":
+        payload["why"] = f"{a.evidence} [call {note_id} · {key}]"
+    return payload
+
+
 def signature(a: ProposedAction, payload: dict, note: dict) -> str:
     """What makes two proposed actions the same action, whatever the model's wording this time:
     a task or note = its type, person and transcript line; an RSVP = event + person; a pledge =
@@ -324,7 +342,7 @@ def signature(a: ProposedAction, payload: dict, note: dict) -> str:
         return f"pledge:{pid}:{payload['amount']:.2f}:{payload['frequency']}"
     if a.type == "tag_interest":
         return f"tag:{pid}:{payload['tag']}"
-    return f"{a.type}:{pid}:line{line_of(a.evidence, note)}"
+    return f"{a.type}:{pid}:{evidence_key(a.evidence, note)}"
 
 
 def with_spoken_facts(model: CallProposal, rules: CallProposal, note: dict) -> CallProposal:
@@ -361,7 +379,7 @@ def propose(conn: sqlite3.Connection, note_id: str, today: date | None = None, u
         if checked is None:
             dropped.append({"type": a.type, "label": a.label, "why": why})
             continue
-        payload = payload_of(checked, person, note_id)
+        payload = mark(payload_of(checked, person, note_id), checked, note, note_id)
         sig = signature(checked, payload, note)
         if sig in seen:
             continue
@@ -430,17 +448,26 @@ def write_action(conn: sqlite3.Connection, action: dict, note_id: str) -> dict:
 
 def already_written(conn: sqlite3.Connection, action: dict, note_id: str) -> dict | None:
     """The row this action would write, if it's already there (the proposal store can be lost on a
-    restart; the database can't). Pledges: same call, person, amount and frequency. Notes: same call,
-    person and transcript evidence."""
+    restart; the database can't). Pledges: same call, person, amount and frequency. Notes and tasks:
+    same person and the same (call, transcript line) marker, whatever the wording."""
     p = action["payload"]
     if action["type"] == "record_pledge":
         row = conn.execute("SELECT id FROM pledges WHERE call_note_id = ? AND person_id = ? AND abs(amount - ?) < 0.005 "
                            "AND frequency = ?", (note_id, p["person_id"], p["amount"], p["frequency"])).fetchone()
         return {"pledge_id": row[0]} if row else None
+    if action["type"] == "rsvp_event":
+        row = conn.execute("SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = ?",
+                           (p["event_id"], p["person_id"])).fetchone()
+        return ({"event_id": p["event_id"], "person_id": p["person_id"], "rsvp": row[0]}
+                if row and row[0] == p["rsvp"] else None)
     if action["type"] == "add_context_note":
-        row = conn.execute("SELECT id FROM research_facts WHERE donor_id = ? AND source_url = ? AND fact = ?",
-                           (p["person_id"], p["source"], p["fact"])).fetchone()
+        row = conn.execute("SELECT id FROM research_facts WHERE donor_id = ? AND source_url = ?",
+                           (p["person_id"], p["source"])).fetchone()
         return {"research_fact_id": row[0]} if row else None
+    if action["type"] == "create_task" and (m := re.search(r"\[call .+ · [^\]]+\]$", p.get("why") or "")):
+        row = conn.execute("SELECT id FROM tasks WHERE person_id IS ? AND source = 'call' AND deleted_at IS NULL "
+                           "AND instr(why, ?) > 0", (p.get("person_id"), m.group(0))).fetchone()
+        return {"task_id": row[0]} if row else None
     return None
 
 
