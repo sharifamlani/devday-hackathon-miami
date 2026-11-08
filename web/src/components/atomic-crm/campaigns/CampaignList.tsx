@@ -89,7 +89,7 @@ export const CampaignList = () => {
                       outbox?.filter((o) => o.campaign_id === c.id),
                     ).map((seg, i) => (
                       <span
-                        key={seg.text}
+                        key={`${i}-${seg.text}`}
                         className={TEXT_TONE_CLASS[seg.tone]}
                       >
                         {i ? " · " : ""}

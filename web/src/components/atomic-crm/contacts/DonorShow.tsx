@@ -117,7 +117,7 @@ const DonorShowContent = () => {
             Tasks{record.nb_tasks ? ` (${record.nb_tasks})` : ""}
           </TabsTrigger>
         </TabsList>
-        <div className="grid items-start gap-3 @min-[900px]:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 @min-[900px]:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             <TabsContent value="overview" className="mt-0 space-y-3">
               <Overview
@@ -316,7 +316,7 @@ const Overview = ({
 };
 
 const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
-  <aside className="space-y-3" aria-label="Donor details">
+  <aside className="min-w-0 space-y-3" aria-label="Donor details">
     <ProfileSection title="Contact">
       <dl className="space-y-2 text-sm">
         <Row label="Email" value={<EmailLink email={record.email} />} />
