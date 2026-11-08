@@ -5,7 +5,7 @@ Everything here logs into the same table with its own target prefix, and undo(to
 
     task:12              -> service.tasks.undo
     int_...              -> service.interests.undo (42's interest writes)
-    donor:5              update_person: restores the changed fields
+    donor:5              update_person: restores the changed fields; add_contact: deletes it if unreferenced
     duplicate:7          dismiss_duplicate: back to 'pending'
     merge:3              merge_duplicate: dedupe.undo_merge (the merge log keeps both rows)
     rsvp:<event>:<id>    rsvp_event: restores the previous answer
@@ -51,6 +51,68 @@ def _log(conn: sqlite3.Connection, actor: str, action: str, target: str, before,
 
 
 # ---------- writes ----------
+
+DONOR_TYPES = ("individual", "organization")
+# Rows other code derives from every donor; they don't count as "something references this contact"
+DERIVED = ("donor_scores", "duplicate_suggestions")
+
+
+def known_name(name: str) -> str:
+    """The exact name Enrich's interest cache knows, when the given name points at exactly one of them
+    ("Knight Foundation" -> "John S. and James L. Knight Foundation"); the name as given when none match.
+    Several matches is ambiguous: ask, never guess."""
+    from service.enrich_agent import read_interest_cache
+    known = list(read_interest_cache())
+    exact = [k for k in known if k.lower() == name.lower()]
+    if exact:
+        return exact[0]
+    hits = [k for k in known if name.lower() in k.lower()]
+    if len(hits) > 1:
+        raise WriteError(f"which one did you mean: {' or '.join(hits)}?")
+    return hits[0] if hits else name
+
+
+def add_contact(conn: sqlite3.Connection, full_name: str, donor_type: str = "individual",
+                contact_type: str = "giver", email: str | None = None, phone: str | None = None,
+                city: str | None = None, notes: str | None = None, actor: str = "staff") -> tuple[dict, str]:
+    """Create a person with no gifts through db.insert_donor (the same writer the seed and imports use).
+
+    Organizations get donor_type 'organization' and org_name, so Enrich researches them as organizations.
+    """
+    from service import db
+
+    name = (full_name or "").strip()
+    if not name:
+        raise WriteError("a contact needs a name")
+    name = known_name(name)
+    if donor_type not in DONOR_TYPES:
+        raise WriteError(f"donor_type must be one of {', '.join(DONOR_TYPES)}")
+    if contact_type not in CONTACT_TYPES:
+        raise WriteError(f"contact_type must be one of {', '.join(CONTACT_TYPES)}")
+    org = donor_type == "organization"
+    first, _, last = name.partition(" ")
+    person_id = db.insert_donor(conn, {
+        "full_name": name, "org_name": name if org else None, "donor_type": donor_type,
+        "first_name": None if org else first, "last_name": None if org else (last or None),
+        "email": email, "emails_all": [email] if email else [], "phone": phone, "city": city, "notes": notes,
+        "contact_type": contact_type, "source_row": "AGENT" if actor == "agent" else "STAFF"})
+    row = {"id": person_id, "full_name": name, "donor_type": donor_type, "contact_type": contact_type}
+    token = _log(conn, actor, "add_contact", f"donor:{person_id}", None, row)
+    conn.commit()
+    return {"person_id": person_id, **row}, token
+
+
+def references(conn: sqlite3.Connection, person_id: int) -> list[str]:
+    """Tables (other than derived ones) holding rows that point at this person."""
+    found = []
+    for (table,) in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"):
+        if table in DERIVED or table == "donors":
+            continue
+        for fk in conn.execute(f"PRAGMA foreign_key_list({table})"):
+            if fk[2] == "donors" and conn.execute(
+                    f"SELECT 1 FROM {table} WHERE {fk[3]} = ? LIMIT 1", (person_id,)).fetchone():
+                found.append(table)
+    return sorted(set(found))
 
 def update_person(conn: sqlite3.Connection, person_id: int, fields: dict, actor: str = "staff") -> tuple[dict, str]:
     """Change some of a person's fields. Unknown fields are refused, never silently dropped."""
@@ -141,7 +203,16 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
     if newer:
         raise tasks.UndoConflict("a later change to the same record must be undone first")
     before = json.loads(action["before"]) if action["before"] else {}
-    if kind == "donor":
+    if kind == "donor" and action["action"] == "add_contact":
+        used = references(conn, int(ref))
+        if used:
+            raise tasks.UndoConflict(f"this contact is already used ({', '.join(used)}); remove those first")
+        for table in DERIVED:
+            for fk in conn.execute(f"PRAGMA foreign_key_list({table})"):
+                if fk[2] == "donors":
+                    conn.execute(f"DELETE FROM {table} WHERE {fk[3]} = ?", (int(ref),))
+        conn.execute("DELETE FROM donors WHERE id = ?", (int(ref),))
+    elif kind == "donor":
         conn.execute(f"UPDATE donors SET {', '.join(f'{k} = ?' for k in before)} WHERE id = ?",
                      [*before.values(), int(ref)])
     elif kind == "duplicate":
