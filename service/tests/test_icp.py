@@ -206,8 +206,11 @@ def test_browser_render_sees_only_visible_text_and_needs_200(tmp_path):
 
 
 def test_stats_count_only_giver_orgs_and_ok_gifts(conn):
-    conn.execute("ALTER TABLE donors ADD COLUMN contact_type TEXT NOT NULL DEFAULT 'giver'")   # 8b's PR #60
-    conn.execute("ALTER TABLE gifts ADD COLUMN status TEXT NOT NULL DEFAULT 'ok'")
+    # 8b's PR #60 added these columns to the schema; add them only on an older schema.
+    for table, col, ddl in [("donors", "contact_type", "TEXT NOT NULL DEFAULT 'giver'"),
+                            ("gifts", "status", "TEXT NOT NULL DEFAULT 'ok'")]:
+        if col not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
     giver = db.insert_donor(conn, {"full_name": "Giver Fund", "donor_type": "organization",
                                    "gifts": [(1000, "2025-05-01", "check"), (1000, "2026-05-01", "check")]})
     db.insert_donor(conn, {"full_name": "Neighbor Org", "donor_type": "organization"})
