@@ -829,7 +829,7 @@
   position: fixed;
   border-radius: 18px;
   box-shadow:
-    0 0 0 1.5px var(--brand),
+    0 0 0 3px var(--brand),
     0 0 0 9999px rgba(20, 22, 23, 0.55);
   pointer-events: none;
 }

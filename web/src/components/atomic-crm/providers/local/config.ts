@@ -49,9 +49,6 @@ export const API_URL: string = (
 ).replace(/\/$/, "");
 
 // Name recorded as approved_by when someone approves a draft in the demo.
-/** The staff member Home greets ("Good afternoon, Denise."): a made-up demo persona unless set. */
-export const STAFF_NAME: string = import.meta.env.VITE_STAFF_NAME ?? "Denise";
-
 export const APPROVER_NAME: string =
   import.meta.env.VITE_APPROVER_NAME ?? "Philanthropy team (demo)";
 

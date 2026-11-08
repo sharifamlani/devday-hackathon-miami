@@ -690,10 +690,7 @@ export const TasksTile = ({
   const listId = useId();
   const bodyId = useId();
   const [collapsed, toggle] = useTileCollapsed("tasks");
-  // "Donor records" (duplicate reviews) starts folded: it can run long and the agent handles most of it.
-  const [closed, setClosed] = useState<ReadonlySet<string>>(
-    () => new Set(["records"]),
-  );
+  const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set());
   const groups = [
     {
       id: "outreach",
