@@ -517,8 +517,7 @@ export const receiptLine = (receipt: Receipt) =>
     .filter(Boolean)
     .join(" · ");
 
-/** How long the receipt, then the welcome, stay on screen before the dashboard. */
-export const RECEIPT_MS = 3200;
+/** How long the welcome card stays before the dashboard. The receipt before it waits for a click. */
 export const WELCOME_MS = 1600;
 
 /* ---------- The background read (POST/GET /context/refresh) ---------- */
