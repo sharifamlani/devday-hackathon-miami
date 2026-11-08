@@ -41,7 +41,7 @@ const TileHead = ({
   children,
 }: {
   id: string;
-  title: string;
+  title: ReactNode;
   children?: ReactNode;
 }) => (
   <div className="mb-3 flex items-center justify-between gap-2">
@@ -585,7 +585,23 @@ export const TasksTile = ({
       aria-labelledby={headingId}
       className={cn(tile, "home-projects")}
     >
-      <TileHead id={headingId} title="Tasks">
+      <TileHead
+        id={headingId}
+        title={
+          <Link
+            to="/?workspace=tasks"
+            onClick={zoomClick("tasks")}
+            title="Open all tasks"
+            className={cn(
+              "inline-flex items-center gap-1 rounded-sm hover:underline",
+              focusRing,
+            )}
+          >
+            Tasks
+            <ArrowUpRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        }
+      >
         <span className="ml-auto text-xs text-muted-foreground">
           {tasks.length}
         </span>

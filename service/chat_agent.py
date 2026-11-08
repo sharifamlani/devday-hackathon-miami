@@ -8,6 +8,7 @@ orgs, star and big donors need per-item approval there. Community outreach never
 import asyncio
 import json
 import os
+import re
 import uuid
 from datetime import date
 from dataclasses import dataclass, field
@@ -70,6 +71,7 @@ class ChatContext:
     selection: list[int] = field(default_factory=list)
     batches: list[int] = field(default_factory=list)
     approved_by: str | None = None              # set when a person approves a paused run
+    refused_calls: dict[int, str] = field(default_factory=dict)   # person id -> why call_person won't dial
 
 
 def query(sql: str, args: tuple = ()) -> list[dict]:
@@ -129,18 +131,40 @@ def interests_by_person() -> dict[int, list[str]]:
     return {k: list(dict.fromkeys(v)) for k, v in out.items()}
 
 
+def _stem(word: str) -> str:
+    """"scholarships" -> "scholarship", "charities" -> "charity", "boxes" -> "box"; "class" stays."""
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 4 and word.endswith(("ches", "shes", "sses", "xes", "zes")):
+        return word[:-2]
+    if len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is")):
+        return word[:-1]
+    return word
+
+
+def interest_key(text: str) -> str:
+    """Lowercase words with plurals folded, so "Scholarships" and "scholarship" compare equal."""
+    return " ".join(_stem(w) for w in re.findall(r"[a-z0-9]+", (text or "").lower()))
+
+
+def interest_matches(want: str, tags: list[str]) -> bool:
+    """want matches a tag at a word start, after folding case and plurals on both sides ("arts" finds
+    "Arts & Culture", "environment" finds "environmental justice", "art" doesn't find "heart")."""
+    key = interest_key(want)
+    return not key or any(re.search(r"\b" + re.escape(key), interest_key(t)) for t in tags)
+
+
 def with_gifts_and_interests(people: list[dict], no_gift_in_days: int | None, interest: str | None) -> list[dict]:
     """Add last_gift_date and interests to each person; keep only people whose last gift is at least
     no_gift_in_days old (people who never gave are left out) and whose interests mention interest."""
     lasts, tags = last_gift_dates(), interests_by_person()
     today = date.fromisoformat(os.getenv("SCORE_AS_OF") or date.today().isoformat())
-    want = (interest or "").strip().lower()
     out = []
     for p in people:
         last, mine = lasts.get(p["id"]), tags.get(p["id"], [])
         if no_gift_in_days is not None and (last is None or (today - date.fromisoformat(last[:10])).days < no_gift_in_days):
             continue
-        if want and not any(want in i.lower() for i in mine):
+        if interest and not interest_matches(interest, mine):
             continue
         out.append(p | {"last_gift_date": last, "interests": mine})
     return out
@@ -151,26 +175,29 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
                 star_only: bool = False, gave_via: str | None = None, no_gift_in_days: int | None = None,
                 interest: str | None = None, name: str | None = None, limit: int = 25) -> dict:
     """Find people on the current tab, each with last_gift_date and interests. status: lapsing | lapsed | due |
-    on_track. tier: small | mid | major. gave_via: people with a gift whose channel matches (e.g. "Give Miami Day",
+    on_track; "lapsed" also returns the lapsing (about to lapse), with `split` counting each: answer with both
+    numbers and the lapsed names, e.g. "1 lapsed (Veloria Bay) and 16 lapsing". count is the full match before
+    limit. tier: small | mid | major. gave_via: people with a gift whose channel matches (e.g. "Give Miami Day",
     "event", "check", "online"). no_gift_in_days: people whose last gift is at least that many days old ("hasn't
     given in 7 days" = 7). interest: people whose interests mention it (e.g. "environment", "kids").
     name: people whose name contains it (use it to look someone up by name)."""
     via = gave_via_ids(gave_via)
+    statuses = STATUS_ALSO.get(status, (status,)) if status else None
     people = tab_people(ctx.context.tab)
     if people is not None:
-        people = [p for p in people if (not status or p.get("status") == status) and (not tier or p.get("tier") == tier)
+        people = [p for p in people if (not statuses or p.get("status") in statuses) and (not tier or p.get("tier") == tier)
                   and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)
                   and (not name or name.strip().lower() in (p.get("full_name") or "").lower())]
-        people = with_gifts_and_interests(people, no_gift_in_days, interest)[:min(limit, 50)]
+        people = with_gifts_and_interests(people, no_gift_in_days, interest)
         keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status",
-                "last_gift_date", "interests")
-        return {"people": [{k: p.get(k) for k in keep} for p in people], "count": len(people)}
+                "last_gift_date", "interests", "next_step")
+        return found(status, [{k: p.get(k) for k in keep} for p in people], limit)
     if ctx.context.tab not in ("givers", "home", "calendar"):
         return not_loaded(ctx.context)
     where, args = [], []
-    if status:
-        where.append("s.status = ?")
-        args.append(status)
+    if statuses:
+        where.append(f"s.status IN ({', '.join('?' * len(statuses))})")
+        args.extend(statuses)
     if tier:
         where.append("s.tier = ?")
         args.append(tier)
@@ -181,8 +208,25 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
     rows = query("SELECT d.id, d.full_name, d.donor_type, s.score, s.tier, s.is_star, s.status FROM donors d "
                  "JOIN donor_scores s ON s.donor_id = d.id" + (" WHERE " + " AND ".join(where) if where else "")
                  + " ORDER BY s.score DESC", tuple(args))
-    rows = with_gifts_and_interests(rows, no_gift_in_days, interest)[:min(limit, 50)]
-    return {"people": rows, "count": len(rows)}
+    out = found(status, with_gifts_and_interests(rows, no_gift_in_days, interest), limit)
+    t = tasks_module()                  # the same next_step GET /people shows: the giver's next open task
+    if t is not None:
+        with_conn(t.with_next_steps, out["people"])
+    return out
+
+
+# "Lapsed givers" on stage means both: the few already lapsed and the many about to (donor_scores.status).
+STATUS_ALSO = {"lapsed": ("lapsed", "lapsing")}
+
+
+def found(status: str | None, people: list[dict], limit: int) -> dict:
+    """find_people's answer: the first `limit` people (at most 50), the full count, and for "lapsed" the split."""
+    out = {"people": people[:min(limit, 50)], "count": len(people)}
+    if status in STATUS_ALSO:
+        lapsed = [p for p in people if p.get("status") == "lapsed"]
+        out["split"] = {"lapsed": len(lapsed), "lapsing": len(people) - len(lapsed),
+                        "lapsed_names": [p.get("full_name") for p in lapsed]}
+    return out
 
 
 @function_tool
@@ -686,12 +730,40 @@ def send(ctx: RunContextWrapper[ChatContext], batch_id: int, message_ids: list[i
         return {"error": str(e.detail)}
 
 
-@function_tool(needs_approval=True)
+def call_refusal(person_id: int) -> str | None:
+    """Why a call to this person can't be placed right now, or None. A missing number is said first (it's about
+    the person: "Hye-jin Park has no phone number on file"), then the setup reasons ("Phone calls are off...")."""
+    from service import phone
+    row = query("SELECT full_name, org_name, phone FROM donors WHERE id = ?", (person_id,))
+    if row and not phone.e164(row[0]["phone"]):
+        return f"{row[0]['full_name'] or row[0]['org_name'] or f'donor {person_id}'} has no phone number on file"
+    try:
+        ready = with_conn(phone.preview, person_id)
+    except LookupError as e:
+        return str(e)
+    return None if ready["ready"] else ready["reason"]
+
+
+async def call_needs_approval(ctx: RunContextWrapper[ChatContext], params: dict, call_id: str) -> bool:
+    """A call that can't happen gets no approval card: the tool runs at once and says why. call_person never
+    dials on that path, even if things change in between."""
+    person_id = int(params.get("person_id") or 0)
+    reason = call_refusal(person_id)
+    if reason:
+        ctx.context.refused_calls[person_id] = reason
+    return reason is None
+
+
+@function_tool(needs_approval=call_needs_approval)
 def call_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
     """Phone a person from the staff member's own number. Needs the user's approval. The staff member's phone
     rings first; once they answer, this person's phone rings. The call is recorded after a spoken notice, then
-    transcribed, summarized and saved as a call note with suggested follow-ups."""
+    transcribed, summarized and saved as a call note with suggested follow-ups. If calling isn't possible (calls
+    off, no phone number on file) it returns the reason at once, with no approval card: tell the user why."""
     from service import phone
+    refused = ctx.context.refused_calls.pop(person_id, None)
+    if refused:
+        return {"error": refused, "refused": True}
     try:
         return with_conn(phone.start_call, person_id)
     except (phone.PhoneError, LookupError) as e:
@@ -865,13 +937,46 @@ def approval_summary(tool: str, args: dict) -> str | None:
             phone = mask_address(rows[0]["phone"], "text")
             return f"Call {rows[0]['full_name']}" + (f" at {phone}" if phone else " (no phone number on file)")
     if tool == "send" and args.get("batch_id") is not None:
-        rows = query("SELECT c.name, c.channel, COUNT(m.id) AS n FROM campaigns c LEFT JOIN campaign_messages m "
-                     "ON m.campaign_id = c.id WHERE c.id = ? GROUP BY c.id", (args["batch_id"],))
+        return send_summary(args["batch_id"], args.get("message_ids"))
+    if tool == "merge_duplicate" and args.get("suggestion_id") is not None:
+        rows = query("SELECT a.id AS a_id, a.full_name AS a_name, b.id AS b_id, b.full_name AS b_name "
+                     "FROM duplicate_suggestions s JOIN donors a ON a.id = s.donor_a_id "
+                     "JOIN donors b ON b.id = s.donor_b_id WHERE s.id = ?", (args["suggestion_id"],))
         if rows:
             r = rows[0]
-            kind = "email" if r["channel"] == "email" else "text"
-            return f"Send {r['n']} {kind}{'s' if r['n'] != 1 else ''}: {r['name']}"
+            keep_a = args.get("keep_id") in (None, r["a_id"])
+            kept, merged = (r["a_name"], r["b_name"]) if keep_a else (r["b_name"], r["a_name"])
+            return f"Merge {merged} into {kept}"
+    if tool in ("delete_task", "delete_calendar_item"):
+        ref = args.get("task_id") if tool == "delete_task" else str(args.get("ref") or "").partition(":")[2]
+        rows = query("SELECT title FROM tasks WHERE id = ?", (ref,)) if str(ref or "").isdigit() else []
+        if rows:
+            return f"Delete {'task' if tool == 'delete_task' else 'calendar item'}: {rows[0]['title']}"
     return None
+
+
+INTENT_WORDS = {"thank_you": "thank-you", "re_engage": "re-engagement", "check_in": "check-in",
+                "event_invite": "event invite"}
+
+
+def send_summary(batch_id: int, message_ids: list[int] | None = None) -> str | None:
+    """"Send thank-you email to Hye-jin Park" / "... +2 more": who would get it, counting only the messages that
+    would go (still draft or approved, and only the chosen ones when message_ids is set)."""
+    camp = query("SELECT name, intent, channel FROM campaigns WHERE id = ?", (batch_id,))
+    if not camp:
+        return None
+    rows = query("SELECT m.id, m.channel, d.full_name FROM campaign_messages m JOIN donors d ON d.id = m.donor_id "
+                 "WHERE m.campaign_id = ? AND m.status IN ('draft', 'approved') ORDER BY m.id", (batch_id,))
+    if message_ids:
+        chosen = {int(i) for i in message_ids}
+        rows = [r for r in rows if r["id"] in chosen]
+    if not rows:
+        return f"Send {camp[0]['name']}: nothing left to send"
+    channels = {r["channel"] for r in rows}
+    kind = "email" if channels == {"email"} else "text" if channels == {"text"} else "message"
+    what = f"{INTENT_WORDS.get(camp[0]['intent'], '')} {kind}{'s' if len(rows) > 1 else ''}".strip()
+    who = rows[0]["full_name"] + (f" +{len(rows) - 1} more" if len(rows) > 1 else "")
+    return f"Send {what} to {who}"
 
 
 def approval_items(interruptions) -> list[dict]:

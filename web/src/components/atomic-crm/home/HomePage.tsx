@@ -34,6 +34,7 @@ import {
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { CrmPanel } from "./panels/CrmPanel";
 import { ImpactPanel } from "./panels/ImpactPanel";
+import { TasksPanel } from "./panels/TasksPanel";
 import {
   PanelFrame,
   PlaceholderPanel,
@@ -221,6 +222,19 @@ export const HomePage = () => {
               <CrmPanel />
             ) : panel === "calendar" ? (
               <CalendarPanel />
+            ) : panel === "tasks" ? (
+              <TasksPanel
+                tasks={home.tasks.data ?? []}
+                today={today}
+                live={live}
+                isPending={tasksPending}
+                onWork={(task) => {
+                  if (live) workOn(task);
+                  else openDetails(task.key);
+                }}
+                onInfo={openDetails}
+                onAdd={() => openDay(today)}
+              />
             ) : panel === "impact" ? (
               <ImpactPanel />
             ) : (
