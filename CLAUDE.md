@@ -113,17 +113,21 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
 
 > "THIS DEVELOPMENT FLYWHEEL IS CRITICAL. EVERYTHING NEEDS TO WORK THIS WAY TO ENSURE THE APP WORKS AS INTENDED."
 
-Every change goes round the whole wheel, every time. A feature is **done only when the Integrate + Test lane has
-walked it in the running app and it worked**, not when its tests pass, it merges, or it deploys.
+Every change goes round the whole wheel, every time. A feature is **done only when an AI tester agent has used it in
+the running, merged app and every acceptance scenario passed**, not when its tests pass, it merges, or it deploys.
+The step-by-step SOP is `docs/sop/development-flywheel.md`.
 
 ```
+0 DEFINE (before code: a feature card in the PR with user, goal, intended behavior, acceptance scenarios, must-not-happen)
 1 BUILD (builder, own lane, PR early)
   -> 2 QA GATE (graded MERGED WITH CURRENT MAIN: full tests + live walk; "APPROVE <full sha>" or "CHANGES file:line")
      + 2b INTEGRATION TREE (QA: main + every open PR merged together, so PR-vs-PR breaks are caught before main)
   -> 3 PINNED MERGE (lead only, the moment approval lands: gh pr merge N --merge --match-head-commit <sha>)
-  -> 4 INTEGRATE + LIVE TEST (Integrate + Test lane: LIVE app on latest main at localhost:5173 for Sharif;
-       after EVERY merge a Playwright walk of the whole demo path from an empty db; PASS/FAIL per step + GAPS)
-  -> 5 LOOP (lead routes every FAIL/GAP to its owner with expected / saw / repro -> back to 1)
+  -> 4 INTEGRATE (Integrate + Test lane: LIVE app on latest main at localhost:5173 for Sharif; TEST stack reset to
+       empty; scripted Playwright regression of the whole demo path)
+  -> 5 LIVE AI-AGENT TEST (an AI tester given only the feature card USES the feature through the real UI, like the
+       user would; per scenario: actions, what's on screen, API/SQL data check, errors -> PASS/FAIL + GAPS)
+  -> 6 LOOP (lead routes every FAIL/GAP to its owner with expected / saw / repro -> back to 1)
 ```
 
 - **Owners:** builders build; QA gates (overflow reviewers when QA is busy); only the lead merges; the Integrate +
