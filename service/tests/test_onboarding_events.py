@@ -75,3 +75,58 @@ def test_events_refresh_runs_the_real_pass(db_file, monkeypatch):
     monkeypatch.setattr(main, "run_refresh", lambda: {"state": "done", "detail": None, "changes": {"events": {"new": []}}})
     r = TestClient(main.app).post("/events/refresh")
     assert r.status_code == 200 and r.json()["state"] == "done"
+
+
+def fake_events_agent(monkeypatch, runs):
+    """A stand-in events_agent on sys.modules AND the service package (both restored after the test), so
+    nothing here imports the real module (which would bypass test_event_outreach's fake)."""
+    import sys
+    import types
+
+    import service
+    it = iter(runs)
+    fake = types.ModuleType("service.events_agent")
+    fake.site_host = lambda url: "miamifoundation.org"
+    fake.EVENTS_LIVE = fake.EVENTS_CACHE = None
+    fake.read_runs = lambda path: {}
+    fake.extract_events = lambda hints, refresh, website: [dict(e) for e in next(it)]
+    monkeypatch.setitem(sys.modules, "service.events_agent", fake)
+    monkeypatch.setattr(service, "events_agent", fake, raising=False)
+
+
+def test_two_parallel_searches_are_merged_without_duplicates(monkeypatch):
+    five_k = {"title": "The Give Miami 5K", "starts_at": "2026-11-15T08:00", "source_url": "https://runsignup.com/x/"}
+    festival = {"title": "The Give Miami 5K Post-Race Festival", "starts_at": "2026-11-15T08:30", "source_url": "https://e.com/f/"}
+    early, gmd = EVENTS[0], EVENTS[1]
+    reworded = dict(five_k, title="Give Miami 5K")                                  # the same race, other wording
+    fake_events_agent(monkeypatch, [[five_k, festival, early], [gmd, reworded]])    # run 1 missed Give Miami Day
+    got = main.find_onboarding_events("https://miamifoundation.org")
+    assert [e["starts_at"][:10] for e in got] == ["2026-11-14", "2026-11-15", "2026-11-15", "2026-11-19"]
+    assert any(e["title"] == "Give Miami Day" for e in got)
+
+
+def test_invites_queue_behind_a_running_refresh(monkeypatch):
+    ran = []
+    monkeypatch.setattr(refresh, "draft_invites_for",
+                        lambda conn, events, ids, stored, people=None, **k: ran.append(len(events)) or {"drafts": {}, "errors": []})
+    with main.REFRESH_LOCK:
+        main.REFRESH_JOB.update(status="refreshing", started_at="2026-11-08T10:00:00+00:00")
+    started = main.start_invites_job([dict(e) for e in EVENTS], {}, False)
+    assert "queued" in started and ran == []                                        # not dropped, not run yet
+    with main.REFRESH_LOCK:
+        main.REFRESH_JOB.update(status="done")                                     # the running refresh finishes
+    for _ in range(50):
+        if ran:
+            break
+        time.sleep(0.1)
+    assert ran == [2] and wait_for_job()["status"] == "done"
+
+
+def test_a_failed_site_says_why_at_the_top(db_file, monkeypatch):
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: {
+        "profile": {"name": None}, "facts": [],
+        "sources": {"website": "error: DNS: no-such-org-qa.invalid not found", "news": "error: DNS: no-such-org-qa.invalid not found"},
+        "source_notes": {}})
+    body = TestClient(main.app).post("/context/run", json={"website": "https://no-such-org-qa.invalid"}).json()
+    assert body["state"] == "failed" and body["detail"].startswith("We couldn't read https://no-such-org-qa.invalid")
+    assert "DNS" in body["detail"] and body["calendar"] is None

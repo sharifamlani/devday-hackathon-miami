@@ -92,8 +92,12 @@ def diff_facts(before: list[dict], result: dict) -> dict:
 def same_event(a: dict, b: dict, by_date: bool = True) -> bool:
     """Search words the same event differently run to run ("Give Miami Day" vs "Give Miami Day -
     15th anniversary"). Same event = one title contains the other, or most title words overlap;
-    with by_date, also the same start date."""
-    if by_date and (a.get("starts_at") or "")[:10] != (b.get("starts_at") or "")[:10]:
+    with by_date, also the same start date. Two events on one day with different start times are different
+    events, however alike their titles ("The Give Miami 5K" at 8:00 vs its Post-Race Festival at 8:30)."""
+    sa, sb = a.get("starts_at") or "", b.get("starts_at") or ""
+    if by_date and sa[:10] != sb[:10]:
+        return False
+    if by_date and len(sa) > 10 and len(sb) > 10 and sa[11:16] != sb[11:16]:
         return False
     ka, kb = event_key(a), event_key(b)
     if not ka or not kb:

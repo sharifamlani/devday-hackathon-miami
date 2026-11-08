@@ -434,6 +434,13 @@ def savable(result: dict, sources: dict) -> dict:
     return {**result, "sources": statuses}
 
 
+def failure_detail(website: str | None, sources: dict) -> str:
+    """One plain sentence for a failed read: which site, and what each source reported."""
+    why = "; ".join(f"{s}: {(sources.get(s) or {}).get('detail') or (sources.get(s) or {}).get('status')}"
+                    for s in ("website", "news") if (sources.get(s) or {}).get("status") != "done")
+    return f"We couldn't read {website}" + (f" ({why})" if why else "") + ". Nothing was saved."
+
+
 def with_user_urls(result: dict | None, urls: dict) -> dict | None:
     """What the user typed is always what's saved; a cached run supplies facts, never the org's URLs."""
     if not result or not isinstance(result.get("profile"), dict):
@@ -486,6 +493,8 @@ async def context_run(req: ContextRun) -> dict:
     saved, calendar = None, None
     if served_from != "fallback":
         state = run_state(sources)
+        if state == "failed" and not detail:            # say why at the top, not only per source
+            detail = failure_detail(req.website, sources)
         # A failed run saves nothing: a typo'd URL must not wipe the saved profile or facts
         if state != "failed":
             saved = await run_in_threadpool(persist_context, savable(result, sources))
@@ -507,8 +516,42 @@ def start_events_search(website: str | None):
     or ONBOARDING_EVENTS=off, which the tests set)."""
     if not website or os.getenv("ONBOARDING_EVENTS", "on").lower() == "off" or not module_present("service.events_agent"):
         return None
+    return asyncio.ensure_future(run_in_threadpool(find_onboarding_events, website))
+
+
+ONBOARDING_SEARCHES = 2
+
+
+def find_onboarding_events(website: str) -> list[dict]:
+    """The events agent's search, run ONBOARDING_SEARCHES times in parallel and merged: one hosted search
+    sometimes misses an event (a live run once found 3 of the 4). Events found before for this site go in as
+    hints only; every event still has to pass the search-returned URL and page check. Duplicates are merged
+    with the refresh's own same-event rule (same date, overlapping title)."""
+    from concurrent.futures import ThreadPoolExecutor
+
     from service import events_agent as ea
-    return asyncio.ensure_future(run_in_threadpool(ea.extract_events, [], True, website))
+    from service.refresh import same_event
+
+    host = ea.site_host(website)
+    known = [e for path in (ea.EVENTS_LIVE, ea.EVENTS_CACHE) for e in ea.read_runs(path).get(host, [])]
+    hints = [{"fact": f"{e['title']} on {e['starts_at'][:10]}" + (f" at {e['place']}" if e.get("place") else ""),
+              "posted_at": None} for e in known]
+    with ThreadPoolExecutor(max_workers=ONBOARDING_SEARCHES) as pool:
+        runs = list(pool.map(lambda _: _safe_extract(ea, hints, website), range(ONBOARDING_SEARCHES)))
+    merged: list[dict] = []
+    for run in runs:
+        for e in run:
+            if not any(same_event(e, m) for m in merged):
+                merged.append(e)
+    return sorted(merged, key=lambda e: e["starts_at"])
+
+
+def _safe_extract(ea, hints: list[dict], website: str) -> list[dict]:
+    try:
+        return ea.extract_events(hints, True, website)
+    except Exception as e:  # one search failing must not sink the other
+        log.warning("onboarding events search failed: %s", e)
+        return []
 
 
 async def onboarding_calendar(events_job) -> dict | None:
@@ -769,15 +812,30 @@ def start_refresh_job() -> dict:
 
 
 def start_invites_job(events: list[dict], ids: dict, stored: bool) -> dict:
-    """Draft invites for the onboarding events in the background; GET /context/refresh reports it."""
+    """Draft invites for the onboarding events in the background; GET /context/refresh reports it. If a refresh
+    is already running, the invites wait for it and start right after (never dropped)."""
     with REFRESH_LOCK:
         if REFRESH_JOB["status"] == "refreshing":
-            return dict(REFRESH_JOB)
+            threading.Thread(target=invites_after_running_job, args=(events, ids, stored), daemon=True,
+                             name="onboarding-invites-queued").start()
+            return dict(REFRESH_JOB) | {"queued": "invites start when this job finishes"}
         REFRESH_JOB.update(status="refreshing", started_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
                            finished_at=None, detail="drafting event invites", changes=None)
         started = dict(REFRESH_JOB)
     threading.Thread(target=invites_job, args=(events, ids, stored), daemon=True, name="onboarding-invites").start()
     return started
+
+
+def invites_after_running_job(events: list[dict], ids: dict, stored: bool, poll_s: float = 1.0) -> None:
+    deadline = time.monotonic() + 2 * config.REFRESH_DEADLINE_S
+    while time.monotonic() < deadline:
+        with REFRESH_LOCK:
+            busy = REFRESH_JOB["status"] == "refreshing"
+        if not busy:
+            start_invites_job(events, ids, stored)
+            return
+        time.sleep(poll_s)
+    log.warning("onboarding invites gave up waiting for the running refresh")
 
 
 def invites_job(events: list[dict], ids: dict, stored: bool) -> None:

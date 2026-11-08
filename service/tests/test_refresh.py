@@ -129,3 +129,12 @@ def test_event_rejected_by_save_events_gets_no_invites(monkeypatch):
     out = r.refresh(conn, URLS, "2026-11-08", PEOPLE, **f)
     assert calls_saved == [(7, 2)] and calls["saved"] == []              # 5K drafted to the db; GMD nowhere, no JSON
     assert any("rejected by save_events" in e and "Give Miami Day" in e for e in out["errors"])
+
+
+def test_a_race_and_its_festival_at_different_times_are_two_events():
+    race = dict(FIVE_K, title="The Give Miami 5K", starts_at="2026-11-15T08:00")
+    festival = dict(FIVE_K, title="The Give Miami 5K Post-Race Festival", starts_at="2026-11-15T08:30")
+    assert not r.same_event(race, festival)
+    moved = dict(race, starts_at="2026-11-15T09:00")                        # same title, new time: changed, not new
+    d = r.diff_events([race], [moved], True, "2026-11-08")
+    assert d["new"] == [] and d["changed"][0]["after"]["starts_at"] == "2026-11-15T09:00"
