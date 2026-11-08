@@ -35,6 +35,7 @@ import {
 } from "./homeData";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { CrmPanel } from "./panels/CrmPanel";
+import { ImpactPanel } from "./panels/ImpactPanel";
 import { TasksPanel } from "./panels/TasksPanel";
 import {
   PanelFrame,
@@ -248,6 +249,8 @@ export const HomePage = () => {
                 onInfo={openDetails}
                 onAdd={() => openDay(today)}
               />
+            ) : panel === "impact" ? (
+              <ImpactPanel />
             ) : (
               <PlaceholderPanel title={PANEL_TITLES[panel]} />
             )}
