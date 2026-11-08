@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { listServerCallNotes } from "../providers/local/calls";
 import { DATA_MODE } from "../providers/local/config";
-import { ApiError } from "../providers/local/httpClient";
 import {
   proposeAfterCall,
   useAfterCall,
@@ -30,9 +30,9 @@ const KIND: Record<string, string> = {
 };
 
 /**
- * The pane saves the note with a debounced POST /calls after the summary; until it lands,
- * /actions answers 404. Measured: the save started 2+ s after the card appeared, so keep
- * asking for ~10 s before calling it an error.
+ * The pane saves the note with a debounced POST /calls after the summary (measured: it started
+ * 2+ s after the card appeared). The card waits for it on GET /calls, which always answers 200,
+ * instead of polling /actions into 404s (console errors), for ~10 s at most.
  */
 const NOT_SAVED_RETRIES = 14;
 const RETRY_MS = 700;
@@ -62,8 +62,17 @@ export const AfterCallCard = ({
     live.current = true;
     let tries = 0;
     let timer: number | undefined;
+    const saved = async () => (await listServerCallNotes()).some((n) => n.id === noteId);
     const read = async () => {
       try {
+        while (!(await saved())) {
+          if (tries >= NOT_SAVED_RETRIES) throw new Error("This call isn’t saved yet. Try again in a moment.");
+          tries += 1;
+          await new Promise((resolve) => {
+            timer = window.setTimeout(resolve, retryMs);
+          });
+          if (!live.current) return;
+        }
         const p = await proposeAfterCall(noteId);
         if (!live.current) return;
         setProposal(p);
@@ -71,11 +80,6 @@ export const AfterCallCard = ({
         setPhase("ready");
       } catch (e) {
         if (!live.current) return;
-        if (e instanceof ApiError && e.status === 404 && tries < NOT_SAVED_RETRIES) {
-          tries += 1;
-          timer = window.setTimeout(read, retryMs);
-          return;
-        }
         setError(e instanceof Error ? e.message : "The agent couldn't read this call.");
         setPhase("error");
       }

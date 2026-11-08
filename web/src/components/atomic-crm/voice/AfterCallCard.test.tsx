@@ -7,6 +7,10 @@ import type { AfterCallProposal, AfterCallResult } from "../providers/local/voic
 const api = vi.hoisted(() => ({
   propose: vi.fn<(id: string) => Promise<AfterCallProposal>>(),
   mutate: vi.fn(),
+  savedIds: vi.fn<() => string[]>(),
+}));
+vi.mock("../providers/local/calls", () => ({
+  listServerCallNotes: async () => api.savedIds().map((id) => ({ id })),
 }));
 vi.mock("../providers/local/voice", () => ({
   proposeAfterCall: (id: string) => api.propose(id),
@@ -14,7 +18,6 @@ vi.mock("../providers/local/voice", () => ({
 }));
 
 const { AfterCallCard } = await import("./AfterCallCard");
-const { ApiError } = await import("../providers/local/httpClient");
 
 const ROSA: AfterCallProposal = {
   steps: ["Read the call", "Matched the Beach Cleanup on Sat Nov 21"],
@@ -34,6 +37,8 @@ const applied = (ids: string[]): AfterCallResult => ({
 beforeEach(() => {
   api.propose.mockReset();
   api.mutate.mockReset();
+  api.savedIds.mockReset();
+  api.savedIds.mockReturnValue(["n1"]); // the note is already saved unless a test says otherwise
 });
 
 describe("AfterCallCard", () => {
@@ -78,22 +83,21 @@ describe("AfterCallCard", () => {
     expect(api.mutate).not.toHaveBeenCalled();
   });
 
-  it("waits for the note to be saved: retries a 404, then shows the proposal", async () => {
-    api.propose
-      .mockRejectedValueOnce(new ApiError("not yet", 404, { detail: "no call note n1" }))
-      .mockResolvedValue(ROSA);
-    const screen = await render(<AfterCallCard noteId="n1" retryMs={10} />);
-    await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
-    expect(api.propose).toHaveBeenCalledTimes(2);
-  });
-
-  it("keeps waiting through a slow save (several 404s) before showing the proposal", async () => {
-    const notYet = () => new ApiError("not yet", 404, { detail: "no call note n1" });
-    for (let i = 0; i < 8; i += 1) api.propose.mockRejectedValueOnce(notYet());
+  it("waits on GET /calls (no 404s) until the note is saved, then proposes once", async () => {
+    let polls = 0;
+    api.savedIds.mockImplementation(() => (++polls < 5 ? [] : ["n1"]));
     api.propose.mockResolvedValue(ROSA);
     const screen = await render(<AfterCallCard noteId="n1" retryMs={5} />);
     await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
-    expect(api.propose).toHaveBeenCalledTimes(9);
+    expect(polls).toBe(5);
+    expect(api.propose).toHaveBeenCalledOnce();
+  });
+
+  it("a note that never gets saved: a clear error, /actions never called", async () => {
+    api.savedIds.mockReturnValue([]);
+    const screen = await render(<AfterCallCard noteId="n1" retryMs={1} />);
+    await expect.element(screen.getByText("This call isn’t saved yet. Try again in a moment.")).toBeVisible();
+    expect(api.propose).not.toHaveBeenCalled();
   });
 
   it("shows an error with Try again when the agent can't read the call", async () => {
