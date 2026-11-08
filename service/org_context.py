@@ -633,9 +633,8 @@ def context_as_org_facts() -> list[dict]:
             con.row_factory = sqlite3.Row
             if con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_context'").fetchone():
                 rows = [dict(r) for r in con.execute("SELECT * FROM org_context")]
-    if not rows:                                      # runtime file first, then the committed cache
-        runs = read_runs(CONTEXT_CACHE) | read_runs(CONTEXT_LIVE)
-        rows = [f for run in runs.values() for f in run["facts"]]
+    if not rows:                                      # the last live run only: the committed cache is a failure fallback
+        rows = [f for run in read_runs(CONTEXT_LIVE).values() for f in run["facts"]]
     return [{"date": r.get("posted_at"), "kind": r.get("source"), "fact": r["fact"], "quote": r.get("quote"),
              "priority": normalize_priority(r.get("priority")) or r.get("priority"), "url": r["url"]}
             for r in rows if r.get("fact") and r.get("url")]

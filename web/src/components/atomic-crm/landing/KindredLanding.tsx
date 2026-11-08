@@ -27,21 +27,73 @@ const getHash = () => window.location.hash;
 /** Keep existing workspace deep links; the bare app URL opens the landing page. */
 export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
   const hash = useSyncExternalStore(subscribeToHash, getHash, () => "");
-  return hash === "" || hash === "#/welcome" ? <KindredLanding /> : children;
+  // Live mode: the bare URL shows the landing only while the app has no people
+  // yet; once the example files (or a list) are in, it goes straight to the
+  // board. "#/welcome" always shows the landing. The read-only snapshot build
+  // always has people, so it keeps the landing as its front door.
+  const hasPeople = useHasPeople();
+  if (hash === "#/welcome") return <KindredLanding />;
+  if (hash !== "") return children;
+  if (hasPeople === null) return null;
+  return hasPeople ? children : <KindredLanding />;
+};
+
+/** null while the live service is being asked; always false in snapshot mode. */
+const useHasPeople = (): boolean | null => {
+  const [hasPeople, setHasPeople] = useState<boolean | null>(
+    DATA_MODE === "local" ? null : false,
+  );
+  useEffect(() => {
+    if (DATA_MODE !== "local") return;
+    let live = true;
+    donorDeskMethods
+      .getDonors()
+      .then((donors) => live && setHasPeople(donors.length > 0))
+      .catch(() => live && setHasPeople(false));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return hasPeople;
+};
+
+/** The files the app can read; the landing accepts all of them. */
+const ACCEPTED_FILES = ".csv,.xlsx,.docx,.md,.txt";
+const ACCEPTED_TYPES = {
+  "text/csv": [".csv"],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+  "text/markdown": [".md"],
+  "text/plain": [".txt"],
+};
+
+/** Seconds since `active` turned true, so a 40-second ingest shows it is alive. */
+const useElapsed = (active: boolean) => {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setSeconds(0);
+      return;
+    }
+    const timer = window.setInterval(() => setSeconds((n) => n + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [active]);
+  return seconds;
 };
 
 export const KindredLanding = () => {
   const [areColorsPaused, setColorsPaused] = useState(false);
   const [isUploadOpen, setUploadOpen] = useState(false);
   const [isSampleOpen, setSampleOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [pending, setPending] = useState(false);
+  const elapsed = useElapsed(pending);
   const [error, setError] = useState("");
   const [result, setResult] = useState<IngestResult | null>(null);
   const canUpload = DATA_MODE === "local";
   const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
-    accept: { "text/csv": [".csv"] },
-    multiple: false,
+    accept: ACCEPTED_TYPES,
+    multiple: true,
     noClick: true,
     noKeyboard: true,
     disabled: pending,
@@ -49,19 +101,20 @@ export const KindredLanding = () => {
       setResult(null);
       setError("");
       if (canUpload) {
-        setFile(accepted[0] ?? null);
-        if (rejected.length) setError("Please choose one CSV file at a time.");
+        setFiles(accepted);
+        if (rejected.length)
+          setError("Please choose .csv, .xlsx, .docx, .md or .txt files.");
       }
       setUploadOpen(true);
     },
   });
 
   const importDonors = async () => {
-    if (!canUpload || !file || pending) return;
+    if (!canUpload || !files.length || pending) return;
     setPending(true);
     setError("");
     try {
-      setResult(await donorDeskMethods.uploadFiles([file]));
+      setResult(await donorDeskMethods.uploadFiles(files));
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -91,12 +144,12 @@ export const KindredLanding = () => {
           {...getRootProps({
             className: `kindred-dropzone${isDragActive ? " is-dragging" : ""}`,
             role: "group",
-            "aria-label": "Donor CSV drop area",
+            "aria-label": "Donor file drop area",
           })}
         >
           <input
             {...getInputProps({
-              "aria-label": "Choose donor CSV",
+              "aria-label": "Choose donor files",
               disabled: !canUpload || pending,
             })}
           />
@@ -115,8 +168,8 @@ export const KindredLanding = () => {
           </button>
           <p className="kindred-file-hint" aria-live="polite">
             {isDragActive
-              ? "Drop your CSV here"
-              : "or drag and drop your CSV here"}
+              ? "Drop your files here"
+              : "or drag and drop your files here (CSV, Excel, Word, notes)"}
           </p>
         </div>
         <button
@@ -162,7 +215,7 @@ export const KindredLanding = () => {
             {result
               ? "Open your workspace to review donors and possible duplicates."
               : canUpload
-                ? "Choose a CSV file to import into your donor workspace. Use sample data for this demo."
+                ? "Choose the files to import into your donor workspace: CSV, Excel, Word or notes. To try the app, use the example files in data/sample_inputs/."
                 : "This preview uses sample data. File uploads are available when the local donor service is connected."}
           </DialogDescription>
 
@@ -174,35 +227,44 @@ export const KindredLanding = () => {
                 void importDonors();
               }}
             >
-              <label htmlFor="kindred-csv">Donor CSV file</label>
+              <label htmlFor="kindred-csv">Donor files</label>
               <input
                 id="kindred-csv"
                 type="file"
-                accept=".csv,text/csv"
-                required={!file}
+                multiple
+                accept={ACCEPTED_FILES}
+                required={!files.length}
                 disabled={pending}
                 onChange={(event) => {
-                  setFile(event.target.files?.[0] ?? null);
+                  setFiles(Array.from(event.target.files ?? []));
                   setError("");
                 }}
               />
-              {file && <p role="status">Selected: {file.name}</p>}
+              {files.length > 0 && (
+                <p role="status">
+                  Selected: {files.map((f) => f.name).join(", ")}
+                </p>
+              )}
               {error && <p role="alert">{error}</p>}
               <button
                 className="kindred-upload"
                 type="submit"
-                disabled={!file || pending}
+                disabled={!files.length || pending}
               >
-                {pending ? "Importing your list…" : "Import donor data"}
+                {pending
+                  ? `Reading your files… ${elapsed}s (about a minute)`
+                  : "Import donor data"}
               </button>
               <span role="status" className="sr-only">
                 {pending ? "Import in progress. Please wait." : ""}
               </span>
             </form>
           )}
-          <a className="kindred-workspace-link" href="#/">
-            {result ? "View donor workspace" : "Explore sample workspace"}
-          </a>
+          {(result || !canUpload) && (
+            <a className="kindred-workspace-link" href="#/">
+              {result ? "View donor workspace" : "Explore sample workspace"}
+            </a>
+          )}
         </DialogContent>
       </Dialog>
       <SampleDialog open={isSampleOpen} onOpenChange={setSampleOpen} />
@@ -238,6 +300,7 @@ const SampleDialog = ({
   const [result, setResult] = useState<IngestResult | null>(null);
   const [cachedRun, setCachedRun] = useState(false);
   const canUpload = DATA_MODE === "local";
+  const elapsed = useElapsed(pending);
 
   useEffect(() => {
     if (!open || files) return;
@@ -281,7 +344,9 @@ const SampleDialog = ({
             ? summarize(result)
             : cachedRun
               ? "This preview can’t import files, so it opens a cached sample workspace instead. It wasn’t built from these files."
-              : "Fictional records for a Miami nonprofit: every name, email and amount is invented."}
+              : canUpload
+                ? "The example files from data/sample_inputs/. Every name, email and amount is invented. You can also drag them onto the landing page yourself."
+                : "Fictional records for a Miami nonprofit: every name, email and amount is invented."}
         </DialogDescription>
 
         {!done && (
@@ -309,18 +374,26 @@ const SampleDialog = ({
               onClick={() => void go()}
               disabled={!files?.length || pending}
             >
-              {pending ? "Reading your files…" : "Go"}
+              {pending ? `Reading your files… ${elapsed}s` : "Go"}
             </button>
-            <span role="status" className="sr-only">
-              {pending ? "Import in progress. Please wait." : ""}
-            </span>
+            {pending && (
+              <p role="status" className="kindred-sample-target">
+                Reading {files?.length} files and sorting people into Givers,
+                Neighbors and Community. This takes about a minute.
+              </p>
+            )}
           </>
         )}
 
-        {(done || (error && canUpload && files)) && (
+        {done && (
           <a className="kindred-workspace-link" href="#/">
-            {done ? "Open the CRM" : "Open the cached sample workspace instead"}
+            Open the CRM
           </a>
+        )}
+        {error && canUpload && files && (
+          <p className="kindred-sample-target">
+            You can also drag the example files from <code>data/sample_inputs/</code> into the app yourself.
+          </p>
         )}
       </DialogContent>
     </Dialog>

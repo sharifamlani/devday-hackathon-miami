@@ -310,14 +310,20 @@ def test_join_split_rejoin_stays_one_task_per_group(conn):
     assert len(keys) == len(set(keys))
 
 
-def test_a_handled_duplicate_review_is_not_reopened_when_the_group_grows(conn):
+def test_a_handled_duplicate_review_reopens_fresh_only_for_a_new_member(conn):
+    """c9: done/deleted = handled. A new member gets a fresh review task; the handled one stays closed."""
     a, b, c = (person(conn, n) for n in ("X One", "X Two", "X Three"))
     pair(conn, a, b)
     made = tasks.generate(conn, AS_OF)["tasks"][0]
     tasks.delete_task(conn, made["id"])
+    assert tasks.generate(conn, AS_OF)["created"] == 0          # same group: still handled
     pair(conn, b, c)
+    fresh = tasks.generate(conn, AS_OF)
+    assert fresh["created"] == 1 and fresh["tasks"][0]["id"] != made["id"]
+    assert live_groups(conn) == {frozenset({a, b, c}): "3 records"}
     assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
-
+    tasks.complete_task(conn, fresh["tasks"][0]["id"])
+    assert tasks.generate(conn, AS_OF)["created"] == 0          # done counts as handled too
 
 def test_generate_skips_resolved_duplicates(conn):
     a, b = person(conn, "Liz Fontaine"), person(conn, "Elizabeth Fontaine")
@@ -422,3 +428,65 @@ def test_a_generator_failure_never_fails_an_upload(tmp_path, monkeypatch):
     res = ia.ingest_events(_events(), "auto", conn, judgments=_judgments())
     assert res["people_added"] == 5
     assert conn.execute("SELECT COUNT(*) FROM donors").fetchone()[0] == 5
+
+
+# ---------- refresh hook + undo routing ----------
+
+@pytest.fixture
+def refresh_db(tmp_path, monkeypatch):
+    """A db with a saved org and an event in 11 days; service.refresh.refresh stubbed (no network)."""
+    import service.refresh
+
+    monkeypatch.setenv("DONORS_DB", str(tmp_path / "donors.db"))
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    monkeypatch.setattr(service.refresh, "refresh", lambda conn, urls, **_: {"events_added": 1})
+    conn = db.connect()
+    db.create_schema(conn)
+    conn.execute("INSERT INTO org_profile (name, website) VALUES ('The Miami Foundation', 'https://miamifoundation.org')")
+    conn.commit()
+    event(conn, "Give Miami Day", "2026-11-19")
+    conn.close()
+
+
+def test_refresh_hook_generates_prep_tasks(refresh_db):
+    from service.main import run_refresh
+
+    assert run_refresh() == {"state": "done", "detail": None, "changes": {"events_added": 1}}
+    conn = db.connect()
+    assert tasks.list_tasks(conn, due="today", as_of=AS_OF) == []    # due Nov 12, not today
+    assert [t["title"] for t in tasks.list_tasks(conn, from_="2026-11-01", to="2026-11-30")] == ["Prep list: Give Miami Day"]
+    conn.close()
+
+
+def test_a_generator_failure_never_fails_a_refresh(refresh_db, monkeypatch):
+    from service.main import run_refresh
+
+    def boom(*_, **__):
+        raise RuntimeError("generator bug")
+
+    monkeypatch.setattr(tasks, "generate", boom)
+    assert run_refresh()["state"] == "done"
+
+
+def test_undo_routes_interest_tokens(client, monkeypatch):
+    import sys
+    import types
+
+    fake = types.ModuleType("service.interests")
+    fake.undo = lambda conn, token: {"undone": True, "op": "add_interest", "donor_id": 1}
+    monkeypatch.setitem(sys.modules, "service.interests", fake)
+    assert client.post("/undo/int_abc").json() == {"undone": True, "op": "add_interest", "donor_id": 1}
+
+    def bad(conn, token):
+        raise ValueError("Incorrect padding")
+
+    fake.undo = bad
+    assert client.post("/undo/int_abc").status_code == 422
+
+
+def test_undo_interest_token_before_interests_lands(client, monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "service.interests", None)   # import raises ImportError
+    r = client.post("/undo/int_abc")
+    assert r.status_code == 404 and "isn't available yet" in r.json()["detail"]

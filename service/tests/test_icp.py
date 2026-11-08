@@ -81,10 +81,10 @@ def test_cached_run_is_fast_and_shaped(tmp_path, monkeypatch):
     cache.write_text(json.dumps({"generated_at": "t", "icp": ICP, "prospects": []}), encoding="utf-8")
     monkeypatch.setattr(icp_agent, "ICP_CACHE", cache)
     start = time.perf_counter()
-    run = icp_agent.run_icp()
+    run = icp_agent.run_icp(use_cache=True)             # the precompute pipeline's explicit cache read
     assert time.perf_counter() - start < 1
-    assert set(run) == {"generated_at", "icp", "prospects"}
-    assert icp_agent.build_profile() == ICP
+    assert set(run) == {"generated_at", "icp", "prospects", "cached"} and run["cached"] is True
+    assert icp_agent.build_profile(use_cache=True) == {**ICP, "cached": True}
 
 
 CONTEXT = [

@@ -9,7 +9,7 @@ From the repo root, with the repo-root `.env` in place (key + model tiers, see `
 
 ```bash
 uv pip install --python .venv/Scripts/python.exe -r service/requirements.txt
-.venv/Scripts/python.exe -m service.db --rebuild          # seed 12 SAMPLE donors, score, dedupe
+.venv/Scripts/python.exe -m service.db --rebuild          # empty database (schema only); load data by uploading data/sample_inputs/
 .venv/Scripts/python.exe -m uvicorn service.main:app --port 8000
 ```
 

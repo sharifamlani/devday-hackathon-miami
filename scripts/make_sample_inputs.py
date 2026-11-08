@@ -26,6 +26,7 @@ F_MD = "board_retreat_notes.md"
 F_CHECK = "check_deposit_log_q3_2026.docx"
 F_INTAKE = "donor_intake_forms_2026.docx"
 F_STOCK = "stock_and_daf_grants.docx"
+F_OCTNOV = "online_gifts_oct_nov_2026.xlsx"
 
 rng = random.Random(SEED)
 GMD = {2022: date(2022, 11, 17), 2023: date(2023, 11, 16), 2024: date(2024, 11, 21), 2025: date(2025, 11, 20)}
@@ -277,6 +278,38 @@ for _dk, _day, _amt, _months in (("park", 10, 40, range(6, 10)), ("quintero", 3,
 FAILED_GIFTS = [dict(donor="park", date=dt(2026, 10, 10), amount=40, name="Hye-jin Park", note="monthly - card declined", loc=None)]
 
 
+# --- Oct-Nov 2026 online + wire export (online_gifts_oct_nov_2026.xlsx): the Q4 money. Added last, with its own
+# random stream, so every id, row and byte of the files above stays exactly as it was.
+# (donor key, date, amount, (unused), fund, name as written, payment method as written, memo). The headers on
+# both sheets are ones the ingest reader recognizes (name / amount / date columns), just worded differently.
+OCTNOV = [
+    ("ibarra", dt(2026, 10, 9), 8000, "online", "Field of Interest", "Carmen Ibarra", "Credit card", "health access, fall appeal"),
+    ("fontaine", dt(2026, 10, 9), 2500, "online", "Unrestricted", "Liz F.", "Credit card", ""),
+    ("ostrander", dt(2026, 10, 14), 20000, "online", "Scholarship", "Ostrander-Pell Charitable Trust", "Wire", "fall tranche"),
+    ("bellweather", dt(2026, 10, 21), 40000, "online", "Organization Endowment", "Bellweather Pines Family Fdn.", "Wire", "early year-end grant"),
+    ("whitaker", dt(2026, 10, 28), 15000, "DAF grant", "Donor Advised", "Whitaker Family Charitable Fund", "DAF portal", "advised by H. Whitaker"),
+    ("marrow", dt(2026, 10, 30), 2500, "online", "Organization Endowment", "Marrow Lane Print", "ACH", "sponsor - year-end mailer"),
+    ("quillfeather", dt(2026, 10, 31), 1000, "online", "Unrestricted", "Quillfeather Coffee", "Credit card", "round-up at the register"),
+    ("achterberg", dt(2026, 11, 1), 1500, "online", "Unrestricted", "S. Achterberg", "Credit card", ""),
+    ("achebe", dt(2026, 11, 4), 6000, "online", "Designated", "Desmond Achebe-Wells", "ACH", ""),
+    ("szymanski", dt(2026, 10, 12), 250, "online", "Unrestricted", "Victor Szymanski", "Credit card", ""),
+    ("castellanos", dt(2026, 10, 19), 150, "online", "Unrestricted", "Naomi Castellanos", "Credit card", ""),
+    ("rutherford", dt(2026, 10, 20), 100, "online", "Unrestricted", "Imani Rutherford", "Credit card", ""),
+    ("kowalczyk", dt(2026, 10, 22), 75, "online", "Unrestricted", "Dana Kowalczyk", "Credit card", ""),
+    ("villaverde", dt(2026, 10, 24), 100, "online", "Unrestricted", "Esperanza Villaverde", "Credit card", ""),
+    ("okafor", dt(2026, 11, 3), 500, "online", "Field of Interest", "Priscilla Okafor", "Credit card", "new email"),
+    ("oyelaran", dt(2026, 11, 5), 100, "online", "Unrestricted", "Marcus Oyelaran", "Credit card", ""),
+    ("baptiste", dt(2026, 11, 6), 40, "online", "Unrestricted", "Jerome Baptiste", "Credit card", ""),
+    ("lindqvist", dt(2026, 11, 7), 250, "online", "Unrestricted", "Tobias Lindqvist", "Credit card", ""),
+]
+for _dk, _d, _amt, _ch, _fund, _nm, _method, _memo in OCTNOV:
+    _g = gift(_dk, _d, _amt, _method.lower(), _fund, "oct_nov", name=_nm, note=_memo, method=_method,
+              email="priscilla.okafor.law@example.org" if _dk == "okafor" else None)
+    _g["id"] = None
+for _n, _g in enumerate(sorted((g for g in GIFTS if g["dest"] == "oct_nov"), key=lambda g: (g["date"], g["donor"])), 1):
+    _g["id"] = f"G{_next_id + _n:03d}"
+
+
 SRC = defaultdict(list)  # donor key -> source row dicts
 
 
@@ -388,6 +421,52 @@ def write_xlsx():
         for col in "ABCDEFGH":
             w.column_dimensions[col].width = 26
     wb.save(OUT / F_XLSX)
+
+
+def write_octnov():
+    """Q4 2026 online + wire gifts. Messy on purpose: a title block, a different header per sheet, mixed date and
+    amount formats, an inconsistent Phone column, and sub-total rows that are not gifts."""
+    r = random.Random(SEED + 1)   # its own stream: the other files must not move
+
+    def date_cell(d_):
+        return [d_.strftime("%m/%d/%Y"), d_.isoformat(), d_.strftime("%b %d, %Y").replace(" 0", " "),
+                datetime(d_.year, d_.month, d_.day)][r.randrange(4)]
+
+    def amt_cell(a):
+        k = r.randrange(5)
+        return a if k < 2 else (f"${a:,.2f}" if k == 2 else (f"{a:,}" if k == 3 else f"${a:,}"))
+
+    wb = Workbook()
+    specs = [
+        ("October", date(2026, 10, 1), date(2026, 10, 31), ["Donor Name", "Contact email", "Donation Amount", "Received", "Payment method", "Fund designation", "Phone", "Memo"]),
+        ("Nov 1-7", date(2026, 11, 1), date(2026, 11, 8), ["Donor", "E-mail", "Amt", "Date", "Type", "Fund", "Tel", "Notes"]),
+    ]
+    for n, (title, lo, hi, header) in enumerate(specs):
+        ws = wb.active if n == 0 else wb.create_sheet()
+        ws.title = title
+        if n == 0:
+            ws.append(["Online + wire gifts - Q4 2026 (giving portal export, pulled 11/08)"])
+            ws.append(["incl. DAF portal + wires keyed by hand. Subtotal rows are NOT gifts"])
+            ws.append([])
+        else:
+            ws.append(["Early November (through Sat 11/7)"])
+        ws.append(header)
+        tot = 0
+        for g in [g for g in GIFTS if g["dest"] == "oct_nov" and lo <= g["date"] <= hi]:
+            d = D[g["donor"]]
+            # a variant spelling always carries the email, so the person links; a plain full name sometimes omits it
+            email = fmt_email(d, g["email"]) if (g["email"] or g["name"] != d["name"] or r.random() < 0.8) else None
+            phone = fmt_phone(d, 1) if r.random() < 0.35 else None
+            ws.append([g["name"], email, amt_cell(g["amount"]), date_cell(g["date"]), g["method"],
+                       g["fund"] if r.random() < 0.7 else None, phone, g["note"] or None])
+            g["loc"] = f"sheet '{title}' row {ws.max_row}"
+            src(g["donor"], F_OCTNOV, g["loc"], g["name"], "gift_row")
+            tot += g["amount"]
+        ws.append([])
+        ws.append(["Subtotal - " + ("October" if n == 0 else "Nov 1-7"), None, tot])
+        for col in "ABCDEFGH":
+            ws.column_dimensions[col].width = 26
+    wb.save(OUT / F_OCTNOV)
 
 
 # --------------------------------------------------------------------------- docx
@@ -834,7 +913,7 @@ def build_key():
     for g in sorted(GIFTS, key=lambda g: g["id"]):
         item = dict(gift_id=g["id"], donor_id=D[g["donor"]]["id"], donor=D[g["donor"]]["name"], amount=g["amount"],
                     gift_date=g["date"].isoformat(), channel=g["channel"], fund_type=g["fund"],
-                    fund_type_stated_in_source=bool(g["fund_stated"]) if g["dest"] in ("gmd", "online") else True,
+                    fund_type_stated_in_source=bool(g["fund_stated"]) if g["dest"] in ("gmd", "online", "oct_nov") else True,
                     name_as_written=g["name"], source=dict(file=FILES[g["dest"]], location=g["loc"]))
         if g["channel"] == "event":
             item["channel_note"] = "event gift"
@@ -856,6 +935,11 @@ def build_key():
             names_as_written=sorted({s["name_as_written"] for s in SRC[dk]}),
             source_rows=SRC[dk]))
     total = sum(g["amount"] for g in GIFTS)
+    by_quarter = defaultdict(lambda: dict(gifts=0, total=0))
+    for g in GIFTS:
+        q = by_quarter[f"{g['date'].year}-Q{(g['date'].month - 1) // 3 + 1}"]
+        q["gifts"] += 1
+        q["total"] += g["amount"]
     veloria = sum(g["amount"] for g in GIFTS if g["donor"] == "veloria")
     dup_groups = [
         dict(group="DG1", donor_id=D["delgado"]["id"], canonical="Maria Delgado",
@@ -892,13 +976,15 @@ def build_key():
     return dict(
         _note="FULLY FICTIONAL test data. Answer key for data/sample_inputs/. Generated by scripts/make_sample_inputs.py",
         as_of=AS_OF.isoformat(), seed=SEED,
-        files=[F_XLSX, F_MD, F_CHECK, F_INTAKE, F_STOCK, F_COMMUNITY, F_SIGNIN],
+        files=[F_XLSX, F_MD, F_CHECK, F_INTAKE, F_STOCK, F_COMMUNITY, F_SIGNIN, F_OCTNOV],
         totals=dict(canonical_donors=len(D), individuals=sum(d["type"] == "individual" for d in D.values()),
                     organizations=sum(d["type"] == "organization" for d in D.values()),
                     unique_gifts=len(GIFTS), total_amount=total,
                     gift_source_rows=len(GIFTS) + len(EXTRA_ROWS),
                     gift_source_rows_amount=total + dbl["amount"],
-                    duplicate_groups=len(dup_groups)),
+                    duplicate_groups=len(dup_groups),
+                    q4_2026_gifts=by_quarter["2026-Q4"]["gifts"], q4_2026_total=by_quarter["2026-Q4"]["total"]),
+        gifts_by_quarter=dict(sorted(by_quarter.items())),   # calendar quarters; the Q4 gauge reads 2026-Q4 against the $150k sample goal
         canonical_donors=donors_out, duplicate_groups=dup_groups, gifts=gifts_out,
         double_recorded_gift=dict(gift_id=DOUBLE_SRC["id"], donor_id=D["achterberg"]["id"], amount=DOUBLE_SRC["amount"],
                                   counted_once_from=dict(file=F_CHECK, location=DOUBLE_SRC["loc"], check_number=DOUBLE_SRC.get("check_no")),
@@ -952,7 +1038,8 @@ def build_key():
     )
 
 
-FILES = {"gmd": F_XLSX, "online": F_XLSX, "major": F_XLSX, "check": F_CHECK, "stock": F_STOCK, "notes": F_MD}
+FILES = {"gmd": F_XLSX, "online": F_XLSX, "major": F_XLSX, "check": F_CHECK, "stock": F_STOCK, "notes": F_MD,
+         "oct_nov": F_OCTNOV}
 
 
 FIXED_TS = datetime(2026, 11, 1, 9, 0, 0)
@@ -969,6 +1056,10 @@ def pin_timestamps():
     wb.properties.created = wb.properties.modified = FIXED_TS
     wb.properties.creator = "Sample Data Generator (fictional)"
     wb.save(OUT / F_XLSX)
+    wb = load_workbook(OUT / F_OCTNOV)
+    wb.properties.created = wb.properties.modified = FIXED_TS
+    wb.properties.creator = "Sample Data Generator (fictional)"
+    wb.save(OUT / F_OCTNOV)
     wb = load_workbook(OUT / F_SIGNIN)
     wb.properties.created = wb.properties.modified = FIXED_TS
     wb.properties.creator = "Sample Data Generator (fictional)"
@@ -1054,6 +1145,14 @@ def verify():
             if n is not None:
                 xl_rows += 1
                 xl_sum += n
+    for ws in load_workbook(OUT / F_OCTNOV).worksheets:       # Q4 online + wire export: col C is the amount
+        for r in ws.iter_rows(min_row=1, values_only=True):
+            if str(r[0] or "").lower().startswith("subtotal"):
+                continue
+            n = _num(r[2])
+            if n is not None:
+                xl_rows += 1
+                xl_sum += n
     docs = {}
     for f in (F_CHECK, F_STOCK):
         d = Document(OUT / f)
@@ -1073,6 +1172,10 @@ def verify():
     dbl = key["double_recorded_gift"]["amount"]
     check("source rows - 1 double == unique gifts", rows - 1 == t["unique_gifts"], f"({rows} - 1 vs {t['unique_gifts']})")
     check("sum of source rows - double == key total", round(tot - dbl) == t["total_amount"], f"({tot:,.0f} - {dbl} vs {t['total_amount']:,})")
+    q4 = sum(g["amount"] for g in key["gifts"] if g["gift_date"] >= "2026-10-01")
+    check("2026 Q4 gifts are $90k-$110k more than the old $750", 90_000 <= q4 - 750 <= 110_000, f"(Q4 total ${q4:,}; gauge {q4 / 150_000:.0%} of the $150k sample goal)")
+    q4 = sum(g["amount"] for g in key["gifts"] if g["gift_date"] >= "2026-10-01")
+    check("new file adds $90k-$110k of Oct-Nov 2026 gifts", 90_000 <= q4 - 750 <= 110_000, f"(Q4 total ${q4:,}; gauge {q4 / 150_000:.0%} of the $150k sample goal)")
     check("key gifts sum == key total", sum(g["amount"] for g in key["gifts"]) == t["total_amount"])
     check("6 duplicate groups", len(key["duplicate_groups"]) == 6)
     check("33 donors 25-35, orgs 5-7", 25 <= t["canonical_donors"] <= 35 and 5 <= t["organizations"] <= 7)
@@ -1104,6 +1207,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     write_check_log()   # first: assigns check numbers
     write_xlsx()
+    write_octnov()
     write_stock()
     write_intake()
     write_notes()
