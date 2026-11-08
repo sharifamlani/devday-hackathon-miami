@@ -648,3 +648,17 @@ def test_a_gift_on_both_records_is_named_as_counted_once_not_hidden(db_file):
     merged = next(m for m in out["merged"] if m["suggestion_id"] == pair["id"])
     assert merged["counted_once"] == [{"amount": 777, "date": "2026-05-05"}]
     assert out["gifts_unchanged"] is False
+
+
+def test_a_named_pair_is_found_and_only_that_pair_is_handled(db_file):
+    """a4: "Merge Bill Hartwell and William Hartwell" must reach that pair (merge if 80%+, else a card)."""
+    nickname_pair(db_file)
+    sure = one(db_file, "SELECT id FROM duplicate_suggestions WHERE status = 'pending' AND confidence >= 0.8")["id"]
+    out = invoke("resolve_duplicates", names=["bill hartwell", "William Hartwell"])
+    assert out["merged"] == []                                            # the sure Maria pair isn't touched
+    assert [frozenset((p["a"]["full_name"], p["b"]["full_name"])) for p in out["to_confirm"]] == \
+        [frozenset(("Bill Hartwell", "William Hartwell"))]
+    assert one(db_file, "SELECT status FROM duplicate_suggestions WHERE id = ?", sure)["status"] == "pending"
+    none = invoke("resolve_duplicates", names=["Bill Hartwell", "Nobody Here"])
+    assert none["merged"] == [] and none["to_confirm"] == []
+    assert none["note"] == "No pending duplicate pair for Bill Hartwell and Nobody Here."

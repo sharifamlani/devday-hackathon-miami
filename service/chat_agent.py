@@ -62,6 +62,8 @@ Rules:
   draft is ready to review. Review task: follow the duplicates protocol. Prep task: list who is invited and what to prepare. End with "Mark done?";
   call complete_task only when the user says so.
 - Duplicates protocol ("fix / merge / clean up the duplicates", or a review task): call resolve_duplicates once.
+  When the user names the people ("merge Bob Nguyen and Robert Nguyen"), pass names=[both names]: only that pair
+  is handled, and if it comes back in to_confirm, show its merge card as below.
   It merges every pair that is 80%+ sure by itself. Say how many it merged and name each pair with its score and
   evidence (each has an Undo on its card). Say the gift totals are unchanged only when gifts_unchanged is true;
   otherwise name each gift in a merged pair's counted_once (the same gift was on both records and now counts
@@ -719,18 +721,33 @@ def giver_count(conn) -> int:
     return conn.execute("SELECT COUNT(*) FROM donors WHERE COALESCE(contact_type, 'giver') = 'giver'").fetchone()[0]
 
 
+def names_match(pair: dict, names: list[str]) -> bool:
+    """Each name the user gave matches one side of the pair (case-insensitive, either way round)."""
+    sides = [(pair[k] or {}).get("full_name", "").lower() for k in ("a", "b")]
+    wanted = [n.strip().lower() for n in names if n.strip()]
+    if not wanted:
+        return True
+    return all(any(w in side or side in w for side in sides if side) for w in wanted) and (
+        len(wanted) < 2 or {i for w in wanted for i, side in enumerate(sides) if side and (w in side or side in w)} == {0, 1})
+
+
 @function_tool
-def resolve_duplicates(ctx: RunContextWrapper[ChatContext]) -> dict:
+def resolve_duplicates(ctx: RunContextWrapper[ChatContext], names: list[str] | None = None) -> dict:
     """Duplicates protocol, only when the user asks to fix / merge / clean up duplicates (or works a review task).
     Merges every pending pair that is at least 80% sure, by itself, and returns each with its evidence and an Undo;
-    returns the less certain pairs in to_confirm, with both records' giving, for the user to decide."""
+    returns the less certain pairs in to_confirm, with both records' giving, for the user to decide.
+    names: when the user names the people ("merge Bob Nguyen and Robert Nguyen"), only the pair matching them."""
     from service import agent_writes, dedupe, score
+    names = [n for n in (names or []) if n and n.strip()]
+
+    def pending(conn) -> list[dict]:
+        return [p for p in duplicate_pairs(conn) if names_match(p, names)]
 
     def run(conn):
         before = {"gifts": gift_totals(conn), "givers": giver_count(conn)}
         merged, skipped, tried = [], [], set()
         for _ in range(3):        # each merge re-scans, which can surface a new sure pair (a chain of three records)
-            sure = [p for p in duplicate_pairs(conn) if p["confidence"] >= AUTO_MERGE_AT and p["suggestion_id"] not in tried]
+            sure = [p for p in pending(conn) if p["confidence"] >= AUTO_MERGE_AT and p["suggestion_id"] not in tried]
             if not sure:
                 break
             for p in sure:
@@ -753,13 +770,14 @@ def resolve_duplicates(ctx: RunContextWrapper[ChatContext]) -> dict:
                                "undo_merge_id": result.get("merge_id")})
             score.run(conn)
             dedupe.run(conn)
-        rest = duplicate_pairs(conn)
+        rest = pending(conn)
         after = {"gifts": gift_totals(conn), "givers": giver_count(conn)}
         out = {"merged": merged, "skipped": skipped, "to_confirm": rest, "gifts": after["gifts"],
                "gifts_unchanged": after["gifts"] == before["gifts"],
                "givers": {"before": before["givers"], "after": after["givers"]}}
         if not merged and not rest:
-            out["note"] = "No possible duplicates right now."
+            out["note"] = (f"No pending duplicate pair for {' and '.join(names)}." if names
+                           else "No possible duplicates right now.")
         if merged:
             out["card"] = {"kind": "merged_pairs", "pairs": [
                 {"suggestion_id": m["suggestion_id"], "kept": m["kept"], "merged_in": m["merged_in"],
