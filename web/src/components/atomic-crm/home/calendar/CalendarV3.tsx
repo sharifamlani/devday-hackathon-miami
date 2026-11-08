@@ -115,10 +115,10 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
           {monthName} {year}
         </p>
         <div className="cal3-nav-tools">
-          <button type="button" className={cn("cal3-today", focusRing)} onClick={() => setOffset(0)}>
+          <button type="button" className={cn("cal3-today", focusRing)} onClick={() => { setOffset(0); setSelected(null); }}>
             Today
           </button>
-          <button type="button" aria-label="Previous week" className={focusRing} onClick={() => setOffset(offset - 1)}>
+          <button type="button" aria-label="Previous week" className={focusRing} onClick={() => { setOffset(offset - 1); setSelected(null); }}>
             <ChevronLeft size={16} aria-hidden="true" />
           </button>
           {selected && (
@@ -127,7 +127,7 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
             </button>
           )}
           <span className="cal3-range" aria-live="polite">{weekRange(start)}</span>
-          <button type="button" aria-label="Next week" className={focusRing} onClick={() => setOffset(offset + 1)}>
+          <button type="button" aria-label="Next week" className={focusRing} onClick={() => { setOffset(offset + 1); setSelected(null); }}>
             <ChevronRight size={16} aria-hidden="true" />
           </button>
         </div>
