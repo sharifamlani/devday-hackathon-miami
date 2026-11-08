@@ -47,6 +47,8 @@ export interface DonorSummary {
   contact_type?: "giver" | "neighbor" | "community" | null;
   /** An automatic merge waiting for staff review (#125); absent on older APIs. */
   auto_merged?: boolean;
+  /** The giver's next open task ("Call Hye-jin Park · Nov 12"); null with none, and for other tabs. */
+  next_step?: string | null;
   merged_from?: number;
 }
 

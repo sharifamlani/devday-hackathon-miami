@@ -531,6 +531,12 @@ const DonorRows = () => {
                   .filter(Boolean)
                   .join(" · ")}
               </p>
+              {donor.next_step && (
+                <p className="truncate text-xs" data-testid="donor-next-step">
+                  <span className="font-medium">Next step:</span>{" "}
+                  {donor.next_step}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground @min-[640px]:hidden">
                 Last gift {formatDay(donor.last_gift_date)} ·{" "}
                 {formatUsd(donor.total_given)} lifetime

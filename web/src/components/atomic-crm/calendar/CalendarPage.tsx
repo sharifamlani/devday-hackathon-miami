@@ -12,6 +12,7 @@ import {
   CalendarDays,
   ExternalLink,
   MapPin,
+  RefreshCw,
 } from "lucide-react";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
@@ -29,6 +30,7 @@ import {
   useContextStatus,
   useEvent,
   useEvents,
+  useRefreshContext,
 } from "../providers/local/crmHooks";
 import { useDonors, useTargets } from "../providers/local/hooks";
 import { useCalendarFeed } from "../providers/local/calendarFeed";
@@ -159,6 +161,7 @@ export const CalendarPage = ({
 }) => {
   const { data, isPending, error } = useEvents();
   const status = useContextStatus();
+  const refresh = useRefreshContext();
   const donors = useDonors();
   const plan = useOutreachPlan();
   useLiveTaskRefresh();
@@ -280,12 +283,35 @@ export const CalendarPage = ({
             The Foundation’s events and your tasks, side by side.
           </p>
         </div>
-        {status.data?.label ? (
-          <p className="rounded-full bg-quiet px-3 py-1.5 text-[13px] text-quiet-foreground">
-            {status.data.label}
-          </p>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {status.data?.label ? (
+            <p className="rounded-full bg-quiet px-3 py-1.5 text-[13px] text-quiet-foreground">
+              {status.data.label}
+            </p>
+          ) : null}
+          {/* Re-read the site, news and events now (POST /context/refresh); the snapshot is read-only. */}
+          {DATA_MODE === "local" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              disabled={refresh.isPending}
+              onClick={() => refresh.mutate()}
+            >
+              <RefreshCw
+                className={cn("size-4", refresh.isPending && "animate-spin")}
+                aria-hidden
+              />
+              {refresh.isPending ? "Refreshing…" : "Refresh now"}
+            </Button>
+          ) : null}
+        </div>
       </div>
+      {refresh.error ? (
+        <p role="alert" className="text-sm text-alert-foreground">
+          {refresh.error.message}
+        </p>
+      ) : null}
 
       {isPending ? (
         <p role="status" className="text-sm text-muted-foreground">
