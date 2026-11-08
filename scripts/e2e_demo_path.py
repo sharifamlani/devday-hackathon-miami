@@ -280,7 +280,8 @@ def s5_home(page: Page, api: Api, web: str, shots: Path):
     side = page.get_by_role("complementary").first if page.get_by_role("complementary").count() else page.locator("body")
     side_text = side.inner_text()
     # Faye's home (#152): no glance tiles; the Tasks tile heading carries the open-task count
-    tasks_head = re.search(r"Tasks\s*\n?\s*(\d+)", side_text)
+    # "Tasks 9", or "Tasks / Alt+T / 9" with #187's shortcut hint between the heading and the count
+    tasks_head = re.search(r"Tasks\s*(?:\n\s*Alt\+T\s*)?\n?\s*(\d+)", side_text)
     events_seen = [t for t in ("Give Miami Day", "Early Giving") if t in side_text]
     record("5 home", f"API at risk = {alerts_expected} (answer key); Tasks tile count = open tasks due today; task rows; events in the agenda",
            f"API risk {s['gifts_at_risk']} dup {s['duplicates']}; Tasks tile {tasks_head.group(1) if tasks_head else '-'} vs open "
