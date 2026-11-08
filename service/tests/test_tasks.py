@@ -169,15 +169,16 @@ def test_artifacts_lists_drafts_campaigns_and_call_notes_when_present(conn):
     conn.execute("INSERT INTO campaign_messages (campaign_id, donor_id, channel, body) VALUES (?, ?, 'email', 'x')",
                  (cid, pid))
     conn.commit()
-    items = tasks.artifacts(conn)   # no call_notes table yet: guarded
+    items = tasks.artifacts(conn)   # no call notes saved yet
     assert [(i["kind"], i["title"]) for i in items] == [("draft", "Campaign: GMD reminders · 1 message"),
                                                         ("draft", "Thank you, Ana")]
-    conn.execute("CREATE TABLE call_notes (id INTEGER PRIMARY KEY, person_id INTEGER, title TEXT, created_at TEXT)")
-    conn.execute("INSERT INTO call_notes (person_id, title, created_at) VALUES (?, NULL, '2026-11-07 15:00:00')", (pid,))
+    conn.execute("INSERT INTO call_notes (id, title, created_at, destinations) VALUES "
+                 "('note-1', 'Call with Ana', '2026-11-07T15:00:00', ?)",
+                 (json.dumps([{"kind": "donor", "id": pid, "label": "Ana Ruiz"}]),))
     conn.commit()
     first = tasks.artifacts(conn)[0]
-    assert first == {"kind": "call_note", "title": "Call note: Ana Ruiz", "date": "2026-11-07 15:00:00",
-                     "ref": "call_note:1"}
+    assert first == {"kind": "call_note", "title": "Call with Ana", "date": "2026-11-07T15:00:00",
+                     "ref": "call_note:note-1", "destinations": ["Ana Ruiz"]}
 
 
 # ---------- the generator ----------
@@ -216,10 +217,61 @@ def test_generate_on_the_sample_upload_is_exact_and_idempotent(conn):
     assert nguyen["chips"][0] == "3 records"   # two aliases, one group
     assert result["created"] == len(made)
 
-    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": []}
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
     _, _ = tasks.delete_task(conn, calls[0]["id"])
     assert tasks.generate(conn, AS_OF)["created"] == 0   # a deleted generated task stays deleted
     assert sum(1 for a in actions(conn) if a["actor"] == "generator") == len(made)
+
+
+def pair(conn, a, b, status="pending"):
+    conn.execute("INSERT INTO duplicate_suggestions (donor_a_id, donor_b_id, reasons, confidence, status) "
+                 "VALUES (?, ?, ?, 0.9, ?)", (a, b, json.dumps([f"pair {a}~{b}"]), status))
+    conn.commit()
+
+
+def reviews(conn):
+    return [dict(r) for r in conn.execute("SELECT id, title, chips, gen_key, deleted_at FROM tasks "
+                                          "WHERE kind = 'review' ORDER BY id")]
+
+
+def test_a_growing_duplicate_group_keeps_one_review_task(conn):
+    """c9: A~B makes a review; dedupe later adds B~C (and a lower id joins): still one task, rewritten."""
+    b, c = person(conn, "Bob Nguyen"), person(conn, "R. Nguyen")
+    a = person(conn, "Robert Nguyen")   # higher id than b: the group's smallest id changes when it joins
+    pair(conn, b, c)
+    first = tasks.generate(conn, AS_OF)
+    assert first["created"] == 1 and first["tasks"][0]["chips"][0] == "2 records"
+
+    pair(conn, a, b)
+    grown = tasks.generate(conn, AS_OF)
+    assert (grown["created"], grown["updated"]) == (0, 1)
+    rows = reviews(conn)
+    assert len(rows) == 1 and json.loads(rows[0]["chips"])[0] == "3 records"
+    assert rows[0]["gen_key"] == "duplicates:" + ",".join(map(str, sorted([a, b, c])))
+    assert "Robert Nguyen" in rows[0]["title"]
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+    assert "update_duplicate_review" in [x["action"] for x in actions(conn)]
+
+
+def test_two_duplicate_groups_that_join_keep_the_older_task(conn):
+    a, b, c, d = (person(conn, n) for n in ("A One", "A Two", "B One", "B Two"))
+    pair(conn, a, b)
+    pair(conn, c, d)
+    assert tasks.generate(conn, AS_OF)["created"] == 2
+    pair(conn, b, c)
+    result = tasks.generate(conn, AS_OF)
+    assert (result["created"], result["updated"]) == (0, 1)
+    live = [r for r in reviews(conn) if not r["deleted_at"]]
+    assert len(live) == 1 and json.loads(live[0]["chips"])[0] == "4 records"
+
+
+def test_a_handled_duplicate_review_is_not_reopened_when_the_group_grows(conn):
+    a, b, c = (person(conn, n) for n in ("X One", "X Two", "X Three"))
+    pair(conn, a, b)
+    made = tasks.generate(conn, AS_OF)["tasks"][0]
+    tasks.delete_task(conn, made["id"])
+    pair(conn, b, c)
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
 
 
 def test_generate_skips_resolved_duplicates(conn):
@@ -280,10 +332,12 @@ def test_routes_crud_undo_generate_calendar_artifacts(client):
     assert client.get("/tasks").json()[0]["id"] == task_id
 
     assert client.post("/tasks", json={"kind": "lunch", "title": "x"}).status_code == 422
+    assert client.post("/tasks", json={"kind": "call", "title": "x", "source": "generator"}).status_code == 422
+    assert client.post("/tasks", json={"kind": "call", "title": "x", "source": "agent"}).json()["source"] == "agent"
     assert client.patch("/tasks/999", json={"title": "x"}).status_code == 404
     assert client.post("/undo/unknown").status_code == 404
 
-    assert client.post("/tasks/generate").json() == {"created": 0, "tasks": []}
+    assert client.post("/tasks/generate").json() == {"created": 0, "tasks": [], "updated": 0}
     assert client.get("/calendar", params={"from": "2026-11-01", "to": "2026-11-30"}).json()[0]["ref"] == f"task:{task_id}"
     assert client.get("/artifacts").json() == []
 

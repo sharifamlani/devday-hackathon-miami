@@ -25,7 +25,6 @@ from service.routes_data import get_conn
 router = APIRouter(tags=["tasks"])
 
 Kind = Literal["call", "email", "review", "prep", "other"]
-Source = Literal["agent", "staff", "generator", "call"]
 
 
 class TaskIn(BaseModel):
@@ -36,7 +35,7 @@ class TaskIn(BaseModel):
     chips: list[str] = []
     due: date | None = None
     time: str | None = None
-    source: Source = "staff"
+    source: Literal["staff", "agent"] = "staff"   # generator/call tasks come only from the service, never the API
 
 
 class TaskPatch(BaseModel):

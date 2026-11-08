@@ -324,17 +324,11 @@ def artifacts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
             n = counts.get(r["id"], 0)
             items.append({"kind": "draft", "title": f"Campaign: {r['name']} · {n} message{'s' if n != 1 else ''}",
                           "date": r["created_at"], "ref": f"campaign:{r['id']}", "status": r["status"]})
-    if _has_table(conn, "call_notes"):   # Agent Phone's table (B3); guarded until it lands
-        cols = _cols(conn, "call_notes")
-        title_col = "title" if "title" in cols else None
-        date_col = "created_at" if "created_at" in cols else None
-        person_col = "person_id" if "person_id" in cols else None
-        select = ", ".join(c for c in ("id", title_col, date_col, person_col) if c)
-        for r in conn.execute(f"SELECT {select} FROM call_notes"):
-            who = names.get(r[person_col]) if person_col else None
-            title = (r[title_col] if title_col else None) or (f"Call note: {who}" if who else "Call note")
-            items.append({"kind": "call_note", "title": title, "date": r[date_col] if date_col else None,
-                          "ref": f"call_note:{r['id']}"})
+    if _has_table(conn, "call_notes"):   # routes_calls.py (#78): one row per saved call
+        for r in conn.execute("SELECT id, title, created_at, saved_at, destinations FROM call_notes"):
+            labels = [d.get("label") for d in json.loads(r["destinations"] or "[]") if d.get("label")]
+            items.append({"kind": "call_note", "title": r["title"] or "Call note", "date": r["created_at"] or r["saved_at"],
+                          "ref": f"call_note:{r['id']}", "destinations": labels})
     items.sort(key=lambda i: i["date"] or "", reverse=True)
     return items[:limit]
 
@@ -402,13 +396,15 @@ def _duplicate_groups(conn: sqlite3.Connection) -> list[tuple[list[int], list[st
 
 
 def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
-    """Create the tasks the data calls for. Idempotent: a rerun creates 0. Returns {created, tasks}."""
+    """Create the tasks the data calls for. Idempotent: a rerun creates 0. Returns {created, tasks, updated}
+    (updated: open duplicate reviews rewritten because their group grew)."""
     from service.gift_alerts import alerts
 
     today = as_of or default_as_of()
     names = {r["id"]: r["full_name"] for r in conn.execute("SELECT id, full_name FROM donors")}
     facts = _gift_facts(conn)
     created: list[dict] = []
+    updated: list[dict] = []
 
     def add(gen_key: str, **fields) -> None:
         result = create_task(conn, actor="generator", gen_key=gen_key, due=fields.pop("due", today.isoformat()),
@@ -426,13 +422,31 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
             title=f"Call {names.get(a['donor_id'], 'donor')}", why=_alert_why(a),
             person_id=a["donor_id"], chips=_call_chips(facts.get(a["donor_id"])))
 
-    # 2. open duplicate groups -> one review each
+    # 2. open duplicate groups -> one review each. A group can grow (A~B, later B~C) or two groups can join,
+    # so a group's task is whichever existing review task shares a member with it: an open one is updated
+    # in place (extra open ones are retired), and a done or deleted one means the group was handled.
+    reviews = [(r, set(map(int, r["gen_key"].split(":", 1)[1].split(","))))
+               for r in conn.execute("SELECT * FROM tasks WHERE gen_key LIKE 'duplicates:%' ORDER BY id")]
     for ids, reasons in _duplicate_groups(conn):
         people = [names.get(i, f"#{i}") for i in ids]
-        add("duplicates:" + ",".join(map(str, ids)), kind="review",
-            title=f"Review possible duplicate: {', '.join(people)}",
-            why="; ".join(reasons) or "These records look like the same person.",
-            person_id=ids[0], chips=[f"{len(ids)} records"] + reasons[:2])
+        key = "duplicates:" + ",".join(map(str, ids))
+        fields = {"title": f"Review possible duplicate: {', '.join(people)}",
+                  "why": "; ".join(reasons) or "These records look like the same person.",
+                  "person_id": ids[0], "chips": [f"{len(ids)} records"] + reasons[:2]}
+        mine = [r for r, members in reviews if members & set(ids)]
+        if not mine:
+            add(key, kind="review", **fields)
+            continue
+        keep, *extra = mine
+        if keep["deleted_at"] or keep["done"] or keep["gen_key"] == key:
+            continue
+        for r in extra:
+            if not (r["deleted_at"] or r["done"]):
+                delete_task(conn, r["id"], actor="generator", _action="retire_duplicate_review")
+        task, _ = update_task(conn, keep["id"], actor="generator", _action="update_duplicate_review", **fields)
+        conn.execute("UPDATE tasks SET gen_key = ? WHERE id = ?", (key, keep["id"]))
+        conn.commit()
+        updated.append(task)
 
     # 3. first gift in the last 30 days -> welcome
     for donor_id, f in facts.items():
@@ -458,7 +472,7 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
                     why=f"{e['title']} is on {when.isoformat()}.", chips=chips,
                     due=max(today, when - timedelta(days=PREP_LEAD_DAYS)).isoformat())
 
-    return {"created": len(created), "tasks": created}
+    return {"created": len(created), "tasks": created, "updated": len(updated)}
 
 
 def main() -> None:
