@@ -102,6 +102,8 @@ const DonorShowContent = () => {
         contact_id={record.id}
       />
       <DuplicateBanner donorId={record.id} />
+      {/* Above the tabs: contact facts stay on every tab and don't wait for the giving history. */}
+      <DonorQuickFacts record={record} />
 
       <Tabs
         value={tab}
@@ -272,7 +274,6 @@ const Overview = ({
   return (
     <>
       <AboutPanel donor={donor} />
-      <DonorQuickFacts record={record} />
       <ScoreWhyPanel
         donor={donor}
         title="Why they're ranked here"
@@ -292,7 +293,7 @@ const Overview = ({
           </ul>
         )}
       </ScoreWhyPanel>
-      <GivingPanel donor={donor} recurring={record.recurring} compact />
+      <GivingPanel donor={donor} recurring={record.recurring} compact byYear />
       <div className={cn(tileClass, "overflow-hidden")}>
         <OutreachPanel donor={donor} />
       </div>
