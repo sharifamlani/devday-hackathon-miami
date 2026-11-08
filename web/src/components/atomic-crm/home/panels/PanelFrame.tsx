@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, X } from "lucide-react";
 import type { WorkspaceView } from "../workspaceView";
 
@@ -45,11 +45,30 @@ export const PanelFrame = ({
           <X size={18} />
         </button>
       </div>
-      <div className="desk-panel-body" key={view}>
-        {children}
+      <div className="desk-panel-body">
+        <DeferredBody key={view}>{children}</DeferredBody>
       </div>
     </section>
   );
+};
+
+/**
+ * Mounts heavy panel content as an interruptible React transition after the frame has been
+ * painted, so the zoom never waits on the list or calendar rendering.
+ */
+const DeferredBody = ({ children }: { children: ReactNode }) => {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => startTransition(() => setReady(true)));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
+  return ready ? <>{children}</> : null;
 };
 
 export const PlaceholderPanel = ({ title }: { title: string }) => (

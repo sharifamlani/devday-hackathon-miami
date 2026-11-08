@@ -57,7 +57,7 @@ def p95(xs):
     return xs[min(len(xs) - 1, int(round(0.95 * (len(xs) - 1))))] if xs else 0.0
 
 
-def fresh(browser, base, w, h, errors, reduced=False, hash_="/"):
+def fresh(browser, base, w, h, errors, reduced=False, hash_="/?onboarding=0"):
     ctx = browser.new_context(
         viewport={"width": w, "height": h},
         reduced_motion="reduce" if reduced else "no-preference",
@@ -76,6 +76,7 @@ def measure(browser, base, view, w, h, shots: Path):
     ctx, page = fresh(browser, base, w, h, errors)
     gaps: list[float] = []
     geo = {}
+    cls = 0.0
     for i in range(CYCLES):
         if i == 1:
             page.evaluate(CLS_OBSERVER)  # CLS counted after the first open has settled
@@ -86,6 +87,7 @@ def measure(browser, base, view, w, h, shots: Path):
             page.screenshot(path=str(shots / f"{view}-{w}x{h}-mid.png"))
         page.wait_for_timeout(700)
         gaps += page.evaluate(STOP)
+        page.evaluate("window.__cls = 0")  # CLS is counted from here: after the zoom has settled
         if i == 0:
             page.wait_for_timeout(500)
             geo = page.evaluate(GEOMETRY)
@@ -94,7 +96,9 @@ def measure(browser, base, view, w, h, shots: Path):
         page.evaluate("window.__desk.closeWorkspace()")
         page.wait_for_timeout(600)
         gaps += page.evaluate(STOP)
-    cls = page.evaluate("window.__cls || 0")
+        cls += page.evaluate("window.__cls || 0") if i >= 1 else 0
+        page.evaluate("window.__cls = 0")
+    cls = round(cls, 4)
     ctx.close()
     ratio = geo["pw"] / geo["space"] if geo.get("space") else 0
     lo, hi = LIMITS["ratio"]
@@ -161,7 +165,7 @@ def check_reduced(browser, base):
 
 def check_cold_and_back(browser, base):
     errors: list[str] = []
-    ctx, page = fresh(browser, base, 1440, 900, errors, hash_="/?workspace=tasks")
+    ctx, page = fresh(browser, base, 1440, 900, errors, hash_="/?onboarding=0&workspace=tasks")
     page.wait_for_selector(".desk-main-panel[data-workspace='tasks']", timeout=15000)
     opened = page.evaluate(GEOMETRY)["has"]
     page.go_back()
@@ -169,7 +173,7 @@ def check_cold_and_back(browser, base):
     g = page.evaluate(GEOMETRY)
     ok = opened and not g["has"] and not errors
     print(f"cold /?workspace=tasks opened={opened}, history.back closed={not g['has']} console={len(errors)} {'PASS' if ok else 'FAIL'}")
-    page.goto(f"{base}/#/?workspace=bogus")
+    page.goto(f"{base}/#/?onboarding=0&workspace=bogus")
     page.wait_for_timeout(1500)
     bogus = page.evaluate(GEOMETRY)["has"]
     ok2 = not bogus and not errors
