@@ -278,6 +278,89 @@ def run(conn: sqlite3.Connection) -> int:
 
 
 MOVED_TABLES = ["gifts", "research_facts", "outreach_drafts"]
+# The Donors tab's own records (routes_crm.py), keyed by contact_id = donors.id
+CRM_MOVED_TABLES = ["crm_contact_notes", "crm_tasks"]
+
+
+def _has_table(conn: sqlite3.Connection, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)).fetchone() is not None
+
+
+def _crm_contact_row(conn: sqlite3.Connection, contact_id: int) -> dict | None:
+    row = conn.execute("SELECT contact_id, background, last_seen FROM crm_contacts WHERE contact_id = ?",
+                       (contact_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def _merge_crm(conn: sqlite3.Connection, keep_id: int, drop_id: int) -> dict:
+    """Give the kept donor the dropped donor's CRM notes, tasks, tags, background and last seen, inside the
+    caller's transaction. Returns exactly what changed, for merge_log.moved (undo_merge reverses it).
+
+    Tags: the kept donor's tags first, then the dropped donor's it didn't have. Background: the kept donor's,
+    the dropped donor's when the kept one is empty, both (kept first) when they differ. Last seen: the later."""
+    if not _has_table(conn, "crm_contacts"):
+        return {}
+    moved = {t: [r[0] for r in conn.execute(f"SELECT id FROM {t} WHERE contact_id = ? ORDER BY id", (drop_id,))]
+             for t in CRM_MOVED_TABLES}
+    for table in CRM_MOVED_TABLES:
+        conn.execute(f"UPDATE {table} SET contact_id = ? WHERE contact_id = ?", (keep_id, drop_id))
+
+    kept_tags = [r[0] for r in conn.execute(
+        "SELECT tag_id FROM crm_contact_tags WHERE contact_id = ? ORDER BY position, tag_id", (keep_id,))]
+    dropped_tags = [[r[0], r[1]] for r in conn.execute(
+        "SELECT tag_id, position FROM crm_contact_tags WHERE contact_id = ? ORDER BY position, tag_id", (drop_id,))]
+    added = [t for t, _ in dropped_tags if t not in kept_tags]
+    for i, tag_id in enumerate(added, start=len(kept_tags)):
+        conn.execute("INSERT INTO crm_contact_tags (contact_id, tag_id, position) VALUES (?, ?, ?)",
+                     (keep_id, tag_id, i))
+    conn.execute("DELETE FROM crm_contact_tags WHERE contact_id = ?", (drop_id,))
+
+    kept_before, dropped = _crm_contact_row(conn, keep_id), _crm_contact_row(conn, drop_id)
+    kept_after = kept_before
+    if dropped:
+        kb = (kept_before or {}).get("background") or ""
+        db_ = dropped.get("background") or ""
+        background = kb if not db_ or db_.strip() == kb.strip() else (db_ if not kb.strip() else f"{kb}\n\n{db_}")
+        seen = max([v for v in ((kept_before or {}).get("last_seen"), dropped.get("last_seen")) if v], default=None)
+        now = _now()
+        conn.execute("INSERT INTO crm_contacts (contact_id, background, last_seen, updated_at) VALUES (?, ?, ?, ?) "
+                     "ON CONFLICT(contact_id) DO UPDATE SET background = excluded.background, "
+                     "last_seen = excluded.last_seen, updated_at = excluded.updated_at",
+                     (keep_id, background or None, seen, now))
+        conn.execute("DELETE FROM crm_contacts WHERE contact_id = ?", (drop_id,))
+        kept_after = _crm_contact_row(conn, keep_id)
+    moved["crm_contact_tags"] = {"dropped": dropped_tags, "added_to_kept": added}
+    moved["crm_contacts"] = {"kept_before": kept_before, "kept_after": kept_after, "dropped": dropped}
+    return moved
+
+
+def _undo_crm(conn: sqlite3.Connection, moved: dict, kept_id: int, merged_id: int) -> None:
+    """Reverse _merge_crm inside the caller's transaction. Changes staff made to the kept donor's background
+    since the merge are left alone; tags deleted since the merge are not brought back."""
+    if not _has_table(conn, "crm_contacts"):
+        return
+    for table in CRM_MOVED_TABLES:
+        for row_id in moved.get(table, []):
+            conn.execute(f"UPDATE {table} SET contact_id = ? WHERE id = ? AND contact_id = ?",
+                         (merged_id, row_id, kept_id))
+    tags = moved.get("crm_contact_tags") or {}
+    for tag_id in tags.get("added_to_kept", []):
+        conn.execute("DELETE FROM crm_contact_tags WHERE contact_id = ? AND tag_id = ?", (kept_id, tag_id))
+    for tag_id, position in tags.get("dropped", []):
+        conn.execute("INSERT OR IGNORE INTO crm_contact_tags (contact_id, tag_id, position) "
+                     "SELECT ?, id, ? FROM crm_tags WHERE id = ?", (merged_id, position, tag_id))
+    contacts = moved.get("crm_contacts") or {}
+    dropped = contacts.get("dropped")
+    if dropped:
+        if _crm_contact_row(conn, kept_id) == contacts.get("kept_after"):
+            before = contacts.get("kept_before")
+            if before:
+                conn.execute("UPDATE crm_contacts SET background = ?, last_seen = ?, updated_at = ? "
+                             "WHERE contact_id = ?", (before["background"], before["last_seen"], _now(), kept_id))
+            else:
+                conn.execute("DELETE FROM crm_contacts WHERE contact_id = ?", (kept_id,))
+        conn.execute("INSERT OR REPLACE INTO crm_contacts (contact_id, background, last_seen, updated_at) "
+                     "VALUES (?, ?, ?, ?)", (merged_id, dropped["background"], dropped["last_seen"], _now()))
 
 
 def _now() -> str:
@@ -287,7 +370,8 @@ def _now() -> str:
 def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = None,
           approved_by: str | None = None) -> dict:
     """Merge a suggested pair into one donor. The kept donor takes the other's gifts, research facts,
-    drafts and emails, and fills any blank fields from it; the other donor row is then deleted.
+    drafts and emails, and fills any blank fields from it; the other donor row is then deleted. The Donors
+    tab's notes, tasks, tags and background move too (_merge_crm).
     Default keeper: the donor with more gifts (ties → lower id). Raises ValueError on a bad request.
 
     Everything needed to undo the merge exactly is written to merge_log in the same transaction."""
@@ -333,6 +417,7 @@ def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = No
         for table in MOVED_TABLES:
             moved[table] = conn.execute(
                 f"UPDATE {table} SET donor_id = ? WHERE donor_id = ?", (keep_id, drop_id)).rowcount
+        moved_ids.update(_merge_crm(conn, keep_id, drop_id))
         conn.execute("DELETE FROM donor_scores WHERE donor_id = ?", (drop_id,))
         conn.execute("DELETE FROM donors WHERE id = ?", (drop_id,))
 
@@ -390,6 +475,7 @@ def undo_merge(conn: sqlite3.Connection, merge_id: int) -> dict:
             for row_id in moved.get(table, []):
                 conn.execute(f"UPDATE {table} SET donor_id = ? WHERE id = ? AND donor_id = ?",
                              (merged_id, row_id, kept_id))
+        _undo_crm(conn, moved, kept_id, merged_id)
         if merged_score:
             sc = list(merged_score)
             conn.execute(f"INSERT OR REPLACE INTO donor_scores ({', '.join(sc)}) VALUES ({', '.join('?' * len(sc))})",

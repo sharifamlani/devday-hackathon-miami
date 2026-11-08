@@ -1,4 +1,9 @@
 import type {
+  CallNote,
+  NoteDestination,
+  TranscriptLine,
+} from "../../voice/callNotes";
+import type {
   ApiDonorDetail,
   ApiDonorRow,
   ApiDuplicate,
@@ -250,6 +255,33 @@ const fromJson = <T>(raw: ApiJson<T>): T | null => {
   }
 };
 
+/* ---------- Call notes from GET /donors/{id} ---------- */
+
+const asList = <T>(raw: unknown): T[] => {
+  const value = typeof raw === "string" ? fromJson<T[]>(raw) : raw;
+  return Array.isArray(value) ? (value as T[]) : [];
+};
+
+/**
+ * The optional call_notes on GET /donors/{id} (snake_case from the service,
+ * camelCase accepted) as the browser's CallNote shape. Malformed items are
+ * dropped rather than shown half-empty.
+ */
+export const parseApiCallNotes = (raw: unknown): CallNote[] =>
+  asList<Record<string, unknown>>(raw)
+    .filter((n) => n && typeof n === "object" && n.id != null)
+    .map((n) => ({
+      id: String(n.id),
+      title: String(n.title ?? "Call"),
+      createdAt: String(n.created_at ?? n.createdAt ?? n.saved_at ?? ""),
+      durationSec: Number(n.duration_sec ?? n.durationSec ?? 0) || 0,
+      destinations: asList<NoteDestination>(n.destinations),
+      transcript: asList<TranscriptLine>(n.transcript),
+      notes: String(n.notes ?? ""),
+      summary: asList<string>(n.summary).map(String),
+      nextSteps: asList<string>(n.next_steps ?? n.nextSteps).map(String),
+    }));
+
 /** {fact, url} or {fact, source_url}; drops anything without both. */
 const parseFactsUsed = (raw: ApiJson<unknown>): FactUsed[] => {
   const list = fromJson(raw);
@@ -378,6 +410,8 @@ export const parseDonorDetail = (raw: ApiDonorDetail): DonorDetail => ({
   merges: parseMerges(raw.merges),
   // outreach_drafts comes newest first.
   draft: raw.outreach_drafts?.length ? parseDraft(raw.outreach_drafts[0]) : null,
+  // Absent on older servers; always [] in the snapshot (export_snapshot.py).
+  call_notes: parseApiCallNotes(raw.call_notes),
 });
 
 export const parseDuplicate = (raw: ApiDuplicate): DuplicatePair => {
