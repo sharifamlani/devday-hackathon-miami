@@ -1838,6 +1838,8 @@ are in `docs/demo-script.md` (the script wins on wording; this section wins on o
 as of Sun Nov 8 afternoon: the landing as setup step 1, no suggestion chips (every prompt is typed), the dashboard briefing, streaming agent replies, calendar v3. Nothing
 here is run until Sharif says go.
 
+**Changed Sun Nov 8, ~4:25 PM (Sharif): no empty-start onboarding.** LIVE (579b7e4) keeps the loaded data (78 donors, Christian included) and the demo opens on the dashboard. **Never run `demo_reset.py` or `tminus30.sh` before the demo: they empty the db.** Skipped below: rows 1–2b, the flowchart's (1)–(2), smokes 2 and 6, the T-60 reset, and the 1/2 fallbacks.
+
 ### 22.1. Files touched
 ```
 plan.md                         §22 (this section): run order, T-minus checklist, smokes, criteria, roles, fallbacks
@@ -1853,30 +1855,22 @@ No UI or code changes: this section only orders what is already on main.
 ### 22.2. The stage run (flow)
 ```
  T-30  +-----------------------------------------------+
-       | venv python: scripts\demo_reset.py --warm      |  service stopped
-       |  -> "PASS stage numbers: 77 people / 9 ..."    |--(exit 1)--> run it again
+       | VERIFY THE LOADED DATA (no reset)             |  never demo_reset.py / tminus30.sh
+       |  new incognito window -> the dashboard        |
        +-----------------------+-----------------------+
                                v
        +-----------------------------------------------+
        | LIVE service :8001 + web :5173 (local mode)    |  scripts\live_stack.ps1 (IT lane)
-       | smokes 1-4 (22.4)  ->  browser on the landing  |
+       | smokes 1,3,4 (22.4) -> browser on the dashboard|
        +-----------------------+-----------------------+
                                v
  T-0   +-----------------------------------------------+
-  (1)  | EMPTY APP: the gatherly landing                |  "Nothing is preloaded."
+  (1)  | LOADED DASHBOARD (78 donors, Christian incl.) |  no reset (Sharif, ~4:25 PM)
        +-----------------------+-----------------------+
                                v
   (2)  +-----------------------------------------------+
-       | ONBOARDING (landing, then the org step)       |
-       |  landing: Try sample data (8 sample files)    |
-       |  processing view: "Bringing your data         |
-       |  together." -> "Everything's in place."       |
-       |  results: "Your donor data is ready."         |
-       |  77 accounts · 19 removed · 9 to review       |
-       |  -> Create organization profile               |
-       |  website miamifoundation.org -> Continue      |
-       |  -> dashboard at once; site read in the       |
-       |     background (~30 s)                        |
+       | ONBOARDING (landing, sample data, org step):  |
+       |  SKIPPED                                      |
        +-----------------------+-----------------------+
                                v
   (3)  +-----------------------------------------------+
@@ -1909,10 +1903,10 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 
 | # | Step | Operator does | Screen shows |
 |---|---|---|---|
-| 1 | Empty app | Hard refresh http://localhost:5173/ | the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data**, **Try sample data** |
-| 2a | Files | **Try sample data** (or **Upload donor data** → the 8 files → **Import donor data**) | the processing view (**gatherly**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **19 Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage), ~8 s after the click → **Create organization profile** |
-| 2b | Website | **Your organization.** ("Start with your website."; no step label on this screen): leave **Organization name** as prefilled (**The Miami Foundation**, required), type `miamifoundation.org`, **Continue** | the dashboard opens in under 2 s (e.g. **15 tasks today**); the site and news are read in the background, and the 4 events, prep tasks and facts land ~30 s after **Continue** (27.5 s in T1) |
-| 3 | Dashboard | **Not now** on the tour card (it may read "We're still reading your website…") | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, the calendar tile's week grid (Sat 14; after **›**, next week's Sun 15 ×2 as one block reading "T… / T…", Thu 19: use the day view or **By day** for full names) |
+| 1 | SKIPPED: Empty app | Hard refresh http://localhost:5173/ | the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data**, **Try sample data** |
+| 2a | SKIPPED: Files | **Try sample data** (or **Upload donor data** → the 8 files → **Import donor data**) | the processing view (**gatherly**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **19 Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage), ~8 s after the click → **Create organization profile** |
+| 2b | SKIPPED: Website | **Your organization.** ("Start with your website."; no step label on this screen): leave **Organization name** as prefilled (**The Miami Foundation**, required), type `miamifoundation.org`, **Continue** | the dashboard opens in under 2 s (e.g. **15 tasks today**); the site and news are read in the background, and the 4 events, prep tasks and facts land ~30 s after **Continue** (27.5 s in T1) |
+| 3 | Dashboard (the demo starts here) | Open http://localhost:5173/ in the NEW incognito window from T-30; **Not now** if a tour card shows | **Good afternoon, Sharif.**, the gauge **66%** / **$98.8k**, **5 usual gifts look late.**, **9 possible duplicates to review.** **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, the calendar tile's week grid (Sat 14; after **›**, next week's Sun 15 ×2 as one block reading "T… / T…", Thu 19: use the day view or **By day** for full names) |
 | 4a | Duplicates in chat (do it first) | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix**. Do this before "Plan next week": after it the briefing's **Review** scrolls out of reach | the agent works the duplicates in the chat (~6 s, 5.8 s in T1); merging still waits for a click |
 | 4b | Chat streams | Type *"Plan next week"* in **Ask the agent…** → **Send** | step cards in ~2 s, the plan types out live (~6 s: first text 4.9 s, done 6.4 s in T1) |
 | 4c0 | Email draft (Sharif's Q2) | Type *"Prep an email for Priya Raman"* | **Find people** ("1 people: Priya Raman"), **Draft email**, **Send** ("waiting for your approval to send"), then **Needs your approval** · "Send thank-you email to Priya Raman": **To Priya Raman**, a subject (varies), the body (her $500 gift on November 2, the Foundation's recent work; wording varies), **Send** · **Don't send**, ~15 s (14.5 s / 15.3 s in two browser runs on 579b7e4). **Don't click Send.** |
@@ -1926,13 +1920,10 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 
 **The live call to Christian (4c) is the only call on stage** (Sharif: "We're not calling Hye-jin. We're going to be calling Christian Gonzalez."). The Live transcript demo call with Hye-jin Park (#210) is out of the run and kept only as 4c's fallback (22.7); `docs/demo-script.md` step 11 carries both.
 
-**4c, the live call.** Christian Gonzalez is a teammate added as a donor on LIVE only. His real number never goes in
-a committed doc: write "his verified number". The T-30 reset empties LIVE's db, and anyone added before onboarding
-would break the empty start (setup treats existing people as "already set up"). So **the IT lane adds him off-screen
-during step 3 (the dashboard tour)**, in its own terminal, never on the projector:
-`cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" -c "from service import db, agent_writes; c = db.connect(); print(agent_writes.add_contact(c, 'Christian Gonzalez', phone='<his verified number>')[0]['id']); c.commit()"`
-(prints only his id). Then it checks `(Invoke-RestMethod "http://localhost:8001/phone/preview?donor_id=<his id>").ready`
-→ `True` before the presenter reaches 4c (only the flag is shown, no numbers). The panel shows both phone numbers;
+**4c, the live call.** Christian Gonzalez is a teammate, already a donor in LIVE's loaded data. His real number never
+goes in a committed doc: write "his verified number". At T-30 (step 3) the IT lane checks
+`(Invoke-RestMethod "http://localhost:8001/phone/preview?donor_id=<his id>").ready` → `True` (only the flag is shown,
+no numbers). The panel shows both phone numbers;
 everything is public (Sharif), but this doc never quotes the digits: it writes "(…)". If it's not ready, 4c is skipped for 4d (fallback below). The staff phone (`STAFF_PHONE`) rings
 first, so the person answering it is part of the call. Labels are from the code (`phone.ts` `statusLabel`,
 `PhoneCallInline`); 54's live test call confirms them.
@@ -1956,39 +1947,18 @@ Live-call notes (19, from the real test call):
   His **Recent calls** start empty on stage (the T-30 reset wipes the test calls).
 
 ### 22.3. T-minus checklist (laptop operator)
-- [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
-- [ ] **T-30 (reset), OWNER: the IT lane (session 20).** The stage laptop runs LIVE: the service on :8001 (the
-      writable one; :5173's `VITE_API_URL` points there) and the web on :5173. `demo_reset.py` resets the db of the
-      folder it runs from, so it runs from `C:\Users\Shari\dd-live-main`, **never the Dropbox repo**.
-      1. **Pause the public copy (~1 min; Sharif: "1 min pause, no further").** The tunnel and :8401 stay on
-         permanently (CLAUDE.md rule 16) except for this pause. Session 20 sends session 22 "pause for reset"; session
-         22 stops :8401 (`demo_off.sh`, local in its scratchpad: the stop-file halts `follow_live.sh`, then only the
-         process on :8401 stops). Check: `curl -s http://localhost:8401/health` gets no answer. Then session 20 runs
-         `SKIP_BROWSER=1 bash tminus30.sh live` (local to session 20, not in the repo; ~24 s): a backup → the guard (:8401 down, 0 active calls) → the stage
-         reset (must print **`PASS stage numbers: 77 people / 9 duplicate suggestions`**, landing, READY) → checks (0
-         donors, 0 gifts, events `[]`, public mode off). Steps 2–5 are the same reset by hand, if the script fails.
-      2. Stop LIVE's service only: `scripts\live_stack.ps1 stop -Stack live -Only service`.
-      3. From `C:\Users\Shari\dd-live-main`, with the repo venv's Python (the one `live_stack.ps1` uses; plain
-         `python` may lack the deps), in PowerShell:
-         `cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" scripts\demo_reset.py --warm --port 8001`. It must end with
-         **`PASS stage numbers: 77 people / 9 duplicate suggestions`**. Exit 1 means run it again.
-      4. Start LIVE's service: `scripts\live_stack.ps1 start -Stack live -Only service`.
-      5. Smokes 3–4 (22.4) on :8001 / :5173.
-      6. **Un-pause at once.** As soon as step 3 prints PASS and step 4 is up, session 20 sends session 22 "reset done";
-         session 22 removes the stop-file and re-arms `follow_live.sh` in the background. Within ~20 s it starts :8401
-         on LIVE's commit, fully writable (rule 15: no `PUBLIC_MODE`; `SEND_ALLOWLIST`, phone calls and Twilio come from
-         LIVE's `.env`), from `C:\Users\Shari\dd-live-main` (its `data/donors.db` and `.env`):
-         `PUBLIC_MODE= PUBLIC_SHOW_ALL= CORS_ORIGINS=https://devday-donor-desk.vercel.app REFRESH_DAILY_AT= python -m uvicorn service.main:app --host 127.0.0.1 --port 8401`
-         (empty `REFRESH_DAILY_AT`: no second scheduler), and keeps Vercel prod pinned to LIVE's build. Check:
-         `curl -s http://localhost:8401/health` → HTTP 200. Steps 1–6 take about a minute. Then, separately, session 20
-         runs `landing_check.sh live` (a fresh-browser landing check, ~8 s) and `christian_after_upload.sh live` in
-         the background (both local to session 20, not in the repo) (it waits for Sharif's upload, then adds Christian off-screen; see **4c, the live call**).
-         **Risk:** right after the reset LIVE is empty and the public site is writable, so a visitor could import
-         before Sharif does. Session 20's donor watch alerts if anyone does; then re-run the reset (steps 1–6).
-      7. Open a NEW incognito window (close any old one first) at http://localhost:5173/, never a rehearsal tab: the home chat thread lives in the tab's sessionStorage (`donor-desk-agent-chat`), so a reused tab shows the rehearsal conversation after the reset. Then check that the bare URL shows the **gatherly** landing (**Upload donor data** / **Try sample data**): the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL shows the landing instead of setup.
+- [ ] **T-60 (rehearsal): SKIPPED** (smoke 6 and its reset would empty the loaded data).
+- [ ] **T-30 (verify the loaded data), OWNER: the IT lane (session 20).** LIVE runs from `C:\Users\Shari\dd-live-main`
+      (579b7e4): the service on :8001 and the web on :5173, with the loaded data. No reset, no landing check, no
+      Christian watcher, no :8401 pause (it stays on, rule 16). **Don't run `demo_reset.py` or `tminus30.sh`.**
+      1. Smokes 3–4 (22.4) on :8001 / :5173.
+      2. Open a NEW incognito window (close any old one first) at http://localhost:5173/, never a rehearsal tab: the
+         home chat thread lives in the tab's sessionStorage (`donor-desk-agent-chat`). It opens on the loaded
+         dashboard: **Good afternoon, Sharif.**, the gauge **66%** / **$98.8k**, **5 usual gifts look late.**, **9 possible duplicates to review.**
+      3. Christian is in the data and callable: the `/phone/preview` check in **4c, the live call** returns `True`.
 - [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
       key, and a busy key slows invites and agent replies (Nov 8: 429s).
-- [ ] **T-20:** smokes 1–4 (22.4), in order.
+- [ ] **T-20:** smokes 1, 3 and 4 (22.4), in order.
 - [ ] **T-15 (public site):** :8401 is ON and stays on for the whole run (rule 16). Check
       `curl -s http://localhost:8401/health` → HTTP 200 and `curl -s http://localhost:8401/public-mode` →
       `{"enabled":false,"redacted":false}`; then open the public link (https://devday-donor-desk.vercel.app) in a
@@ -2001,8 +1971,8 @@ Live-call notes (19, from the real test call):
 - [ ] **T-15 (phone, IT lane):** LIVE's `.env` has the six call settings, checked without printing their values:
       `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^(PHONE_CALLS|TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|TWILIO_PHONE_NUMBER|STAFF_PHONE|SEND_ALLOWLIST)=' | % { $_.Line.Split('=')[0] }`
       must print all six names; `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^PHONE_CALLS=on'`
-      must match; `SEND_ALLOWLIST` must include his verified number. (The `/phone/preview` check for Christian comes
-      after he's added, during step 3; see 4c.)
+      must match; `SEND_ALLOWLIST` must include his verified number. (The `/phone/preview` check for Christian is
+      T-30 step 3.)
 - [ ] **T-15 (staff phone):** the Twilio number is saved as a contact on the staff phone (Sharif's), so iPhone call
       screening doesn't answer it. **Christian is briefed:** answer, and press any key when the trial message plays
       (Sharif does the same on his phone); without the key press Twilio hangs up. During the run, nobody restarts LIVE's service between 4c's **Call** and its
@@ -2013,24 +1983,24 @@ Live-call notes (19, from the real test call):
       apps (Dropbox sync paused, no other dev servers).
 - [ ] **T-5 (fallback):** the Vercel preview open in a second tab (https://devday-donor-desk.vercel.app); a hotspot
       ready as Wi-Fi backup.
-- [ ] **T-0:** in the NEW incognito window from T-30 step 7 (not a rehearsal tab; a hard refresh keeps the old chat): the app shows the **gatherly** landing ("Less time on tasks. More time for people.") with nothing behind it.
+- [ ] **T-0:** in the NEW incognito window from T-30 step 2 (not a rehearsal tab; a hard refresh keeps the old chat): the loaded dashboard, **Good afternoon, Sharif.**, the gauge **66%** / **$98.8k**, **5 usual gifts look late.**, **9 possible duplicates to review.**
 
 ### 22.4. Derisking: smokes in dependency order
 1. **What it proves:** the API key, the model tiers and the Agents SDK work.
    **Command:** `.venv/Scripts/python.exe scripts/smoke-openai.py` · **Expected:** `7/7`, exit 0.
    **If it fails →** check `.env` (`OPENAI_API_KEY`, `OPENAI_MODEL_*`), then rerun; don't start the demo on a failing key.
-2. **What it proves:** the upload reads the 8 files to the stage numbers, and the cache is warm.
+2. **SKIPPED (it empties the db).** **What it proves:** the upload reads the 8 files to the stage numbers, and the cache is warm.
    **Command:** T-30 step 3 (from `dd-live-main`, the venv Python, `--warm --port 8001`; LIVE's service
    stopped; never from the Dropbox repo) · **Expected:** `PASS stage numbers: 77 people
    / 9 duplicate suggestions (expected 77 / 9, …)`, exit 0. **If it fails →** run it again (it retries the model read);
    twice FAIL means demo the counts the receipt shows and say "the agent sorted them".
-3. **What it proves:** the service is up, empty and private.
+3. **What it proves:** the service is up, loaded and private.
    **Command:** `curl -s http://localhost:8001/health` · `curl -s http://localhost:8001/events` ·
-   `curl -s http://localhost:8001/public-mode` · **Expected:** HTTP 200 · `[]` · `{"enabled":false}` (:8001 is
+   `curl -s http://localhost:8001/public-mode` · **Expected:** HTTP 200 · a non-empty list (the loaded events) · `{"enabled":false}` (:8001 is
    never in public mode).
-   **If it fails →** restart the service from the reset's printout; a non-empty `/events` means rerun step 2.
+   **If it fails →** `[]` means the db was emptied: tell the lead and session 20 to restore the loaded data (never run the reset).
 4. **What it proves:** the web talks to that service in local mode.
-   **Command:** open http://localhost:5173 · **Expected:** the **gatherly** landing (**Upload donor data** / **Try sample data**), 0 errors in the DevTools
+   **Command:** open http://localhost:5173 · **Expected:** the loaded dashboard (**Good afternoon, Sharif.**), 0 errors in the DevTools
    console. **If it fails →** check `VITE_API_URL=http://localhost:8001` and `VITE_DATA_MODE=local`; restart the web
    (`scripts\live_stack.ps1 restart -Stack live -Only web`).
 5. **What it proves:** the public link serves the live laptop data (the tunnel stays open, rule 16).
@@ -2039,7 +2009,7 @@ Live-call notes (19, from the real test call):
    the page loads the live data without the **Sample data** badge.
    **If it fails →** ask session 22 to re-arm `follow_live.sh` (never stop or start :8401 by process image name, and
    never a bare `public_tunnel.py on`); if it isn't back in 2 minutes, the snapshot is the fallback (see T-15).
-6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
+6. **SKIPPED (it needs the empty-start reset).** **What it proves (end to end, T-60 only):** the whole run works and the data is right.
    **Command:** run 22.2 in the browser; right after step 2's import (before the IT lane adds Christian in step 3),
    the IT lane runs `scripts\demo_reset.py --check` from `dd-live-main` with the same venv Python (it approves the
    suggested merges on a COPY of the db); then the browser run continues through 4c and the close · **Expected:**
@@ -2051,13 +2021,13 @@ Live-call notes (19, from the real test call):
 ### 22.5. Evaluation criteria (definition of done for the stage run)
 | Criterion | Metric + threshold | How measured | Evidence |
 |---|---|---|---|
-| Stage numbers before going on | `PASS stage numbers: 77 people / 9` | `demo_reset.py --warm` output | the terminal line, kept on screen |
-| Results view matches the upload | **77 Accounts recognized** and "**9 possible matches still need review.**" on screen | read the results view (step 2a) | rehearsal screenshot |
-| Setup is fast enough for a stage | **Try sample data** → **Your donor data is ready.** ≤ 20 s; **Continue** → the 4 events on the dashboard ≤ 60 s | stopwatch from click to screen | rehearsal timing table |
+| SKIPPED: Stage numbers before going on | `PASS stage numbers: 77 people / 9` | `demo_reset.py --warm` output | the terminal line, kept on screen |
+| SKIPPED: Results view matches the upload | **77 Accounts recognized** and "**9 possible matches still need review.**" on screen | read the results view (step 2a) | rehearsal screenshot |
+| SKIPPED: Setup is fast enough for a stage | **Try sample data** → **Your donor data is ready.** ≤ 20 s; **Continue** → the 4 events on the dashboard ≤ 60 s | stopwatch from click to screen | rehearsal timing table |
 | All 4 events land | Sat 14 Early Giving, Sun 15 5K + Festival, Thu 19 Give Miami Day on the week strip | read the week strip / calendar | rehearsal screenshot |
 | Agents feel live | first step card ≤ 3 s; "Plan next week" done ≤ 15 s; call sheet ≤ 35 s | stopwatch | rehearsal timing table |
 | Calendar to campaign | **Open batch** opens the campaign page ≤ 5 s | stopwatch | rehearsal timing table |
-| Data stays right | with the suggested merges approved: 68 people, 131 gifts (on screen after the live-call setup: 68 + Christian = 69, 34 givers) | `demo_reset.py --check` (smoke 6: on a copy, right after step 2's import, before Christian is added in step 3) | its PASS lines |
+| SKIPPED: Data stays right | with the suggested merges approved: 68 people, 131 gifts (on screen after the live-call setup: 68 + Christian = 69, 34 givers) | `demo_reset.py --check` (smoke 6: on a copy, right after step 2's import, before Christian is added in step 3) | its PASS lines |
 | No visible errors | 0 console errors, 0 failed requests during the run | DevTools console + Network on the operator's screen | rehearsal note |
 | Fits the slot | machine wait ≤ 3 min in total (rehearsal #2: ~131 s) | sum of the stopwatch times | rehearsal timing table |
 
@@ -2074,10 +2044,10 @@ fallback before T-30.
 ### 22.7. Fallbacks (if X fails → say/do Y)
 | Step | If | Say / do |
 |---|---|---|
-| 1–2 Reload mid-setup | after **Try sample data**, a reload (F5) brings the landing back, as if the import vanished | The data is already in: press **Skip for now** (bottom of the landing) to reach the dashboard. Do NOT click **Try sample data** again: it would import twice. |
-| 1 Empty app | the landing isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
-| 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors and no results appear: check the CRM tile; if people are already there, press **Skip for now** (never import twice); only if it's empty, click **Try sample data** once more. |
-| 2b Background read | the events or facts aren't on the dashboard yet | Keep touring: "The agent is still reading the site; the events land in a moment." If nothing lands after 2 min, carry on: the uploaded data carries every other moment. |
+| SKIPPED: 1–2 Reload mid-setup | after **Try sample data**, a reload (F5) brings the landing back, as if the import vanished | The data is already in: press **Skip for now** (bottom of the landing) to reach the dashboard. Do NOT click **Try sample data** again: it would import twice. |
+| SKIPPED: 1 Empty app | the landing isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
+| SKIPPED: 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors and no results appear: check the CRM tile; if people are already there, press **Skip for now** (never import twice); only if it's empty, click **Try sample data** once more. |
+| SKIPPED: 2b Background read | the events or facts aren't on the dashboard yet | Keep touring: "The agent is still reading the site; the events land in a moment." If nothing lands after 2 min, carry on: the uploaded data carries every other moment. |
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Duplicates | the briefing's **Review** isn't on screen (e.g. after "Plan next week"), or the agent stalls | **CRM** tile heading → the banner's **Ask the agent to fix** (what T1 used); if the agent stalls, the same banner's **Review merges →**: show the pair and **Merge ✓** there instead. |
 | 4b Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
