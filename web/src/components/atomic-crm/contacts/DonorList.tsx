@@ -589,7 +589,7 @@ const DonorRows = () => {
                     aria-expanded={openId === donor.id}
                     aria-controls={`${listId}-${donor.id}`}
                     onClick={(e) => toggle(donor.id, e.currentTarget)}
-                    className="truncate rounded-sm text-left font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring after:absolute after:inset-0 after:content-['']"
+                    className="truncate rounded-sm text-left font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring after:absolute after:inset-0 after:content-['']"
                   >
                     {donor.is_star && (
                       <>
