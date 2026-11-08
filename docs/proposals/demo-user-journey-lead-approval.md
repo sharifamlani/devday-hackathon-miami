@@ -1,6 +1,6 @@
 # Proposal: Demo user journey update
 
-**Status:** Proposed for lead review  
+**Status:** Implementation in progress (authorized by project owner on 2026-11-08)
 **Requested by:** Sharif  
 **Scope:** Frontend entry/onboarding, organization context research and demo data handoff  
 **Approval requested:** Approve the scope and decisions in “Lead decisions” before implementation.
@@ -99,4 +99,12 @@ Please approve or adjust these choices before implementation:
 - Context request and fallback: `web/src/components/atomic-crm/providers/local/types.ts`, local provider/hooks, `service/main.py`, `service/org_context.py`
 - Dashboard destinations: `web/src/components/atomic-crm/home/panels/ImpactPanel.tsx`, calendar components, task routes and generation
 
-This proposal documents scope for approval only; implementation has not started.
+Implementation is proceeding in the approved branch `feat/demo-user-journey`, in small commits by user-journey step. The demo run treats “other organizations” as an organization the presenter explicitly enters in onboarding: the name and website are editable, research is scoped to that website, and cached fallback is keyed to its matching host. The app does not automatically discover and create separate profiles for partner organizations mentioned in source pages.
+
+## Implementation record
+
+- Landing entry and onboarding CTA: committed as `848488e`.
+- One-action demo-file import and structured-record receipt: committed as `d6fc990`.
+- Organization identity, per-source cached result labels, and partial same-host fallback: implementation in progress.
+- The cached-source behavior keeps successful live results first and exposes prior facts only for failed or empty sources; those prior facts do not replace stored records.
+- Automated tests have not been run in this work session.

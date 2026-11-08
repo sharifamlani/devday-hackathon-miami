@@ -260,7 +260,7 @@ Onboarding captures the organization's context into the local SQLite database; e
 a refresh job keeps it current. Most of this is on main already.
 
 ```
-[Onboarding step 2: website (required) + X / LinkedIn / Instagram links]
+[Onboarding step 2: organization name + website (required), with X / LinkedIn / Instagram optional]
         |
         v
   org_profile (name, website, social links)

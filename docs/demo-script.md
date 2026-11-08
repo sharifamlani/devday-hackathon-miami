@@ -35,7 +35,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    collapsible preview of structured records and click **Continue**.
 3. **Step 2, "Tell us about your organization."** Confirm The Miami Foundation details and click
    **Continue**. Social links are saved, not read.
-4. **Step 3, "Building your context."** It shows **Reading your website · m:ss** (about 30 s). "It reads the site and
+4. **Step 3, "Building your context."** It shows **Reading your website · m:ss** (about 30 s). If a live read fails or times out, the screen explicitly says it is using saved research for this website; partial results label each saved source separately. "It reads the site and
    news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing." The
    heading becomes **Your desk is set up.** with e.g. **15 facts found about your organization** (website + news).
    Click **Go to the dashboard**. If the screen says **Still reading your site.**, click **Continue to the

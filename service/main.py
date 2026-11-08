@@ -286,7 +286,8 @@ async def prospect_outreach(prospect_id: int) -> dict:
 
 
 class ContextRun(BaseModel):
-    """Onboarding screen 2: where the organization is online. Any URL may be left out."""
+    """Onboarding organization identity and online sources. Social URLs may be left out."""
+    name: str | None = None
     website: str | None = None
     x_url: str | None = None
     linkedin_url: str | None = None
@@ -296,7 +297,7 @@ class ContextRun(BaseModel):
 
 SOCIAL = {"x_url": "x", "linkedin_url": "linkedin", "instagram_url": "instagram"}
 # build_context's per-source status → what onboarding screen 2 shows
-SOURCE_STATUS = {"ok": "done", "cached": "done", "blocked": "blocked", "skipped": "not provided",
+SOURCE_STATUS = {"ok": "done", "cached": "cached", "blocked": "blocked", "skipped": "not provided",
                  "not_provided": "not provided"}
 
 
@@ -440,14 +441,17 @@ def source_progress(req: "ContextRun", result: dict | None, fallback: bool = Fal
             out[source] = {"status": "not provided", "facts": 0, "detail": None}
             continue
         status = str(raw.get(source, "ok" if counts.get(source) else "skipped"))
-        shown = SOURCE_STATUS.get(status, "failed" if status.startswith("error") else status)
-        detail = status if shown in ("failed", "blocked") or status == "cached" else None
+        shown = SOURCE_STATUS.get(status, "cached" if status.startswith("cached") else
+                                  "failed" if status.startswith("error") else status)
+        detail = status if shown in ("failed", "blocked", "cached") else None
         if shown == "done" and not counts.get(source):  # "ok" with nothing found is not a success
             shown, detail = "failed", "error: no facts found"
-        elif fallback and shown == "done":
-            shown, detail = "cached (fallback)", "live read failed; showing saved context"
-        elif fallback and source == "website" and not result:
-            shown, detail = "failed", "live read failed; no saved context for this site"
+        elif fallback and not counts.get(source):
+            shown, detail = "failed", "live read failed; no saved context for this source"
+        elif fallback and shown in ("done", "cached") and counts.get(source):
+            shown, detail = "cached", "live read failed; showing saved context"
+        elif shown == "cached" and not counts.get(source):
+            shown, detail = "failed", "saved source has no facts"
         out[source] = {"status": shown, "facts": counts.get(source, 0), "detail": detail}
     for field, source in SOCIAL.items():
         given = getattr(req, field)
@@ -462,7 +466,7 @@ def run_state(sources: dict) -> str:
     Only sources that were actually read count: "not provided" and "saved, not connected" are neither.
     """
     read = [s["status"] for s in sources.values() if s["status"] not in ("not provided", "saved, not connected")]
-    ok = read.count("done")
+    ok = sum(status == "done" or status == "cached" for status in read)
     if not read or ok == len(read):
         return "done"
     return "partial" if ok else "failed"
@@ -477,10 +481,42 @@ def savable(result: dict, sources: dict) -> dict:
     statuses = dict(result.get("sources") or {})
     for source in ("website", "news"):
         row = sources[source]
-        if row["status"] != "done":
+        if row["status"] not in ("done", "cached"):
             why = row["detail"] or row["status"]
             statuses[source] = why if why.startswith("error") else f"error: {why}"
+        elif row["status"] == "cached":
+            # Keep old facts visible in this response without replacing the saved source.
+            statuses[source] = "error: cached fallback retained"
     return {**result, "sources": statuses}
+
+
+def add_cached_partial_sources(result: dict, website: str | None) -> dict:
+    """Fill failed/empty live sources from this same site's saved context for the response only.
+
+    The caller marks these sources cached; savable() then prevents the old facts from replacing
+    the source in storage. A successful live source always wins over its cached counterpart.
+    """
+    saved = cached_context(website)
+    if not saved:
+        return result
+    facts = list(result.get("facts") or [])
+    live_sources = dict(result.get("sources") or {})
+    for source in ("website", "news"):
+        present = [fact for fact in facts if fact.get("source") == source]
+        status = str(live_sources.get(source, ""))
+        if present and status in ("ok", "cached"):
+            continue
+        saved_facts = [fact for fact in saved.get("facts") or [] if fact.get("source") == source]
+        if not saved_facts:
+            continue
+        known = {(fact.get("source"), fact.get("url"), fact.get("fact")) for fact in facts}
+        facts.extend(
+            {**fact, "cached": True}
+            for fact in saved_facts
+            if (fact.get("source"), fact.get("url"), fact.get("fact")) not in known
+        )
+        live_sources[source] = "cached (partial; live source unavailable)"
+    return {**result, "facts": facts, "sources": live_sources}
 
 
 def failure_detail(website: str | None, sources: dict) -> str:
@@ -578,6 +614,8 @@ async def context_run(req: ContextRun) -> dict:
             result = {**result, "facts": [{**f, "cached": True} for f in result.get("facts") or []]}
         state, cached, served_from = "failed", True, "fallback"
 
+    if served_from != "fallback" and result:
+        result = add_cached_partial_sources(result, req.website)
     sources = source_progress(req, result, fallback=served_from == "fallback")
     saved, calendar = None, None
     if served_from != "fallback":

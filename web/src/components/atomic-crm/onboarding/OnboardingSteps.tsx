@@ -716,9 +716,14 @@ export const OrganizationStep = ({
 }: StepFrameProps & { onContinue: (links: OrgLinks) => void }) => {
   const { data } = useOnboarding();
   const { data: profile } = useOrgProfile();
-  const [fields, setFields] = useState<OrgLinks>(() =>
-    fieldsFromLinks(data.links),
-  );
+  const [fields, setFields] = useState<OrgLinks>(() => {
+    const saved = fieldsFromLinks(data.links);
+    return {
+      ...saved,
+      name: saved.name || "The Miami Foundation",
+      website: saved.website || "miamifoundation.org",
+    };
+  });
   const [errors, setErrors] = useState<LinkErrors>({});
   const id = useId();
 
@@ -730,13 +735,21 @@ export const OrganizationStep = ({
     const social = (platform: string) =>
       profile.socials.find((s) => s.platform === platform)?.url ?? "";
     const saved = fieldsFromLinks({
+      name: profile.name ?? "",
       website: profile.website ?? "",
       x: social("x"),
       linkedin: social("linkedin"),
       instagram: social("instagram"),
     });
     setFields((current) => ({
-      website: current.website || saved.website,
+      name:
+        !current.name || current.name === "The Miami Foundation"
+          ? saved.name || current.name || "The Miami Foundation"
+          : current.name,
+      website:
+        !current.website || current.website === "miamifoundation.org"
+          ? saved.website || current.website || "miamifoundation.org"
+          : current.website,
       x: current.x || saved.x,
       linkedin: current.linkedin || saved.linkedin,
       instagram: current.instagram || saved.instagram,
@@ -751,7 +764,11 @@ export const OrganizationStep = ({
   // Inline check when leaving a field; an empty website waits for Continue.
   const blur = (key: keyof OrgLinks) => {
     const value =
-      key === "website" ? fields.website : socialFieldValue(key, fields[key]);
+      key === "name"
+        ? fields.name?.trim() ?? ""
+        : key === "website"
+          ? fields.website
+          : socialFieldValue(key, fields[key]);
     if (value !== fields[key]) set(key, value);
     const error = checkField(key, value);
     setErrors(({ [key]: _old, ...rest }) =>
@@ -762,7 +779,7 @@ export const OrganizationStep = ({
   const submit = () => {
     const result = validateLinks(linksFromFields(fields));
     setErrors(result.errors);
-    const order: (keyof OrgLinks)[] = ["website", ...SOCIAL_PLATFORMS];
+    const order: (keyof OrgLinks)[] = ["name", "website", ...SOCIAL_PLATFORMS];
     const firstBad = order.find((key) => result.errors[key]);
     if (firstBad) {
       document.getElementById(`${id}-${firstBad}`)?.focus();
@@ -786,9 +803,28 @@ export const OrganizationStep = ({
       onSubmit={submit}
       primary={<Primary>Continue</Primary>}
     >
+      <div className="onb-field">
+        <label htmlFor={`${id}-name`}>Organization name</label>
+        <input
+          id={`${id}-name`}
+          className="onb-text-input"
+          data-autofocus=""
+          type="text"
+          autoComplete="organization"
+          required
+          aria-required="true"
+          aria-invalid={errors.name ? true : undefined}
+          value={fields.name ?? ""}
+          onChange={(e) => set("name", e.target.value)}
+          onBlur={() => blur("name")}
+        />
+        {errors.name && <p className="onb-error">{errors.name}</p>}
+        <p className="onb-note">
+          Prefilled for this demo; change it to research another nonprofit.
+        </p>
+      </div>
       <PrefixField
         id={`${id}-website`}
-        data-autofocus=""
         label="Website"
         prefix={websitePrefix(fields.website)}
         type="text"
@@ -975,6 +1011,7 @@ export const ContextStep = ({
     if (onboardingStore.get().data.background) update({ background: null });
     runContext
       .mutateAsync({
+        name: links.name?.trim() || "The Miami Foundation",
         website,
         x_url: links.x || null,
         linkedin_url: links.linkedin || null,
@@ -1121,7 +1158,11 @@ export const ContextStep = ({
       </>
     ) : phase.phase === "slow" ? (
       <>
-        Still reading <strong>your site.</strong>
+        {phase.run.cached ? (
+          <>Using saved <strong>research.</strong></>
+        ) : (
+          <>Still reading <strong>your site.</strong></>
+        )}
       </>
     ) : phase.phase === "error" ? (
       <>
@@ -1139,7 +1180,9 @@ export const ContextStep = ({
       : phase.phase === "error"
         ? "You can still use Donor Desk and run it again later."
         : phase.phase === "slow"
-          ? "Reading your website is taking longer than usual. We'll keep reading in the background, and new facts appear on your dashboard when it's done."
+          ? phase.run.cached
+            ? `Using saved research for ${phase.run.profile?.name ?? "this organization"}; the live search did not finish. We'll keep reading in the background and update the dashboard if it succeeds.`
+            : "Reading your website is taking longer than usual. We'll keep reading in the background, and new facts appear on your dashboard when it's done."
           : phase.phase === "receipt"
             ? undefined
             : "The agent is reading your website and recent news. This takes about half a minute; if it runs longer, it keeps going in the background.";
@@ -1190,8 +1233,11 @@ export const ContextStep = ({
           <Checklist rows={rows} />
           {phase.phase === "slow" && (
             <p className="onb-status">
-              You can open your dashboard now. A small status line there shows
-              when the read is done
+              {phase.run.cached
+                ? "Saved facts remain available while the live search continues. "
+                : "The live search is still running. "}
+              You can open your dashboard now. A status line there shows when
+              the read is done
               {phase.run.facts.length
                 ? `; until then you'll see the ${plural(phase.run.facts.length, "fact", "facts")} read before`
                 : ""}

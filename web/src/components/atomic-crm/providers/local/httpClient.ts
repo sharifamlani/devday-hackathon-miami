@@ -251,6 +251,7 @@ export const localApiMethods: BaseDonorDeskMethods = {
         await request<ApiContextRun>("/context/run", {
           method: "POST",
           body: {
+            name: input.name ?? null,
             website,
             x_url: input.x_url || null,
             linkedin_url: input.linkedin_url || null,

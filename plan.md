@@ -528,7 +528,7 @@ enrich + outreach (in parallel) → UI wires to all → end-to-end smoke on the 
 | Screen | User action | What happens under the hood | Owner |
 |---|---|---|---|
 | **1. Upload your data** | Drops in messy files: the Excel export, notes (.md), Word docs | `POST /ingest` → Carlos's ingest agent extracts donors + gifts into the §13 fields → `donors.db` → scoring + duplicate suggestions run | 🔒 Carlos (agent) · Christian (screen) · 80 (data layer) |
-| **2. Tell us where you are online** | Enters URLs: website, X, LinkedIn, Instagram | `POST /context/run` → the **context agent** reads the website and each social profile, extracts dated, sourced facts tagged to the org's priorities → the **local context dataset** | context agent: 86 + social helper · routes: 90 · table: 8b |
+| **2. Tell us about the organization** | Confirms the prefilled name and website or enters another nonprofit; may add social URLs | `POST /context/run` → the **context agent** reads the website and news, extracts dated, sourced facts tagged to the org's priorities → the **local context dataset** | context agent: 86 · routes: 90 · table: 8b |
 
 **The local context dataset** (SQLite, `data/donors.db`): `org_profile(id, name, website, x_url, linkedin_url,
 instagram_url, priorities JSON, voice JSON, updated_at)` and `org_context(id, source 'website'|'x'|'linkedin'|
@@ -1225,7 +1225,7 @@ browser-direct Gemini with a long-lived key.
 ```
 [1. Upload files] --> ingest (Carlos) --> people + gifts in SQLite
         |
-[2. Tell us about your organization: website (required) + X / LinkedIn / Instagram links]
+[2. Tell us about your organization: name + website (required), X / LinkedIn / Instagram links optional]
         |
 [3. Context agent runs automatically] website + news + public social posts --> org_profile, org_context
         |      (sourced facts), events, event_audience, then task generator (B11) and alerts
@@ -1325,9 +1325,9 @@ calendar, tasks, campaigns, calls) through the agent in the main UI.
 #### 21.2.2 First run (onboarding)
 ```
 1. Drag in the example files  --> ingest adapter (Carlos's stat-mcp extraction) --> people + gifts, tabs sorted
-2. "Tell us about your organization": website (required) + X / LinkedIn / Instagram links (saved)
+2. "Tell us about your organization": organization name + website (required); X / LinkedIn / Instagram links are optional and saved only
 3. Context agent runs on its own, showing progress (sources read, items found):
-      website + news (OpenAI hosted search) + public posts --> context store (kinds, embeddings, newest first)
+      website + news (OpenAI hosted search) --> context store (kinds, embeddings, newest first)
       --> events + audiences + pre-drafted invites --> task generator --> alerts
 4. Dashboard (Christian's mockup), every panel reading people/gifts + the context store
    Daily refresh (REFRESH_DAILY_AT) re-runs step 3: new items on top, tasks re-generated

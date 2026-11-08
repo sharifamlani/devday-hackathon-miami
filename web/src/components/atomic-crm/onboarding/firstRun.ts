@@ -240,7 +240,7 @@ const READ_SOURCES = ["website", "news"];
 export const contextOutcome = (run: ContextRun): "done" | "slow" | "failed" => {
   if (run.served_from === "fallback") return "slow";
   const read = run.sources.filter((s) => READ_SOURCES.includes(s.source));
-  if (read.some((s) => s.state === "done")) return "done";
+  if (read.some((s) => s.state === "done" || s.state === "cached")) return "done";
   return run.facts.length && run.status === "done" ? "done" : "failed";
 };
 
@@ -335,6 +335,14 @@ const rowFromRun = (source: ContextRunSource, run: ContextRun): SourceRow => {
             ? `${items(source.fact_count)} (saved earlier)`
             : items(source.fact_count),
       };
+    case "cached":
+      return {
+        ...base,
+        tone: "done",
+        text: source.fact_count
+          ? `${items(source.fact_count)} (saved; live read unavailable)`
+          : "Saved earlier; live read unavailable",
+      };
     case "saved_not_connected":
       return { ...base, tone: "quiet", text: "Saved for later" };
     case "not_provided":
@@ -424,7 +432,7 @@ export const checklist = (
       ];
     case "slow":
       return [
-        ...pendingRows(links, "slow"),
+        ...sourceRows(links, phase.run),
         { ...TASKS_ROW, tone: "pending", text: "After the read" },
       ];
     case "receipt":

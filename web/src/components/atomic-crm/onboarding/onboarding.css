@@ -229,6 +229,24 @@
   font-size: 13px;
   font-weight: 600;
 }
+.onb-text-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in oklab, var(--muted-foreground) 80%, transparent);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 15px;
+}
+.onb-text-input:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+.onb-text-input[aria-invalid="true"] {
+  border-color: var(--destructive);
+}
 .onb-error {
   display: flex;
   align-items: flex-start;

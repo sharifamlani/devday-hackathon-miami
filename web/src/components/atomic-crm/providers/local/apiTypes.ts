@@ -272,6 +272,7 @@ export interface ApiContextFact {
   kind?: string | null;
   title?: string | null;
   captured_at?: string | null;
+  cached?: boolean | number;
 }
 
 /** GET /context, and the snapshot's "context" key. */

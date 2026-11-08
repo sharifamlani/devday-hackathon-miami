@@ -223,6 +223,7 @@ export interface ContextFact {
   priority: string | null; // which Foundation priority it supports
   kind?: string | null; // success_story | use_of_funds | org_health | program_update | ...
   title?: string | null; // the fact's short headline
+  cached?: boolean; // loaded from a saved context snapshot or fallback
 }
 
 export interface OrgContext {
@@ -232,6 +233,7 @@ export interface OrgContext {
 }
 
 export interface ContextRunInput {
+  name?: string | null;
   website: string | null;
   x_url?: string | null;
   linkedin_url?: string | null;
@@ -240,7 +242,12 @@ export interface ContextRunInput {
 }
 
 export type SourceState =
-  "done" | "blocked" | "failed" | "not_provided" | "saved_not_connected"; // social URLs: saved, never fetched (scope cut)
+  | "done"
+  | "cached"
+  | "blocked"
+  | "failed"
+  | "not_provided"
+  | "saved_not_connected"; // social URLs: saved, never fetched (scope cut)
 
 export interface ContextRunSource {
   source: string; // "website", "news", "x", "linkedin", "instagram"
