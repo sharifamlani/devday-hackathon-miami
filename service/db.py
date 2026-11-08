@@ -438,6 +438,13 @@ ADDED_COLUMNS = {
     "org_profile": {"last_refreshed_at": "TEXT"},   # set by every successful save_context
     # A declined or failed charge is kept on record but never counted in totals or scoring.
     "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed'))"},
+    # §21.2.3 context store (86): what each fact is, a short title, its embedding, and whether it came from cache
+    "org_context": {
+        "kind": "TEXT CHECK (kind IN ('success_story', 'program_update', 'use_of_funds', 'org_health', 'event', 'news', 'other'))",
+        "title": "TEXT",
+        "embedding": "BLOB",            # float32 vector, OpenAI text-embedding-3-small
+        "cached": "INTEGER NOT NULL DEFAULT 0",
+    },
 }
 
 
