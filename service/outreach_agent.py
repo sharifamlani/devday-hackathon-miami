@@ -414,8 +414,11 @@ def load_donor(donor_id: int) -> tuple[dict, list[dict], dict, list[dict]]:
                            LEFT JOIN donor_scores s ON s.donor_id = d.id WHERE d.id = ?""", (donor_id,)).fetchone()
         if d is None:
             raise KeyError(f"no donor {donor_id} in {db_file()}")
+        # a declined or failed charge is not a gift to thank anyone for (gifts.status, when present)
+        has_status = any(r[1] == "status" for r in con.execute("PRAGMA table_info(gifts)"))
         gifts = [dict(r) for r in con.execute(
-            "SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? ORDER BY gift_date", (donor_id,))]
+            "SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ?"
+            + (" AND status = 'ok'" if has_status else "") + " ORDER BY gift_date", (donor_id,))]
         research = [dict(r) for r in con.execute(
             "SELECT fact, source_url FROM research_facts WHERE donor_id = ?", (donor_id,))]
     donor = dict(d)
