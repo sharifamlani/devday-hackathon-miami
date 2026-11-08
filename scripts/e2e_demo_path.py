@@ -181,41 +181,49 @@ def s1_upload(page: Page, api: Api, web: str, shots: Path):
     dialog = page.get_by_role("dialog").first
     t0 = time.time()
     dialog.get_by_role("button", name=f"Import {len(files)} files").click()
-    dialog.get_by_role("button", name="Continue", exact=True).wait_for(timeout=300000)
+    # #264: a processing view, then the results view ("A clearer picture of your people.") replaces the receipt
+    create = page.get_by_role("button", name="Create organization profile")
+    create.wait_for(timeout=300000)
     secs = round(time.time() - t0)
     page.screenshot(path=str(shots / "1_upload.png"))
-    shown = dialog.get_by_role("list", name="People by tab").inner_text() if dialog.get_by_role("list", name="People by tab").count() else ""
+    shown = page.inner_text("body")
     c = api.people_counts()
-    givers_on_screen = re.search(r"(\d+)\s*Givers?", shown, re.I)
-    match = bool(givers_on_screen) and int(givers_on_screen.group(1)) == c["giver"]
-    record("1 upload", f"{len(files)} files import; screen Givers = GET /people giver (>0)",
-           f"{secs}s; screen '{shown.strip()[:80]}'; API {c}", ok(c["giver"] > 0 and match))
-    receipt = re.search(r"[^\n]*\d+ gifts[^\n]*", dialog.inner_text())
-    record("1b receipt", "import receipt names the gifts (#145: 131 gifts, +1 declined charge)",
-           f"'{receipt.group(0).strip()[:120] if receipt else '-'}'",
-           ok(bool(receipt) and "131 gifts" in receipt.group(0) and "declined" in receipt.group(0)))
-    dialog.get_by_role("button", name="Continue", exact=True).click()
+    accounts = re.search(r"(\d+)\s*\n?\s*Accounts recognized", shown)
+    total = len(api.get("/people")["people"])   # the groups overlap (needs_review rows also sit in a group), so count rows
+    # <= 10 s needs the warm ingest cache (stage_reset / demo_reset --warm); cold it is ~66 s and 78 / 10 (82, Nov 8)
+    record("1 upload", f"{len(files)} files import in <= 10 s; results 'N Accounts recognized' = GET /people total (>0)",
+           f"{secs}s; screen {accounts.group(1) if accounts else '-'} Accounts recognized; API {c} (total {total})",
+           ok(c["giver"] > 0 and bool(accounts) and int(accounts.group(1)) == total and secs <= 10))
+    removed = re.search(r"(\d+)\s*\n?\s*Duplicates removed", shown)
+    review = re.search(r"(\d+) possible match(?:es)? still need review", shown)
+    dups = api.get("/home/summary").get("duplicates")
+    record("1b results", "results view: 'N possible matches still need review' = GET /home/summary duplicates",
+           f"'{removed.group(1) if removed else '-'} Duplicates removed'; '{review.group(0) if review else '-'}'; API duplicates {dups}",
+           ok(bool(review) and int(review.group(1)) == dups))
+    create.click()
 
 
 @step("2 website")
 def s2_website(page: Page, api: Api, shots: Path):
-    page.get_by_text("Step 2 of 3").wait_for(timeout=30000)
-    page.get_by_placeholder("yourorg.org").fill(WEBSITE)
+    # #264: "Your organization. / Start with your website."; Continue closes the dialog and the read runs behind home
+    box = page.get_by_placeholder(re.compile(r"^yourorg(anization)?\.org$"))
+    box.wait_for(timeout=30000)
+    box.fill(WEBSITE)
     dialog = page.get_by_role("dialog").first
     dialog.get_by_role("button", name="Continue", exact=True).click()
-    page.get_by_text("Step 3 of 3").wait_for(timeout=60000)
     t0 = time.time()
-    # "Go to the dashboard" after a normal read; "Continue to the dashboard" when the read is slow or failed
-    go = dialog.get_by_role("button", name=re.compile(r"^(Go|Continue) to the dashboard"))
-    go.wait_for(timeout=150000)
-    page.screenshot(path=str(shots / "2_context.png"))
+    while time.time() - t0 < 30 and page.get_by_role("dialog").count():
+        page.wait_for_timeout(500)
+    closed_s = round(time.time() - t0, 1)
+    while time.time() - t0 < 150 and len(api.get("/events")) < 4:
+        page.wait_for_timeout(2000)
     read_s = round(time.time() - t0)
-    go.click()
-    page.wait_for_timeout(4000)
+    page.screenshot(path=str(shots / "2_context.png"))
     close_overlays(page)
     events, tasks = api.get("/events"), api.open_tasks()
     left = page.get_by_role("dialog").count() == 0
-    record("2 website", "dialog closes; prep/open tasks >= 1", f"read {read_s}s; dialog closed={left}; open tasks {len(tasks)}",
+    record("2 website", "dialog closes; background read lands; prep/open tasks >= 1",
+           f"dialog closed in {closed_s}s; read landed {read_s}s; dialog closed={left}; open tasks {len(tasks)}",
            ok(left and len(tasks) >= 1))
     gap = KNOWN_GAPS.get("events")
     record("2b events", ">= 4 sourced events, no reload", f"GET /events = {len(events)}",
