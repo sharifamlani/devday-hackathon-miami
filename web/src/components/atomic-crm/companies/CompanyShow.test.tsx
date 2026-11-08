@@ -40,7 +40,7 @@ describe("CompanyShow on mobile", () => {
     );
 
     await expect
-      .element(screen.getByRole("heading", { name: "Contacts" }))
+      .element(screen.getByRole("heading", { name: "Donors" }))
       .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: /Ada Lovelace/ }))
@@ -64,7 +64,7 @@ describe("CompanyShow on mobile", () => {
 
     await expect.element(screen.getByText("Acme")).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: "Contacts" }))
+      .element(screen.getByRole("heading", { name: "Donors" }))
       .not.toBeInTheDocument();
   });
 });
