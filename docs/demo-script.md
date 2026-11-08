@@ -121,7 +121,9 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     strip, and **THIS WEEK'S EVENTS** by day ("Nothing scheduled" on empty days): Sat 14 **♥ Give Miami Day — Early
     Giving opens** with its **givemiamiday.org ↗** source. Click **›** for next week: Sun 15 **The Give Miami 5K**
     (8:00 AM, **runsignup.com ↗**) and **The Give Miami 5K Post-Race Festival, a Party with a Purpose!** (8:30 AM,
-    **eventbrite.com ↗**), Thu 19 **♥ Give Miami Day**. Beside the list, **SUGGESTED BY THE AGENT** cards read e.g.
+    **eventbrite.com ↗**), Thu 19 **♥ Give Miami Day**. In the week grid the two Sun 15 events overlap, so they share
+    one block until you click the day: click **SUN 15** to see the 5K (8:00) and the Festival (8:30) side by side with
+    their times. Beside the list, **SUGGESTED BY THE AGENT** cards read e.g.
     **Review 12 drafted invites for The Give Miami 5K** ("12 invites are drafted and waiting for approval") with **Add
     to to-do**. Click the **ⓘ** on the 5K: it opens in place with **Date**, **Place**, **Type**, **Source** and
     **Invites · Open batch**. **Open batch** (about 3 s) opens the event's campaign page (e.g. **The Give Miami 5K ·
