@@ -399,6 +399,52 @@ CREATE TABLE IF NOT EXISTS context_refresh_log (
 SCHEMA += EVENTS_SCHEMA
 TABLES = ["context_refresh_log", "event_drafts", "event_audience", "events"] + TABLES
 
+# B1 interest areas (plan §21.2.6, docs/research/interest-areas.md): 17 reference tags, seeded from
+# service/interests.py, and each person's tags with evidence. Own block so other branches merge cleanly;
+# `donors` is untouched. Staff tags are never overwritten; a removed tag keeps its row.
+INTEREST_SCHEMA = """
+CREATE TABLE IF NOT EXISTS interest_tags (
+    slug        TEXT PRIMARY KEY,
+    label       TEXT NOT NULL,
+    definition  TEXT NOT NULL,
+    ntee_groups TEXT NOT NULL,         -- JSON list, e.g. ["A"]
+    gmd_area    TEXT,                  -- Miami Foundation / Give Miami Day mapping
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    active      INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS interest_subtags (
+    tag_slug    TEXT NOT NULL REFERENCES interest_tags(slug),
+    sub_slug    TEXT NOT NULL,
+    label       TEXT NOT NULL,
+    PRIMARY KEY (tag_slug, sub_slug)
+);
+
+CREATE TABLE IF NOT EXISTS donor_interests (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    donor_id    INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+    tag         TEXT NOT NULL REFERENCES interest_tags(slug),
+    sub_tag     TEXT,
+    confidence  TEXT NOT NULL CHECK (confidence IN ('high', 'medium', 'low')),
+    evidence    TEXT NOT NULL,         -- short quote or paraphrase, <= 300 chars
+    source_url  TEXT,                  -- required when set_by = 'agent'
+    source_type TEXT CHECK (source_type IN ('board_seat', 'named_gift', 'named_fund', 'statement',
+                'event_sponsor', 'volunteer', 'event_attendance', 'social', 'staff_note', 'other')),
+    found_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    set_by      TEXT NOT NULL CHECK (set_by IN ('agent', 'staff')),
+    status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'removed')),
+    removed_by  TEXT,                  -- who removed it; keeps the agent from re-adding it
+    CHECK (set_by = 'staff' OR source_url IS NOT NULL)
+);
+-- One row per person, tag and sub-tag (a missing sub-tag counts as one value, unlike a plain UNIQUE)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_donor_interests_unique ON donor_interests(donor_id, tag, COALESCE(sub_tag, ''));
+CREATE INDEX IF NOT EXISTS idx_donor_interests_tag ON donor_interests(tag, status);
+"""
+SCHEMA += INTEREST_SCHEMA
+from service.interests import seed_sql as _interest_seed_sql  # noqa: E402  (no import back into db)
+SCHEMA += _interest_seed_sql()
+TABLES = ["donor_interests", "interest_subtags", "interest_tags"] + TABLES
+
 CONTACT_TYPES = ("giver", "neighbor", "community")
 # Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
 DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
