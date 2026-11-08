@@ -1,6 +1,6 @@
 # Donor Desk: finish-line plan (for Sharif's approval)
 
-> Status: **NOT APPROVED.** No build starts until Sharif approves. Detail lives in `plan.md` §19–§20.14,
+> Status: **APPROVED (Sat Nov 7 night).** The canonical copy is `plan.md` §21.
 > `docs/ui-integration.md` (every mockup element → endpoint → owner) and `docs/research/`.
 > Freeze Sun Nov 8, 4:15 PM. Demo runs on the laptop. Example organization: The Miami Foundation.
 

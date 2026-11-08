@@ -1244,3 +1244,586 @@ browser-direct Gemini with a long-lived key.
 The reviewable, consolidated plan is `docs/finish-plan.md` (empty start from example files, time-ordered context RAG,
 campaigns that always cite success stories / use of funds / org health, owners, smokes, criteria). It supersedes the
 owner columns above where they differ.
+
+---
+
+## 21. Finish-line plan (APPROVED by Sharif, Sat Nov 7 night). Supersedes §18–§20.14 where they differ
+
+
+> One plan that merges everything decided on Sat Nov 7: the Erica call, the wireframe session, Sharif's sketch,
+> Christian's mockup, the demo, interest tags, voice, the context store, story-first campaigns, the empty start,
+> agent-first UI, code to lift, owners and the build loop. On approval it is copied into `plan.md` as §21 (replacing
+> the scattered §18–§20.14 owner columns) and `docs/finish-plan.md` points to it. Supporting docs stay as references:
+> `docs/problem-solution-mapping.md`, `docs/ui-integration.md`, `docs/research/interest-areas.md`,
+> `docs/research/repos-to-lift.md`, `docs/design/mockup/` (all on PR #77, branch `docs/problem-solution-mapping`).
+
+---
+
+### 21.0. Context
+
+**Why this plan exists.** Our entry is a nonprofit CRM, demoed as The Miami Foundation. The backend (FastAPI + SQLite
++ OpenAI Agents SDK) already does most of the work: three tabs (Givers / Neighbors / Community), ingest of messy files,
+dedupe 6/6, gift alerts, enrichment of organizations, ICP + prospects, a context agent with a daily refresh, an event
+calendar, a chat agent with tool steps and approval-gated sends. What judges would see is behind: the screens don't
+match Christian's mockup, tasks live in browser fake data, nothing records calls, interests are never tagged, campaigns
+don't reliably use the organization's stories, and the app preloads seeded data. This plan closes those gaps in ~18
+hours with the Claude Code sessions already running.
+
+**Intended outcome.** On the laptop, starting from an empty app: drag in the example files, give the organization's
+website, watch the context agent build the context store, land on Christian's dashboard, and do everything (CRM,
+calendar, tasks, campaigns, calls) through the agent in the main UI.
+
+**Decisions already made (Sharif, Sat Nov 7):**
+| Decision | Value |
+|---|---|
+| Tab names | Givers · Neighbors · Community (locked) |
+| Example organization | The Miami Foundation (#76 Tidepath persona not merged) |
+| Data | App starts empty; every record comes from dragging in `data/sample_inputs/` (fictional) |
+| Where the demo runs | The laptop (local service). Vercel is the read-only snapshot |
+| Vercel | Session 12's watcher auto-deploys every commit to `main`; keep it; the lead never deploys separately |
+| Demo call script and cast | Sharif owns it (the after-call agent is still built) |
+| Integration with Christian's UI | Sharif drives it; Christian messages when the first UI draft is ready |
+| Agent framework | OpenAI Agents SDK (event acceptance criteria) + assistant-ui for the chat UI; no LangChain |
+| Transcription | Google Gemini 3.5 Transcribe (live + recorded); summaries on the OpenAI Agents SDK |
+| Interest tags | The 17 tags in `docs/research/interest-areas.md` (approved) |
+| Agent-first | Everything (CRM, calendar, tasks) can be done through the agent in the main UI |
+| Out of scope | No iPhone app; no AI voice calls; social posting is "Coming soon" |
+
+---
+
+### 21.1. Problems → solutions (from the Erica call, the wireframe session, challenge #2)
+
+| # | Problem | Solution in this plan | Build |
+|---|---|---|---|
+| P1 | Loss of context: calls and meetings never reach the record | Voice-first: "Call and transcribe" records a call live, names speakers at the end, saves a note to the person; 🎙 dictation in the chat; one shared record; the agent recalls "who talked to them last" | B3, B6, B10 |
+| P2 | Staying on top of donors (interests, consistent outreach) | Enrichment tags interest areas (17, sourced); gift alerts become call tasks; the calendar with pre-drafted invites; the agent edits the calendar | B1, B11, B12, B10 |
+| P3 | The people the nonprofit serves, not just donors | Community tab from self-reported intake; Neighbors tab for people met; outreach about programs, never an ask | on main (#60) |
+| P4 | Demonstrating impact | Context store (time-ordered RAG) built from the website, news and posts; every campaign cites a success story, use of funds and org health | C1, C2 |
+| P5 | Impact data at the source (zip codes) | Community impact view by zip | stretch |
+| P6 | Every nonprofit is different | Drag in any messy file; the agent sorts tabs; the context agent learns the mission from the website | on main + D1 |
+| P7 | Payment fraud (impersonated bank details) | Named as a limit in the README | B5 |
+| C2 | Challenge #2: approve duplicates, keep gift history, catch late gifts | Dedupe 6/6 with approval (#65); gift alerts 5/5 (#48) shown on the dashboard and as tasks | on main + B13, B11 |
+
+---
+
+### 21.2. What we ship
+
+#### 21.2.1 Nothing is preloaded: the app starts empty
+- The only data source is `data/sample_inputs/` (all fictional): `give_miami_day_export_2022-2025.xlsx`,
+  `board_retreat_notes.md`, `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`,
+  `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, with
+  `answer_key.json` as ground truth (33 givers / 20 neighbors / 15 community; 113 gifts; $1,269,470; 6 duplicate groups;
+  5 gift alerts).
+- Today the app preloads: `service/db.py` has `SEED_DONORS` (line ~679) and `seed()` (line ~851) called from
+  `reset_db(with_seed=...)`; "Try sample data" loads `web/public/snapshot.json`. Both leave the laptop path (D1).
+- Committed caches (`data/research_cache.json`, `data/icp_cache.json`, `data/social_cache.json`,
+  `service/context_cache.json`) are read only when a live call fails, and those rows are labeled "cached".
+- **Q4 gauge:** the example files hold $750 of Q4 2026 gifts, so the gauge would read 0.5% of the $150k sample goal.
+  Fix it in the example files: a fictional `online_gifts_oct_nov_2026.xlsx` plus an updated `answer_key.json` (D2).
+- `reference data` that is not donor data stays seeded: the 17 interest tags.
+
+#### 21.2.2 First run (onboarding)
+```
+1. Drag in the example files  --> ingest adapter (Carlos's stat-mcp extraction) --> people + gifts, tabs sorted
+2. "Tell us about your organization": website (required) + X / LinkedIn / Instagram links (saved)
+3. Context agent runs on its own, showing progress (sources read, items found):
+      website + news (OpenAI hosted search) + public posts --> context store (kinds, embeddings, newest first)
+      --> events + audiences + pre-drafted invites --> task generator --> alerts
+4. Dashboard (Christian's mockup), every panel reading people/gifts + the context store
+   Daily refresh (REFRESH_DAILY_AT) re-runs step 3: new items on top, tasks re-generated
+```
+
+#### 21.2.3 The context store: RAG ordered by time
+- Builds on `org_context` (`service/db.py` line ~151: source, url, posted_at, fact, quote, priority, captured_at).
+  Adds `kind` (success_story · program_update · use_of_funds · org_health · event · news · other), `title`,
+  `embedding` (BLOB, OpenAI `text-embedding-3-small`), `cached`.
+- `search_context(query=None, kinds=None, k=8)`: cosine similarity (numpy) × recency weight (half-life 90 days);
+  ties go to the newest; no query returns the newest items of the asked kinds.
+- Every row keeps its URL; a source that can't be read is labeled, never faked.
+
+#### 21.2.4 Campaigns always tell the story
+Every campaign, thank-you, outreach and event-invite draft calls `search_context(kinds=[success_story,
+use_of_funds, org_health])` first and includes, newest first: ≥1 success story, 1 use-of-funds line, 1 org-health
+line, each cited by id; the review screen shows the sources. If a kind is empty, staff are told and it is left out;
+nothing is invented. Existing guard kept: `campaign_agent.py` already refuses to quote SAMPLE gift history to real orgs.
+
+#### 21.2.5 Everything runs through the agent in the main UI
+- The center agent (and the Ask sidebar) can do anything a screen can: CRM, interests, calendar, tasks, call notes,
+  campaigns.
+- Edits apply at once and show as a tool step with **Undo** (each write returns an undo token).
+- Sends, merges and deletes show an **approval card** first (Agents SDK human-in-the-loop).
+- The agent calls the same service functions as the buttons; after a write the UI refetches the affected panels.
+- Every agent write is logged in `agent_actions`.
+
+#### 21.2.6 Interest areas (enrichment's main job)
+17 tags: arts_culture, education, youth_family, health_wellness, basic_needs, housing, economic_mobility,
+community_development, environment_conservation, climate_resilience, animals, civic_media, equity_rights,
+disability_access, science_technology, international, faith_based. Each tag carries confidence (high/medium/low),
+evidence, source_url, source_type. Evidence ranked: board seat > named gift > named fund > public statement > event
+sponsor > volunteer > attendance > social follow. No source, no tag; ambiguous identity, no tags; never inferred from
+protected traits; staff tags never overwritten. Enrich proposes (`?dry_run=1`); **Save to profile** writes.
+Individual-donor research stays organizations-first; fictional people have nothing on the web (correctly untagged).
+
+#### 21.2.7 Voice
+| | Dictation (🎙 in the chat box, Ask sidebar) | Call and transcribe (task card) |
+|---|---|---|
+| Model | `gemini-3.5-transcribe-live`, SMART mode | `gemini-3.5-transcribe-live` during the call; `gemini-3.5-transcribe` on the recording at the end (speaker labels, up to 8) |
+| Transport | browser PCM16 16 kHz mono, ~100 ms frames → our `WS /transcribe/live` → Gemini Live API | same, plus `POST /transcribe/file` with the recorded audio |
+| Stored | nothing | `call_notes` (title, folder, transcript, segments, staff_name, contact_name, summary) |
+| Summary | — | OpenAI Agents SDK |
+Key: `GEMINI_API_KEY` stays on the server (relay); paid tier for real donor calls (free tier may train Google models).
+Twilio phone recording is a stretch (Florida needs all-party consent: spoken notice; a person makes the call).
+
+---
+
+### 21.3. UI target and wireframes (Christian's mockup, `docs/design/mockup/`)
+
+#### 21.3.1 Home (screen 1-home)
+```
++--+----------------------+-------------------------------------------+------------------------+
+|[♥]| Donor Desk                                                       |            [☀] [✦Ask] |
++--+----------------------+-------------------------------------------+------------------------+
+|⌂ | Q4 OUTREACH Oct1-Dec31| Good evening, <staff>    [Show meeting notes]| November          [+] |
+|☏ |  (70%) Raised $X of  | +---------------------------------------+ | M T W T F S S          |
+|👥|  $150k sample goal   | | TASK 1 OF 5 · CALL                    | |  dots on busy days     |
+|✦ |  Reached today N     | | Call <donor> about failed monthly gift| | Tue 10 3 thank-you calls|
+|➤ +----------------------+ | why: card failed Oct 10, monthly since | |        (added by agent)|
+|📅| TODAY AT A GLANCE    | | [Lifetime $] [Last gift] [Prefers ☏]  | | Wed 18 Give Miami Day  |
+|  | [3 gifts at risk]    | | [☏ Call and transcribe][Draft email]  | +------------------------+
+|  | [2 possible dupes]   | | [Mark done]                           | | TASKS TO DO TODAY  [+] |
+|  | [5 tasks today]      | +---------------------------------------+ | [ ] Call <donor> ...   |
+|  | [11 days to GMD]     |  (you) Who gave this quarter and hasn't   | [ ] Check in with ...  |
+|  +----------------------+        been thanked yet?                  | [ ] Review 2 duplicates|
+|  | CRM  Open database → |  Agent: 3 donors, all from the gala: ...  | [ ] Welcome <new donor>|
+|  | [🔍 Find a donor]    |  ✓ find_people  ✓ get_gifts               | [ ] Prep GMD list      |
+|  | RD <name> [Card failed]| (you) Add thank-you calls Tuesday.      +------------------------+
+|  | MB <name> [Late]     |  Agent: Done. Added 3 calls Tue 10-11 [Undo]| ARTIFACTS             |
+|  | PR <name> [New]      |                                           | ▤ Gala thank-you drafts|
+|  | TO <name> [Thanked]  | [Enrich X] [Who's late?] [Plan next week] | ▥ October summary      |
+|  | ER <name> [Not yet]  | [+] Ask about donors...        [🎙] [➜]   | 🎙 Call notes · <name> |
++--+----------------------+-------------------------------------------+------------------------+
+```
+Header keeps only light/dark and Ask. Removed: sample badges, search bar, refresh, avatar.
+"Show meeting notes" (the annotated overlay, screen 5) is a design aid: hidden for judging.
+
+#### 21.3.2 Other screens
+```
+Projects open (2)            Ask sidebar (3) / expanded (4)          Phone (9)
++-----------------+          +-------------------------------+       +--------------+
+| Projects [🔍]   |          | ✦ Ask Donor Desk     [⤢] [✕] |       | Donor Desk ☀✦|
+| ▾ Campaigns   1 |          | [question............][🎙][↑]|       | task card    |
+| ▾ Saved Ask   4 |          | Read-only: the AI sees your  |       | agent chat   |
+| ▾ Donor lists 3 |          | question, never donor records|       | chips        |
+|   Needs attn  6 |          | suggested questions ...      |       | [input 🎙 ➜] |
+|   Star donors 2 |          +-------------------------------+       | ⌂ ☏ 👥 ✦ ➤ 📅 |
++-----------------+                                                  +--------------+
+```
+
+#### 21.3.3 Find a donor + Enrich (screen 7)
+```
++----------------------------------------------------+
+| Find a donor                                   [✕] |
+| [🔍 Priya.........................................]|
+| PR  <name>  First gift Oct 22 · $250 online        |
+| [Lifetime $250] [Gifts 1] [Email p•••@example.org] |
+| [Source: Donation page]                            |
+| ▌Enrichment agent found (public web, review first):|
+| ▌interest areas: [Youth & Family] [Environment]    |
+| ▌works in pediatric health · source ↗              |
+| [Save to profile]  [Open full record]              |
++----------------------------------------------------+
+```
+
+#### 21.3.4 Voice modal after a call (screen 6)
+```
++-----------------------------------------------------------+
+| ● Call ended · where should this go?                      |
+| You:  Hi Rosa, it's Denise. I saw your monthly gift ...   |
+| Rosa: Oh, I got a new card last month ...                 |
+| Rosa: ... put me down for the beach cleanup on the 21st.  |
+| Note title [Call with Rosa Delgado · card update.....]    |
+| Folder [Call notes v]      Attach to [Rosa Delgado v]     |
+|                                   [Cancel] [Save note]    |
++-----------------------------------------------------------+
+then, in the agent chat (not in the mockup; added for the demo):
++-----------------------------------------------------------+
+| Agent · from your call with Rosa                          |
+| ✓ read_note  ✓ find_event("beach cleanup, 21st")          |
+| [x] Task: send secure card-update link (today)            |
+| [x] Calendar: Rosa attending Beach Cleanup (Sat Nov 21)   |
+| [x] Context: prefers phone; new card since October        |
+|                              [Apply selected] [Discard]   |
++-----------------------------------------------------------+
+```
+
+#### 21.3.5 Dictation in the chat box
+```
++------------------------------------------------------------------+
+| [+]  Who gave this quarter and hasn't been tha|   [● 🎙]  [➜]    |
+|      ^ words appear live (interim in grey)      ^ press to stop  |
++------------------------------------------------------------------+
+```
+
+#### 21.3.6 Onboarding
+```
+Step 1 Upload                         Step 2 Your organization           Step 3 Building your context
++-------------------------------+    +----------------------------+     +-------------------------------+
+| Drop your files here          |    | Website* [miamifoundation.org]|  | ✓ Website: 14 items           |
+| .xlsx .docx .md .csv          |    | X  [..........]            |     | ✓ News: 6 items               |
+| Put them in: (•) Let the agent|    | LinkedIn [..........]      |     | … Instagram: reading          |
+|   sort ( ) Givers ( ) Neighbors|   | Instagram [..........]     |     | 3 success stories · 2 use of  |
+|   ( ) Community               |    |               [Continue]   |     |  funds · 5 events → 23 tasks  |
+| 68 people · 113 gifts found   |    +----------------------------+     |        [Go to dashboard]      |
++-------------------------------+                                       +-------------------------------+
+```
+
+#### 21.3.7 State summary
+| UI piece | Before (main @ 6a18d17) | After |
+|---|---|---|
+| Layout | Projects sidebar + center cards + Ask sidebar | rail + left (gauge, glance, CRM) + center (task card, agent) + right (calendar, tasks, artifacts) |
+| Data at start | seeded donors / cached snapshot | empty; drag in example files |
+| Gauge | quarter vs sample goal | same, plus reached today; real Q4 gifts from the example files |
+| Glance | one card | gifts at risk · duplicates · tasks today · days to next event |
+| CRM | rail item | list with badges + find-a-donor pop-up with Enrich |
+| Task card | none | today's task with why, chips, Call and transcribe / Draft email / Mark done |
+| Agent chat | Ask sidebar only | center of home; tool steps, Undo, approval cards; writes CRM/calendar/tasks |
+| Chat input | text | + attachments, 🎙 dictation, suggestion chips |
+| Calendar | large month grid | small month with dots; items "added by agent" |
+| Tasks | FakeRest (vanish on reload) | persisted in SQLite, generated + agent-created |
+| Artifacts | none | call notes, drafts, reports |
+| Enrich | writes immediately | proposes; Save to profile writes; interest tags |
+| Voice | none | call transcript + speaker names + save; after-call Apply card |
+| Onboarding | landing upload | 3 steps ending on the dashboard |
+| Header | badges, search, refresh, avatar | light/dark + Ask only |
+
+---
+
+### 21.4. Element → data map (summary of `docs/ui-integration.md`)
+
+| Element | Hook (80) | Endpoint | Status | Build |
+|---|---|---|---|---|
+| Rail, Projects sidebar, theme, Ask | existing | `useCampaigns`, `useGroups`, `useAsk` → `routes_ask` | ✅ #74 | — |
+| Greeting name | `useOrgProfile` | `org_profile.staff_name` | ⏸ | D1 |
+| Q4 gauge | `useTargets` | `/targets` + `reached_today` | ~ | B2 |
+| Today at a glance, chips | `useHomeSummary` | `GET /home/summary` | ⏸ | B13 |
+| CRM list badges | `usePeopleAttention` | `GET /people/attention` | ⏸ | B13 |
+| Find a donor | `useDonors`, `useDonor` | existing | ✅ | — |
+| Enrich → Save | `useEnrichPreview`, `useAcceptEnrichment` | `/enrich/{id}?dry_run=1`, `/people/{id}/enrichment/accept` | ⏸ | B1 |
+| Task card, task list | `useTasks` | `/tasks`, `/tasks/generate` | ⏸ | B11 |
+| Calendar | `useCalendarFeed` | `GET /calendar` | ~ | B12 |
+| Artifacts | `useArtifacts` | `GET /artifacts` | ⏸ | B12 |
+| Agent chat | `useChat` | `/chat` (+ new tools) | ~ | B10 |
+| Dictation | `useDictation` | `WS /transcribe/live?purpose=dictation` | ⏸ | B3, B9 |
+| Call transcript + modal | `useCallTranscript`, `useSaveCallNote` | `WS /transcribe/live?purpose=call`, `/transcribe/file`, `/people/{id}/call-notes` | ⏸ | B3, B9 |
+| After-call card | `useAfterCall` | `/call-notes/{id}/actions`, `/apply` | ⏸ | B6 |
+| Campaign review sources | `useCampaign` | campaign drafts + `sources[]` | ~ | C2 |
+| Onboarding step 3 progress | `useContextStatus` | `/context/run`, `/context/status` | ✅ backend | C1 |
+
+---
+
+### 21.5. Integration contract (frozen before coding)
+
+| Endpoint | Request | Response | Owner |
+|---|---|---|---|
+| `GET /interest-tags` | — | `[{slug, label, definition}]` | 42 |
+| `GET/POST /people/{id}/interests` | POST `{tag, sub_tag?}` | `[{tag, sub_tag, confidence, evidence, source_url, set_by}]` | 42 |
+| `DELETE /people/{id}/interests/{tag}` | — | `{removed: true}` (row kept) | 42 |
+| `POST /enrich/{id}?dry_run=1` | — | `{facts[], interests[], contact{}}`, nothing written | 42 |
+| `POST /people/{id}/enrichment/accept` | `{fact_ids, tags}` | `{saved}` | 42 |
+| `GET /targets/quarters?as_of=` | — | `{quarters:[{label,start,end,raised}], ytd:{year,raised}}` | 48 |
+| `GET /targets` | — | existing + `reached_today` | 48 |
+| `GET /home/summary` | — | `{gifts_at_risk, duplicates, tasks_today, next_event{title,date,days}, reached_today, suggestions[]}` | 48 |
+| `GET /people/attention?limit=` | — | `[{id, name, initials, line, badge}]` | 48 |
+| `GET /tasks?due=today\|from&to&person_id` · `POST` · `PATCH /{id}` · `DELETE /{id}` | | `[{id, kind, title, why, person_id, chips[], due, time, done, source}]` | 3a |
+| `POST /tasks/generate` | — | `{created}` (idempotent) | 3a |
+| `GET /calendar?from&to` | — | `[{date, time, title, kind: event\|task, source, ref}]` | 3a |
+| `GET /artifacts` | — | `[{kind, title, date, ref}]` | 3a |
+| `POST /undo/{token}` | — | `{undone: true}` | 3a |
+| `WS /transcribe/live?purpose=call\|dictation` | binary PCM16 frames; `{"type":"end"}` | `{"type":"interim"\|"final","text"}`, `{"type":"error","detail"}` | Agent Phone |
+| `POST /transcribe/file` | audio | `{segments:[{speaker,text,start,end}]}` | Agent Phone |
+| `POST/GET /people/{id}/call-notes` | `{title, folder, transcript, segments, staff_name, contact_name, duration_s}` | `{id, summary, created_at}` / list | Agent Phone |
+| `POST /call-notes/{id}/actions` | — | `{steps[], actions:[{id,type,label,payload}]}` | 90b |
+| `POST /call-notes/{id}/apply` | `{action_ids}` | `{applied:[{id,type,ref}]}` | 90b |
+| `GET /people/{id}/pledges` | — | `[{amount, expected_by, status}]` | 90b |
+| `GET /context/search?q&kinds&k` | — | `[{id, kind, title, text, source_url, posted_at, score}]` | 86 |
+
+Rules: new routers (`routes_interests.py`, `routes_home.py`, `routes_tasks.py`, `routes_voice.py`,
+`routes_after_call.py`) each add one `include_router` line in `service/main.py`; `db.py` gets only
+`CREATE TABLE IF NOT EXISTS` blocks and guarded `ADD COLUMN`s, in the landing order of §8; `donors` and
+`service/ingest/` untouched (🔒 Carlos).
+
+---
+
+### 21.6. Builds, owners and how each is built
+
+#### 21.6.1 Owner map (live Claude Code sessions)
+| Session | Already knows | Takes | Wave |
+|---|---|---|---|
+| **8b** | `db.py`, `routes_data.py`, contact_type | **D1** empty start · **D2** example dataset Q4 sheet | 1 |
+| **86** | context agent, outreach, events, briefs | **C1** context store · **C2** story-first campaigns · close #49/#57 | 1 |
+| **3a** | data layer (#53), outbox, send path | **B11** tasks + generator · **B12** calendar feed, artifacts, undo | 1 (critical path) |
+| **42** | demographics extraction agent | **B1** interest tags | 1 |
+| **48** | gift alerts (#48), targets | **B2** quarters + reached today · **B13** home summary + attention | 1 |
+| **Agent Phone** | `/enrich` + donor route wiring, phone brief | **B3** voice backend (then S1 Twilio stretch) | 1 |
+| **80** | web data hooks `providers/local/` | **B9** hooks, dictation + call audio capture, refetch helper | 1 |
+| **12** | auto-deploy watcher (running) | deploy monitor + browser walk per merge | running |
+| **90 [113a1a]** | chat agent (#58) | **B10** agent read + write tools, Undo, approvals, stream to assistant-ui | 2 |
+| **90 [58e3c2]** ("90b") | idle reserve | **B6** after-call agent, pledges, RSVP | 2 |
+| **98** | QA gate | one review subagent per PR | all |
+| **c9** | written reviews; built none of this | independent evaluator (§10), overflow QA | Sun |
+| **37** | — (confirm on brief) | **B5** README + demo-script skeleton | Sun AM |
+| **Christian** | the UI | screens from the mockup | 1–2 |
+| **Sharif** | — | integrates Christian's screens; demo call | — |
+| **Carlos** | ingest 🔒 | on call if an upload fails | — |
+| **Lead (Ideas)** | the plan | briefs, contract, merges pinned to approved SHAs, ROADMAP, unblocking | all |
+
+#### 21.6.2 The loop every agent follows
+```
+lead: 5-field brief (CONTEXT / OWNS / TASK / DONE WHEN / RETURN)
+  --> agent: git worktree add --no-track -b <branch> <path outside Dropbox> origin/main
+             git push -u origin <branch>; check `git rev-parse --abbrev-ref @{upstream}` != main
+  --> copy the listed code first, adapt minimally; tests from the smoke list first
+  --> open the PR early (schema + stubs); push small commits; never push to main; never git add -A
+  --> QA 98: subagent runs the build's smokes + full pytest + contract check --> APPROVE <full sha> | CHANGES
+  --> lead: gh pr merge N --merge --match-head-commit <sha>; ROADMAP flip; tells dependents to rebase
+  --> 12: auto-deploy main to Vercel (≤30 s); walks laptop + Vercel; posts counts per SHA
+  --> c9 (Sun): grades §10; FAILs go back to the owner; repeat until all PASS
+```
+
+#### 21.6.3 Build cards
+
+**D1 empty start (8b)** · OWNS `service/db.py` (seed call only), `service/main.py` startup, landing copy in web (one string), `service/tests/`
+1. `reset_db()`/startup default `with_seed=False`; move `SEED_DONORS` into `service/tests/fixtures_seed.py`; keep tests passing with the fixture.
+2. Remove "Try sample data → snapshot" from the laptop build (`VITE_DATA_MODE=live`); landing says "drag in the files from `data/sample_inputs/`".
+3. Caches: read only in the live call's `except`; rows tagged `cached=1`.
+4. Add `org_profile.staff_name` (set in onboarding step 2).
+Done: fresh start = 0 people/gifts/tasks/context; full pytest green.
+
+**D2 example dataset (8b)** · OWNS `data/sample_inputs/*`, `scripts/make_sample_inputs.py`
+1. Add fictional `online_gifts_oct_nov_2026.xlsx` (messy like the others; example.com/555 numbers).
+2. Update `answer_key.json` totals, per-quarter, gifts; `_README.md`.
+Done: upload of the folder matches the key; Q4 gauge reads the new total.
+
+**C1 context store (86)** · OWNS `service/org_context.py`, `org_context` columns in `db.py`, `routes_data.py` context search route, tests
+1. Columns `kind`, `title`, `embedding`, `cached` (guarded ADD COLUMN).
+2. Context agent: structured output classifies each item into a kind (enum); embed `title + text` with `text-embedding-3-small`.
+3. `search_context()` with recency weight; `GET /context/search`.
+4. Onboarding run ends with a call to `/tasks/generate` (3a's function) once it exists.
+Done: every row has kind + source_url; newest-first holds; daily refresh adds on top.
+
+**C2 story-first campaigns (86)** · OWNS `service/campaign_agent.py`, `outreach_agent.py`, `event_outreach.py`, tests
+1. Each agent calls `search_context(kinds=[success_story, use_of_funds, org_health])` before drafting.
+2. Prompt: use ≥1 of each when present, cite by id; draft carries `sources[]`; post-check rejects uncited claims; empty kind → staff note.
+3. Keep the SAMPLE-history guard and approval rules.
+Done: 5 drafts each cite all three kinds; 0 uncited claims.
+
+**B11/B12 tasks, calendar, artifacts (3a)** · OWNS `service/tasks.py`, `routes_tasks.py`, `tasks` + `agent_actions` tables, tests
+1. Tables (land first). 2. CRUD + service functions with undo tokens; `POST /undo/{token}`.
+3. Generator (idempotent): failed/late alert → call (why + chips), duplicate group → review, first gift < 30 days → welcome, event ≤ 14 days → prep.
+4. `/calendar` (events + dated tasks; `source`), `/artifacts` (drafts; call notes when present).
+Done: 5 call tasks + 1 review per duplicate group; rerun adds 0; CRUD + undo pass.
+
+**B1 interest tags (42)** · OWNS `service/interests.py`, `routes_interests.py`, `enrich_agent.py`, interest tables, tests
+1. Tables + 17-tag seed. 2. Enrich: enum structured output + `contact{}`; identity check.
+3. `?dry_run=1` propose; `/enrichment/accept`; add/remove with staff-wins; service functions return undo tokens.
+Done: smokes 9; 3 live runs on sample organizations.
+
+**B2/B13 money and home (48)** · OWNS `service/targets.py`, `routes_targets.py`, `routes_home.py`, tests
+1. `quarters()` + `/targets/quarters`; `reached_today`. 2. `/home/summary`, `/people/attention`.
+3. Guard missing tables until 3a / Agent Phone merge.
+Done: quarters = answer key; gifts at risk = 5.
+
+**B3 voice (Agent Phone)** · OWNS `service/transcribe.py`, `call_notes.py`, `routes_voice.py`, `call_notes` table, `scripts/smoke-gemini-live.py`, `scripts/smoke-transcribe-ws.py`, `requirements.txt` (+google-genai), tests
+1. ~60-line WS relay (two asyncio loops around `client.aio.live.connect`, `input_audio_transcription`); `purpose=dictation` SMART, no storage.
+2. `/transcribe/file` with `client.interactions.create`, verbatim + `diarization_mode: speaker`.
+3. `call_notes` save/list; OpenAI Agents SDK summary; undo token.
+Done: smokes 3, 10; key absent from `web/`.
+
+**B9 web hooks (80)** · OWNS `web/src/components/atomic-crm/providers/local/*` (new files), `providers/local/audio/` (lifted)
+1. Types + hooks for every endpoint in §5, contract-shaped mocks first; flip to real on each merge.
+2. Lift Google live-api-web-console `src/lib/audio-recorder.ts`, `src/lib/worklets/audio-processing.ts`, `src/lib/audioworklet-registry.ts` (Apache-2.0: keep headers + NOTICE); `useDictation()`, `useCallTranscript()` (template: assistant-ui `examples/with-elevenlabs-scribe`).
+3. Refetch helper for tasks, calendar, people, targets, summary, context.
+Done: `pnpm tsc --noEmit` + provider tests; snapshot build renders with 0 console errors.
+
+**B10 agent tools (90 [113a1a])** · OWNS `service/chat_agent.py` (+ a stream adapter module)
+1. Tools: reads (`find_people`, `get_person`, `get_alerts`, `get_events`, `get_calendar`, `get_tasks`, `get_call_notes`, `search_context`); writes (`update_person`, `add_interest`, `remove_interest`, `accept_enrichment`, `log_gift`, `merge_duplicate`, `dismiss_duplicate`, `add_calendar_item`, `move_calendar_item`, `delete_calendar_item`, `rsvp_event`, `create_task`, `update_task`, `complete_task`, `delete_task`, `save_call_note`, `apply_after_call_actions`, `draft_email`, `draft_sms`, `send`, `undo`).
+2. Writes return undo tokens; sends/merges/deletes use human-in-the-loop approval (copy `openai-agents-python/examples/agent_patterns/human_in_the_loop_server.py`).
+3. Stream to assistant-ui via `assistant-stream` (Python) + a ~100-line event mapper; approval cards with `makeAssistantToolUI` + `addResult`.
+Done: smoke 12.
+
+**B6 after-call agent (90 [58e3c2])** · OWNS `service/after_call_agent.py`, `routes_after_call.py`, pledges table + `event_audience.rsvp` column, tests
+1. Agents SDK agent, `output_type` = Pydantic list of typed actions (`create_task`, `rsvp_event`, `record_pledge`, `add_context_note`, `tag_interest`).
+2. `/actions` proposes; `/apply` calls 3a's and 42's service functions.
+Done: smoke 11; 0 writes before Apply.
+
+**B5 ship-out (37 + lead)** · README (models named, how to run from empty, limits: P7 fraud hold, social tokens, individual research parked), demo-script skeleton for Sharif's call, repo public with MIT by Sun 4:45 PM after a history check (TEAM_CONTACTS, judges, transcripts never committed).
+
+**Screens (Christian; Sharif integrates)** · built from §3 and `docs/ui-integration.md` on 80's hooks; each screen goes through the same loop.
+
+#### 21.6.4 Code to lift (`docs/research/repos-to-lift.md`)
+| Need | Lift | License |
+|---|---|---|
+| Chat UI, tool steps, approval cards | assistant-ui (already in #69): `makeAssistantToolUI`, `addResult`; prompt-kit chips | MIT |
+| Agent → UI stream | `assistant-stream` (PyPI) + our event mapper | MIT |
+| Human approval | openai-agents-python `examples/agent_patterns/human_in_the_loop_server.py`, `human_in_the_loop_stream.py`; `output_type=Pydantic` | MIT |
+| Mic capture | google-gemini/live-api-web-console audio files (above) | Apache-2.0 |
+| Gemini relay | ~60 lines of our own | — |
+| Mini calendar, palette, gauge | shadcn `calendar` (react-day-picker), `command` (cmdk), radial `chart` (Recharts) | MIT |
+| Twilio stretch | `twilio-python`, `record=True` + `recording_status_callback` | MIT |
+Do not use: agent-chat-ui, vercel/ai-elements (deprecated end Nov 2026), ChatKit widget, CopilotKit, `gemilive` as a dependency, browser-direct Gemini with a long-lived key.
+
+---
+
+### 21.7. Folder / file structure (only what changes)
+```
+service/
+├── db.py                    new tables/columns only, landing order §8; default seed removed (D1)
+├── main.py                  one include_router line per new router; startup without seed
+├── org_context.py           C1 kinds, embeddings, search_context
+├── campaign_agent.py        C2 story-first drafts with sources
+├── outreach_agent.py        C2
+├── event_outreach.py        C2
+├── tasks.py                 NEW B11/B12 tasks, generator, calendar feed, artifacts, undo
+├── routes_tasks.py          NEW B11/B12
+├── interests.py             NEW B1 tags, staff-wins
+├── routes_interests.py      NEW B1
+├── enrich_agent.py          B1 enum tags + contact, dry run
+├── targets.py               B2 quarters, reached_today
+├── routes_targets.py        B2
+├── routes_home.py           NEW B13 summary, attention
+├── transcribe.py            NEW B3 Gemini live relay + file pass
+├── call_notes.py            NEW B3 notes + summary agent
+├── routes_voice.py          NEW B3
+├── after_call_agent.py      NEW B6
+├── routes_after_call.py     NEW B6
+├── chat_agent.py            B10 read + write tools, approvals, undo
+├── requirements.txt         + google-genai, assistant-stream
+└── tests/                   test_tasks, test_interests, test_targets_quarters, test_home_summary,
+                             test_context_store, test_campaign_sources, test_call_notes, test_after_call,
+                             test_agent_tools, fixtures_seed.py (moved SEED_DONORS)
+web/src/components/atomic-crm/providers/local/   B9 hooks (interests, homeSummary, tasks, calendarFeed,
+                             artifacts, voice, dictation, afterCall, contextSearch) + audio/ (lifted)
+web/src/components/atomic-crm/…                   Christian's screens (home, onboarding, modals)
+data/sample_inputs/          D2 online_gifts_oct_nov_2026.xlsx, answer_key.json, _README.md
+scripts/                     smoke-gemini-live.py, smoke-transcribe-ws.py, verify-e2e.py cases (12)
+.env.example                 GEMINI_API_KEY, GEMINI_TRANSCRIBE_MODEL, GEMINI_TRANSCRIBE_LIVE_MODEL (done)
+plan.md                      §21 = this plan; ROADMAP.md flips per merge
+README.md, docs/demo-script.md   B5
+```
+
+---
+
+### 21.8. Flowchart (runtime) and landing order
+```
++------------------+     +-------------------+     +------------------------------+
+| Drag example     |---->| ingest adapter    |---->| people + gifts (SQLite)      |
+| files (step 1)   |     | (Carlos, stat-mcp)|     +------------------------------+
++------------------+     +-------------------+          |            |
+                                                        v            v
++------------------+     +-------------------+     quarters /    task generator (B11) <---+
+| Org website +    |---->| context agent (C1)|      summary /       |                     |
+| socials (step 2) |     | web+news+posts    |      attention      v                     |
++------------------+     +-------------------+      (B2,B13)    tasks table --> task card |
+                                |                      |           |   --> task list      |
+                                v                      v           |   --> calendar feed  |
+                     context store (RAG, newest)   left column     |                      |
+                                |                                  |                      |
+             +------------------+------------------+               |                      |
+             v                                     v               |                      |
+   campaign / outreach agents (C2)        events + audiences ------+----------------------+
+   cite story + use of funds + health
+             |
+             v
+   drafts --> [approval card] --> send (email / SMS, dry run by default)
+
+[Enrich] --> enrich agent (B1) --> proposals --> [Save to profile] --> donor_interests + facts
+[🎙 chat] --> WS /transcribe/live (dictation) --> Gemini live --> words in input box (no storage)
+[Call and transcribe] --> WS /transcribe/live (call) --> live transcript
+        --> end: /transcribe/file (speaker names) --> [Save note] --> call_notes
+        --> after-call agent (B6) --> [Apply] --> tasks · RSVP · pledge · context
+Agent chat (B10) --> tools --> same service functions --> undo token / approval --> UI refetch (B9)
+main merges --> 12 auto-deploys Vercel snapshot --> walk
+```
+| Order | Lands in `db.py` / main | Unblocks |
+|---|---|---|
+| 1 | 3a `tasks`, `agent_actions` | 48 tasks_today, B6, B10 |
+| 2 | 8b empty start + new example sheet | 48 totals, 12 walk from empty |
+| 3 | 42 interest tables | B6 `tag_interest`, B10 |
+| 4 | Agent Phone `call_notes` | 48 reached_today, 3a artifacts, B6 |
+| 5 | 86 `org_context` columns + search | C2, B10 |
+| 6 | 90b pledges + RSVP | B10 `apply_after_call_actions` |
+| 7 | 90 B10 tools | full agent-first walk, c9 grading |
+80's hooks run in parallel throughout (mock first, real on each merge).
+
+---
+
+### 21.9. Derisking (dependency order; each passes before the next step's code)
+
+| # | What it proves | Command | Expected | If it fails → |
+|---|---|---|---|---|
+| 1 | Empty start | `python -c "from service import db; db.reset_db()"` then SQL counts | people 0, gifts 0, tasks 0, org_context 0 | find the remaining seed path (startup, snapshot, cache) |
+| 2 | Upload is the only source | upload `data/sample_inputs/*` via `/ingest` | tabs 33/20/15 (+ new sheet's people), gifts and total = updated `answer_key.json` | 8b fixes the sheet or key; Carlos checks ingest |
+| 3 | Gemini key reaches the live model | `python scripts/smoke-gemini-live.py <20s wav>` | final text contains the scripted words | check key tier / model id in AI Studio; fall back to file model per chunk |
+| 4 | Tables create; `donors` unchanged | `pytest service/tests -k schema` | pass; `donors` columns unchanged | make migrations IF NOT EXISTS / guarded |
+| 5 | Context store fills, newest first | onboarding step 2 with miamifoundation.org, then `GET /context/search?kinds=success_story` | every row has kind + source_url; dates descending | 86 fixes classification / ordering |
+| 6 | Campaigns tell the story | `pytest service/tests/test_campaign_sources.py` + 5 live drafts | each draft cites ≥1 success_story, use_of_funds, org_health; 0 uncited claims | tighten prompt + post-check |
+| 7 | Task generator | `pytest service/tests/test_tasks.py -k generate` | 5 call tasks + 1 review per duplicate group; rerun 0 | fix rules / idempotency key |
+| 8 | Money is exact | `pytest service/tests/test_targets_quarters.py` | quarters = updated key; Q4 > 0 | fix dates / failed-charge exclusion |
+| 9 | Enrich | `pytest service/tests/test_interests.py` + 3 live orgs | only the 17 tags, each sourced; 0 writes before Save; made-up person 0 tags | tighten schema / identity rule |
+| 10 | Voice | `python scripts/smoke-transcribe-ws.py <wav>`; restart; `GET /people/{id}/call-notes` | interim + final; file pass ≥2 speakers; note survives restart; dictation 0 rows | fix PCM framing / table |
+| 11 | After-call | `pytest service/tests/test_after_call.py` | expected actions; 0 rows before Apply; Apply writes all | tighten action schema |
+| 12 | Agent does everything | `pytest service/tests/test_agent_tools.py` + Playwright per tool | row changes; panel updates without reload; Undo restores; sends/merges/deletes need a click | fix the tool or refetch key |
+| 13 | End to end on the laptop | 12's walk: empty → drag files → website → dashboard → chat → campaign → Enrich → call → Apply | all panels populated; 0 console errors; 0 failed requests | walk back to the failing smoke |
+Ground truth after 13: SQL row counts vs `answer_key.json`; spot-check 3 context URLs by hand; Sharif's visual pass.
+
+---
+
+### 21.10. Evaluation criteria (graded by c9, never by the builders)
+
+| Criterion | Metric + threshold | How measured | Evidence |
+|---|---|---|---|
+| Nothing preloaded | 0 rows of people, gifts, tasks, context before the first upload | SQL on fresh start | query output |
+| Everything traces to the example files | 100% of people and gifts map to a file row in `answer_key.json` | QA script | report row |
+| First run lands on a populated dashboard | glance counts > 0; tasks generated; ≥1 item per kind where the site has one | Playwright + SQL | screenshot + counts |
+| Context store sourced, recent-first | 100% rows with source_url; newest-first order holds | SQL | query output |
+| Campaigns tell the story | 100% of 5 drafts cite ≥1 success story, 1 use of funds, 1 org health; 0 invented facts | citation check + review | report |
+| Money is exact | equals the updated answer key; pledges never count | pytest | pass line |
+| Challenge #2 | 6/6 duplicate groups proposed, merge needs approval, gift history kept; 5/5 alerts shown as tasks | API + SQL | counts |
+| Enrich tags | ≥2 of 3 sample orgs get ≥1 sourced tag; 0 outside the 17; 0 for a made-up person | API runs | JSON |
+| Transcription | first words < 2 s; ≥90% word match on a scripted 20 s read | smoke + WER | log |
+| Call notes | note + summary survive restart; dictation stores 0 rows | curl after restart; SQL | output |
+| Agent does everything | every write tool works from chat; panel updates; Undo works; 0 sends/merges/deletes without a click | Playwright + SQL | log + screenshots |
+| Key stays server-side | 0 Gemini key in `web/dist` or network | grep + Playwright network log | output |
+| Demo path clean | 0 console errors, 0 4xx/5xx on the laptop and the Vercel snapshot | 12's walks | log |
+Scorecard at close: `| Criterion | Threshold | Result | Evidence | PASS/FAIL |`; any FAIL keeps the work open; 3 stalled rounds → Sharif.
+
+---
+
+### 21.11. Timeline (freeze Sun 4:15 PM)
+| When | What |
+|---|---|
+| On approval | Wave 1 briefs together: 8b (D1, D2), 86 (C1, C2), 3a (B11/B12), 42 (B1), 48 (B2/B13), Agent Phone (B3), 80 (B9); QA clears #73 (event-loop fix) and #69 (Ask panel) first; this plan copied into `plan.md` §21 and PR #77 merged |
+| As wave-1 tables land | Wave 2: 90 [113a1a] (B10), 90 [58e3c2] (B6); 86 closes #49/#57 |
+| Christian's draft arrives | Sharif integrates on 80's hooks; build → integrate → test on one loop |
+| Sun 9 AM | merges, walks, c9 round 1 |
+| Sun 11 AM | rehearsals from an empty start (reset DB each time); 37 drafts README + demo script |
+| Sun 1 PM | c9 final scorecard; stretch only if all PASS |
+| Sun 3:30 PM | tag `demo`; history check; repo public with MIT; freeze 4:15; submit by 4:45 |
+Cut order if the clock wins: Twilio → Artifacts → CRM badges → Community impact. Never cut: empty start, context
+store + story-first campaigns, tasks, voice, after-call, agent write tools.
+
+---
+
+### 21.12. Implementation steps (lead, in order)
+1. On approval: copy this plan into `plan.md` §21; point `docs/finish-plan.md` to it; QA approves PR #77; merge pinned.
+2. Send the seven wave-1 briefs in one batch (5 fields each, §5 contract, §6.3 card, git rules).
+3. Track each PR: QA verdict → pinned merge → ROADMAP flip → tell dependents to rebase (§8 order) → 12's walk numbers.
+4. As 3a + Agent Phone + 42 merge, send wave-2 briefs (B10, B6).
+5. When Christian's draft lands, Sharif integrates; lead keeps the contract and hooks current.
+6. Sun 9 AM: start c9; route FAILs; repeat until all PASS.
+7. Sun AM: rehearsals; B5; history check; public + MIT; tag `demo`.
+
+### 21.13. Open items
+- Q4 example sheet (D2): included by default; say if you'd rather lower the sample goal instead.
+- Sessions 12 and 37: roles confirmed on brief (12 already confirmed as the deploy watcher).
+- Nit from 12's walk: Vercel's "Live AI isn't configured" answer shows a "Cached answer" badge (UI owner).
