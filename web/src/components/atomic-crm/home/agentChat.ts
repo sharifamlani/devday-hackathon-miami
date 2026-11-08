@@ -18,6 +18,8 @@ export type AgentStep = {
   undo_token: string | null;
   call_id?: string | null;
   undone?: boolean;
+  /** A richer card from the service, drawn by kind (e.g. "call_sheet", "merged_pairs"). */
+  card?: { kind: string; [k: string]: unknown } | null;
 };
 
 export type AgentApproval = {
@@ -81,7 +83,7 @@ export type Refetch = (scopes?: RefetchScope[]) => unknown;
 export const scopesOf = (steps: AgentStep[]): RefetchScope[] => {
   const scopes = new Set<RefetchScope>();
   for (const s of steps)
-    if (s.status === "done" && s.undo_token) scopesForTool(s.tool)?.forEach((x) => scopes.add(x));
+    if (s.status === "done") scopesForTool(s.tool)?.forEach((x) => scopes.add(x));
   return [...scopes];
 };
 
@@ -126,7 +128,7 @@ const withStep = (reply: Assistant, callId: string, patch: Partial<AgentStep>): 
 /**
  * Apply one line of the assistant-stream data stream (service/chat_stream.py) to the reply being built:
  * "0:" text delta · "b:" a tool call starts (its card shows as running) · "c:" its JSON args arrive ·
- * "a:" its result {summary, status, undo_token} · "2:" data ({type: "approvals", run_id, approvals}) ·
+ * "a:" its result {summary, status, undo_token, card} · "2:" data ({type: "approvals", run_id, approvals}) ·
  * "3:" an error (thrown). Anything else (finish markers) is ignored. argsText collects partial args per call.
  */
 export const applyStreamLine = (reply: Assistant, line: string, argsText: Map<string, string>): Assistant => {
@@ -164,6 +166,7 @@ export const applyStreamLine = (reply: Assistant, line: string, argsText: Map<st
         summary: r.summary ?? null,
         status: r.status ?? "done",
         undo_token: r.undo_token ?? null,
+        card: r.card ?? undefined,
       });
     }
     case "2":

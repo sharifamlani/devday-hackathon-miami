@@ -5,6 +5,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Motion curves (see "Motion" below): also Tailwind utilities ease-enter, ease-exit, ease-move. */
+@theme {
+  --ease-enter: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
 @theme inline {
   /* Kindred renders in Avenir Next on Apple devices; bundled Inter covers the rest. */
   --font-sans:
@@ -294,11 +301,67 @@ body {
   }
 }
 
+/* ---- Motion ----------------------------------------------------------------------------
+   One set of variables for every animation (src/lib/motion.ts reads the same ones).
+   Speeds: --motion-fast (hover, menus, tooltips), --motion-base (dialogs, drawers, cards),
+   --motion-slow (sidebars, panes, workspace panels). Curves: --ease-enter for things
+   arriving, --ease-exit for things leaving, --ease-move for things moving on screen.
+   --motion-scale multiplies every speed: 1 normal, 2 slow motion for a demo, 0 none.
+   "Reduce motion" in the profile menu sets <html data-motion="reduce"> (scale 0, loops stop);
+   "system" follows the OS setting; "full" keeps motion on. */
+:root {
+  --motion-scale: 1;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --motion-fast: calc(var(--duration-fast) * var(--motion-scale));
+  --motion-base: calc(var(--duration-base) * var(--motion-scale));
+  --motion-slow: calc(var(--duration-slow) * var(--motion-scale));
+}
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+  :root:not([data-motion="full"]) {
+    --motion-scale: 0;
   }
+}
+:root[data-motion="reduce"] {
+  --motion-scale: 0;
+}
+/* Reduced motion also stops what doesn't read the variables: loops (spinners, pulses,
+   the landing's drift) and library defaults. */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) *,
+  :root:not([data-motion="full"]) *::before,
+  :root:not([data-motion="full"]) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Shared entrances: add the class to anything that appears. */
+@keyframes motion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.motion-enter {
+  animation: motion-enter var(--motion-base) var(--ease-enter) both;
+}
+.motion-fade-in {
+  animation: motion-fade-in var(--motion-base) var(--ease-enter) both;
 }

@@ -169,3 +169,36 @@ def test_no_saved_events_says_run_refresh(db_file, monkeypatch):
     monkeypatch.setattr(event_outreach, "load_events", lambda conn: [])
     result = event_outreach.plan_event_outreach("all_upcoming")
     assert result["events"] == [] and result["note"] == event_outreach.NO_EVENTS_NOTE
+
+
+def test_review_opens_the_invites_setup_already_wrote_without_drafting_again(three_tabs, monkeypatch):
+    """Setup (or a refresh) saved invites in event_drafts; Review puts those in the batch at once."""
+    conn = db.connect()
+    ids = db.save_events(conn, [dict(e) for e in EVENTS], complete=True)["ids"]
+    gmd_id = ids[2]
+    givers = [r[0] for r in conn.execute("SELECT id FROM donors WHERE email IS NOT NULL ORDER BY id LIMIT 3")]
+    for pid in givers:
+        db.save_event_draft(conn, gmd_id, pid, {"subject": "You're invited: Give Miami Day",
+                                                "email_body": "Hi, Give Miami Day is on Nov 19.", "sms": "GMD Nov 19",
+                                                "facts_used": [{"fact": "Give Miami Day", "url": EVENTS[2]["source_url"]}]})
+    conn.close()
+    monkeypatch.setattr(event_outreach, "load_events", lambda conn: [{**e, "id": i} for e, i in zip(EVENTS, ids)])
+
+    def no_model(*a, **k):
+        raise AssertionError("Review drafted again instead of opening the saved invites")
+    monkeypatch.setattr(sys.modules["service.events_agent"], "draft_event_invite", no_model)
+
+    c = TestClient(app)
+    r = c.post(f"/events/{gmd_id}/plan").json()
+    assert r["from_saved_invites"] is True and r["drafts"] == 3
+    msgs = c.get(f"/campaigns/{r['batch_id']}").json()["messages"]
+    assert sorted(m["donor_id"] for m in msgs) == sorted(givers)
+    assert all(m["subject"] == "You're invited: Give Miami Day" for m in msgs)
+    again = c.post(f"/events/{gmd_id}/plan").json()                 # a second Review opens the same batch
+    assert again["batch_id"] == r["batch_id"] and again["existing"] is True
+    assert outbox(c) == []
+
+
+def test_an_event_without_saved_invites_still_drafts(three_tabs):
+    first = event_outreach.plan_event_outreach(1)["events"][0]
+    assert first.get("from_saved_invites") is not True and first["drafts"] > 0

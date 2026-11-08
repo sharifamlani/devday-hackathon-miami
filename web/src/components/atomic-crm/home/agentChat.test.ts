@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { WAITING_PREFIX, agentChatMessages, applyStreamLine, decide, resetAgentChat, sendToAgent } from "./agentChat";
+import {
+  WAITING_PREFIX,
+  agentChatMessages,
+  applyStreamLine,
+  decide,
+  resetAgentChat,
+  scopesOf,
+  sendToAgent,
+  type AgentStep,
+} from "./agentChat";
 
 const reply = (body: unknown) =>
   Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
@@ -76,6 +85,17 @@ describe("agent chat: streaming replies", () => {
         summary: "task #1 saved: Call Priya", status: "done", undo_token: "u1", call_id: "t1" }),
     ]);
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it("a result's card (call sheet, merged pairs) reaches the step", () => {
+    const empty = { role: "assistant" as const, text: "", steps: [], approvals: [], runId: null };
+    const args = new Map<string, string>();
+    let r = applyStreamLine(empty, 'b:{"toolCallId": "p1", "toolName": "prep_call"}', args);
+    r = applyStreamLine(r, 'a:{"toolCallId": "p1", "result": {"summary": "call sheet", "status": "done", "card": {"kind": "call_sheet", "name": "Elizabeth Fontaine"}}}', args);
+    expect(r.steps[0].card).toEqual({ kind: "call_sheet", name: "Elizabeth Fontaine" });
+    r = applyStreamLine(r, 'b:{"toolCallId": "p2", "toolName": "get_tasks"}', args);
+    r = applyStreamLine(r, 'a:{"toolCallId": "p2", "result": {"summary": "0 tasks", "status": "done"}}', args);
+    expect(r.steps[1].card).toBeUndefined();
   });
 
   it("a tool card shows as running until its result arrives", () => {
@@ -213,5 +233,25 @@ describe("agent chat: two cards pending", () => {
     expect(after.decisions).toEqual({ cA: approveA, cB: true });
     expect(after.decided).toBe(true);
     expect(after.text).toBe("");
+  });
+});
+
+describe("agent chat: what refetches after a turn", () => {
+  const step = (tool: string, extra: Partial<AgentStep> = {}): AgentStep => ({
+    tool, args: {}, summary: null, status: "done", undo_token: null, ...extra,
+  });
+
+  it("refreshes Files & drafts after a draft even though drafts carry no undo token", () => {
+    expect(scopesOf([step("draft_email")])).toContain("artifacts");
+    expect(scopesOf([step("draft_sms")])).toContain("artifacts");
+  });
+
+  it("refreshes after a send resumed from an approval card (no token)", () => {
+    expect(scopesOf([step("send")])).toEqual(expect.arrayContaining(["campaigns", "artifacts"]));
+  });
+
+  it("refetches nothing for read-only or failed steps", () => {
+    expect(scopesOf([step("find_people")])).toEqual([]);
+    expect(scopesOf([step("draft_email", { status: "error" })])).toEqual([]);
   });
 });

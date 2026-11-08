@@ -45,7 +45,7 @@ describe("runZoomTransition", () => {
     expect(src.style.viewTransitionName).toBe("zoom-frame");
     expect(doc.documentElement.dataset.zoom).toBe("open");
     expect(doc.documentElement.style.getPropertyValue("--zoom-dur")).toBe(
-      "340ms",
+      "320ms", // --duration-slow
     );
     await transitions[0].cb();
     expect(update).toHaveBeenCalled();
@@ -79,6 +79,51 @@ describe("runZoomTransition", () => {
     });
     expect(transitions[0].skip).toHaveBeenCalledTimes(1);
     expect(transitions).toHaveLength(2);
+  });
+  it("overview and pane slides use the slow speed", () => {
+    for (const kind of ["overview", "pane"] as const) {
+      const { doc } = makeDoc();
+      runZoomTransition({ kind, update: () => {}, doc, win: win(false) });
+      expect(doc.documentElement.dataset.zoom).toBe(kind);
+      expect(doc.documentElement.style.getPropertyValue("--zoom-dur")).toBe(
+        "320ms",
+      );
+    }
+  });
+  it("timings follow the motion variables, including --motion-scale", () => {
+    const root = document.documentElement;
+    root.style.setProperty("--duration-slow", "400ms");
+    root.style.setProperty("--motion-scale", "2");
+    try {
+      const { doc } = makeDoc();
+      runZoomTransition({
+        kind: "open",
+        update: () => {},
+        doc,
+        win: win(false),
+      });
+      expect(doc.documentElement.style.getPropertyValue("--zoom-dur")).toBe(
+        "800ms",
+      );
+    } finally {
+      root.style.removeProperty("--duration-slow");
+      root.style.removeProperty("--motion-scale");
+    }
+  });
+  it("the Reduce motion choice fades even when the system doesn't ask", () => {
+    document.documentElement.dataset.motion = "reduce";
+    try {
+      const { doc } = makeDoc();
+      runZoomTransition({
+        kind: "pane",
+        update: () => {},
+        doc,
+        win: win(false),
+      });
+      expect(doc.documentElement.dataset.zoom).toBe("fade");
+    } finally {
+      delete document.documentElement.dataset.motion;
+    }
   });
   it("reduced motion: 120ms fade, no source naming", () => {
     const { doc } = makeDoc();

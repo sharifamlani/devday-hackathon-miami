@@ -6,4 +6,14 @@ describe("agent write scopes", () => {
       expect(scopesForTool(tool)).toEqual(expect.arrayContaining(["tasks", "calendar", "people", "summary"]));
     }
   });
+
+  it("refreshes Files & drafts after the agent drafts or sends, so a new campaign row shows without a reload", () => {
+    for (const tool of ["draft_email", "draft_sms", "send"]) {
+      expect(scopesForTool(tool)).toEqual(expect.arrayContaining(["campaigns", "artifacts"]));
+    }
+  });
+
+  it("leaves Files & drafts alone for read-only tools", () => {
+    expect(scopesForTool("find_people")).toBeUndefined();
+  });
 });
