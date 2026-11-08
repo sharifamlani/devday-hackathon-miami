@@ -8,7 +8,12 @@ import { useCampaigns, useOutbox } from "../providers/local/hooks";
 import { formatStamp, intentLabel, pillButton } from "./campaignFormat";
 import { ChannelLabel, LinkPill, PageShell } from "./campaignUi";
 import { SendModeNote } from "./SendModeNote";
-import { TONE_CLASS, campaignOutcomeLabel } from "./sendLabels";
+import {
+  TEXT_TONE_CLASS,
+  TONE_CLASS,
+  campaignCounterSegments,
+  campaignOutcomeLabel,
+} from "./sendLabels";
 
 /** /campaigns: every campaign with its approval progress. */
 export const CampaignList = () => {
@@ -79,8 +84,18 @@ export const CampaignList = () => {
                   <ChannelLabel channel={c.channel} />
                   <span>{formatStamp(c.created_at)}</span>
                   <span>
-                    {c.counts.total} messages · {c.counts.approved} approved ·{" "}
-                    {c.counts.sent} sent
+                    {campaignCounterSegments(
+                      c.counts,
+                      outbox?.filter((o) => o.campaign_id === c.id),
+                    ).map((seg, i) => (
+                      <span
+                        key={seg.text}
+                        className={TEXT_TONE_CLASS[seg.tone]}
+                      >
+                        {i ? " · " : ""}
+                        {seg.text}
+                      </span>
+                    ))}
                     {c.counts.needs_individual_approval
                       ? ` · ${c.counts.needs_individual_approval} need individual approval`
                       : ""}
