@@ -4,7 +4,7 @@ Freeze: **Sun Nov 8, 4:15 PM ET**; repo public + MIT by 3:30 PM. Plan of record:
 Workflow: builders → PR → QA approves exact SHA → lead merges `gh pr merge N --merge --match-head-commit <sha>` →
 session 12's watcher auto-deploys main to Vercel → 12 walks prod → c9 grades §21.10 at the end.
 
-## Main = 5ecf010 (green; live on Vercel via 12's watcher)
+## Main = c28e2ac (green; #108 docs merged on top of 5ecf010)
 Merged after resume: #103 voice pause labels, #88 interest tags, #90 after-call agent, #106 snapshot privacy fix, #102 schema race.
 Earlier: #73 #77 #80 #57 #68 #81 #82 #79 #83 #89 #87 #91 #99 #94 #97 #96 #98 #100; Christian #78 #84 #85 #86 #93 #92; Faye #105 (dashboard design).
 
@@ -31,7 +31,7 @@ In-session lead subagents: reviewing #107 and #111.
 | #112 | Agent chat in home (supersedes #101) | feat/home-integration-2 | 90 + QA reviewing; retarget to main after #107; then close #101 |
 | #113 | Calendar shows tasks; outreach plan = real tasks (supersedes #104) | feat/home-integration-2 | QA (with #110); retarget after #107; close #104 |
 | #110 | Phone Calendar route | feat/home-integration-2 | QA; conflicts on CalendarPage with #113 (rebase whichever lands second) |
-| #108 | README + demo script | main | CHANGES (86 fixing: step 8 depends on #111 + 42's UI; counts after approval; 7 files only; real onboarding wording) |
+| #108 | README + demo script | main | **MERGED c28e2ac** (step 8 Knight beat gated on #111 + 42's Enrich UI; update labels when they land) |
 | #109 | Context-note undo (touches 86's after_call_agent; 86 OK'd) | main | QA reviewing |
 | #95 #101 #104 | superseded | — | close when replacements merge |
 | #76 #69 #70 | parked | — | don't merge |
