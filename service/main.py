@@ -15,7 +15,7 @@ POST /chat                   chat agent (tab-aware tools); drafts land as a batc
 POST /send/{batch_id}        a human approves a chat batch (orgs/star/big need per-item ids) and it goes out
                              through outbound.deliver: dry run unless EMAIL_SEND=on / SMS_PROVIDER is set
 POST /events/{id}/plan       create or open an event's outreach batch (one campaign per event); 503 until 86 lands
-POST /events/refresh, GET /events/{id}/drafts   events agent (86), 503 until it lands
+POST /events/refresh         one refresh pass now (context, events, invites, tasks); GET /events/{id}/drafts
 POST /context/refresh        "Refresh now": starts a background context + calendar pass (86's service.refresh) on
                              org_profile's URLs and returns {status: "refreshing"}; GET /context/refresh reports it;
                              the same pass runs daily at REFRESH_DAILY_AT (HH:MM) when set
@@ -430,6 +430,7 @@ async def context_run(req: ContextRun) -> dict:
                 "profile": None, "facts": [], "saved": None}
 
     urls = req.model_dump(exclude={"refresh"})
+    events_job = start_events_search(req.website)    # in parallel with the website read: same wait, not double
     try:
         result = await asyncio.wait_for(run_in_threadpool(build_context, urls, True), config.CONTEXT_DEADLINE_S)
         result = with_user_urls(result, urls)
@@ -453,11 +454,56 @@ async def context_run(req: ContextRun) -> dict:
         # A failed run saves nothing: a typo'd URL must not wipe the saved profile or facts
         if state != "failed":
             saved = await run_in_threadpool(persist_context, savable(result, sources))
+    calendar = await onboarding_calendar(events_job) if saved is not None else None
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,
             "profile": (result or {}).get("profile"), "facts": (result or {}).get("facts", []),
-            "saved": saved}
+            "saved": saved, "calendar": calendar}
+
+
+def start_events_search(website: str | None):
+    """The events agent's read of the org's site, started next to build_context (None if it hasn't landed,
+    or ONBOARDING_EVENTS=off, which the tests set)."""
+    if not website or os.getenv("ONBOARDING_EVENTS", "on").lower() == "off" or not module_present("service.events_agent"):
+        return None
+    from service import events_agent as ea
+    return asyncio.ensure_future(run_in_threadpool(ea.extract_events, [], True, website))
+
+
+async def onboarding_calendar(events_job) -> dict | None:
+    """The first run's calendar, so the dashboard isn't empty after onboarding: save the events the search
+    found and generate tasks (prep tasks for events within 14 days) before step 3 answers; then draft every
+    event's invites in the background (GET /context/refresh shows that job). A search that failed or found
+    nothing leaves the calendar as it was."""
+    if events_job is None:
+        return None
+    try:
+        events = await asyncio.wait_for(events_job, config.CONTEXT_DEADLINE_S)
+    except Exception as e:  # timeout or search error: the daily refresh (or "Refresh now") will pick events up
+        log.warning("onboarding events search failed: %s", e)
+        return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": f"{type(e).__name__}: {e}"[:200]}
+    if not events:
+        return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": "no upcoming events found"}
+    out, ids, stored = await run_in_threadpool(save_onboarding_calendar, events)
+    out["invites"] = start_invites_job(events, ids, stored)["status"]
+    return out
+
+
+def save_onboarding_calendar(events: list[dict]) -> tuple[dict, dict, bool]:
+    from service import tasks
+    from service.refresh import save_found_events
+
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        ids, stored = save_found_events(conn, events)
+        tasks.generate_safely(conn, after="onboarding")
+        prep = conn.execute("SELECT COUNT(*) FROM tasks WHERE kind = 'prep' AND done = 0 AND deleted_at IS NULL").fetchone()[0]
+        n = sum(1 for i in ids.values() if i is not None) if stored else len(events)
+        return {"events": n, "prep_tasks": prep, "detail": None}, ids, stored
+    finally:
+        conn.close()
 
 
 class ChatTurn(BaseModel):
@@ -682,6 +728,34 @@ def start_refresh_job() -> dict:
     return started
 
 
+def start_invites_job(events: list[dict], ids: dict, stored: bool) -> dict:
+    """Draft invites for the onboarding events in the background; GET /context/refresh reports it."""
+    with REFRESH_LOCK:
+        if REFRESH_JOB["status"] == "refreshing":
+            return dict(REFRESH_JOB)
+        REFRESH_JOB.update(status="refreshing", started_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                           finished_at=None, detail="drafting event invites", changes=None)
+        started = dict(REFRESH_JOB)
+    threading.Thread(target=invites_job, args=(events, ids, stored), daemon=True, name="onboarding-invites").start()
+    return started
+
+
+def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
+    from service.refresh import draft_invites_for
+    conn = db.connect()
+    try:
+        out = draft_invites_for(conn, events, ids, stored)
+        status, detail, changes = "done", None, {"drafts": out["drafts"], "errors": out["errors"][:10]}
+    except Exception as e:
+        log.warning("onboarding invites failed: %s", e)
+        status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
+    finally:
+        conn.close()
+    with REFRESH_LOCK:
+        REFRESH_JOB.update(status=status, detail=detail, changes=changes,
+                           finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+
+
 def refresh_job() -> None:
     try:
         result = run_refresh()
@@ -758,10 +832,10 @@ def events_agent():
 
 @app.post("/events/refresh")
 async def events_refresh() -> dict:
-    ea = events_agent()
-    if not hasattr(ea, "refresh_events"):
-        raise not_landed("service.events_agent.refresh_events")
-    return await capped("events", config.CHAT_DEADLINE_S, ea.refresh_events)
+    """One refresh pass now (context + events + invites for what's new or changed + tasks), waited for:
+    {state, detail, changes}. "Refresh now" is the background version (POST /context/refresh)."""
+    events_agent()                                   # 503 until the events agent has landed
+    return await capped("events", config.REFRESH_DEADLINE_S, run_refresh)
 
 
 @app.post("/events/{event_id}/plan")
