@@ -7,7 +7,7 @@ Off unless PUBLIC_MODE=1. When on:
 - DENY BY DEFAULT: only the (method, path) pairs in ALLOW are served, and only to a request carrying a
   PUBLIC_ORIGINS Origin (GET /health and /public-mode excepted). Origin is not authentication (any script can send it), so the
   allow-list, the contact masking below and the rate limit are the whole defence;
-- email and phone values in JSON responses are masked (same format as routes_campaigns.mask_address);
+- call transcripts and staff free-text fields are blanked, and email and phone values are masked, in JSON responses (same format as routes_campaigns.mask_address);
 - the chat agent runs read-only (chat_agent.tools_for_mode);
 - every send stays simulated, whatever EMAIL_SEND / SMS_PROVIDER say (outbound.py and sms.py ask forced_simulated()).
 """
@@ -101,9 +101,16 @@ def mask_address(address: str, channel: str) -> str:
     return f"***-***-{digits[-4:]}" if len(digits) >= 4 else "***"
 
 
+# Free-text staff and call fields: what was said on a call and private staff notes never go public
+# (the public snapshot drops the same things). Blanked in every JSON response, whatever route served it.
+BLANK_KEYS = {"call_notes", "transcript", "notes", "private_notes", "background", "next_steps"}
+
+
 def mask_json(value, key: str = ""):
-    """Mask email/phone values (by key name) and any email address inside a string, recursively."""
+    """Blank staff free-text fields; mask email/phone values (by key name) and any email address in a string."""
     k = key.lower()
+    if k in BLANK_KEYS:
+        return [] if isinstance(value, list) else ("" if isinstance(value, str) else None)
     if isinstance(value, dict):
         return {kk: mask_json(v, kk) for kk, v in value.items()}
     if isinstance(value, list):

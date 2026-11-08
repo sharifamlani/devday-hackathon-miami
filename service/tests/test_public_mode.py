@@ -233,3 +233,44 @@ def test_chat_agent_is_read_only_in_public_mode(client, monkeypatch):
     assert all(s["status"] == "error" and "not available in the public preview" in s["summary"] for s in body["steps"])
     public_mode.set_enabled(False)
     assert "add_contact" in {t.name for t in chat_agent.tools_for_mode()}   # local mode keeps every tool
+
+
+def test_call_notes_and_staff_notes_never_appear_in_any_allowed_get(client):
+    """Seed a call note and staff notes with a unique marker; no allowed GET may return it in public mode."""
+    import re
+
+    from service import db
+
+    marker = "ZEBRA-TRANSCRIPT-7731"
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        donor_id = 3
+        db.save_call_note(conn, {
+            "id": "n-marker", "title": f"Call {marker}", "created_at": "2026-11-07T10:00:00", "duration_sec": 60,
+            "destinations": [{"kind": "donor", "id": donor_id, "label": marker}],
+            "transcript": [{"speaker": "them", "name": "Donor", "text": f"{marker} card ends 4242", "at": 1}],
+            "notes": marker, "summary": [marker], "next_steps": [marker]})
+        conn.execute("UPDATE donors SET notes = ? WHERE id = ?", (marker, donor_id))
+        conn.commit()
+    finally:
+        conn.close()
+    public_mode.set_enabled(False)
+    assert marker in client.get(f"/donors/{donor_id}").text           # local mode still shows it
+    public_mode.set_enabled(True)
+    h = {"Origin": VERCEL}
+    paths = ["/health", "/public-mode", "/home/summary", "/people", "/people/attention",
+             f"/people/{donor_id}/merges", f"/people/{donor_id}/pledges", f"/people/{donor_id}/interests",
+             "/donors", f"/donors/{donor_id}", "/duplicates", "/targets", "/targets/quarters", "/targets/donors",
+             "/calendar", "/tasks", "/artifacts", "/events", "/context", f"/context/search?q={marker}",
+             "/context/search?q=call", "/context/status", "/community/stats", "/alerts", "/icp", "/prospects",
+             "/org-profile", "/interest-tags", "/campaigns", "/outbox"]
+    for path in paths:
+        r = client.get(path, headers=h)
+        assert r.status_code in (200, 404), (path, r.status_code)
+        assert marker not in r.text and "4242" not in r.text, path
+    assert client.get(f"/donors/{donor_id}", headers=h).json()["call_notes"] == []
+    # every allow-listed GET pattern is covered by a probed path above
+    for method, rx in public_mode.ALLOW:
+        if method == "GET":
+            assert any(rx.match(p.split("?")[0]) for p in paths), rx.pattern
