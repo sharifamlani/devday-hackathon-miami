@@ -206,7 +206,7 @@ const TARGETS: { value: UploadTarget; label: string }[] = [
 ];
 
 /** folk's "Import finished": what came in, per tab, and what to check. */
-const ImportReceipt = ({
+export const ImportReceipt = ({
   summary,
   fresh,
   onReviewDuplicates,
@@ -221,7 +221,13 @@ const ImportReceipt = ({
   const headingId = useId();
   const totals = [
     summary.people != null ? plural(summary.people, "person", "people") : null,
-    summary.gifts != null ? plural(summary.gifts, "gift", "gifts") : null,
+    summary.gifts != null
+      ? plural(summary.gifts, "gift", "gifts") +
+        // A declined charge is kept on record but isn't a gift (matches demo_reset's wording).
+        (summary.declined
+          ? ` (+${plural(summary.declined, "declined charge", "declined charges")} on record)`
+          : "")
+      : null,
   ].filter(Boolean);
   return (
     <section className="onb-receipt onb-tile" aria-labelledby={headingId}>
