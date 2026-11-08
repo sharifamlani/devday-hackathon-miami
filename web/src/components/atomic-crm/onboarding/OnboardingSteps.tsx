@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useReducer,
   useRef,
   useState,
   type ComponentProps,
@@ -9,33 +10,58 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { useGetIdentity } from "ra-core";
-import { Database, Upload } from "lucide-react";
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleMinus,
+  FileText,
+  LoaderCircle,
+  Upload,
+  X as XIcon,
+} from "lucide-react";
+import { useDropzone } from "react-dropzone";
 
 import { Input } from "@/components/ui/input";
-import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
-import { loadSampleFiles, loadSampleManifest } from "../landing/sampleFiles";
+import { formatBytes } from "../landing/sampleFiles";
 import { DATA_MODE } from "../providers/local/config";
+import type { UploadTarget } from "../providers/local/crmTypes";
+import { sourceOf } from "../providers/local/endpoint";
 import {
   useDonors,
   useOrgProfile,
-  useTargets,
+  useRunContext,
   useUploadFiles,
 } from "../providers/local/hooks";
+import { useGenerateTasks } from "../providers/local/tasks";
+import {
+  ACCEPT_ATTRIBUTE,
+  LAND_DELAY_MS,
+  SAMPLE_FOLDER,
+  addFiles,
+  contextReducer,
+  contextSummary,
+  doneLine,
+  filesLine,
+  filesStepAction,
+  ingestSummary,
+  plainError,
+  sourceRows,
+  tasksRow,
+  type SkippedFile,
+  type SourceRow,
+} from "./firstRun";
 import {
   SOCIAL_LABELS,
   SOCIAL_PLATFORMS,
-  quarterEnd,
   useOnboarding,
-  validateGoal,
   validateLinks,
+  type ContextSummary,
+  type FilesSummary,
   type LinkErrors,
-  type OnboardingData,
-  type OnlineLinks,
-  type QuarterGoal,
+  type OrgLinks,
 } from "./onboardingState";
-import type { TourStop } from "./tour";
 
+/** The laptop build talks to the service; the Vercel snapshot has no API. */
 const LIVE = DATA_MODE === "local";
 
 /* ---------- Shared frame ---------- */
@@ -43,7 +69,6 @@ const LIVE = DATA_MODE === "local";
 export interface StepFrameProps {
   headingRef: RefObject<HTMLHeadingElement | null>;
   onBack: () => void;
-  onSkip: () => void;
 }
 
 const StepForm = ({
@@ -52,10 +77,7 @@ const StepForm = ({
   headingRef,
   onSubmit,
   onBack,
-  onSkip,
   showBack = true,
-  continueLabel = "Continue",
-  continueDisabled = false,
   actions,
   children,
 }: StepFrameProps & {
@@ -63,10 +85,7 @@ const StepForm = ({
   lede?: ReactNode;
   onSubmit: () => void;
   showBack?: boolean;
-  continueLabel?: string;
-  continueDisabled?: boolean;
-  /** Replaces Skip + Continue (the last step). */
-  actions?: ReactNode;
+  actions: ReactNode;
   children?: ReactNode;
 }) => {
   const titleId = useId();
@@ -103,20 +122,7 @@ const StepForm = ({
           </button>
         )}
         <span className="onb-spacer" />
-        {actions ?? (
-          <>
-            <button type="button" className="onb-btn text" onClick={onSkip}>
-              Skip
-            </button>
-            <button
-              type="submit"
-              className="onb-btn primary"
-              disabled={continueDisabled}
-            >
-              {continueLabel}
-            </button>
-          </>
-        )}
+        {actions}
       </div>
     </form>
   );
@@ -128,39 +134,27 @@ const Field = ({
   hint,
   error,
   className,
-  prefix,
   ...input
 }: ComponentProps<"input"> & {
   id: string;
   label: string;
   hint?: string;
   error?: string;
-  prefix?: string;
 }) => {
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const describedBy =
     [hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
-  const control = (
-    <Input
-      id={id}
-      aria-invalid={error ? true : undefined}
-      aria-describedby={describedBy}
-      className="border-muted-foreground/80 bg-card text-[15px]"
-      {...input}
-    />
-  );
   return (
     <div className={`onb-field ${className ?? ""}`}>
       <label htmlFor={id}>{label}</label>
-      {prefix ? (
-        <div className="onb-money">
-          <span aria-hidden="true">{prefix}</span>
-          {control}
-        </div>
-      ) : (
-        control
-      )}
+      <Input
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className="border-muted-foreground/80 bg-card text-[15px]"
+        {...input}
+      />
       {hint && (
         <p id={hintId} className="onb-note">
           {hint}
@@ -175,36 +169,93 @@ const Field = ({
   );
 };
 
-/** Fill an empty value once, when data arrives late (org profile, identity). */
-const usePrefill = (
-  value: string,
-  setValue: (v: string) => void,
-  fallback: string | null | undefined,
-) => {
-  const done = useRef(false);
-  useEffect(() => {
-    if (done.current || !fallback) return;
-    done.current = true;
-    if (!value) setValue(fallback);
-  }, [fallback, value, setValue]);
-};
+type Status = { tone: "good" | "error" | "info"; text: string } | null;
 
-/* ---------- 1. Welcome ---------- */
+/* ---------- 1. Drag in your files ---------- */
 
-export const WelcomeStep = ({
+const TARGETS: { value: UploadTarget; label: string }[] = [
+  { value: "auto", label: "Let the agent sort" },
+  { value: "giver", label: "Givers" },
+  { value: "neighbor", label: "Neighbors" },
+  { value: "community", label: "Community" },
+];
+
+const plural = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+
+export const FilesStep = ({
   onContinue,
   ...frame
 }: StepFrameProps & {
-  onContinue: (patch: Pick<OnboardingData, "personName" | "orgName">) => void;
+  onContinue: (files: FilesSummary | null) => void;
 }) => {
-  const { data } = useOnboarding();
-  const { data: identity } = useGetIdentity();
-  const { data: profile } = useOrgProfile();
-  const [personName, setPersonName] = useState(data.personName);
-  const [orgName, setOrgName] = useState(data.orgName);
-  usePrefill(personName, setPersonName, identity?.fullName);
-  usePrefill(orgName, setOrgName, profile?.name);
+  const { data, update } = useOnboarding();
+  const { data: people } = useDonors();
+  const upload = useUploadFiles();
+  const [files, setFiles] = useState<File[]>([]);
+  const [skipped, setSkipped] = useState<SkippedFile[]>([]);
+  const [target, setTarget] = useState<UploadTarget>("auto");
+  const [status, setStatus] = useState<Status>(null);
   const id = useId();
+  const existing = people?.length ?? 0;
+  const busy = upload.isPending;
+  // Saved in onboarding state right after ingest succeeds, so leaving or
+  // reloading before Continue never asks for the same files again.
+  const imported = data.files;
+
+  const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
+    multiple: true,
+    noClick: true,
+    noKeyboard: true,
+    disabled: !LIVE || busy,
+    onDrop: (dropped) => {
+      const next = addFiles(files, dropped);
+      setFiles(next.files);
+      setSkipped(next.skipped);
+      setStatus(null);
+    },
+  });
+
+  const remove = (name: string) =>
+    setFiles((current) => current.filter((f) => f.name !== name));
+
+  const submit = async () => {
+    if (busy) return;
+    if (!LIVE) return onContinue(data.files);
+    const action = filesStepAction({
+      pending: files.length,
+      imported,
+      existing,
+    });
+    if (action === "continue") return onContinue(imported);
+    if (action === "need_files") {
+      setStatus({
+        tone: "error",
+        text: "Drag in at least one file, or choose Skip for now.",
+      });
+      return;
+    }
+    setStatus(null);
+    try {
+      const result = await upload.mutateAsync({ files, target });
+      const summary = ingestSummary(result, files.length);
+      update({ files: summary });
+      setFiles([]);
+      setSkipped([]);
+      setStatus({ tone: "good", text: `${filesLine(summary)}.` });
+    } catch (cause) {
+      setStatus({
+        tone: "error",
+        text: plainError(cause, "We couldn't import these files. Try again."),
+      });
+    }
+  };
+
+  const primaryLabel = busy
+    ? "Reading your files…"
+    : files.length
+      ? `Import ${plural(files.length, "file", "files")}`
+      : "Continue";
 
   return (
     <StepForm
@@ -212,62 +263,179 @@ export const WelcomeStep = ({
       showBack={false}
       title={
         <>
-          Less time on tasks. <strong>More time for people.</strong>
+          Drag in your <strong>files.</strong>
         </>
       }
-      lede="Welcome to Donor Desk. Five short steps get your desk ready. Skip anything and come back later."
-      onSubmit={() =>
-        onContinue({ personName: personName.trim(), orgName: orgName.trim() })
+      lede={
+        LIVE ? (
+          <>
+            Donor exports, sign-in sheets, intake forms and notes. Trying it
+            out? Drag in the example files from <code>{SAMPLE_FOLDER}</code>.
+          </>
+        ) : (
+          "Donor exports, sign-in sheets, intake forms and notes become people and gifts."
+        )
+      }
+      onSubmit={() => void submit()}
+      actions={
+        <>
+          {LIVE && !imported && (
+            <button
+              type="button"
+              className="onb-btn text"
+              disabled={busy}
+              onClick={() => onContinue(null)}
+            >
+              Skip for now
+            </button>
+          )}
+          <button type="submit" className="onb-btn primary" disabled={busy}>
+            {primaryLabel}
+          </button>
+        </>
       }
     >
-      <div className="onb-fields two">
-        <Field
-          id={`${id}-name`}
-          label="Your name"
-          autoComplete="name"
-          value={personName}
-          onChange={(e) => setPersonName(e.target.value)}
-        />
-        <Field
-          id={`${id}-org`}
-          label="Organization"
-          autoComplete="organization"
-          value={orgName}
-          onChange={(e) => setOrgName(e.target.value)}
-        />
-      </div>
+      {LIVE ? (
+        <>
+          <div
+            {...getRootProps({
+              className: "onb-drop onb-tile",
+              "data-active": isDragActive || undefined,
+            })}
+          >
+            <input {...getInputProps({ accept: ACCEPT_ATTRIBUTE })} />
+            <Upload aria-hidden="true" size={22} strokeWidth={1.7} />
+            <p className="onb-drop-title">Drop your files here</p>
+            <p className="onb-note">
+              .xlsx · .docx · .md · .csv, up to 10 MB each
+            </p>
+            <button
+              type="button"
+              className="onb-btn quiet small"
+              onClick={open}
+              disabled={busy}
+            >
+              Choose files
+            </button>
+          </div>
+
+          {files.length > 0 && (
+            <ul className="onb-files" aria-label="Files to import">
+              {files.map((file) => (
+                <li key={file.name}>
+                  <FileText aria-hidden="true" size={16} strokeWidth={1.7} />
+                  <span className="onb-file-name">{file.name}</span>
+                  <span className="onb-file-size">
+                    {formatBytes(file.size)}
+                  </span>
+                  <button
+                    type="button"
+                    className="onb-icon-btn"
+                    aria-label={`Remove ${file.name}`}
+                    disabled={busy}
+                    onClick={() => remove(file.name)}
+                  >
+                    <XIcon aria-hidden="true" size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {skipped.length > 0 && (
+            <ul className="onb-files skipped" aria-label="Files left out">
+              {skipped.map((file) => (
+                <li key={file.name}>
+                  <CircleMinus aria-hidden="true" size={16} strokeWidth={1.7} />
+                  <span className="onb-file-name">{file.name}</span>
+                  <span className="onb-file-why">{file.reason}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <fieldset className="onb-radios" disabled={busy}>
+            <legend>Put them in</legend>
+            {TARGETS.map((option) => (
+              <label key={option.value} htmlFor={`${id}-${option.value}`}>
+                <input
+                  type="radio"
+                  id={`${id}-${option.value}`}
+                  name={`${id}-target`}
+                  value={option.value}
+                  checked={target === option.value}
+                  onChange={() => setTarget(option.value)}
+                />
+                {option.label}
+              </label>
+            ))}
+          </fieldset>
+
+          <div aria-live="polite">
+            {busy ? (
+              <p className="onb-status">
+                Reading your files and sorting people into tabs. This can take a
+                minute.
+              </p>
+            ) : status ? (
+              <p className="onb-status" data-tone={status.tone}>
+                {status.text}
+              </p>
+            ) : imported && !files.length ? (
+              <p className="onb-status" data-tone="good">
+                Already imported: {filesLine(imported)}. Continue, or add more
+                files.
+              </p>
+            ) : existing > 0 && !files.length ? (
+              <p className="onb-note">
+                You already have {plural(existing, "person", "people")} in Donor
+                Desk. Add more files or continue.
+              </p>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <p className="onb-status" data-tone="good">
+          Sample data · This preview already has the example files loaded
+          {existing ? `: ${plural(existing, "person", "people")}` : ""}. Every
+          name and amount is made up. Importing your own files needs the Donor
+          Desk service.
+        </p>
+      )}
     </StepForm>
   );
 };
 
-/* ---------- 2. Your mission online ---------- */
+/* ---------- 2. Tell us about your organization ---------- */
 
 const LINK_FIELDS: {
-  key: keyof OnlineLinks;
+  key: keyof OrgLinks;
   label: string;
   placeholder: string;
 }[] = [
-  { key: "website", label: "Website", placeholder: "https://yourorg.org" },
+  {
+    key: "website",
+    label: "Website (required)",
+    placeholder: "https://yourorg.org",
+  },
   ...SOCIAL_PLATFORMS.map((platform) => ({
     key: platform,
     label: SOCIAL_LABELS[platform],
     placeholder: {
-      instagram: "@yourorg",
-      linkedin: "linkedin.com/company/yourorg",
-      facebook: "facebook.com/yourorg",
       x: "@yourorg",
-      tiktok: "@yourorg",
+      linkedin: "linkedin.com/company/yourorg",
+      instagram: "@yourorg",
     }[platform],
   })),
 ];
 
-export const OnlineStep = ({
+export const OrganizationStep = ({
   onContinue,
   ...frame
-}: StepFrameProps & { onContinue: (links: OnlineLinks) => void }) => {
+}: StepFrameProps & { onContinue: (links: OrgLinks) => void }) => {
   const { data } = useOnboarding();
   const { data: profile } = useOrgProfile();
-  const [links, setLinks] = useState<OnlineLinks>(data.links);
+  const [links, setLinks] = useState<OrgLinks>(data.links);
   const [errors, setErrors] = useState<LinkErrors>({});
   const id = useId();
 
@@ -279,7 +447,6 @@ export const OnlineStep = ({
     const social = (platform: string) =>
       profile.socials.find((s) => s.platform === platform)?.url ?? "";
     setLinks((current) => ({
-      ...current,
       website: current.website || profile.website || "",
       x: current.x || social("x"),
       linkedin: current.linkedin || social("linkedin"),
@@ -306,257 +473,198 @@ export const OnlineStep = ({
       {...frame}
       title={
         <>
-          Your mission, <strong>online.</strong>
+          Tell us about your <strong>organization.</strong>
         </>
       }
-      lede="Donor Desk reads your public posts to find stories worth sharing with donors. It never posts for you."
+      lede="The agent reads your website and recent news for stories, events and facts to use in outreach. It never posts for you."
       onSubmit={submit}
+      actions={
+        <button type="submit" className="onb-btn primary">
+          Continue
+        </button>
+      }
     >
       <div className="onb-fields two">
-        {LINK_FIELDS.map((field) => (
-          <Field
-            key={field.key}
-            id={`${id}-${field.key}`}
-            className={field.key === "website" ? "wide" : undefined}
-            label={field.label}
-            type={field.key === "website" ? "url" : "text"}
-            inputMode="url"
-            autoComplete={field.key === "website" ? "url" : "off"}
-            spellCheck={false}
-            placeholder={field.placeholder}
-            hint={
-              field.key === "website"
-                ? "Your stories and news live here. Social links: paste a link or an @handle."
-                : undefined
-            }
-            value={links[field.key]}
-            error={errors[field.key]}
-            onChange={(e) => {
-              const value = e.target.value;
-              setLinks((current) => ({ ...current, [field.key]: value }));
-              if (errors[field.key])
-                setErrors(({ [field.key]: _cleared, ...rest }) => rest);
-            }}
-          />
-        ))}
+        {LINK_FIELDS.map((field) => {
+          const website = field.key === "website";
+          return (
+            <Field
+              key={field.key}
+              id={`${id}-${field.key}`}
+              className={website ? "wide" : undefined}
+              label={field.label}
+              type={website ? "url" : "text"}
+              inputMode="url"
+              autoComplete={website ? "url" : "off"}
+              spellCheck={false}
+              required={website}
+              aria-required={website || undefined}
+              placeholder={field.placeholder}
+              hint={
+                website
+                  ? "Social links are optional: paste a link or an @handle."
+                  : undefined
+              }
+              value={links[field.key]}
+              error={errors[field.key]}
+              onChange={(e) => {
+                const value = e.target.value;
+                setLinks((current) => ({ ...current, [field.key]: value }));
+                if (errors[field.key])
+                  setErrors(({ [field.key]: _cleared, ...rest }) => rest);
+              }}
+            />
+          );
+        })}
       </div>
       <p className="sr-only" role="status">
         {errorCount
-          ? `${errorCount} ${errorCount === 1 ? "link needs" : "links need"} a fix.`
+          ? `${errorCount} ${errorCount === 1 ? "field needs" : "fields need"} a fix.`
           : ""}
       </p>
       <p className="onb-note">
         {LIVE
-          ? "Your website, X, LinkedIn and Instagram links are saved to Donor Desk. Facebook and TikTok stay in this browser for now."
+          ? "Your links are saved to Donor Desk when the agent runs. X, LinkedIn and Instagram are saved for later; the agent doesn't read them yet."
           : "This preview keeps your links in this browser only."}
       </p>
     </StepForm>
   );
 };
 
-/* ---------- 3. Bring your donors ---------- */
+/* ---------- 3. The context agent runs on its own ---------- */
 
-const summarize = (
-  donors: number | null,
-  gifts: number | null,
-  message: string | null,
-) =>
-  [
-    donors != null ? `${donors} donors` : null,
-    gifts != null ? `${gifts} gifts` : null,
-  ]
-    .filter(Boolean)
-    .join(" and ") ||
-  message ||
-  "Your files were imported.";
-
-export const DonorsStep = ({
-  onContinue,
-  onNestedDialog,
-  ...frame
-}: StepFrameProps & {
-  onContinue: (patch: Pick<OnboardingData, "donors">) => void;
-  onNestedDialog: (open: boolean) => void;
-}) => {
-  const { data } = useOnboarding();
-  const [choice, setChoice] = useState<OnboardingData["donors"]>(data.donors);
-  const [importOpen, setImportOpen] = useState(false);
-  const [message, setMessage] = useState<{
-    tone: "good" | "error" | "info";
-    text: string;
-  } | null>(null);
-  const { data: donors } = useDonors();
-  const countBefore = useRef<number | null>(null);
-  const upload = useUploadFiles();
-
-  const openImport = () => {
-    countBefore.current = donors?.length ?? null;
-    setChoice("upload");
-    setMessage(null);
-    setImportOpen(true);
-    onNestedDialog(true);
-  };
-
-  // The import dialog doesn't report back, so compare the donor count.
-  useEffect(() => {
-    if (importOpen || countBefore.current == null || !donors) return;
-    const added = donors.length - countBefore.current;
-    countBefore.current = null;
-    if (added > 0)
-      setMessage({
-        tone: "good",
-        text: `Added ${added} ${added === 1 ? "donor" : "donors"}.`,
-      });
-  }, [importOpen, donors]);
-
-  // The landing page may already have loaded the example files: never load them twice.
-  const alreadyLoaded = LIVE ? (donors?.length ?? 0) : 0;
-
-  const loadSample = async () => {
-    setChoice("sample");
-    if (alreadyLoaded > 0) {
-      setMessage({
-        tone: "good",
-        text: `The example files are already loaded: ${alreadyLoaded} donors.`,
-      });
-      return;
-    }
-    if (!LIVE) {
-      setMessage({
-        tone: "good",
-        text: "Sample donors are already loaded. Every name and amount is made up.",
-      });
-      return;
-    }
-    setMessage(null);
-    try {
-      const files = await loadSampleFiles(await loadSampleManifest());
-      const result = await upload.mutateAsync({ files });
-      setMessage({
-        tone: "good",
-        text: `Sample data is in: ${summarize(result.donors, result.gifts, result.message)}.`,
-      });
-    } catch (cause) {
-      setMessage({
-        tone: "error",
-        text:
-          cause instanceof Error
-            ? cause.message
-            : "We couldn't load the sample files.",
-      });
-    }
-  };
-
-  // The import dialog sits outside the form: its own submit must not
-  // bubble (through the React tree) into Continue.
-  return (
-    <>
-      <StepForm
-        {...frame}
-        title={
-          <>
-            Bring your <strong>donors.</strong>
-          </>
-        }
-        lede="Start with your own list, or look around with sample data first."
-        continueDisabled={upload.isPending}
-        onSubmit={() => onContinue({ donors: choice })}
-      >
-        <div className="onb-choices">
-          <button
-            type="button"
-            className="onb-choice onb-tile"
-            aria-pressed={choice === "upload"}
-            onClick={openImport}
-          >
-            <b>
-              <Upload aria-hidden="true" size={18} strokeWidth={1.8} /> Upload a
-              CSV
-            </b>
-            <span>
-              Match your columns and check for duplicates before anything is
-              added.
-            </span>
-          </button>
-          <button
-            type="button"
-            className="onb-choice onb-tile"
-            aria-pressed={choice === "sample"}
-            disabled={upload.isPending}
-            onClick={() => void loadSample()}
-          >
-            <b>
-              <Database aria-hidden="true" size={18} strokeWidth={1.8} /> Use
-              sample data
-            </b>
-            <span>
-              {!LIVE
-                ? "Already loaded in this preview."
-                : alreadyLoaded > 0
-                  ? `Already loaded: ${alreadyLoaded} donors.`
-                  : "Load the example files from data/sample_inputs/ (fictional)."}
-            </span>
-          </button>
-        </div>
-        <div aria-live="polite">
-          {upload.isPending && (
-            <p className="onb-status">
-              Reading the sample files. This can take a minute.
-            </p>
-          )}
-          {message && !upload.isPending && (
-            <p className="onb-status" data-tone={message.tone}>
-              {message.text}
-            </p>
-          )}
-        </div>
-      </StepForm>
-      <ImportDonorsDialog
-        open={importOpen}
-        onOpenChange={(open) => {
-          setImportOpen(open);
-          onNestedDialog(open);
-        }}
-      />
-    </>
-  );
+const ROW_ICON: Record<SourceRow["tone"], ReactNode> = {
+  working: <LoaderCircle aria-hidden="true" size={16} className="onb-spin" />,
+  done: <CircleCheck aria-hidden="true" size={16} />,
+  problem: <CircleAlert aria-hidden="true" size={16} />,
+  quiet: <CircleMinus aria-hidden="true" size={16} />,
 };
 
-/* ---------- 4. Quarter goal ---------- */
+const SourceList = ({ rows }: { rows: SourceRow[] }) => (
+  <ul className="onb-sources" aria-label="What the agent is reading">
+    {rows.map((row) => (
+      <li key={row.key} data-tone={row.tone}>
+        {ROW_ICON[row.tone]}
+        <span className="onb-source-label">{row.label}</span>
+        <span className="onb-source-text">{row.text}</span>
+      </li>
+    ))}
+  </ul>
+);
 
-const formatAmount = (amount: number | null) =>
-  amount == null ? "" : amount.toLocaleString("en-US");
-
-export const GoalStep = ({
-  onContinue,
+export const ContextStep = ({
+  links,
+  onDone,
   ...frame
-}: StepFrameProps & { onContinue: (goal: QuarterGoal) => void }) => {
-  const { data } = useOnboarding();
-  const { data: targets } = useTargets("quarter");
-  const quarter = targets?.quarter;
-  const [amount, setAmount] = useState(formatAmount(data.goal.amount));
-  const [endDate, setEndDate] = useState(
-    data.goal.endDate ?? quarterEnd(new Date()),
-  );
-  const [errors, setErrors] = useState<{ amount?: string; endDate?: string }>(
-    {},
-  );
-  // A real (non-sample) goal from the service fills an empty amount.
-  usePrefill(
-    amount,
-    setAmount,
-    quarter && !quarter.goal_is_sample ? formatAmount(quarter.goal) : null,
-  );
-  const id = useId();
+}: StepFrameProps & {
+  links: OrgLinks;
+  /** Lands on the dashboard: after the run, on its own or from a button. */
+  onDone: (summary: ContextSummary, savedLive: boolean) => void;
+}) => {
+  const runContext = useRunContext();
+  const generateTasks = useGenerateTasks();
+  const [phase, send] = useReducer(contextReducer, { phase: "reading" });
+  const [attempt, setAttempt] = useState(0);
+  const runStarted = useRef(-1);
+  const tasksStarted = useRef<unknown>(null);
 
-  const submit = () => {
-    const result = validateGoal(amount, endDate, new Date());
-    setErrors(result.errors);
-    if (result.errors.amount)
-      return document.getElementById(`${id}-amount`)?.focus();
-    if (result.errors.endDate)
-      return document.getElementById(`${id}-end`)?.focus();
-    onContinue(result.goal);
+  // Starts on its own: no button press (plan.md §20.13).
+  useEffect(() => {
+    if (phase.phase !== "reading" || runStarted.current === attempt) return;
+    runStarted.current = attempt;
+    runContext
+      .mutateAsync({
+        website: links.website,
+        x_url: links.x || null,
+        linkedin_url: links.linkedin || null,
+        instagram_url: links.instagram || null,
+      })
+      .then(
+        (run) => send({ type: "run_ok", run }),
+        (cause: unknown) =>
+          send({
+            type: "run_failed",
+            message: plainError(cause, "We couldn't read your website."),
+          }),
+      );
+  }, [phase.phase, attempt, links, runContext]);
+
+  // Then today's tasks, if the service has the generator (3a); skipped otherwise.
+  useEffect(() => {
+    if (phase.phase !== "tasks" || tasksStarted.current === phase.run) return;
+    tasksStarted.current = phase.run;
+    void (async () => {
+      const where = await sourceOf("POST", "/tasks/generate");
+      if (where === "snapshot")
+        return send({
+          type: "tasks",
+          result: { state: "skipped", reason: "Not in this preview" },
+        });
+      if (where === "unavailable")
+        return send({
+          type: "tasks",
+          result: { state: "skipped", reason: "Not available yet" },
+        });
+      try {
+        const made = await generateTasks.mutateAsync();
+        send({
+          type: "tasks",
+          result: { state: "made", created: made?.created ?? 0 },
+        });
+      } catch {
+        send({
+          type: "tasks",
+          result: { state: "failed", reason: "Couldn't make the list" },
+        });
+      }
+    })();
+  }, [phase, generateTasks]);
+
+  const summary = contextSummary(phase);
+  const savedLive =
+    LIVE &&
+    (phase.phase === "done" || phase.phase === "tasks") &&
+    phase.run.served_from !== "fallback";
+
+  // Done: land on the dashboard after a moment, so the result can be read.
+  const onDoneRef = useRef(onDone);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  });
+  useEffect(() => {
+    if (phase.phase !== "done" || !summary) return;
+    const timer = window.setTimeout(
+      () => onDoneRef.current(summary, savedLive),
+      LAND_DELAY_MS,
+    );
+    return () => window.clearTimeout(timer);
+    // summary is derived from phase; re-arming on it would restart the timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.phase]);
+
+  const run = phase.phase === "reading" ? null : phase.run;
+  const rows = sourceRows(links, run, phase.phase === "error");
+  const taskRow = tasksRow(phase);
+  if (taskRow) rows.push(taskRow);
+
+  const announcement =
+    phase.phase === "reading"
+      ? "Reading your website and recent news."
+      : phase.phase === "tasks"
+        ? `Found ${run?.facts.length ?? 0} items. Making today's tasks.`
+        : phase.phase === "done" && summary
+          ? `${doneLine(summary)}. Opening your dashboard.`
+          : phase.phase === "error"
+            ? phase.message
+            : "";
+
+  const retry = () => {
+    send({ type: "retry" });
+    setAttempt((n) => n + 1);
+  };
+
+  const finishNow = () => {
+    if (summary) onDone(summary, savedLive);
   };
 
   return (
@@ -564,90 +672,56 @@ export const GoalStep = ({
       {...frame}
       title={
         <>
-          Set your quarter <strong>goal.</strong>
+          Building your <strong>context.</strong>
         </>
       }
-      lede="Your homepage tracks what you've raised against it, and the agent plans outreach around it."
-      onSubmit={submit}
+      lede={
+        phase.phase === "error"
+          ? "The agent couldn't finish. You can still use Donor Desk and run it again later."
+          : "The agent is reading your website and recent news. This can take up to 30 seconds."
+      }
+      onSubmit={finishNow}
+      actions={
+        phase.phase === "error" ? (
+          <>
+            <button type="button" className="onb-btn quiet" onClick={retry}>
+              Try again
+            </button>
+            <button type="submit" className="onb-btn primary">
+              Continue to the dashboard
+            </button>
+          </>
+        ) : phase.phase === "done" ? (
+          <button type="submit" className="onb-btn primary">
+            Go to the dashboard
+          </button>
+        ) : null
+      }
     >
-      <div className="onb-fields two">
-        <Field
-          id={`${id}-amount`}
-          label="Goal amount"
-          prefix="$"
-          inputMode="decimal"
-          placeholder={quarter?.goal ? formatAmount(quarter.goal) : "150,000"}
-          value={amount}
-          error={errors.amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        <Field
-          id={`${id}-end`}
-          label="Quarter ends"
-          type="date"
-          value={endDate}
-          error={errors.endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-        />
-      </div>
-      <p className="onb-note">Your goal is saved in this browser for now.</p>
+      <SourceList rows={rows} />
+      {phase.phase === "done" && summary && (
+        <p className="onb-status" data-tone="good">
+          {doneLine(summary)}.{" "}
+          {summary.outcome === "saved"
+            ? "The live read failed, so this is your saved context. "
+            : ""}
+          Opening your dashboard…
+        </p>
+      )}
+      {phase.phase === "error" && (
+        <p className="onb-status" data-tone="error">
+          {phase.message}
+        </p>
+      )}
+      {!LIVE && (
+        <p className="onb-note">
+          Sample data · This preview shows saved sample context. It can't read
+          websites live.
+        </p>
+      )}
+      <p className="sr-only" role="status">
+        {announcement}
+      </p>
     </StepForm>
   );
 };
-
-/* ---------- 5. Meet your homepage ---------- */
-
-export const TourStep = ({
-  canTour,
-  stops,
-  onStartTour,
-  onFinish,
-  ...frame
-}: StepFrameProps & {
-  canTour: boolean;
-  stops: TourStop[];
-  onStartTour: () => void;
-  onFinish: () => void;
-}) => (
-  <StepForm
-    {...frame}
-    title={
-      <>
-        Meet your <strong>homepage.</strong>
-      </>
-    }
-    lede={
-      canTour
-        ? "A one-minute tour of where things are. Use Next, or press Esc to stop any time."
-        : "Here's where things are on your homepage."
-    }
-    onSubmit={canTour ? onStartTour : onFinish}
-    actions={
-      canTour ? (
-        <>
-          <button type="button" className="onb-btn text" onClick={onFinish}>
-            Skip tour
-          </button>
-          <button type="submit" className="onb-btn primary">
-            Start the tour
-          </button>
-        </>
-      ) : (
-        <button type="submit" className="onb-btn primary">
-          Go to my homepage
-        </button>
-      )
-    }
-  >
-    {!canTour && (
-      <ol className="onb-tour-list">
-        {stops.map((stop) => (
-          <li key={stop.id}>
-            <b>{stop.title}</b>
-            <span>{stop.body}</span>
-          </li>
-        ))}
-      </ol>
-    )}
-  </StepForm>
-);
