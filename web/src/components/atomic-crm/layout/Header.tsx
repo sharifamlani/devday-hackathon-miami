@@ -12,21 +12,19 @@ import { avatarSlot } from "./shellState";
 import { SampleDataBadge } from "./SampleDataBadge";
 
 /**
- * Top bar: wordmark on the left; live transcript, theme,
+ * Top bar: the name as a text wordmark on the left; live transcript, theme,
  * Ask and the account avatar on the right.
  */
 const Header = () => {
-  const { title, darkModeLogo, lightModeLogo } = useConfigurationContext();
+  const { title } = useConfigurationContext();
   const onHome = useLocation().pathname === "/";
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
       <span
         data-testid="wordmark"
-        className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-[-0.02em]"
+        className="wordmark flex min-w-0 items-center"
       >
-        <img className="[.light_&]:hidden h-6 shrink-0" src={darkModeLogo} alt="" />
-        <img className="[.dark_&]:hidden h-6 shrink-0" src={lightModeLogo} alt="" />
         <span className="truncate">{title}</span>
       </span>
       <SampleDataBadge />
