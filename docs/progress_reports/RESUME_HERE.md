@@ -1,42 +1,35 @@
-# RESUME HERE: state at ~9:30 AM Sun Nov 8 (lead = session devday-hackathon-fb)
+# RESUME HERE: PAUSED ~12:40 PM Sun Nov 8 (Sharif traveling to the venue). Lead = devday-hackathon-fb
 
-Freeze **Sun Nov 8, 4:15 PM ET**. Repo public + MIT ~3:15 PM (96 asks Sharif for a one-word yes first; history stays as is,
-Sharif OK'd the phone number in PR #139 refs and docs/judges.md in history). Tunnel (#137) merged but OFF until Sharif says go.
-Process: `docs/sop/development-flywheel.md` (Define → Build → QA exact sha → lead pinned merge
-`gh pr merge N --merge --match-head-commit <sha>` → Integrate + live test by session 20 → Loop). Christian merges without the
-gate sometimes: give each a retro review + a live walk (done for #193 #164 #195 #198 #206, all PASS).
+Freeze **4:15 PM**. Repo public + MIT ~3:15 (96 asks Sharif for a one-word yes). Process: `docs/sop/development-flywheel.md`
+(QA exact sha → lead pinned merge → session 20 walks TEST → LIVE). Sharif's UI decisions win over Christian's.
 
-## Main = 043a82a (walk 16: 16/16 from empty; merge-all → 33 givers / 131 gifts / $1,367,535; 4 events)
-Merged this morning: #189 snapshot, #190 send-card notes, #176 #207 demo script, #191 files open, #192 agent-walk cases,
-#186 Impact panel, #188 GMD gave-via, #185 count-once, #137 tunnel switch (off), #197 two cards, #194 draft→donor,
-#202 dictation feedback, #201 receipt waits for click, #199 call-today order. Christian: #195 #164 #193 #198 #206.
+## Main = 66379e9 (demo plan §22 in plan.md; demo script updated)
+Merged since 9:30: #186 #188 #185 #137 #197 #194 #202 #201 #199 #187 #204 #200 #209 #203 #212 #216 #219 #222 #223 #226 #229 #230
+#211 #213 (calendar v3) #214 (smooth close) #232 #234 #237 #238 #239 #241 #242 #243 #244 #245 #246 #247 #248 #249 #250 #253 #225 #236
+#227 #252; Christian ungated: #195 #164 #193 #198 #206 #217 (all retro-checked PASS).
 
-## Open PRs (reviewer)
-| # | What | Owner | Reviewer / state |
-|---|---|---|---|
-| 187 | keyboard shortcuts (head 6933acc) | 9e | 82 [2fce76] checking conflict resolution; MERGE BEFORE #204 |
-| 204 | home polish + Impact & story card (694c925) | 9e | in-session reviewer; rebase onto #187 after |
-| 200 | CRM givers only + collapsible filters | 9e | in-session reviewer |
-| 209 | CRM row expands inline (Sharif high priority), stacked on #200 | 9e | same reviewer as #200; retarget to main after #200 |
-| 212 | Files & drafts refetch after agent drafts | 9e | db |
-| 196 | Review opens saved invites (57 s → <1 s) | e6 | a4 |
-| 208 | events 4/4 (5K never dropped) | e6 | 19 |
-| 210 | demo call → Hye-jin, RSVP to the 5K | 3c | 1b (strict) |
-| 203 | live-streaming home chat | 54 | 82 [53d436]: CHANGES (rebase + spinner finalize) |
+## State at pause
+- LIVE (:5173/:8001, session 20): reset to the new sample data was in progress; 20 leaves it consistent (finished, or restored from
+  dd-live-state/donors.live-backup-1143-PRE-RESET-sharif-desk.db). Check 20's last message.
+- Public site: Vercel prod → cloudflared quick tunnel → :8401 (PUBLIC_MODE, LIVE db). Drops when the laptop sleeps (falls back to
+  the snapshot). On resume: 22 restarts the tunnel; the URL changes, so the Vercel env + redeploy are needed. Sharif approved
+  PUBLIC_SHOW_ALL (show everything; writes still refused) and a quiet toggle; 22's PRs are in progress.
 
-## In build
-- 54: agent fixes duplicates in chat (Sharif rule: ≥80% auto-merge, no card, undoable; <80% asked in chat). Asked Sharif
-  whether Veloria Bay (0.8) should auto-merge. Plus call-sheet protocol (subagent, PHONE_CALLS off).
-- 96: agent-written donor summary ("About <donor>", summary / summary_updated_at / summary_sources on GET /donors/{id}).
-- 33: Calendar v3 service (events API, migration, agent calendar tools); 9e builds the web half.
-- 0f: README audit (66/66 claims mapped; models gpt-6.1-sol / gpt-6-luna named); PR by ~1 PM.
-- e6: script follow-up after #210 (call step + "If it's slow" line).
-- 20: LIVE CONTEXT_DEADLINE_S → 45 (reads are 25–31 s vs 30 s deadline).
+## Open PRs
+| # | What | State |
+|---|---|---|
+| 210 | Demo call with Hye-jin + 5K RSVP | QA by 82 [53d436] (1b was stuck) |
+| 251 | Snapshot recut (fallback) | 33 recutting on 8170e03 (cold) |
+| 231 | Christian: home tiles fold up | HOLD for Sharif |
+| 233, 235 | Christian: sample label → menu; faster closes | CHANGES needed (9e audit); ask Sharif before commenting |
+| 22's | PUBLIC_SHOW_ALL + tunnel toggle | in build |
+| 33's | hide write controls in public mode | in build |
+| 54's | email "prep for" slice | in build |
 
-## Sharif's open decisions
-Public flip go (~3:15) · tunnel ON timing · Veloria Bay auto-merge threshold · phone "Find a donor" box · rotate API key after.
+## Decisions recorded
+80% duplicate threshold incl. Veloria (Sharif). Donor notes on gpt-6-luna. Show everything publicly (Sharif). Every sample person has
+email + phone (#244, #253). D6: individuals not web-researched (Enhance) unless Sharif lifts it (one constant).
 
-## Incidents today
-LIVE node_modules broken ~08:00 by a junctioned worktree (54), restored; fleet rule: never junction to dd-live-main /
-dd-live-test. Root .env went missing, restored by 96 from an identical copy. Lead's reviewer deleted packages in
-wt/port-101 through a junction; restored with npm install.
+## Resume checklist
+1. Send "resume" to all sessions. 2. 20: LIVE state + finish the reset if needed. 3. 22: tunnel back up + Vercel env. 4. #210 → merge →
+e6 adds the call words. 5. 2:30 final rehearsal per plan.md §22. 6. ~3:15 public flip (Sharif yes) + `demo` tag. 7. 4:15 freeze.
