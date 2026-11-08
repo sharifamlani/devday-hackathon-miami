@@ -368,7 +368,7 @@ export const CalendarPage = ({
               {PLAN_LABEL}
             </button>
           </div>
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <div
               className="donor-calendar rounded-[24px] bg-card p-4 shadow-sm sm:p-5"
               style={{ height: 620 }}
