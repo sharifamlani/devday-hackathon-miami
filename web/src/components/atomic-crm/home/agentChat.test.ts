@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { WAITING_PREFIX, agentChatMessages, decide, resetAgentChat, sendToAgent } from "./agentChat";
+import { WAITING_PREFIX, agentChatMessages, decide, resetAgentChat, scopesOf, sendToAgent, type AgentStep } from "./agentChat";
 
 const reply = (body: unknown) =>
   Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
@@ -97,5 +97,25 @@ describe("agent chat: two cards pending", () => {
     expect(after.decisions).toEqual({ cA: approveA, cB: true });
     expect(after.decided).toBe(true);
     expect(after.text).toBe("");
+  });
+});
+
+describe("agent chat: what refetches after a turn", () => {
+  const step = (tool: string, extra: Partial<AgentStep> = {}): AgentStep => ({
+    tool, args: {}, summary: null, status: "done", undo_token: null, ...extra,
+  });
+
+  it("refreshes Files & drafts after a draft even though drafts carry no undo token", () => {
+    expect(scopesOf([step("draft_email")])).toContain("artifacts");
+    expect(scopesOf([step("draft_sms")])).toContain("artifacts");
+  });
+
+  it("refreshes after a send resumed from an approval card (no token)", () => {
+    expect(scopesOf([step("send")])).toEqual(expect.arrayContaining(["campaigns", "artifacts"]));
+  });
+
+  it("refetches nothing for read-only or failed steps", () => {
+    expect(scopesOf([step("find_people")])).toEqual([]);
+    expect(scopesOf([step("draft_email", { status: "error" })])).toEqual([]);
   });
 });

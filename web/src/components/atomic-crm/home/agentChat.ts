@@ -77,7 +77,7 @@ export type Refetch = (scopes?: RefetchScope[]) => unknown;
 export const scopesOf = (steps: AgentStep[]): RefetchScope[] => {
   const scopes = new Set<RefetchScope>();
   for (const s of steps)
-    if (s.status === "done" && s.undo_token) scopesForTool(s.tool)?.forEach((x) => scopes.add(x));
+    if (s.status === "done") scopesForTool(s.tool)?.forEach((x) => scopes.add(x));
   return [...scopes];
 };
 
