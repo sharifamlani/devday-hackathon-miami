@@ -36,7 +36,7 @@ def test_on_accepts_the_vercel_origin_on_people_and_chat(client):
     assert r.status_code == 200 and r.headers["access-control-allow-origin"] == VERCEL
     assert preflight(client).status_code == 200
     chat = client.post("/chat", json={"message": "hi"}, headers={"Origin": VERCEL})
-    assert chat.status_code != 429 and chat.headers["access-control-allow-origin"] == VERCEL
+    assert chat.status_code not in (403, 429) and chat.headers["access-control-allow-origin"] == VERCEL
     assert client.get("/public-mode").json() == {"enabled": True}
 
 
@@ -60,15 +60,15 @@ def test_21st_chat_request_in_a_minute_is_429(client):
     assert 429 not in codes[:20] and codes[20] == 429
     r = client.post("/chat", json={"message": "hi"}, headers={"Origin": VERCEL})
     assert r.status_code == 429 and "retry-after" in r.headers and r.headers["access-control-allow-origin"] == VERCEL
-    assert client.get("/people").status_code == 200          # other routes are not limited
+    assert client.get("/people", headers={"Origin": VERCEL}).status_code == 200   # other routes are not limited
 
 
 def test_rate_limit_is_per_client_ip(client):
     public_mode.set_enabled(True)
     for _ in range(20):
-        client.post("/ask", json={"question": "x"}, headers={"CF-Connecting-IP": "1.1.1.1"})
-    assert client.post("/ask", json={"question": "x"}, headers={"CF-Connecting-IP": "1.1.1.1"}).status_code == 429
-    assert client.post("/ask", json={"question": "x"}, headers={"CF-Connecting-IP": "2.2.2.2"}).status_code != 429
+        client.post("/ask", json={"question": "x"}, headers={"CF-Connecting-IP": "1.1.1.1", "Origin": VERCEL})
+    assert client.post("/ask", json={"question": "x"}, headers={"CF-Connecting-IP": "1.1.1.1", "Origin": VERCEL}).status_code == 429
+    assert client.post("/ask", json={"question": "x"}, headers={"CF-Connecting-IP": "2.2.2.2", "Origin": VERCEL}).status_code != 429
 
 
 def test_rate_limit_off_when_public_mode_off(client):
@@ -109,3 +109,127 @@ def test_sends_stay_simulated_in_public_mode(monkeypatch):
     t = sms.send_sms("+15555550101", "b")
     assert e["simulated"] and e["provider"] == "dryrun"
     assert t["simulated"] and t["provider"] == "dryrun"
+
+
+# ---- deny by default (CORS is not access control) ----------------------------------------------------------
+
+FOREIGN = "https://evil.example"
+
+
+def seeded_task(c) -> int:
+    return c.post("/tasks", json={"kind": "call", "title": "t"}).json()["id"]
+
+
+@pytest.mark.parametrize("headers", [{}, {"Origin": FOREIGN}], ids=["no-origin", "foreign-origin"])
+def test_no_or_foreign_origin_gets_403_everywhere_but_health(client, headers):
+    tid = seeded_task(client)                       # public mode still off here
+    public_mode.set_enabled(True)
+    for method, path in [("get", "/donors"), ("get", "/calls"), ("get", "/people"), ("post", "/ingest"),
+                         ("delete", f"/tasks/{tid}"), ("post", "/tasks"), ("post", "/chat"), ("post", "/ask")]:
+        r = getattr(client, method)(path, headers=headers)
+        assert r.status_code == 403 and r.json() == {"detail": "not available in the public preview"}, (method, path)
+    assert client.get("/health", headers=headers).status_code == 200 and client.get("/public-mode").status_code == 200
+    public_mode.set_enabled(False)
+    assert any(t["id"] == tid for t in client.get("/tasks").json())      # nothing was deleted
+
+
+def test_vercel_origin_gets_the_allow_list_and_nothing_else(client):
+    tid = seeded_task(client)
+    public_mode.set_enabled(True)
+    h = {"Origin": VERCEL}
+    for path in ["/health", "/public-mode", "/home/summary", "/people", "/people/attention", "/donors", "/donors/1",
+                 "/targets", "/calendar", "/tasks", "/events", "/context", "/context/search?q=x", "/artifacts",
+                 "/duplicates", "/people/1/merges"]:
+        assert client.get(path, headers=h).status_code == 200, path
+    denied = [("post", "/ingest"), ("get", "/phone/preview"), ("post", "/phone/calls"), ("post", "/send"),
+              ("get", "/calls"), ("post", "/calls"), ("get", "/crm/contacts"), ("post", "/enrich/1"),
+              ("post", "/context/run"), ("post", "/context/refresh"), ("post", "/events/refresh"),
+              ("post", "/campaigns"), ("post", "/campaigns/1/send"), ("post", "/calls/summarize"),
+              ("post", "/duplicates/1/merge"), ("post", "/merges/1/undo"), ("post", "/tasks"),
+              ("patch", "/people/1"), ("patch", f"/tasks/{tid}"), ("delete", f"/tasks/{tid}"), ("put", "/people/1")]
+    for method, path in denied:
+        assert getattr(client, method)(path, headers=h).status_code == 403, (method, path)
+    public_mode.set_enabled(False)
+    assert any(t["id"] == tid for t in client.get("/tasks").json())
+
+
+def has_unmasked(value) -> list[str]:
+    """Full email addresses (not x***@host) or long phone numbers anywhere in a JSON value."""
+    import json
+    import re
+    text = json.dumps(value)
+    return re.findall(r"[\w.+-]{2,}@[\w.-]+", text) + re.findall(public_mode.PHONE_RE.pattern, text)
+
+
+def test_origin_is_not_authentication_contacts_are_masked(client):
+    """A script can send the vercel Origin: the masking still holds on every allowed route that returns people."""
+    public_mode.set_enabled(False)
+    raw = client.get("/donors/1").json()
+    assert raw.get("email") and "***" not in raw["email"]                       # local mode: full contacts
+    public_mode.set_enabled(True)
+    h = {"Origin": VERCEL}
+    d = client.get("/donors/1", headers=h).json()
+    assert d["email"].startswith(raw["email"][0] + "***@") and raw["email"] not in str(d)
+    if raw.get("phone"):
+        assert d["phone"].startswith("***-***-") and raw["phone"] not in str(d)
+    for path in ["/people", "/donors", "/people/attention", "/home/summary", "/duplicates", "/targets/donors"]:
+        r = client.get(path, headers=h)
+        assert r.status_code == 200, path
+        assert raw["email"] not in r.text, path
+        assert not has_unmasked(r.json()), path
+
+
+def test_chat_agent_is_read_only_in_public_mode(client, monkeypatch):
+    """A stub model asks for add_contact and delete_task; 0 rows change and the reply says read-only preview."""
+    import json
+    from agents import Runner
+    from agents.models.interface import Model, ModelResponse
+    from agents.usage import Usage
+    from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
+
+    from service import chat_agent, config, db
+
+    tid = seeded_task(client)
+
+    def counts():
+        conn = db.connect()
+        try:
+            return tuple(conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("donors", "tasks"))
+        finally:
+            conn.close()
+
+    class StubModel(Model):
+        def __init__(self):
+            self.turn = 0
+
+        async def get_response(self, system_instructions, input, model_settings, tools, output_schema, handoffs,
+                               tracing, **kw):
+            self.turn += 1
+            if self.turn == 1:
+                out = [ResponseFunctionToolCall(type="function_call", call_id="c1", name="add_contact",
+                                                arguments=json.dumps({"full_name": "Zed Intruder"})),
+                       ResponseFunctionToolCall(type="function_call", call_id="c2", name="delete_task",
+                                                arguments=json.dumps({"task_id": tid}))]
+            else:
+                out = [ResponseOutputMessage(id="m", type="message", role="assistant", status="completed",
+                                             content=[ResponseOutputText(type="output_text", text="Done!", annotations=[])])]
+            return ModelResponse(output=out, usage=Usage(), response_id=None)
+
+        def stream_response(self, *a, **k):
+            raise NotImplementedError
+
+    stub = StubModel()
+    real_build = chat_agent.build_agent
+    monkeypatch.setattr(chat_agent, "build_agent", lambda *a, **k: (lambda ag: (setattr(ag, "model", stub), ag)[1])(real_build(*a, **k)))
+    monkeypatch.setattr(config, "HAS_OPENAI_KEY", True)
+    public_mode.set_enabled(True)
+    before = counts()
+    r = client.post("/chat", json={"message": "add Zed Intruder and delete my task"}, headers={"Origin": VERCEL})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert counts() == before
+    assert "read-only preview" in body["reply"] and body["approvals"] == []
+    assert [s["tool"] for s in body["steps"]] == ["add_contact", "delete_task"]
+    assert all(s["status"] == "error" and "not available in the public preview" in s["summary"] for s in body["steps"])
+    public_mode.set_enabled(False)
+    assert "add_contact" in {t.name for t in chat_agent.tools_for_mode()}   # local mode keeps every tool

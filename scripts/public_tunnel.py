@@ -1,6 +1,6 @@
 """One switch for the public tunnel: python scripts/public_tunnel.py on | off | status
 
-on      start `cloudflared tunnel --url http://localhost:8000`, record pid + URL in .public-tunnel.json, and
+on      start `cloudflared tunnel --url http://localhost:8001`, record pid + URL in .public-tunnel.json, and
         print (never run) the three commands that point the Vercel app at it.
 off     kill ONLY the cloudflared process recorded in .public-tunnel.json, then print the commands that put
         the Vercel app back on its snapshot.
@@ -23,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 STATE = REPO_ROOT / ".public-tunnel.json"
 LOG = REPO_ROOT / ".public-tunnel.log"
 VERCEL_ORIGIN = "https://devday-donor-desk.vercel.app"
-PORT = 8000
+DEFAULT_PORT = 8001          # session 20: the LIVE stack runs on :8001
 URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 INSTALL = "winget install --id Cloudflare.cloudflared"
 
@@ -61,7 +61,8 @@ def http_status(url: str, timeout: float = 5.0) -> str:
         return f"unreachable ({type(e).__name__})"
 
 
-def cmd_on(_args) -> int:
+def cmd_on(args) -> int:
+    port = args.port
     state = read_state()
     if state and is_cloudflared(state["pid"]):
         print(f"already on: {state['url']} (pid {state['pid']}). Run `off` first to restart it.")
@@ -73,7 +74,7 @@ def cmd_on(_args) -> int:
         return 2
     with LOG.open("w", encoding="utf-8") as log:
         flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
-        proc = subprocess.Popen([exe, "tunnel", "--url", f"http://localhost:{PORT}"], stdout=log,
+        proc = subprocess.Popen([exe, "tunnel", "--url", f"http://localhost:{port}"], stdout=log,
                                 stderr=subprocess.STDOUT, creationflags=flags)
     url, deadline = None, time.time() + 40
     while time.time() < deadline and not url:
@@ -92,7 +93,7 @@ def cmd_on(_args) -> int:
                      encoding="utf-8")
     print(f"tunnel on: {url} (pid {proc.pid})\n\nNext, run these yourself (nothing below has been run):\n"
           f"(1) restart the service:\n"
-          f"    PUBLIC_MODE=1 PUBLIC_ORIGINS={VERCEL_ORIGIN} uvicorn service.main:app --host 127.0.0.1 --port {PORT}\n"
+          f"    PUBLIC_MODE=1 PUBLIC_ORIGINS={VERCEL_ORIGIN} uvicorn service.main:app --host 127.0.0.1 --port {port}\n"
           f"(2) point Vercel at the tunnel (from web/, in Git Bash):\n"
           f"    printf '%s' \"{url}\" | vercel env add VITE_API_URL production\n"
           f"    printf '%s' \"local\" | vercel env add VITE_DATA_MODE production   # `vercel env rm` the old value first\n"
@@ -143,6 +144,7 @@ def cmd_status(_args) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("action", choices=["on", "off", "status"])
+    ap.add_argument("--port", type=int, default=DEFAULT_PORT, help="local service port to tunnel (default %(default)s)")
     args = ap.parse_args()
     return {"on": cmd_on, "off": cmd_off, "status": cmd_status}[args.action](args)
 
