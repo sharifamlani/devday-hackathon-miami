@@ -485,27 +485,34 @@ def persist_fallback_context(urls: dict, sources: dict, result: dict | None) -> 
             marks = ",".join("?" for _ in saved["context_ids"])
             conn.execute(f"UPDATE org_context SET cached = 1 WHERE id IN ({marks})", saved["context_ids"])
         conn.commit()
-        after_save_in_background()
+        after_save_in_background(saved.get("context_ids") or [])
         return {**saved, "cached_fallback": True, "cleared_previous_org": cleared}
     finally:
         conn.close()
 
 
-def after_save_in_background() -> None:
+def after_save_job(context_ids: list[int]) -> None:
+    """Index the store and make the day's tasks, then put the fallback's cached flags back: index_context sets
+    `cached` from the file cache on every row it indexes, which would make fallback facts look fresh."""
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        from service.org_context import after_context_saved
+        after_context_saved(conn)
+        if context_ids:
+            marks = ",".join("?" for _ in context_ids)
+            conn.execute(f"UPDATE org_context SET cached = 1 WHERE id IN ({marks})", list(context_ids))
+        conn.commit()
+    except Exception:
+        log.exception("fallback context: indexing / tasks after save failed")
+    finally:
+        conn.close()
+
+
+def after_save_in_background(context_ids: list[int]) -> None:
     """The fallback answers on its deadline: index_context (a model call + embeddings) and the day's tasks run
     after the response, on their own connection, the way the live path's refresh does."""
-    def job():
-        conn = db.connect()
-        try:
-            db.create_schema(conn)
-            from service.org_context import after_context_saved
-            after_context_saved(conn)
-            conn.commit()
-        except Exception:
-            log.exception("fallback context: indexing / tasks after save failed")
-        finally:
-            conn.close()
-    threading.Thread(target=job, daemon=True, name="fallback-after-save").start()
+    threading.Thread(target=after_save_job, args=(list(context_ids),), daemon=True, name="fallback-after-save").start()
 
 
 def source_progress(req: "ContextRun", result: dict | None, fallback: bool = False, stored: bool = True) -> dict:

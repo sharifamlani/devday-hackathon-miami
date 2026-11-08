@@ -120,7 +120,7 @@ def test_a_slow_read_and_a_slower_search_answer_on_time_with_no_events(db_file, 
     monkeypatch.setattr(main, "start_events_search", events_after(5, EVENTS))
     monkeypatch.setattr(org_context, "build_context", slow_context)
     scheduled = []                                                # indexing + tasks run after the response, not here
-    monkeypatch.setattr(main, "after_save_in_background", lambda: scheduled.append(True))
+    monkeypatch.setattr(main, "after_save_in_background", lambda ids: scheduled.append(True))
     t0 = time.monotonic()
     body = TestClient(main.app).post("/context/run", json={"website": "https://miamifoundation.org"}).json()
     assert time.monotonic() - t0 < 3                              # capped: the grace, not the search, sets the wait

@@ -3,6 +3,8 @@ facts wiped), and the background refresh reads those saved URLs instead of the F
 No network and no model calls: build_context is stood in everywhere."""
 
 import sqlite3
+
+import pytest
 import time
 
 from fastapi.testclient import TestClient
@@ -10,6 +12,16 @@ from fastapi.testclient import TestClient
 from service import config, db, org_context
 from service import refresh as refresh_module
 from service.main import app, run_refresh
+
+
+@pytest.fixture(autouse=True)
+def after_save_runs_inline(monkeypatch):
+    """The fallback's after-save work (index + tasks) runs in a thread in the app; here it runs inline, as it did
+    before, with the model calls stood in, so every assertion sees the finished store and nothing calls OpenAI."""
+    from service import main
+    monkeypatch.setattr(org_context, "classify_facts", lambda facts: [("other", f[:40]) for f in facts])
+    monkeypatch.setattr(org_context, "embed_texts", lambda texts: [None for _ in texts])
+    monkeypatch.setattr(main, "after_save_in_background", main.after_save_job)
 
 
 def good_result(name="Test Org"):
@@ -350,3 +362,26 @@ def test_setup_for_the_same_org_keeps_its_calendar(db_file, monkeypatch):
     c.post("/context/run", json={"website": "https://www.example.org/events"})
 
     assert calendar_rows(db_file) == before
+
+
+
+def test_indexing_after_a_fallback_keeps_every_cached_flag(db_file, monkeypatch):
+    """index_context sets `cached` from the file cache on every row; the after-save job must put the fallback's
+    flags back, or the dashboard would show cached facts as fresh (#312 review)."""
+    from service import main
+    monkeypatch.setattr(org_context, "build_context",
+                        lambda urls, refresh=False: (_ for _ in ()).throw(RuntimeError("site unavailable")))
+    monkeypatch.setattr(main, "cached_context", lambda website: good_result("Cached Org"))
+    ran = []
+    monkeypatch.setattr(main, "after_save_in_background", lambda ids: (ran.append(list(ids)), main.after_save_job(ids)))
+
+    body = TestClient(app).post("/context/run", json={"website": "https://example.org"}).json()
+
+    assert body["served_from"] == "fallback" and ran == [body["saved"]["context_ids"]]
+    conn = db.connect(db_file)
+    try:
+        rows = conn.execute("SELECT cached, kind, title FROM org_context").fetchall()
+    finally:
+        conn.close()
+    assert len(rows) == 2 and all(r[0] == 1 for r in rows)      # still cached after indexing
+    assert all(r[1] and r[2] for r in rows)                      # and the job did index them
