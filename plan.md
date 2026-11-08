@@ -1098,3 +1098,37 @@ owner in `docs/ui-integration.md`; builders code to that map plus §20.2. Builds
 
 Open decisions: Q4 gauge on sample data reads 0.5% (seed fictional Q4 demo gifts, or a smaller sample goal);
 hide the "Show meeting notes" overlay for judging.
+
+### 20.7 Who takes what: live Claude Code sessions (supersedes the owner columns in §20.3 / §20.6)
+
+Assigned by what each session already built, so nobody starts cold. Tasks move to wave 1 because half the
+mockup sits on them.
+
+| Session | Already knows | Takes | Owns (files) | Wave | Depends on |
+|---|---|---|---|---|---|
+| **devday-hackathon-42** | demographics extraction agent (structured output from text) | **B1** interest tags: 17-tag seed, enrich propose (`?dry_run=1`) → `/enrichment/accept`, staff-wins rule | `service/interests.py`, `routes_interests.py`, `enrich_agent.py`, `tests/test_interests.py` | 1 | — |
+| **devday-hackathon-48** | gift alerts (#48), gifts and targets | **B2** `/targets/quarters` + `reached_today` · **B13** `/home/summary`, `/people/attention` | `service/targets.py`, `routes_targets.py`, `routes_home.py` (new), tests | 1 | — |
+| **devday-hackathon-3a** | data layer (#53), outbox and send path, #69 rebase | **B11** tasks table + `/tasks` + generator · **B12** `/calendar`, `/artifacts` | `service/tasks.py`, `routes_tasks.py`, `tests/test_tasks.py` | **1** | — |
+| **Agent Phone** | `/enrich` and donor-route wiring in `main.py`, phone/SMS brief | **B3** voice: `WS /transcribe/live`, `/transcribe/file` (speaker labels), call notes + summary · then **S1** Twilio | `service/transcribe.py`, `call_notes.py`, `routes_voice.py`, `scripts/smoke-*.py`, `requirements.txt` | 1 | Gemini key |
+| **devday-hackathon-80** | web data layer hooks (`providers/local/`) | **B9** hooks + types for every endpoint in ui-integration §2, mocked until each lands | `web/src/components/atomic-crm/providers/local/*` | 1 | contract |
+| **devday-hackathon-86** | outreach, events, event audiences, context, briefs | **B6** after-call agent (`/call-notes/{id}/actions`, `/apply`), pledges, `event_audience.rsvp` · close #49/#57 | `service/after_call_agent.py`, `routes_after_call.py`, tests | 2 | B3 call_notes, B11 tasks |
+| **devday-hackathon-90 [113a1a]** | chat agent (#58), `/chat`, `/send` | **B10** chat tools: `create_task`, `add_calendar_item`, `find_people(interest=)`, `get_call_notes`, `get_tasks`, after-call steps in the thread | `service/chat_agent.py` | 2 | B1, B3, B11 |
+| **devday-hackathon-8b** | `db.py`, `routes_data.py`, contact_type | **B7** demo seed (Bill, Susan, Oct 12 note, `staff_name`, Q4 demo gifts if Sharif picks that) + `--reset` | `scripts/seed_demo.py`, `org_profile.staff_name` | 2 | B1, B3, B6, B11 |
+| **devday-hackathon-98** | QA gate all day | reviews every PR with one parallel subagent per PR against §19 smokes, §20.2, ui-integration §2; posts APPROVE <sha> | — | all | — |
+| **devday-hackathon-c9** | stat-mcp fixes, written REJECT/APPROVE reviews; built none of these builds | **independent evaluator**: grades §19 / §19.2 criteria after merges, loops until every one passes; overflow QA if 98 queues | read-only | Sun | merges |
+| **devday-hackathon-12** | role to confirm on dispatch | **deploy monitor**: after each merge, Playwright walk of the demo path on the laptop and the Vercel snapshot (the "Vercel monitor agent") | `scripts/verify-e2e.py` cases | 1+ | merges |
+| **devday-hackathon-37** | role to confirm on dispatch | **B5 writer**: README (models, how to run, limits), `docs/demo-script.md` draft from §19.1 | `README.md`, `docs/demo-script.md` | Sun AM | — |
+| **lead (Ideas, this session)** | plan, contract, merges | contract upkeep, B4 to Christian, merges pinned to approved SHAs, deploys, ROADMAP flips, rehearsals | docs, ROADMAP | all | — |
+| **Christian** (human + his agent) | the UI | screens from `docs/ui-integration.md`, on B9 hooks | his UI files | 1–2 | B9 |
+| **Carlos** (human) | ingest 🔒 | no change; on call if an upload fails | `service/ingest/` | — | — |
+| **devday-hackathon-90 [58e3c2]** | older session, idle 7 h | reserve; not dispatched | — | — | — |
+
+**`db.py` landing order (new tables only):** 3a (tasks) → 42 (interest tables) → Agent Phone (call_notes) → 86
+(pledges, rsvp column) → 8b (staff_name). Each rebases on the one before; each adds one `include_router` line.
+
+**Critical path:** 3a tasks + Agent Phone call notes (wave 1) → 86 after-call (wave 2) → 8b seed → rehearsal.
+If the clock wins, cut in this order: S1 phone, B12 artifacts, B13 badges; never cut B3, B6, B11.
+
+**Dispatch:** one message per session, sent together, each with the five CLAUDE.md fields (CONTEXT / OWNS / TASK /
+DONE WHEN / RETURN), a pointer to §20.2 + ui-integration §2, and the git rules: `git worktree add --no-track`,
+check that `@{upstream}` is not main, PR to QA, never push to main.
