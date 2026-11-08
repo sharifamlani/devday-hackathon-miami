@@ -165,6 +165,10 @@ def s1_upload(page: Page, api: Api, web: str, shots: Path):
     match = bool(givers_on_screen) and int(givers_on_screen.group(1)) == c["giver"]
     record("1 upload", f"{len(files)} files import; screen Givers = GET /people giver (>0)",
            f"{secs}s; screen '{shown.strip()[:80]}'; API {c}", ok(c["giver"] > 0 and match))
+    receipt = re.search(r"[^\n]*\d+ gifts[^\n]*", dialog.inner_text())
+    record("1b receipt", "import receipt names the gifts (#145: 131 gifts, +1 declined charge)",
+           f"'{receipt.group(0).strip()[:120] if receipt else '-'}'",
+           ok(bool(receipt) and "131 gifts" in receipt.group(0) and "declined" in receipt.group(0)))
     dialog.get_by_role("button", name="Continue", exact=True).click()
 
 
@@ -367,7 +371,7 @@ def s8_enrich(page: Page, api: Api, shots: Path):
 def s9_calendar(page: Page, api: Api, web: str, shots: Path):
     page.goto(web)
     page.wait_for_timeout(2500)
-    page.get_by_role("button", name="Calendar", exact=True).first.click()
+    page.get_by_role("link", name="Open full calendar").first.click()   # ?workspace=calendar, the month view
     page.wait_for_timeout(2500)
     page.screenshot(path=str(shots / "9_calendar.png"))
     cal = api.get("/calendar")
