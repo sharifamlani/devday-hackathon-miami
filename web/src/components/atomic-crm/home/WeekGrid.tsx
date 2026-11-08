@@ -142,6 +142,8 @@ const localDate = () => new Date().toLocaleDateString("en-CA");
 /**
  * Hour grid for one or more days (the Home tile's week and day views): an all-day row, hour lines,
  * and colored blocks by event type. Clicking a block opens that day's plan.
+ * `selected` keeps the whole week in view (columns stay under the week strip) and lays that one
+ * day's overlapping events side by side, with times, inside its own column.
  */
 export const TimeGrid = ({
   days,
@@ -149,13 +151,19 @@ export const TimeGrid = ({
   events,
   onOpenEvent,
   detailed = false,
+  selected = null,
+  selectedLanes = true,
 }: {
   days: string[];
   today: string;
   events: GridEvent[];
   onOpenEvent: (date: string) => void;
-  /** Day view: full titles and times. */
+  /** Every shown day in detail: full titles, times and lanes. */
   detailed?: boolean;
+  /** One day in detail inside the week (its column only). */
+  selected?: string | null;
+  /** False on narrow grids (the Home tile): the selected column keeps one block per overlap. */
+  selectedLanes?: boolean;
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const byDay = (day: string) =>
@@ -193,7 +201,12 @@ export const TimeGrid = ({
     // Only when the viewed days or the window change, never on an unrelated re-render.
   }, [firstTimed, start, range]);
 
-  const block = (event: GridEvent, date: string, key: string) => (
+  const block = (
+    event: GridEvent,
+    date: string,
+    key: string,
+    withTime = detailed,
+  ) => (
     <button
       key={key}
       type="button"
@@ -203,7 +216,7 @@ export const TimeGrid = ({
       title={describe(event, date)}
       onClick={() => onOpenEvent(date)}
     >
-      {detailed && startMinutes(event.time) != null && (
+      {withTime && startMinutes(event.time) != null && (
         <time>{shortTime(startMinutes(event.time)!)}</time>
       )}
       <span>{event.title}</span>
@@ -211,7 +224,10 @@ export const TimeGrid = ({
   );
 
   return (
-    <div className="home-cal-grid" data-detailed={detailed || undefined}>
+    <div
+      className="home-cal-grid"
+      data-detailed={detailed || selected ? true : undefined}
+    >
       {allDay.some((list) => list.length > 0) && (
         <div
           className="home-cal-allday"
@@ -251,9 +267,10 @@ export const TimeGrid = ({
               key={day}
               className="home-cal-column"
               data-today={day === today || undefined}
+              data-selected={day === selected || undefined}
               style={{ gridColumn: col + 2 }}
             >
-              {detailed
+              {detailed || (day === selected && selectedLanes)
                 ? placeDay(byDay(day)).map((p, n) => (
                     <div
                       key={`${p.event.ref ?? p.event.title}-${n}`}
@@ -261,12 +278,12 @@ export const TimeGrid = ({
                       style={{
                         top: blockTop(p.start),
                         height: (BLOCK_MINUTES / 60) * HOUR_PX - 2,
-                        // Day view: overlapping blocks side by side.
+                        // Day view: overlapping blocks side by side, inside this day's column.
                         left: `calc(${(p.lane / p.lanes) * 100}% + 1px)`,
                         width: `calc(${100 / p.lanes}% - 2px)`,
                       }}
                     >
-                      {block(p.event, day, "b")}
+                      {block(p.event, day, "b", true)}
                     </div>
                   ))
                 : clusters(placeDay(byDay(day))).map((group, n) => (

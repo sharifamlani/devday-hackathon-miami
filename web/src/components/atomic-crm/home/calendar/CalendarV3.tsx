@@ -161,12 +161,13 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
       </ol>
       <div className="cal3-grid">
         <TimeGrid
-          days={selected ? [selected] : strip.map((d) => d.date)}
+          // The week stays under the strip; a selected day shows its events side by side in its column.
+          days={strip.map((d) => d.date)}
+          selected={selected}
           today={today}
           events={feed.data ?? []}
-          // Week: a block opens that day's view; day view: it jumps to the event in the list below.
-          onOpenEvent={(date) => (selected ? jumpTo(date) : setSelected(date))}
-          detailed={!!selected}
+          // The selected day's blocks jump to the event in the list below; another day's block selects it.
+          onOpenEvent={(date) => (date === selected ? jumpTo(date) : setSelected(date))}
         />
       </div>
       <div className="cal3-body">
