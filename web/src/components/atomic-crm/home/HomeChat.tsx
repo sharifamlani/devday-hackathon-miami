@@ -21,6 +21,10 @@ import {
 import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
 import { EXAMPLE_QUESTIONS, type AskAnswer } from "../providers/local/ask";
+import { DATA_MODE } from "../providers/local/config";
+import { useAgentRefetch } from "../providers/local/refetch";
+import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
+import { ApprovalCard, StepCard } from "./AgentCards";
 import {
   answerSummary,
   appendAnswer,
@@ -221,7 +225,76 @@ const UserMessage = ({ text }: { text: string }) => (
   </p>
 );
 
-export const AgentThread = () => {
+/** On the laptop API the Home chat is the main-UI agent (B10): steps as cards, Undo, approval cards. */
+const LIVE_AGENT = DATA_MODE === "local";
+
+const LiveAgentThread = () => {
+  const { messages, pending, error } = useAgentChat();
+  const refetch = useAgentRefetch();
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [messages.length, pending]);
+
+  return (
+    <div
+      role="log"
+      aria-label="Conversation with the agent"
+      className="flex min-h-[120px] flex-1 flex-col gap-3 overflow-y-auto px-[22px] py-4"
+    >
+      {messages.length === 0 && !pending && (
+        <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
+          Ask about donors, plan outreach, or add to the calendar.
+        </p>
+      )}
+      {messages.map((m, i) =>
+        m.role === "user" ? (
+          <UserMessage key={i} text={m.text} />
+        ) : (
+          <div
+            key={i}
+            className="flex max-w-[78%] flex-col gap-2 self-start rounded-2xl rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm"
+          >
+            <span className="block text-[11px] font-bold text-muted-foreground">Agent</span>
+            {m.steps.length > 0 && (
+              <ul aria-label="Steps" className="flex flex-col gap-1.5">
+                {m.steps.map((step, j) => (
+                  <StepCard key={`${i}-${j}`} step={step} onUndo={() => undoStep(i, j, refetch)} />
+                ))}
+              </ul>
+            )}
+            {m.approvals.map((a) => (
+              <ApprovalCard
+                key={a.call_id}
+                approval={a}
+                decided={Boolean(m.decided)}
+                disabled={pending}
+                onDecide={(approve) => decide(i, { [a.call_id]: approve }, refetch)}
+              />
+            ))}
+            {m.text && <p className="whitespace-pre-line">{m.text}</p>}
+          </div>
+        ),
+      )}
+      {pending && (
+        <p className="self-start rounded-2xl bg-surface px-3.5 py-2.5 text-sm text-muted-foreground">
+          Thinking…
+        </p>
+      )}
+      {error && !pending && (
+        <p role="alert" className="self-start text-sm text-alert-foreground">
+          The agent couldn’t answer: {error}
+        </p>
+      )}
+      <div ref={endRef} />
+    </div>
+  );
+};
+
+export const AgentThread = () => (LIVE_AGENT ? <LiveAgentThread /> : <AskThread />);
+
+const AskThread = () => {
   const session = useAskSession();
   const { answer, pending, error } = session;
   const [history, setHistory] = useState<AskAnswer[]>(() =>
@@ -287,14 +360,18 @@ export const Composer = ({
   suggestions?: string[];
 }) => {
   const session = useAskSession();
+  const agent = useAgentChat();
+  const refetch = useAgentRefetch();
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const inputId = useId();
+  const busy = LIVE_AGENT ? agent.pending : session.pending;
 
   const send = (question: string) => {
     const q = question.trim();
-    if (!q || session.pending) return;
-    session.submit(q);
+    if (!q || busy) return;
+    if (LIVE_AGENT) void sendToAgent(q, refetch);
+    else session.submit(q);
     setText("");
   };
   const onSubmit = (event: FormEvent) => {
@@ -310,7 +387,7 @@ export const Composer = ({
             <button
               type="button"
               onClick={() => send(question)}
-              disabled={session.pending}
+              disabled={busy}
               className={cn(
                 "inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-left text-[13px] hover:bg-surface disabled:opacity-60",
                 focusRing,
@@ -388,7 +465,7 @@ export const Composer = ({
           type="submit"
           aria-label="Send"
           title="Send"
-          disabled={session.pending || !text.trim()}
+          disabled={busy || !text.trim()}
           className={cn(
             "grid size-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/85 disabled:opacity-60",
             focusRing,
