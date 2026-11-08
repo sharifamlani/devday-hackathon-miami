@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
@@ -162,6 +162,16 @@ export const CalendarPage = ({
   const { data, isPending, error } = useEvents();
   const status = useContextStatus();
   const refresh = useRefreshContext();
+  const refreshing = useRef(false); // a fast double-click must not start two passes
+  const refreshNow = () => {
+    if (refreshing.current) return;
+    refreshing.current = true;
+    refresh.mutate(undefined, {
+      onSettled: () => {
+        refreshing.current = false;
+      },
+    });
+  };
   const donors = useDonors();
   const plan = useOutreachPlan();
   useLiveTaskRefresh();
@@ -296,7 +306,7 @@ export const CalendarPage = ({
               size="sm"
               className="rounded-full"
               disabled={refresh.isPending}
-              onClick={() => refresh.mutate()}
+              onClick={refreshNow}
             >
               <RefreshCw
                 className={cn("size-4", refresh.isPending && "animate-spin")}
@@ -310,6 +320,10 @@ export const CalendarPage = ({
       {refresh.error ? (
         <p role="alert" className="text-sm text-alert-foreground">
           {refresh.error.message}
+        </p>
+      ) : refresh.data?.unread_sources?.length ? (
+        <p role="status" className="text-sm text-alert-foreground">
+          Some sources couldn’t be read: {refresh.data.unread_sources.join(", ")}.
         </p>
       ) : null}
 
