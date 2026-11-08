@@ -229,6 +229,16 @@ export const sendToAgent = async (text: string, refetch: Refetch) => {
         await viaChat();
       }
     }
+    finish();
+    set({ pending: false });
+  } catch (e) {
+    if (reply.steps.length || reply.text) finish(); // an error frame, or the connection dropped after a tool
+    set({ pending: false, error: e instanceof Error ? e.message : String(e) });
+  }
+
+  /** Close the reply on every path: no card left spinning, streaming off, and the screens refetched for the
+   *  writes that did finish (a task written before an error must still show up). */
+  function finish() {
     reply = {
       ...reply,
       text: reply.approvals.length && !reply.text.trim() ? waitingLine(reply.approvals) : reply.text,
@@ -236,15 +246,8 @@ export const sendToAgent = async (text: string, refetch: Refetch) => {
       streaming: undefined,
     };
     show();
-    set({ pending: false });
     const scopes = scopesOf(reply.steps);
     if (scopes.length) refetch(scopes);
-  } catch (e) {
-    if (reply.steps.length || reply.text) {
-      reply = { ...reply, streaming: undefined };
-      show();
-    }
-    set({ pending: false, error: e instanceof Error ? e.message : String(e) });
   }
 };
 

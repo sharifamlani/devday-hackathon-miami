@@ -118,6 +118,49 @@ describe("agent chat: streaming replies", () => {
   });
 });
 
+describe("agent chat: a stream that fails part-way", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetAgentChat();
+  });
+
+  it("an error frame leaves no card spinning, and the finished write still refreshes the screens", async () => {
+    vi.spyOn(window, "fetch").mockImplementationOnce(() =>
+      stream([taskLines[0], 'b:{"toolCallId": "t2", "toolName": "get_tasks"}', taskLines[2], '3:"model timed out"']),
+    );
+    const refetch = vi.fn();
+    await sendToAgent("add a task", refetch);
+    const reply = agentChatMessages()[1];
+    if (reply.role !== "assistant") throw new Error("no reply");
+    expect(reply.steps.filter((s) => s.status === "running")).toHaveLength(0);
+    expect(reply.steps.find((s) => s.call_id === "t2")).toMatchObject({ status: "error", summary: "no result" });
+    expect(reply.streaming).toBeUndefined();
+    expect(refetch).toHaveBeenCalled();                 // create_task finished before the error
+  });
+
+  it("a dropped connection after a tool also finalizes the cards", async () => {
+    let reads = 0;
+    const body = new ReadableStream({
+      pull(controller) {
+        // first read: a tool starts; second read: the connection drops
+        if (reads++ === 0) controller.enqueue(new TextEncoder().encode(`${taskLines[0]}
+`));
+        else controller.error(new Error("connection reset"));
+      },
+    });
+    vi.spyOn(window, "fetch").mockImplementationOnce(() =>
+      Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "text/plain" } })),
+    );
+    const fetchMock = vi.mocked(window.fetch);
+    await sendToAgent("add a task", () => {});
+    expect(fetchMock).toHaveBeenCalledTimes(1);          // a tool started: no retry through POST /chat
+    const reply = agentChatMessages()[1];
+    if (reply.role !== "assistant") throw new Error("no reply");
+    expect(reply.steps).toEqual([expect.objectContaining({ call_id: "t1", status: "error", summary: "no result" })]);
+    expect(reply.streaming).toBeUndefined();
+  });
+});
+
 describe("agent chat: two cards pending", () => {
   afterEach(() => {
     vi.restoreAllMocks();
