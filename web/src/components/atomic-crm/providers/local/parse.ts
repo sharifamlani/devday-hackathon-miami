@@ -333,6 +333,7 @@ export const parseDonorRow = (row: ApiDonorRow): DonorSummary => {
     give_miami_day_days_away: why?.give_miami_day?.days_away ?? null,
     contact_type: toTab(row.contact_type),
     auto_merged: !!row.auto_merged,
+    next_step: row.next_step ?? null,
     merged_from: row.merged_from ?? 0,
   };
 };
