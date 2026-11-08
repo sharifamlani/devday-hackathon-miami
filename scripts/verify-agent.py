@@ -81,6 +81,7 @@ class Case:
     setup: Callable[[str], None] | None = None
     start: Callable[[Page], None] | None = None          # how the conversation starts (default: type prompt)
     live: bool = False                                   # the first step card must show before the reply ends
+    after: Callable[[Page], str | None] | None = None     # a UI check once the reply is in; returns a failure note
 
 
 def crm_probe(base):
@@ -149,6 +150,20 @@ def today_task(base):
     r.raise_for_status()
 
 
+def draft_from_the_prep(page: Page) -> str | None:
+    """The email prep's Draft button asks the agent to draft (its Send card then waits; never clicked here)."""
+    card = page.locator("[role=log] [data-testid=email-prep]").last
+    with page.expect_response(is_chat, timeout=CHAT_TIMEOUT_MS) as resp:
+        card.get_by_role("button", name=re.compile(r"^Draft \d+ emails?$")).click()
+    tools = [s["tool"] for s in chat_data(resp.value).get("steps", [])]
+    page.wait_for_timeout(1500)
+    if "draft_email" not in tools:
+        return f"Draft didn't draft (tools {tools})"
+    if not page.locator("[data-testid=agent-approval][data-decision=pending]").count():
+        return "no Send card after drafting"
+    return None
+
+
 def click_work_on_task(page: Page):
     """A click on a sidebar task hands it to the home agent (WorkspaceSidebar.workOn)."""
     page.get_by_role("button", name=re.compile("^Work on with the agent: Call Carmen Ibarra", re.I)).first.click()
@@ -176,6 +191,8 @@ CASES = [
          setup=today_task, start=click_work_on_task),
     Case("GMD thank-you", "Draft a thank-you to Give Miami Day donors", tools_all={"draft_email"},
          setup=note_last_batch, probe=gmd_probe),
+    Case("email prep", "Prep the Give Miami Day email to lapsing givers", tools_all={"prep_email"},
+         tools_none={"draft_email", "send"}, ui=r"^Draft \d+ emails?$", ui_count=1, after=draft_from_the_prep),
     Case("streams live", "Which donors are lapsing, and what should I do about each one?",
          tools_any={"find_people", "get_alerts"}, live=True),
     Case("two pending cards", "Delete both of today's tasks 'Walk test task A' and 'Walk test task B'.",
@@ -257,6 +274,13 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
                                         + (f", want {case.ui_count}" if case.ui_count is not None else ""))
     if case.tools_none & set(tools):
         ok, _ = False, notes.append(f"must not run {sorted(case.tools_none & set(tools))}")
+    if case.after and ok:
+        problem = case.after(page)
+        if problem:
+            ok, _ = False, notes.append(problem)
+        else:
+            notes.append("after-check ok")
+            page.screenshot(path=str(shots / f"{n:02d}-after.png"), full_page=True)
     if case.probe:
         good, detail = case.probe(base)
         notes.append(f"db: {detail}")
