@@ -228,3 +228,42 @@ def test_answer_key_planted_groups_found_on_names_alone_with_no_false_pairs():
         members = {m.split(" (")[0] for m in g["members"]}
         ids = [r["id"] for r in records if owner[r["id"]] == g["donor_id"] and r["full_name"] in members]
         assert len({find(i) for i in ids}) == 1, (g["group"], g["members"])
+
+
+
+def test_individual_with_a_business_org_name_is_not_merged_into_that_business(conn):
+    """demo_reset --check found this: ingest stores a person's business in org_name. Annelise Moreau
+    (her own donor, D20) was suggested as a duplicate of Tamarind Quay Hardware, LLC."""
+    pairs = names_paired(conn,
+                         {"full_name": "Annelise Moreau", "donor_type": "individual",
+                          "org_name": "Tamarind Quay Hardware", "email": "annelise.moreau@example.org"},
+                         {"full_name": "Tamarind Quay Hardware, LLC", "donor_type": "organization",
+                          "org_name": "Tamarind Quay Hardware, LLC", "email": "tamarindquay.accounts@example.com"})
+    assert pairs == {}
+
+
+def test_person_writing_from_the_organizations_mailbox_is_suggested(conn):
+    """The answer key's D32: Bernard Okoye writes the checks of Marrow Lane Print Co. from its billing mailbox."""
+    pairs = names_paired(conn,
+                         {"full_name": "Marrow Lane Print Co.", "donor_type": "organization",
+                          "org_name": "Marrow Lane Print Co."},
+                         {"full_name": "Bernard Okoye", "donor_type": "individual",
+                          "org_name": "Marrow Lane Print Co.", "email": "billing.marrowlane@example.org"})
+    (pair,) = pairs.values()
+    assert pair["confidence"] == 0.80 and "uses its mailbox billing.marrowlane@example.org" in pair["reasons"][0]
+
+
+def test_person_sharing_the_organizations_email_is_suggested(conn):
+    pairs = names_paired(conn,
+                         {"full_name": "Coral Gables Garden Club", "donor_type": "organization",
+                          "email": "treasurer@cggc.example.org"},
+                         {"full_name": "Ruth Alvarez", "donor_type": "individual", "org_name": "Coral Gables Garden Club",
+                          "email": "treasurer@cggc.example.org"})
+    (pair,) = pairs.values()
+    assert pair["confidence"] == 0.95                                   # the shared email already says it
+
+
+def test_untyped_row_with_org_name_still_counts_as_an_organization(conn):
+    pairs = names_paired(conn, {"full_name": "Veloria Bay Foundation", "donor_type": None, "org_name": "Veloria Bay Foundation"},
+                         {"full_name": "Veloria Bay Foundation Inc", "donor_type": "organization"})
+    assert len(pairs) == 1

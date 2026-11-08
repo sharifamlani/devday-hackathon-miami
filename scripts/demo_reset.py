@@ -67,8 +67,11 @@ def copy_db(src: Path, dest: Path) -> Path:
 
 def backup_db(path: Path, now: datetime | None = None) -> Path | None:
     """data/donors.db -> data/donors.backup-YYYYmmdd-HHMMSS.db (covered by the data/*.db ignore rule).
-    None when there is nothing to back up."""
+    None when there is nothing to back up: no file, or no people and no gifts (an empty schema)."""
     if not path.exists() or path.stat().st_size == 0:
+        return None
+    counts = row_counts(path)
+    if not counts.get("donors") and not counts.get("gifts"):
         return None
     stamp = (now or datetime.now()).strftime("%Y%m%d-%H%M%S")
     return copy_db(path, path.with_name(f"{path.stem}.backup-{stamp}{path.suffix}"))
@@ -147,7 +150,12 @@ def warm(path: Path, port: int, inputs: Path, force: bool = False, upload=upload
     counts = row_counts(path)
     after = cache_files(cache_dir) if cache_dir else 0
     pending = counts.get("duplicate_suggestions", 0)
-    log(f"PASS warm-up upload: {counts.get('donors', 0)} people, {counts.get('gifts', 0)} gifts, "
+    conn = sqlite3.connect(path)
+    n_ok, total = gift_totals(conn)
+    conn.close()
+    other = counts.get("gifts", 0) - n_ok                 # declined/failed charges: on record, never counted
+    log(f"PASS warm-up upload of {len(files)} files: {counts.get('donors', 0)} people, {n_ok} gifts / ${total:,.0f}"
+        f"{f' (+{other} declined/failed charge kept on record, not counted)' if other else ''}, "
         f"{pending} duplicate suggestions (this is the count staff will see on stage)")
     if cache_dir is None:
         log("FAIL the ingest cache is off (INGEST_CACHE=off): the stage upload will call the model live")
@@ -278,7 +286,7 @@ Start the demo (two terminals, from the repo root):
      PowerShell instead:
        cd web; $env:VITE_DATA_MODE="local"; $env:VITE_API_URL="{api}"; npm run dev -- --port 5173
      (5173 busy? use --port 5174; both are allowed by the service's CORS list)
-  Then open http://localhost:5173, upload every file in data/sample_inputs/ except answer_key.json,
+  Then open http://localhost:5173, upload every file in data/sample_inputs/ except answer_key.json and _README.md,
   and run `python scripts/demo_reset.py --check` to compare the upload with the answer key."""
 
 

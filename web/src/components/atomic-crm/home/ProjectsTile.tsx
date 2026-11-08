@@ -52,7 +52,7 @@ export const ProjectsTile = () => {
       items: EXAMPLE_QUESTIONS.map((q, i) => ({
         key: String(i),
         title: q,
-        to: `/ask?${new URLSearchParams({ q })}`,
+        to: "/",
         icon: MessageCircleQuestion,
         count: undefined,
         question: q,

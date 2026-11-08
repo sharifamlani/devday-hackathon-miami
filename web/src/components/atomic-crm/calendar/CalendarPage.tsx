@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   dateFnsLocalizer,
@@ -29,21 +30,27 @@ import {
   useEvent,
   useEvents,
 } from "../providers/local/crmHooks";
-import { useDonors } from "../providers/local/hooks";
+import { useDonors, useTargets } from "../providers/local/hooks";
+import { useCalendarFeed } from "../providers/local/calendarFeed";
+import { DATA_MODE } from "../providers/local/config";
 import { TABS, TAB_LABELS } from "../providers/local/crmTypes";
 import type {
   CrmEvent,
   CrmEventDetail,
   Tab,
 } from "../providers/local/crmTypes";
-import { computeDayMarks } from "../outreach/calendarMonth";
-import { formatDayShort, monthOf, toIsoDate } from "../outreach/dates";
-import { DayPlanner } from "../outreach/DayPlanner";
+import { calendarMarks } from "../home/homeData";
 import {
-  useOutreachPlan,
-  type OutreachPlanItem,
-} from "../outreach/outreachPlan";
+  addDays,
+  formatDayShort,
+  fromIsoDate,
+  monthOf,
+  toIsoDate,
+} from "../outreach/dates";
+import { DayPlanner } from "../outreach/DayPlanner";
 import { recommendOutreach } from "../outreach/recommend";
+import type { OutreachPlanItem } from "../outreach/outreachPlan";
+import { useOutreachPlan } from "../outreach/usePlan";
 import {
   countByTab,
   placeable,
@@ -61,10 +68,13 @@ import {
 } from "./eventKinds";
 import {
   campaignEndsFrom,
-  eventDays,
   giveMiamiDayFrom,
   mergeAgenda,
-  planCalendarEntries,
+  taskCalendarEntries,
+  taskOrigin,
+  tasksFromFeed,
+  tasksFromPlan,
+  type CalTask,
 } from "./planLayer";
 import { PlannerCard } from "./PlannerCard";
 import "./calendar.css";
@@ -91,8 +101,8 @@ const when = (iso: string) =>
 interface CalEvent extends RbcEvent {
   id: number | string;
   family: Family | "plan";
-  /** Set for the viewer's outreach-plan entries. */
-  item?: OutreachPlanItem;
+  /** Set for dated tasks (live: GET /calendar; snapshot build: the local plan). */
+  task?: CalTask;
 }
 
 const FamilyBadge = ({ family }: { family: Family }) => (
@@ -110,12 +120,35 @@ const FamilyBadge = ({ family }: { family: Family }) => (
 const chip =
   "inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
+/** How often the screen re-reads tasks, so work the agent adds appears without a reload. */
+const REFRESH_MS = 4000;
+
+/**
+ * Live mode: re-read tasks and the calendar feed while this screen is open and
+ * visible. The chat panel refetches after its own writes (useAgentRefetch);
+ * this covers any other writer (the agent in another tab, a teammate, the
+ * generator).
+ */
+const useLiveTaskRefresh = () => {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (DATA_MODE !== "local") return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      for (const key of ["tasks", "calendar", "home-summary"])
+        void queryClient.invalidateQueries({ queryKey: ["donor-desk", key] });
+    }, REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [queryClient]);
+};
+
 /**
  * Event calendar: a month grid and an agenda list of the org's upcoming
- * events. Events come from the events agent (useEvents); we never invent any.
- * Alongside them, the viewer's outreach plan (outreach/outreachPlan.ts): pick a
- * day, add donors or campaigns, take the outreach agent's recommendations,
- * mark them done. `onOpenBatch` lets the host open its chat panel on a batch
+ * events. Events come from the events agent (useEvents) and are read-only; we
+ * never invent any. Alongside them, dated tasks from GET /calendar (the same
+ * tasks the agent creates and edits): click one to open it, tick it done
+ * (PATCH /tasks/{id}); pick a day to add donors, take the outreach agent's
+ * recommendations (each becomes a real task). `onOpenBatch` lets the host open its chat panel on a batch
  * id; without it the batch id is shown in the side panel.
  */
 export const CalendarPage = ({
@@ -127,8 +160,12 @@ export const CalendarPage = ({
   const status = useContextStatus();
   const donors = useDonors();
   const plan = useOutreachPlan();
-  const today = toIsoDate(new Date());
+  useLiveTaskRefresh();
+  // "Today" is the service's as-of date (the demo runs as of Nov 8), like the home board.
+  const targets = useTargets();
+  const today = targets.data?.quarter?.as_of ?? toIsoDate(new Date());
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [taskId, setTaskId] = useState<string | null>(null);
   const [planDate, setPlanDate] = useState<string | null>(null);
   const [date, setDate] = useState<Date | null>(null);
 
@@ -139,6 +176,25 @@ export const CalendarPage = ({
     () => allEvents.filter((e) => !hidden.includes(kindInfo(e).family)),
     [allEvents, hidden],
   );
+  // Open on the month of the next event, not an empty current month.
+  const firstEvent = allEvents[0] ? new Date(allEvents[0].starts_at) : null;
+  const shownDate = date ?? firstEvent ?? new Date();
+  const shownMonth = monthOf(toIsoDate(shownDate));
+
+  // Dated tasks around the month on screen (a week either side for the grid's edges).
+  const monthStart = toIsoDate(new Date(shownMonth.year, shownMonth.month, 1));
+  const monthEnd = toIsoDate(
+    new Date(shownMonth.year, shownMonth.month + 1, 0),
+  );
+  const feed = useCalendarFeed(addDays(monthStart, -7), addDays(monthEnd, 7));
+  const tasks: CalTask[] = useMemo(
+    () =>
+      DATA_MODE === "local"
+        ? tasksFromFeed(feed.data ?? [])
+        : tasksFromPlan(plan.items),
+    [feed.data, plan.items],
+  );
+
   const calEvents: CalEvent[] = useMemo(
     () => [
       ...events.map((e) => ({
@@ -150,29 +206,44 @@ export const CalendarPage = ({
         allDay: !e.ends_at,
       })),
       ...(showPlan
-        ? planCalendarEntries(plan.items).map((entry) => ({
+        ? taskCalendarEntries(tasks).map((entry) => ({
             ...entry,
             family: "plan" as const,
           }))
         : []),
     ],
-    [events, plan.items, showPlan],
+    [events, tasks, showPlan],
   );
-  // Open on the month of the next event, not an empty current month.
-  const firstEvent = allEvents[0] ? new Date(allEvents[0].starts_at) : null;
-  const shownDate = date ?? firstEvent ?? new Date();
-  const shownMonth = monthOf(toIsoDate(shownDate));
 
   const gmd = giveMiamiDayFrom(allEvents, today);
   const marks = useMemo(
     () =>
-      computeDayMarks({
-        plan: showPlan ? plan.items : [],
-        events: eventDays(events),
+      calendarMarks({
+        items: [
+          ...events.map((e) => ({
+            date: e.starts_at.slice(0, 10),
+            time: null,
+            title: e.title,
+            kind: "event" as const,
+            source: null,
+            ref: e.id,
+          })),
+          ...(showPlan
+            ? tasks.map((t) => ({
+                date: t.date,
+                time: t.time,
+                title: t.title,
+                kind: "task" as const,
+                source: t.source,
+                ref: t.id,
+                done: t.done,
+              }))
+            : []),
+        ],
         campaignEnds: campaignEndsFrom(allEvents),
         giveMiamiDay: gmd,
       }),
-    [plan.items, showPlan, events, allEvents, gmd],
+    [tasks, showPlan, events, allEvents, gmd],
   );
   const recommendations = useMemo(
     () =>
@@ -192,7 +263,10 @@ export const CalendarPage = ({
   ];
 
   return (
-    <section aria-labelledby="calendar-title" className="space-y-5 pb-8">
+    <section
+      aria-labelledby="calendar-title"
+      className="@container space-y-5 pb-8"
+    >
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1
@@ -202,7 +276,7 @@ export const CalendarPage = ({
             Calendar
           </h1>
           <p className="text-sm text-muted-foreground">
-            The Foundation’s events and your outreach plan, side by side.
+            The Foundation’s events and your tasks, side by side.
           </p>
         </div>
         {status.data?.label ? (
@@ -297,7 +371,7 @@ export const CalendarPage = ({
               {PLAN_LABEL}
             </button>
           </div>
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-6 @min-[1100px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <div
               className="donor-calendar rounded-[24px] bg-card p-4 shadow-sm sm:p-5"
               style={{ height: 620 }}
@@ -308,18 +382,17 @@ export const CalendarPage = ({
                 views={["month"]}
                 defaultView="month"
                 date={shownDate}
+                getNow={() => fromIsoDate(today)}
                 onNavigate={setDate}
                 onSelectEvent={(e) =>
-                  e.item
-                    ? setPlanDate(e.item.date)
-                    : setSelectedId(e.id as number)
+                  e.task ? setTaskId(e.task.id) : setSelectedId(e.id as number)
                 }
                 selectable
                 onSelectSlot={(slot) => setPlanDate(toIsoDate(slot.start))}
                 eventPropGetter={(e) => ({
                   className: cn(
                     e.family === "plan" && "donor-calendar-plan",
-                    e.item?.done && "is-done",
+                    e.task?.done && "is-done",
                   ),
                   style:
                     e.family === "plan"
@@ -355,17 +428,23 @@ export const CalendarPage = ({
               />
               <AgendaList
                 events={events}
-                planItems={showPlan ? plan.items : []}
+                tasks={showPlan ? tasks : []}
                 today={today}
                 onSelect={setSelectedId}
-                onOpenDay={setPlanDate}
-                onToggleDone={(item, done) => plan.update(item.id, { done })}
+                onOpenTask={setTaskId}
+                onToggleDone={(task, done) => plan.update(task.id, { done })}
               />
             </div>
           </div>
         </>
       ) : null}
 
+      <TaskPanel
+        task={tasks.find((t) => t.id === taskId) ?? null}
+        detail={plan.items.find((i) => i.id === taskId) ?? null}
+        onClose={() => setTaskId(null)}
+        onToggleDone={(task, done) => plan.update(task.id, { done })}
+      />
       <EventPanel
         eventId={selectedId}
         onClose={() => setSelectedId(null)}
@@ -386,20 +465,20 @@ export const CalendarPage = ({
 
 const AgendaList = ({
   events,
-  planItems,
+  tasks,
   today,
   onSelect,
-  onOpenDay,
+  onOpenTask,
   onToggleDone,
 }: {
   events: CrmEvent[];
-  planItems: OutreachPlanItem[];
+  tasks: CalTask[];
   today: string;
   onSelect: (id: number) => void;
-  onOpenDay: (date: string) => void;
-  onToggleDone: (item: OutreachPlanItem, done: boolean) => void;
+  onOpenTask: (id: string) => void;
+  onToggleDone: (task: CalTask, done: boolean) => void;
 }) => {
-  const entries = mergeAgenda(events, planItems, today);
+  const entries = mergeAgenda(events, tasks, today);
   return (
     <div>
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -407,7 +486,7 @@ const AgendaList = ({
       </h2>
       {entries.length === 0 ? (
         <p className="rounded-[24px] bg-card p-4 text-sm text-muted-foreground">
-          Nothing coming up yet. Pick a day to plan outreach.
+          Nothing coming up yet. Pick a day to add a task.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -419,10 +498,10 @@ const AgendaList = ({
                 onSelect={onSelect}
               />
             ) : (
-              <PlanAgendaItem
-                key={entry.item.id}
-                item={entry.item}
-                onOpenDay={onOpenDay}
+              <TaskAgendaItem
+                key={`task-${entry.task.id}`}
+                task={entry.task}
+                onOpenTask={onOpenTask}
                 onToggleDone={onToggleDone}
               />
             ),
@@ -433,61 +512,116 @@ const AgendaList = ({
   );
 };
 
-const PlanAgendaItem = ({
-  item,
-  onOpenDay,
+const TaskAgendaItem = ({
+  task,
+  onOpenTask,
   onToggleDone,
 }: {
-  item: OutreachPlanItem;
-  onOpenDay: (date: string) => void;
-  onToggleDone: (item: OutreachPlanItem, done: boolean) => void;
-}) => (
-  <li className="flex items-start gap-3 rounded-[24px] bg-card p-4 shadow-sm">
-    <input
-      type="checkbox"
-      checked={item.done}
-      onChange={(event) => onToggleDone(item, event.target.checked)}
-      aria-label={`Mark ${item.label} done`}
-      className="mt-1 size-5 shrink-0 accent-primary"
-    />
-    <div className="min-w-0 flex-1">
-      <p className="text-[13px] text-muted-foreground">
-        {formatDayShort(item.date)}
-      </p>
-      <button
-        type="button"
-        onClick={() => onOpenDay(item.date)}
-        className={cn(
-          "mt-0.5 text-left text-base font-semibold hover:underline focus-visible:underline",
-          item.done && "line-through",
-        )}
-      >
-        {item.campaign_id != null ? "Review " : "Contact "}
-        {item.label}
-        <span className="sr-only">
-          : open the plan for {formatDayShort(item.date)}
-        </span>
-      </button>
-      {item.note ? (
-        <p className="mt-0.5 text-[13px] text-muted-foreground">{item.note}</p>
-      ) : null}
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
-        <span
-          className="rounded-full px-2.5 py-0.5 text-[12px] font-medium"
-          style={{ background: PLAN_COLORS.bg, color: PLAN_COLORS.fg }}
+  task: CalTask;
+  onOpenTask: (id: string) => void;
+  onToggleDone: (task: CalTask, done: boolean) => void;
+}) => {
+  const origin = taskOrigin(task);
+  return (
+    <li className="flex items-start gap-3 rounded-[24px] bg-card p-4 shadow-sm">
+      <input
+        type="checkbox"
+        checked={task.done}
+        onChange={(event) => onToggleDone(task, event.target.checked)}
+        aria-label={`Mark ${task.title} done`}
+        className="mt-1 size-5 shrink-0 accent-primary"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] text-muted-foreground">
+          {formatDayShort(task.date)}
+          {task.time ? ` · ${task.time}` : ""}
+        </p>
+        <button
+          type="button"
+          onClick={() => onOpenTask(task.id)}
+          className={cn(
+            "mt-0.5 text-left text-base font-semibold hover:underline focus-visible:underline",
+            task.done && "line-through",
+          )}
         >
-          {PLAN_LABEL}
-        </span>
-        {item.source === "agent" ? (
-          <span className="text-muted-foreground">
-            suggested by the outreach agent
+          {task.title}
+        </button>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+          <span
+            className="rounded-full px-2.5 py-0.5 text-[12px] font-medium"
+            style={{ background: PLAN_COLORS.bg, color: PLAN_COLORS.fg }}
+          >
+            {PLAN_LABEL}
           </span>
-        ) : null}
-        {item.done ? <span className="font-medium">Done</span> : null}
+          {origin ? (
+            <span className="text-muted-foreground">{origin}</span>
+          ) : null}
+          {task.done ? <span className="font-medium">Done</span> : null}
+        </div>
       </div>
-    </div>
-  </li>
-);
+    </li>
+  );
+};
+
+/** One task, opened from the grid or the list: why, facts, and Mark done / Reopen (PATCH /tasks/{id}). */
+const TaskPanel = ({
+  task,
+  detail,
+  onClose,
+  onToggleDone,
+}: {
+  task: CalTask | null;
+  detail: OutreachPlanItem | null;
+  onClose: () => void;
+  onToggleDone: (task: CalTask, done: boolean) => void;
+}) => {
+  const origin = task ? taskOrigin(task) : null;
+  return (
+    <Sheet open={task != null} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
+        {task ? (
+          <>
+            <SheetHeader>
+              <SheetTitle className="text-lg">{task.title}</SheetTitle>
+              <SheetDescription>
+                {formatDayShort(task.date)}
+                {task.time ? ` · ${task.time}` : ""}
+                {origin ? ` · ${origin}` : ""}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-4 px-4 pb-6 text-sm">
+              {detail?.note ? <p>{detail.note}</p> : null}
+              {detail?.chips && detail.chips.length > 0 ? (
+                <ul className="flex flex-wrap gap-1.5" aria-label="Facts">
+                  {detail.chips.map((chip) => (
+                    <li
+                      key={chip}
+                      className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[12px] font-medium text-brand-soft-foreground"
+                    >
+                      {chip}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <Button
+                type="button"
+                onClick={() => onToggleDone(task, !task.done)}
+                className="min-h-11 rounded-full px-5"
+              >
+                {task.done ? "Reopen" : "Mark done"}
+              </Button>
+              {task.done ? (
+                <p className="font-medium" role="status">
+                  Done
+                </p>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
+};
 
 const AgendaItem = ({
   event,

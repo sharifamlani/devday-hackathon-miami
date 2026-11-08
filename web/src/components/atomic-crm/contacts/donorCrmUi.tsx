@@ -1,5 +1,7 @@
-import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import { useId, type ReactNode } from "react";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { NavLink, useLocation } from "react-router";
 
 import { cn } from "@/lib/utils";
 import {
@@ -67,33 +69,54 @@ export const InitialsAvatar = ({
 );
 
 /** People | Organizations, shown above both Donors lists. */
-export const DonorsTabs = () => (
-  <nav
-    aria-label="Donors views"
-    className="flex gap-1 rounded-full bg-muted p-1"
-  >
-    {[
-      { to: "/contacts", label: "People" },
-      { to: "/companies", label: "Organizations" },
-    ].map(({ to, label }) => (
-      <NavLink
-        key={to}
-        to={to}
-        end={false}
-        className={({ isActive }) =>
-          cn(
-            "rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-            isActive
-              ? "bg-card text-foreground shadow-xs"
-              : "text-muted-foreground hover:text-foreground",
-          )
-        }
-      >
-        {label}
-      </NavLink>
-    ))}
-  </nav>
-);
+export const DonorsTabs = () => {
+  const location = useLocation();
+  const home = location.pathname === "/";
+  const workspace = new URLSearchParams(location.search).get("workspace");
+  return (
+    <nav
+      aria-label="Donors views"
+      className="flex gap-1 rounded-full bg-muted p-1"
+    >
+      {[
+        { to: "/contacts", label: "People" },
+        { to: "/companies", label: "Organizations" },
+      ].map(({ to, label }) => (
+        <NavLink
+          key={to}
+          to={
+            home
+              ? `/?workspace=${to === "/contacts" ? "donors" : "organizations"}`
+              : to
+          }
+          aria-current={
+            home
+              ? workspace === (to === "/contacts" ? "donors" : "organizations")
+                ? "page"
+                : false
+              : undefined
+          }
+          end={false}
+          className={({ isActive }) =>
+            cn(
+              "rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              (
+                home
+                  ? workspace ===
+                    (to === "/contacts" ? "donors" : "organizations")
+                  : isActive
+              )
+                ? "bg-card text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground",
+            )
+          }
+        >
+          {label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+};
 
 /** A labeled section of the donor profile. */
 export const ProfileSection = ({
@@ -140,3 +163,34 @@ export const Stat = ({ label, value }: { label: string; value: ReactNode }) => (
     <dd className="mt-0.5 font-semibold tabular-nums">{value}</dd>
   </div>
 );
+
+export const DirectorySearch = ({
+  value,
+  onChange,
+  label = "Search donors",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label?: string;
+}) => {
+  const id = useId();
+  return (
+    <div className="relative min-w-0 flex-1 basis-56">
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <Search
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+      />
+      <Input
+        id={id}
+        type="search"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Search by name, organization, or city"
+        className="min-h-11 w-full rounded-full bg-card pl-9"
+      />
+    </div>
+  );
+};
