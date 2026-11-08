@@ -227,7 +227,7 @@ export const KindredLanding = ({
             </Badge>
           </div>
         )}
-        <p className="kindred-wordmark">kindred</p>
+        <p className="kindred-wordmark">gatherly</p>
         <h1 id="kindred-heading" className="kindred-headline">
           <span>Less time on tasks.</span>
           <strong>More time for people.</strong>
@@ -277,7 +277,7 @@ export const KindredLanding = ({
         >
           Try sample data
         </button>
-        <ol className="kindred-steps" aria-label="How Kindred works">
+        <ol className="kindred-steps" aria-label="How Gatherly works">
           <li>Upload your list</li>
           <li>Understand your donors</li>
           <li>Reach out thoughtfully</li>

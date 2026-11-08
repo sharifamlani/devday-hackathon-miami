@@ -124,7 +124,7 @@ export const CallToday = () => {
               <Heart size={18} aria-hidden="true" />
             </span>
             <span>
-              Donor Desk<small>The Miami Foundation</small>
+              gatherly<small>The Miami Foundation</small>
             </span>
           </div>
           <p className="inbox-eyebrow">YOUR WORKSPACE</p>

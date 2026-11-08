@@ -814,7 +814,7 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
             </div>
 
             <p className="rounded-[10px] bg-muted px-3 py-2 text-xs text-muted-foreground">
-              After the call, Donor Desk cleans up the transcript and labels
+              After the call, Gatherly cleans up the transcript and labels
               speakers.
             </p>
 

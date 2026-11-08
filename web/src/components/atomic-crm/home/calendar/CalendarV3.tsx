@@ -103,7 +103,7 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
       </header>
       {addNote && (
         <p role="status" className="cal3-add-note">
-          This is the read-only sample, so events can't be saved here. On your Donor Desk, Add event
+          This is the read-only sample, so events can't be saved here. In your Gatherly, Add event
           saves it to your calendar.
         </p>
       )}

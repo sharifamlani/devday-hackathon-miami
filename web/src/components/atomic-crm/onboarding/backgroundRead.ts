@@ -86,7 +86,7 @@ export const useBackgroundWatcher = (running: boolean) => {
             ...current,
             status: "failed",
             detail:
-              "We lost touch with the Donor Desk service while it read your website. Choose Set up again in your profile menu to try again.",
+              "We lost touch with the Gatherly service while it read your website. Choose Set up again in your profile menu to try again.",
           });
           return;
         }

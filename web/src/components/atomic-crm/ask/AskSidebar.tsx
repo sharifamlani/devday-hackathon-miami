@@ -257,7 +257,7 @@ export const AskSidebar = ({
     );
 
   const Icon = voice ? AudioLines : Sparkles;
-  const title = voice ? "Live transcript" : "Ask Donor Desk";
+  const title = voice ? "Live transcript" : "Ask Gatherly";
   const ExpandIcon = paneExpanded ? Minimize2 : Maximize2;
   const expandLabel = paneExpanded
     ? "Shrink to sidebar"

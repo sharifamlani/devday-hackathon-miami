@@ -55,7 +55,7 @@ export const skipReason = (file: { name: string; size: number }) => {
     return "This describes the example files; it isn't data.";
   if (name.startsWith(".")) return "Hidden system file.";
   if (!(ACCEPTED_EXTENSIONS as readonly string[]).includes(extensionOf(name)))
-    return "Donor Desk reads .xlsx, .docx, .md and .csv files.";
+    return "Gatherly reads .xlsx, .docx, .md and .csv files.";
   if (file.size > MAX_FILE_BYTES) return "Over 10 MB.";
   if (file.size === 0) return "This file is empty.";
   return null;
@@ -179,7 +179,7 @@ export const plainError = (cause: unknown, fallback: string) => {
     cause.name === "TypeError" ||
     /failed to fetch|networkerror|load failed/i.test(cause.message)
   )
-    return "We couldn't reach the Donor Desk service. Check that it's running, then try again.";
+    return "We couldn't reach the Gatherly service. Check that it's running, then try again.";
   return cause.message;
 };
 

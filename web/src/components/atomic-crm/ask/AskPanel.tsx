@@ -147,7 +147,7 @@ export const AskPanel = ({ variant }: { variant: AskPanelVariant }) => {
         aria-labelledby={titleId}
         className="mx-auto flex max-w-3xl flex-col items-center px-1 pt-6 pb-8 text-center md:pt-12"
       >
-        <p className="inbox-eyebrow">ASK DONOR DESK</p>
+        <p className="inbox-eyebrow">ASK GATHERLY</p>
         <h2
           id={titleId}
           className="mt-2 text-[28px] leading-tight font-semibold tracking-[-0.02em] md:text-[40px]"
