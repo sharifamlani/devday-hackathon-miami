@@ -333,10 +333,11 @@ export interface ArtifactRow {
  * Where an artifact opens. The service sends kind "draft" for campaigns too,
  * told apart by ref ("campaign:3", "draft:98", "call_note:<id>"); a bare
  * numeric ref on kind "campaign" is the older shape. Drafts and call notes
- * need the donor they belong to (owners); without it they have no target.
+ * open their donor's profile: the row's donor_id when the service sends it,
+ * else the owners lookup; without either they have no target.
  */
 export const artifactTarget = (
-  a: { kind: string; ref: string | number | null },
+  a: { kind: string; ref: string | number | null; donor_id?: number | null },
   owners: ArtifactOwners = { drafts: {}, notes: {} },
 ): string | null => {
   if (a.ref == null) return null;
@@ -347,11 +348,12 @@ export const artifactTarget = (
   const id = ref.slice(cut + 1);
   if (cut < 0 || !id) return null;
   if (prefix === "campaign" && /^[0-9]+$/.test(id)) return `/campaigns/${id}`;
+  // The service names the donor (local mode); the owners lookup covers older APIs and the snapshot.
   const donor =
     prefix === "draft"
-      ? owners.drafts[id]
+      ? (a.donor_id ?? owners.drafts[id])
       : prefix === "call_note"
-        ? owners.notes[id]
+        ? (a.donor_id ?? owners.notes[id])
         : undefined;
   return donor != null ? `/contacts/${donor}/show` : null;
 };
