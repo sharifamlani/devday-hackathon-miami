@@ -29,8 +29,12 @@ const KIND: Record<string, string> = {
   tag_interest: "Interest",
 };
 
-/** The note is saved by a debounced POST /calls; until it lands, /actions answers 404. */
-const NOT_SAVED_RETRIES = 6;
+/**
+ * The pane saves the note with a debounced POST /calls after the summary; until it lands,
+ * /actions answers 404. Measured: the save started 2+ s after the card appeared, so keep
+ * asking for ~10 s before calling it an error.
+ */
+const NOT_SAVED_RETRIES = 14;
 const RETRY_MS = 700;
 
 type Phase = "reading" | "ready" | "applying" | "applied" | "discarded" | "error";

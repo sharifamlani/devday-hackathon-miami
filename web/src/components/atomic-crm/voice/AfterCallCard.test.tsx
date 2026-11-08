@@ -87,6 +87,15 @@ describe("AfterCallCard", () => {
     expect(api.propose).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps waiting through a slow save (several 404s) before showing the proposal", async () => {
+    const notYet = () => new ApiError("not yet", 404, { detail: "no call note n1" });
+    for (let i = 0; i < 8; i += 1) api.propose.mockRejectedValueOnce(notYet());
+    api.propose.mockResolvedValue(ROSA);
+    const screen = await render(<AfterCallCard noteId="n1" retryMs={5} />);
+    await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    expect(api.propose).toHaveBeenCalledTimes(9);
+  });
+
   it("shows an error with Try again when the agent can't read the call", async () => {
     api.propose.mockRejectedValueOnce(new Error("After-call actions isn’t available yet")).mockResolvedValue(ROSA);
     const screen = await render(<AfterCallCard noteId="n1" />);
