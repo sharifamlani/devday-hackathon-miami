@@ -67,11 +67,7 @@ const LayoutShell = ({ children }: { children: ReactNode }) => {
               <ProjectsSidebar />
               <div className="min-w-0 flex-1">
                 <Header />
-                <main
-                  id="main-content"
-                  tabIndex={-1}
-                  className="outline-none"
-                >
+                <main id="main-content" tabIndex={-1} className="outline-none">
                   <ErrorBoundary FallbackComponent={Error}>
                     <Suspense
                       fallback={<Skeleton className="h-12 w-12 rounded-full" />}

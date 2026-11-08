@@ -147,13 +147,13 @@ export const HomePage = () => {
                 Open calendar
               </Link>
               <button
-              type="button"
-              onClick={() => openDay(today)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-4 text-sm font-medium text-brand-foreground hover:bg-brand/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <CalendarPlus className="size-4" aria-hidden="true" />
-              Plan today
-            </button>
+                type="button"
+                onClick={() => openDay(today)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-4 text-sm font-medium text-brand-foreground hover:bg-brand/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <CalendarPlus className="size-4" aria-hidden="true" />
+                Plan today
+              </button>
             </div>
           </div>
         </section>
