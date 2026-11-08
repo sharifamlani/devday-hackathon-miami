@@ -226,6 +226,9 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
     action = conn.execute("SELECT * FROM agent_actions WHERE token = ?", (token,)).fetchone()
     if action is None:
         raise NotFound("unknown undo token")
+    if not action["target"].startswith("task:"):
+        # Other agent writes (people, duplicates, merges, RSVPs) share agent_actions; their undo lives with them.
+        raise TaskError(f"not a task change ({action['target']}); undo it through its own service")
     if action["undone_at"]:
         raise UndoConflict("already undone")
     newer = conn.execute("SELECT 1 FROM agent_actions WHERE target = ? AND id > ? AND undone_at IS NULL",
