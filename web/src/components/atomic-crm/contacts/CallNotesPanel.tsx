@@ -81,11 +81,7 @@ export const CallNotesPanel = ({
       }
     >
       {canPhone && (
-        <PhoneCallDialog
-          donorId={donorId}
-          open={phoneOpen}
-          onOpenChange={setPhoneOpen}
-        />
+        <PhoneCallDialog donorId={donorId} open={phoneOpen} onOpenChange={setPhoneOpen} />
       )}
       {shown.length === 0 ? (
         <p className="text-sm text-muted-foreground">

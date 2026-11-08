@@ -180,13 +180,7 @@ const ProfileHeader = ({
 }) => (
   <header className={cn(tileClass, "p-4 sm:p-5")}>
     <div className="flex flex-wrap items-start gap-4">
-      <InitialsAvatar
-        name={
-          record.full_name ??
-          [record.first_name, record.last_name].filter(Boolean).join(" ")
-        }
-        size="lg"
-      />
+      <InitialsAvatar name={record.full_name ?? [record.first_name, record.last_name].filter(Boolean).join(" ")} size="lg" />
       <div className="min-w-0 flex-1">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {record.is_star && (
@@ -255,12 +249,12 @@ const ProfileHeader = ({
       )}
       {!PUBLIC_READ_ONLY && (
         <Link
-          to={`/campaigns/new?donors=${record.id}`}
-          className={cn(
-            buttonVariants({ size: "sm", variant: "outline" }),
-            "rounded-full",
-          )}
-        >
+        to={`/campaigns/new?donors=${record.id}`}
+        className={cn(
+          buttonVariants({ size: "sm", variant: "outline" }),
+          "rounded-full",
+        )}
+      >
           <Megaphone aria-hidden />
           Add to a campaign
         </Link>
@@ -393,10 +387,7 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
 const Row = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="flex justify-between gap-3">
     <dt className="text-muted-foreground">{label}</dt>
-    <dd
-      className="min-w-0 truncate text-right font-medium"
-      title={typeof value === "string" ? value : undefined}
-    >
+    <dd className="min-w-0 truncate text-right font-medium" title={typeof value === "string" ? value : undefined}>
       {value}
     </dd>
   </div>

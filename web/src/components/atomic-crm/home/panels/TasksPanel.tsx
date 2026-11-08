@@ -3,11 +3,7 @@ import { ChevronDown, Folder, Info, Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { parseWhen } from "../../providers/local/parseWhen";
-import {
-  useCompleteTask,
-  useUndo,
-  type Task,
-} from "../../providers/local/tasks";
+import { useCompleteTask, useUndo, type Task } from "../../providers/local/tasks";
 import { tasksFromApi, type HomeTask } from "../homeData";
 import { focusRing } from "../tile";
 import "./tasks-panel.css";
@@ -227,18 +223,15 @@ export const TasksPanel = ({
     <TasksPanelView
       {...rest}
       tasks={tasks}
-      onDone={
-        PUBLIC_READ_ONLY
-          ? undefined
-          : (task) =>
-              complete.mutate(task.id, {
-                onSuccess: (done) =>
-                  setUndo(
-                    done?.undo_token
-                      ? { title: task.title, token: done.undo_token }
-                      : null,
-                  ),
-              })
+      onDone={PUBLIC_READ_ONLY ? undefined : (task) =>
+        complete.mutate(task.id, {
+          onSuccess: (done) =>
+            setUndo(
+              done?.undo_token
+                ? { title: task.title, token: done.undo_token }
+                : null,
+            ),
+        })
       }
       undo={
         undo
