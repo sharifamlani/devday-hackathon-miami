@@ -145,7 +145,9 @@ def test_undo_twice_and_unknown_tokens_are_refused(db_file):
 
 
 def test_writes_not_on_this_build_say_so(db_file):
-    assert "not available yet" in invoke("add_interest", person_id=1, tag="arts")["error"]
+    import importlib.util
+    if importlib.util.find_spec("service.interests") is None:                # until 42's PR #88 lands
+        assert "not available yet" in invoke("add_interest", person_id=1, tag="arts_culture")["error"]
     assert "not available yet" in invoke("rsvp_event", event_id=1, person_id=1, rsvp="yes")["error"]
     assert "not available yet" in invoke("apply_after_call_actions", call_note_id="c1", action_ids=["a"])["error"]
 
@@ -180,15 +182,15 @@ def test_live_delete_pauses_for_approval_and_only_runs_when_approved(db_file, ap
 
 def test_add_and_remove_interest_with_undo(db_file):
     interests = pytest.importorskip("service.interests")        # 42's PR #88
-    added = invoke("add_interest", person_id=1, tag="arts")
+    added = invoke("add_interest", person_id=1, tag="arts_culture")
     assert added["undo_token"].startswith("int_")
     tags = lambda: {i["tag"] for i in interests.list_interests(db.connect(db_file), 1)}
-    assert "arts" in tags()
+    assert "arts_culture" in tags()
     undo(added["undo_token"])
     assert "arts" not in tags()
 
-    invoke("add_interest", person_id=1, tag="arts")
-    removed = invoke("remove_interest", person_id=1, tag="arts")
+    invoke("add_interest", person_id=1, tag="arts_culture")
+    removed = invoke("remove_interest", person_id=1, tag="arts_culture")
     assert "arts" not in tags()
     undo(removed["undo_token"])
-    assert "arts" in tags()
+    assert "arts_culture" in tags()
