@@ -1930,8 +1930,16 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
 - [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
       key, and a busy key slows invites and agent replies (Nov 8: 429s).
 - [ ] **T-20:** smokes 1–4 (22.4), in order.
-- [ ] **T-15 (public site):** `python scripts/public_tunnel.py status`. Turn it `on` only if the public link is part
-      of the pitch (it tunnels the LIVE stack, :8001 by default); otherwise `off`. Write down the state.
+- [ ] **T-15 (public site):** the public link (https://devday-donor-desk.vercel.app) shows the laptop's live data
+      through the tunnel (`docs/public-tunnel.md`; it tunnels the LIVE stack, :8001 by default, not the stage stack).
+      1. `python scripts/public_tunnel.py status` must print the pid, the tunnel URL and `health: HTTP 200`.
+      2. Open the public link in a fresh incognito window: no **Sample data** badge; the dashboard, the CRM and the
+         calendar (4 events) all load with the live data, and the DevTools console shows 0 errors.
+      **Fallback (the snapshot):** if `status` prints `off`, the health check fails, or the page shows **Sample
+      data**, the public link is serving the read-only snapshot, which is fine for judges: say "the public link
+      shows a snapshot of the same data". Only with 10+ minutes to spare, bring it back with
+      `python scripts/public_tunnel.py on` and the 3 steps it prints (Vercel env, `vercel --prod --yes`).
+      Write down which state it's in.
 - [ ] **T-10 (mic):** open **Live transcript** (it should show **Listening**), then **Open Ask sidebar** →
       **Dictate** → **Stop dictation**. Grant the browser mic permission.
 - [ ] **T-5 (screen):** browser zoom 110%, notifications off, DevTools console open on a second screen; close other
@@ -1955,9 +1963,10 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
 4. **What it proves:** the web talks to that service in local mode.
    **Command:** open http://localhost:5173 · **Expected:** **Donor Desk · Step 1 of 3**, 0 errors in the DevTools
    console. **If it fails →** check `VITE_API_URL=http://localhost:8000` and `VITE_DATA_MODE=local`; restart the web.
-5. **What it proves:** the public switch is in the state you want.
-   **Command:** `python scripts/public_tunnel.py status` · **Expected:** `off` (or the pid + URL + `health: HTTP 200`
-   if it's part of the pitch). **If it fails →** `python scripts/public_tunnel.py off`, then decide again.
+5. **What it proves:** the public link serves the live laptop data (or, knowingly, the snapshot).
+   **Command:** `python scripts/public_tunnel.py status`, then open https://devday-donor-desk.vercel.app incognito ·
+   **Expected:** the pid + URL + `health: HTTP 200`, and the page loads without the **Sample data** badge.
+   **If it fails →** the snapshot is the fallback (see T-15); restart the tunnel only with 10+ minutes to spare.
 6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
    **Command:** run 22.2 steps 1–5 in the browser, then `python scripts/demo_reset.py --check` (it approves the
    suggested merges on a COPY of the db) · **Expected:** `PASS` lines for people / gifts / alerts against
@@ -2002,4 +2011,5 @@ fallback before T-30.
 | 4f Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
 | 4g Enhance | slow (cache miss) | "It's reading the public web; every tag will carry its source." Skip **Save to profile** if over 30 s. |
 | 4h Summary | **About …** says no notes | "The agent writes this from calls and notes as they come in." |
+| Public link | the tunnel is down or the page shows **Sample data** | "The public link shows a snapshot of the same data." Keep demoing on the laptop. |
 | Any | laptop, network or service down | Switch to the Vercel tab: "This is the read-only preview of the same data." |
