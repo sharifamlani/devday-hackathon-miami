@@ -119,13 +119,15 @@ export const AskPrompt = ({
                   {dictation.interim}
                 </span>
               </>
-            ) : completion?.suffix != null && (
-              <>
-                {value}
-                <span className="text-muted-foreground">
-                  {completion.suffix}
-                </span>
-              </>
+            ) : (
+              completion?.suffix != null && (
+                <>
+                  {value}
+                  <span className="text-muted-foreground">
+                    {completion.suffix}
+                  </span>
+                </>
+              )
             )}
           </div>
           <textarea
@@ -164,17 +166,17 @@ export const AskPrompt = ({
           className="absolute right-3 bottom-3 grid size-11 place-items-center rounded-full bg-primary text-brand transition-opacity disabled:opacity-50 dark:text-primary-foreground"
         >
           {pending ? (
-            <Loader2
-              className="size-5 animate-spin motion-reduce:animate-none"
-              aria-hidden
-            />
+            <Loader2 className="size-5 animate-spin" aria-hidden />
           ) : (
             <ArrowUp className="size-5" aria-hidden />
           )}
         </button>
       </div>
 
-      <DictationHint error={dictation.error} className={compact ? "justify-start" : "justify-center"} />
+      <DictationHint
+        error={dictation.error}
+        className={compact ? "justify-start" : "justify-center"}
+      />
 
       {/* Visible for discoverability, and announced politely when the suggestion changes. */}
       <p

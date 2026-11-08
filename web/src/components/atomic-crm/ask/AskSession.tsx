@@ -1,4 +1,13 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { flushSync } from "react-dom";
+import { runZoomTransition } from "../home/zoomTransition";
 
 import type { AskAnswer, AskFilter, AskIntent } from "../providers/local/ask";
 import { useAsk } from "../providers/local/hooks";
@@ -46,12 +55,51 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
     [mutateAsync],
   );
 
-  const setSidebarOpen = useCallback((open: boolean, byUser: boolean) => {
+  // Opening, closing and expanding the pane slide it in and out (home/zoom.css, "pane").
+  // The change runs inside the transition, a frame after the click; it reads the latest
+  // open/mode from refs then, so a second click before the first lands never acts on stale state.
+  const openRef = useRef(sidebarOpen);
+  const modeRef = useRef(paneMode);
+  useLayoutEffect(() => {
+    openRef.current = sidebarOpen;
+    modeRef.current = paneMode;
+  }, [sidebarOpen, paneMode]);
+
+  const commitOpen = useCallback((open: boolean, byUser: boolean) => {
+    openRef.current = open;
     setSidebarOpenState(open);
     writeSidebarOpen(open);
     if (byUser) setOpenedByUser(open);
     if (!open) setPaneExpandedState(false);
   }, []);
+  const commitMode = useCallback((mode: PaneMode) => {
+    modeRef.current = mode;
+    setPaneMode(mode);
+  }, []);
+  // after: runs once the change is on the page (still inside the transition).
+  const inPaneTransition = useCallback(
+    (change: () => void, after?: () => void) => {
+      runZoomTransition({
+        kind: "pane",
+        update: () => {
+          flushSync(change);
+          after?.();
+        },
+      });
+    },
+    [],
+  );
+
+  const setSidebarOpen = useCallback(
+    (open: boolean, byUser: boolean) =>
+      inPaneTransition(() => commitOpen(open, byUser)),
+    [inPaneTransition, commitOpen],
+  );
+  const setPaneExpanded = useCallback(
+    (expanded: boolean) =>
+      inPaneTransition(() => setPaneExpandedState(expanded)),
+    [inPaneTransition],
+  );
 
   const value = useMemo<AskSession>(
     () => ({
@@ -76,28 +124,35 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
         if (original) setAnswer(original);
       },
       sidebarOpen,
-      openSidebar: () => {
-        setPaneMode("ask");
-        setSidebarOpen(true, true);
-      },
-      closeSidebar: () => setSidebarOpen(false, true),
+      openSidebar: () =>
+        inPaneTransition(() => {
+          commitMode("ask");
+          commitOpen(true, true);
+        }),
+      closeSidebar: (afterClose) =>
+        inPaneTransition(() => {
+          commitOpen(false, true);
+        }, afterClose),
       // The Ask buttons: open in Ask mode, switch to Ask if the pane shows
       // the transcript, close only when Ask is already showing.
-      toggleSidebar: () => {
-        if (sidebarOpen && paneMode === "ask") setSidebarOpen(false, true);
-        else {
-          setPaneMode("ask");
-          setSidebarOpen(true, true);
-        }
-      },
+      toggleSidebar: () =>
+        inPaneTransition(() => {
+          if (openRef.current && modeRef.current === "ask")
+            commitOpen(false, true);
+          else {
+            commitMode("ask");
+            commitOpen(true, true);
+          }
+        }),
       openedByUser,
       paneMode,
-      openPane: (mode) => {
-        setPaneMode(mode);
-        setSidebarOpen(true, true);
-      },
+      openPane: (mode) =>
+        inPaneTransition(() => {
+          commitMode(mode);
+          commitOpen(true, true);
+        }),
       paneExpanded,
-      setPaneExpanded: setPaneExpandedState,
+      setPaneExpanded,
     }),
     [
       draft,
@@ -112,6 +167,10 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
       setSidebarOpen,
       paneMode,
       paneExpanded,
+      setPaneExpanded,
+      inPaneTransition,
+      commitOpen,
+      commitMode,
     ],
   );
 
