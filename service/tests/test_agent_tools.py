@@ -194,3 +194,17 @@ def test_add_and_remove_interest_with_undo(db_file):
     assert "arts" not in tags()
     undo(removed["undo_token"])
     assert "arts_culture" in tags()
+
+
+def test_post_undo_route_reverts_any_write_not_just_tasks(db_file):
+    from fastapi.testclient import TestClient
+    from service.main import app
+    c = TestClient(app)
+    edit = invoke("update_person", person_id=1, city="Coral Gables")
+    task = invoke("create_task", kind="call", title="Call Maria")
+
+    assert c.post(f"/undo/{edit['undo_token']}").json()["undone"] is True
+    assert one(db_file, "SELECT city FROM donors WHERE id = 1")["city"] != "Coral Gables"
+    assert c.post(f"/undo/{task['undo_token']}").json()["undone"] is True
+    assert c.post(f"/undo/{task['undo_token']}").status_code == 409            # already undone (tasks.undo)
+    assert c.post("/undo/nope").status_code == 404

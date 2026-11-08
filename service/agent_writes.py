@@ -126,19 +126,19 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
             return interests.undo(conn, token)
         except (ValueError, LookupError) as e:
             raise WriteError(str(e))
+    from service import tasks                        # its NotFound / UndoConflict keep POST /undo's 404 / 409
     action = conn.execute("SELECT * FROM agent_actions WHERE token = ?", (token,)).fetchone()
     if action is None:
-        raise WriteError("unknown undo token")
+        raise tasks.NotFound("unknown undo token")
     kind, _, ref = action["target"].partition(":")
     if kind == "task":
-        from service import tasks
         return tasks.undo(conn, token)
     if action["undone_at"]:
-        raise WriteError("already undone")
+        raise tasks.UndoConflict("already undone")
     newer = conn.execute("SELECT 1 FROM agent_actions WHERE target = ? AND id > ? AND undone_at IS NULL",
                          (action["target"], action["id"])).fetchone()
     if newer:
-        raise WriteError("a later change to the same record must be undone first")
+        raise tasks.UndoConflict("a later change to the same record must be undone first")
     before = json.loads(action["before"]) if action["before"] else {}
     if kind == "donor":
         conn.execute(f"UPDATE donors SET {', '.join(f'{k} = ?' for k in before)} WHERE id = ?",
