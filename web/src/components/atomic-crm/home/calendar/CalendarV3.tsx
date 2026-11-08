@@ -38,6 +38,7 @@ import {
   type EventRow,
 } from "./eventsModel";
 import "./calendar-v3.css";
+import { TimeGrid } from "../WeekGrid";
 
 /**
  * Calendar v3: the organization's EVENTS only (tasks live on the to-do list). A rolling 7-day
@@ -61,6 +62,8 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
   const listRef = useRef<HTMLElement>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null); // details row key
+  /** null = the week grid; a date = that day's view (calendar-app style, like the Home tile). */
+  const [selected, setSelected] = useState<string | null>(null);
   const readOnly = EVENTS_READ_ONLY;
   // The tile's "+" asks for the form (calendarFocus.ts); the read-only sample explains instead.
   const [addRequested] = useState(takeAddEventRequest);
@@ -118,6 +121,11 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
           <button type="button" aria-label="Previous week" className={focusRing} onClick={() => setOffset(offset - 1)}>
             <ChevronLeft size={16} aria-hidden="true" />
           </button>
+          {selected && (
+            <button type="button" className={cn("cal3-today", focusRing)} onClick={() => setSelected(null)}>
+              Week
+            </button>
+          )}
           <span className="cal3-range" aria-live="polite">{weekRange(start)}</span>
           <button type="button" aria-label="Next week" className={focusRing} onClick={() => setOffset(offset + 1)}>
             <ChevronRight size={16} aria-hidden="true" />
@@ -133,7 +141,11 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
                 type="button"
                 className={cn("cal3-cell", focusRing)}
                 aria-label={`${listHeading(date, today)}: ${label === "–" ? "no events" : label}`}
-                onClick={() => jumpTo(date)}
+                aria-pressed={selected ? date === selected : undefined}
+                onClick={() => {
+                  setSelected(date === selected ? null : date);
+                  jumpTo(date);
+                }}
               >
                 <span className="cal3-wd">
                   {parseWhen(date).toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
@@ -147,6 +159,16 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
           );
         })}
       </ol>
+      <div className="cal3-grid">
+        <TimeGrid
+          days={selected ? [selected] : strip.map((d) => d.date)}
+          today={today}
+          events={feed.data ?? []}
+          // Week: a block opens that day's view; day view: it jumps to the event in the list below.
+          onOpenEvent={(date) => (selected ? jumpTo(date) : setSelected(date))}
+          detailed={!!selected}
+        />
+      </div>
       <div className="cal3-body">
         <section className="cal3-list" aria-label="This week's events" ref={listRef}>
           <h4 className="cal3-sub">This week's events</h4>

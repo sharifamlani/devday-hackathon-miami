@@ -4,7 +4,7 @@ import { PanelLeft } from "lucide-react";
 import { OVERVIEW_ID, useOverview } from "../home/overviewContext";
 import { closeWorkspace, parseWorkspace } from "../home/workspaceView";
 import { UserMenu } from "@/components/admin/user-menu";
-import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
+import { LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { MotionMenuItems } from "./MotionMenuItems";
 import { PublicLinkMenuItem } from "./PublicLinkMenuItem";
@@ -53,9 +53,6 @@ export const DashboardControls = () => {
       <div className="home-utility-buttons">
         <span data-tour="voice">
           <LiveTranscriptTrigger className="size-10 border-0 bg-transparent shadow-none" />
-        </span>
-        <span data-tour="ask">
-          <AskSidebarTrigger className="size-10 border-0 bg-transparent shadow-none" />
         </span>
         <span className={avatarSlot("size-10")}>
           <UserMenu>

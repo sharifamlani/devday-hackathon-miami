@@ -3,6 +3,7 @@ import type { CalendarItem } from "../providers/local/calendarFeed";
 import { parseWhen } from "../providers/local/parseWhen";
 import { cn } from "@/lib/utils";
 import { focusRing } from "./tile";
+import "./dashboard.css";
 
 /** Height of one hour in the grid, px. */
 export const HOUR_PX = 30;
