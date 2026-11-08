@@ -6,7 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
 } from "@/components/ui/dropdown-menu";
-import { SampleDataMenuNote } from "./SampleDataBadge";
+import { SampleDataLine, SampleDataMenuNote } from "./SampleDataBadge";
 
 const inMenu = (mode: string) => (
   <QueryClientProvider client={new QueryClient()}>
@@ -36,5 +36,12 @@ describe("SampleDataMenuNote", () => {
     await expect
       .element(screen.getByTestId("sample-data-note"))
       .not.toBeInTheDocument();
+  });
+
+  it("phone pages without a menu keep a quiet line on the snapshot build only", async () => {
+    const screen = await render(<SampleDataLine mode="snapshot" />);
+    await expect.element(screen.getByTestId("sample-data-line")).toBeVisible();
+    const local = await render(<SampleDataLine mode="local" />);
+    expect(local.container.textContent).toBe("");
   });
 });

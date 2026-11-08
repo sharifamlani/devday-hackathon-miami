@@ -47,3 +47,18 @@ export const SampleDataMenuNote = ({ mode = DATA_MODE }: { mode?: string }) => {
     </>
   );
 };
+
+/**
+ * Phone pages without a top bar (Ask, Calendar, Campaigns…) have no profile menu, so they keep
+ * a quiet one-line notice instead of the old pill (rule 9). Nothing on the laptop build.
+ */
+export const SampleDataLine = ({ mode = DATA_MODE }: { mode?: string }) =>
+  mode === "snapshot" ? (
+    <p
+      data-testid="sample-data-line"
+      className="flex items-center gap-1.5 text-xs text-muted-foreground"
+    >
+      <Eye className="size-3.5" aria-hidden="true" />
+      Sample data · read-only
+    </p>
+  ) : null;

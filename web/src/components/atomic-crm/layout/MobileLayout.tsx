@@ -12,6 +12,7 @@ import { AskSidebar } from "../ask/AskSidebar";
 import { DataImportProvider } from "../dataImport/DataImportProvider";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import { MobileNavigation } from "./MobileNavigation";
+import { SampleDataLine } from "./SampleDataBadge";
 import { PullToRefresh } from "./PullToRefresh";
 import Header from "./Header";
 import { DashboardControls } from "./DashboardControls";
@@ -54,6 +55,12 @@ const MobileShell = ({ children }: { children: ReactNode }) => {
               <DashboardControls />
               <Header />
             </>
+          )}
+          {!onHome && (
+            // No top bar (and so no profile menu) on these pages: keep a quiet notice.
+            <div className="px-4 pt-3">
+              <SampleDataLine />
+            </div>
           )}
           <ScrollRestoration />
           <PullToRefresh />
