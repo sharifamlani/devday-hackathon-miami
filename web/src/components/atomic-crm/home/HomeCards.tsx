@@ -314,7 +314,7 @@ export const CrmTile = ({
     >
       <TileHead id={headingId} title="CRM">
         <Link
-          to="/contacts"
+          to="/?workspace=donors"
           className={cn(
             "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
             focusRing,
