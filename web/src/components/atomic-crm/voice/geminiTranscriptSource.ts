@@ -69,6 +69,12 @@ export interface CallRecording {
    * stretch covers by matching these, not by trusting counts.
    */
   texts: string[];
+  /**
+   * Finals that arrived after the source stopped (the stretch was drained
+   * gracefully): words the pane no longer shows. speakerLabels.ts appends
+   * them if the speaker pass can't replace the stretch.
+   */
+  tail: string[];
 }
 
 export interface RecordingSource extends TranscriptSource {
@@ -109,6 +115,8 @@ export interface GeminiSourceOptions {
 }
 
 const OPEN = 1;
+/** After stop, wait at most this long for the last segment's final. */
+export const DRAIN_MS = 2000;
 /** Frames held while the socket opens: ~10 s at 8 frames a second. */
 const MAX_BUFFERED_FRAMES = 80;
 
@@ -156,6 +164,10 @@ export const geminiTranscriptSource = ({
   let callRecorderReady: Promise<CallRecorderLike | null> | null = null;
   const chunks: Blob[] = [];
   const texts: string[] = [];
+  const tail: string[] = [];
+  // Words recognized since the last final: what a graceful stop must wait for.
+  let unfinished = "";
+  let drained: Promise<void> | null = null;
   let recordingStopped: Promise<void> | null = null;
   let stretch: Promise<CallRecording | null> | null = null;
 
@@ -240,8 +252,10 @@ export const geminiTranscriptSource = ({
         return;
       }
       if (msg.type === "interim" && state === "running") {
+        unfinished = msg.text ?? "";
         handlers?.onInterim?.(msg.text ?? "");
       } else if (msg.type === "final" && msg.text) {
+        unfinished = "";
         handlers?.onInterim?.("");
         texts.push(msg.text);
         handlers?.onLine({ speaker: "you", name: "You", text: msg.text, at: elapsedSec() } satisfies TranscriptLine);
@@ -279,15 +293,64 @@ export const geminiTranscriptSource = ({
     void r.start();
   };
 
+  /**
+   * End the live session gracefully: if words were still being recognized,
+   * send {"type":"end"} and collect the last final into `tail` (the pane has
+   * stopped listening by then), waiting at most DRAIN_MS. Past that, the
+   * unfinished words stand in for the final, as the relay itself does.
+   */
+  const drain = (): Promise<void> => {
+    if (drained) return drained;
+    const s = socket;
+    const waiting = unfinished;
+    if (!s || s.readyState !== OPEN || !waiting) {
+      drained = Promise.resolve();
+      return drained;
+    }
+    socket = null; // the live handlers let go of it; it now only drains
+    clearWatchdog();
+    recorder?.stop();
+    recorder = null;
+    pending = [];
+    drained = new Promise<void>((resolve) => {
+      let got = false;
+      const done = () => {
+        clearTimeout(timer);
+        s.onmessage = s.onclose = s.onerror = null;
+        if (!got && waiting) tail.push(waiting);
+        if (s.readyState === OPEN) s.close();
+        resolve();
+      };
+      const timer = setTimeout(done, DRAIN_MS);
+      s.onmessage = (event) => {
+        if (typeof event.data !== "string") return;
+        try {
+          const msg = JSON.parse(event.data) as { type?: string; text?: string };
+          if (msg.type === "final" && msg.text) {
+            tail.push(msg.text);
+            got = true;
+          }
+        } catch {
+          // ignore non-JSON frames
+        }
+      };
+      s.onclose = done; // the server closes once the final is out
+      s.onerror = done;
+      s.send(JSON.stringify({ type: "end" }));
+    });
+    return drained;
+  };
+
   /** This source's stretch, put on the call tape once, whoever asks first. */
   const finishRecording = (): Promise<CallRecording | null> => {
     if (!stretch) {
+      const draining = drain();
       stretch = (async () => {
         const r = await callRecorderReady;
         if (!r) return null;
-        await stopCallRecorder(r);
+        await Promise.all([stopCallRecorder(r), draining]);
         return chunks.length
-          ? { audio: new Blob(chunks, { type: r.mimeType || "audio/webm" }), texts: [...texts] }
+          ? { audio: new Blob(chunks, { type: r.mimeType || "audio/webm" }), texts: [...texts], tail: [...tail] }
           : null;
       })();
       callTape.push(stretch);
@@ -322,8 +385,8 @@ export const geminiTranscriptSource = ({
     stop() {
       if (state === "running") activeMs += now() - runningSince;
       state = "stopped";
+      void finishRecording(); // drains first, and keeps the stretch on the tape (a pause stops the source)
       disconnect(false);
-      void finishRecording(); // a pause stops the source: keep its stretch on the tape
       handlers?.onInterim?.("");
     },
     finishRecording,
@@ -344,20 +407,34 @@ export const micTranscriptSource = (): TranscriptSource =>
 
 /*
  * Chrome builds the first 16 kHz AudioContext in a page slowly (measured
- * ~100-400 ms), and the recorder builds its own only when the call starts, so
- * the first words were lost while it did. Holding one suspended 16 kHz context
- * from the moment the pane loads (half a second before the mic source starts)
- * brings the recorder's down to ~40 ms. Suspended, it uses no audio thread.
+ * ~100-450 ms), and the recorder builds its own only when the mic starts, so
+ * the first words were lost while it did. A 16 kHz context that has run once
+ * keeps that cost down to ~20-40 ms for the next one, even suspended.
+ *
+ * Chrome only starts a context's audio device after a user gesture, so one
+ * created at page load does nothing until then: the first pointer press
+ * anywhere in the page resumes it (bringing the device up) and suspends it
+ * again. Suspended, it uses no audio thread.
  */
 let warmContext: AudioContext | null = null;
+let listeningForGesture = false;
 
-export const warmUpCaptions = (): void => {
-  if (warmContext || typeof AudioContext === "undefined") return;
+const warm = () => {
   try {
-    warmContext = new AudioContext({ sampleRate: 16000 });
-    void warmContext.suspend();
+    if (!warmContext) warmContext = new AudioContext({ sampleRate: 16000 });
+    const ctx = warmContext;
+    void ctx.resume().then(() => ctx.suspend(), () => undefined);
   } catch {
     warmContext = null; // no gain, no harm: the recorder builds its own as before
+  }
+};
+
+export const warmUpCaptions = (): void => {
+  if (typeof AudioContext === "undefined" || typeof window === "undefined") return;
+  warm();
+  if (!listeningForGesture) {
+    listeningForGesture = true;
+    window.addEventListener("pointerdown", warm, { once: true, capture: true });
   }
 };
 

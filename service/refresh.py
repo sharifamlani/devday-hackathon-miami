@@ -49,6 +49,15 @@ def stored_facts(conn) -> list[dict]:
     return [dict(r) for r in conn.execute("SELECT source, url, fact, posted_at FROM org_context")]
 
 
+def saved_urls(conn) -> dict | None:
+    """The org's URLs as onboarding saved them in org_profile, or None before onboarding."""
+    if not has_table(conn, "org_profile"):
+        return None
+    keys = ("name", "website", "x_url", "linkedin_url", "instagram_url")
+    row = conn.execute(f"SELECT {', '.join(keys)} FROM org_profile ORDER BY id DESC LIMIT 1").fetchone()
+    return dict(zip(keys, row)) if row and row[1] else None
+
+
 def stored_events(conn, host: str) -> list[dict]:
     """The calendar as it stood before this run: data's events table when it exists, else the
     last cached run (runtime file, then the committed cache)."""
@@ -218,7 +227,7 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
             invite=draft_event_invite, save=save_invite) -> dict:
     """One refresh pass. The agent functions are parameters so tests can stand them in."""
     started = time.monotonic()
-    urls = urls or FOUNDATION_URLS
+    urls = urls or saved_urls(conn) or FOUNDATION_URLS    # the saved org first; the Foundation only before onboarding
     host = site_host(urls.get("website"))
     as_of = as_of or os.environ.get("SCORE_AS_OF") or date.today().isoformat()
     errors = []

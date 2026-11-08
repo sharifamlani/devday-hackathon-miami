@@ -119,6 +119,7 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
 
     big = is_big(donor)
     hide = hides_gifts(donor)
+    declined = declined_for(donor.get("id"))         # a declined charge is never thanked as a gift
     prompt = build_prompt(donor, gifts, score_why, facts, big, today, hide)
 
     agent = Agent(
@@ -133,6 +134,7 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
         out: ModelDraft = Runner.run_sync(agent, prompt).final_output
         problems = check_draft(out, cited_facts(facts, out.fact_ids), gifts, lead_id="O1", hide_gifts=hide)
         problems += check_story(out.fact_ids, facts)
+        problems += declined_mentions(f"{out.subject} {out.body} {out.call_script}", declined, gifts)
         if not problems:
             break
         prompt += "\n\nYour previous draft was rejected:\n- " + "\n- ".join(problems) + "\nRewrite it."
@@ -436,6 +438,39 @@ def check_draft(out: ModelDraft, facts: dict, gifts: list[dict], lead_id: str | 
         if n not in allowed:
             problems.append(f"figure '{m.strip()}' is not in any fact or the gift history")
     return sorted(set(problems))
+
+
+def declined_for(donor_id) -> list[dict]:
+    """This donor's declined or failed charges (gifts.status != 'ok'), for the post-check; [] when unknown."""
+    if not donor_id or not db_file().exists():
+        return []
+    with sqlite3.connect(db_file()) as con:
+        if not any(r[1] == "status" for r in con.execute("PRAGMA table_info(gifts)")):
+            return []
+        return [{"amount": r[0], "gift_date": r[1], "status": r[2]} for r in con.execute(
+            "SELECT amount, gift_date, status FROM gifts WHERE donor_id = ? AND status != 'ok'", (donor_id,))]
+
+
+MONTHS_LONG = ("January February March April May June July August September October November December").split()
+
+
+def declined_mentions(text: str, declined: list[dict], gifts: list[dict]) -> list[str]:
+    """Flags for a draft that names a declined charge: its date ('October 10', 'Oct 10', '2026-10-10'), or its
+    month used as a giving period ('June-October', 'your October gift') when no charge that went through falls
+    in that month. A month named for any other reason ("in October we...") is not flagged."""
+    flags, t = [], text or ""
+    ok_months = {str(g["gift_date"])[:7] for g in gifts}
+    for c in declined:
+        d = str(c["gift_date"])[:10]
+        y, m, day = d.split("-")
+        month = MONTHS_LONG[int(m) - 1]
+        dated = re.search(rf"\b({month}|{month[:3]})\.?\s+{int(day)}\b", t, re.I) or d in t
+        period = (rf"\b{month}\s*(gift|charge|donation|payment|contribution)s?\b"   # "October gift"
+                  rf"|\b[A-Za-z]+\s*[-\u2013\u2014]\s*{month}\b|\b{month}\s*[-\u2013\u2014]\s*[A-Za-z]+\b")  # "June-October"
+        in_month = re.search(period, t, re.I) and f"{y}-{m}" not in ok_months
+        if dated or in_month:
+            flags.append(f"the {month} {int(day)} charge was {c.get('status') or 'declined'}: it is not a gift")
+    return flags
 
 
 def norm_num(s: str) -> str:
