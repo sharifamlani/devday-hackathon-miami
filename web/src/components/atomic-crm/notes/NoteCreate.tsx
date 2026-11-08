@@ -15,6 +15,7 @@ import { useFormContext } from "react-hook-form";
 import { SaveButton } from "@/components/admin/form";
 import { cn } from "@/lib/utils";
 
+import { SavedInBrowserHint } from "../misc/SavedInBrowserHint";
 import { NoteInputs } from "./NoteInputs";
 import { getCurrentDate } from "./utils";
 import { foreignKeyMapping } from "./foreignKeyMapping";
@@ -105,7 +106,8 @@ const NoteCreateButton = ({
   };
 
   return (
-    <div className="flex justify-end">
+    <div className="flex items-center justify-end gap-3">
+      <SavedInBrowserHint />
       <SaveButton
         type="button"
         label={translate("resources.notes.action.add_this")}

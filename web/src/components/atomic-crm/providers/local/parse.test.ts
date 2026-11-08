@@ -108,6 +108,40 @@ describe("parseDonorDetail", () => {
     expect(donor.score_factors).toEqual([]);
     expect(donor.last_gift_date).toBeNull();
   });
+
+  it("reads the donor's saved call notes, and [] when the server has none", () => {
+    expect(parseDonorDetail(maria).call_notes).toEqual([]);
+    const donor = parseDonorDetail({
+      ...maria,
+      call_notes: [
+        {
+          id: "call-1",
+          title: "Check-in",
+          created_at: "2026-11-07T10:00:00.000Z",
+          duration_sec: 90,
+          destinations: [{ kind: "donor", id: "1", label: "Maria" }],
+          transcript: [],
+          notes: "Prefers email",
+          summary: ["Talked about the gala"],
+          next_steps: ["Send the invite"],
+        },
+        { title: "no id: dropped" },
+      ],
+    });
+    expect(donor.call_notes).toEqual([
+      {
+        id: "call-1",
+        title: "Check-in",
+        createdAt: "2026-11-07T10:00:00.000Z",
+        durationSec: 90,
+        destinations: [{ kind: "donor", id: "1", label: "Maria" }],
+        transcript: [],
+        notes: "Prefers email",
+        summary: ["Talked about the gala"],
+        nextSteps: ["Send the invite"],
+      },
+    ]);
+  });
 });
 
 describe("parseIcp", () => {

@@ -5,13 +5,9 @@
  * only labels, groups, masks and filters what the service already computed.
  */
 
-import type {
-  CallNote,
-  NoteDestination,
-  TranscriptLine,
-} from "../../voice/callNotes";
+import type { CallNote } from "../../voice/callNotes";
 import type { ApiDonorDetail, ApiDonorRow, ApiGift, ApiJson } from "./apiTypes";
-import { parseDonorRow } from "./parse";
+import { parseApiCallNotes, parseDonorRow } from "./parse";
 import type { DonorStatus, DonorType, Tier } from "./types";
 
 /* ---------- Raw extras the parsed DonorSummary leaves out ---------- */
@@ -23,9 +19,8 @@ export type RawDonorRow = ApiDonorRow & {
   contact_type?: string | null;
 };
 
-/** GET /donors/{id} plus the optional call_notes list (routes_calls.py). */
-export type RawDonorDetail = ApiDonorDetail &
-  RawDonorRow & { call_notes?: unknown };
+/** GET /donors/{id} (with its optional call_notes list, routes_calls.py). */
+export type RawDonorDetail = ApiDonorDetail & RawDonorRow;
 
 /* ---------- Status tags (the team's words, not score.py's) ---------- */
 
@@ -323,7 +318,7 @@ export interface DonorOrganization {
   logo: { src?: string };
 }
 
-/** Local edits kept in this tab: tags, notes' "last seen", background. */
+/** What the Donors tab adds to a donor (crmPersistence.ts saves it): tags, "last seen", background. */
 export interface ContactOverlay {
   tags?: number[];
   last_seen?: string | null;
@@ -804,30 +799,8 @@ export const paginate = <T>(
 
 /* ---------- Call notes from GET /donors/{id} ---------- */
 
-const asList = <T>(raw: unknown): T[] => {
-  const value = typeof raw === "string" ? fromJson<T[]>(raw) : raw;
-  return Array.isArray(value) ? (value as T[]) : [];
-};
-
-/**
- * The optional call_notes on GET /donors/{id} (snake_case from the service,
- * camelCase accepted) as the browser's CallNote shape. Malformed items are
- * dropped rather than shown half-empty.
- */
-export const parseApiCallNotes = (raw: unknown): CallNote[] =>
-  asList<Record<string, unknown>>(raw)
-    .filter((n) => n && typeof n === "object" && n.id != null)
-    .map((n) => ({
-      id: String(n.id),
-      title: String(n.title ?? "Call"),
-      createdAt: String(n.created_at ?? n.createdAt ?? n.saved_at ?? ""),
-      durationSec: Number(n.duration_sec ?? n.durationSec ?? 0) || 0,
-      destinations: asList<NoteDestination>(n.destinations),
-      transcript: asList<TranscriptLine>(n.transcript),
-      notes: String(n.notes ?? ""),
-      summary: asList<string>(n.summary).map(String),
-      nextSteps: asList<string>(n.next_steps ?? n.nextSteps).map(String),
-    }));
+// Parsed in parse.ts, next to parseDonorDetail, which reads them too.
+export { parseApiCallNotes };
 
 /**
  * Call notes for one donor: the server's and this browser's (voice pane),

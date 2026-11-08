@@ -4,7 +4,8 @@
   "generated_at": "2026-11-08T04:05:42+00:00",
   "label": "Cached sample",
   "donor_count": 12,
-  "source": "service/export_snapshot.py from data/donors.db"
+  "source": "service/export_snapshot.py from data/donors.db",
+  "snapshot_id": "744c64f59162583c"
  },
  "donors": [
   {

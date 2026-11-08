@@ -72,7 +72,8 @@ CREATE TABLE IF NOT EXISTS merge_log (
     kept_before   TEXT NOT NULL,   -- JSON: the kept donor row before the merge
     merged_row    TEXT NOT NULL,   -- JSON: the dropped donor row
     merged_score  TEXT,            -- JSON: its donor_scores row, or null
-    moved         TEXT NOT NULL,   -- JSON: {"gifts": [ids], "research_facts": [ids], "outreach_drafts": [ids]}
+    moved         TEXT NOT NULL,   -- JSON: {"gifts": [ids], "research_facts": [ids], "outreach_drafts": [ids],
+                                   --        plus the crm_* moves (dedupe._merge_crm), absent on older rows}
     superseded    TEXT NOT NULL,   -- JSON: duplicate_suggestions ids this merge superseded
     undone_at     TEXT
 );
@@ -462,6 +463,73 @@ CREATE INDEX IF NOT EXISTS idx_call_notes_created ON call_notes(created_at);
 SCHEMA += CALLS_SCHEMA
 TABLES = ["call_notes"] + TABLES
 
+# The Donors tab's own notes, tasks and tags (Atomic CRM's contact_notes / tasks / tags), written by
+# service/routes_crm.py only. Private staff notes: never in GET /donors/{id} or the snapshot export.
+# contact_id is a donors.id with no foreign key on purpose: a merge deletes the dropped donor row and
+# its undo puts it back, and staff notes must outlive both. Its own block so other branches merge cleanly.
+CRM_SCHEMA = """
+CREATE TABLE IF NOT EXISTS crm_contact_notes (
+    id          INTEGER PRIMARY KEY,
+    contact_id  INTEGER NOT NULL,              -- donors.id
+    text        TEXT NOT NULL DEFAULT '',
+    date        TEXT NOT NULL,                 -- ISO timestamp the note is dated
+    status      TEXT,                          -- Atomic CRM note status, or null
+    sales_id,                                  -- the staff user (react-admin identity id), kept as sent
+    attachments TEXT NOT NULL DEFAULT '[]',    -- JSON [{src: data: or https: URL, title, type}]
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_crm_notes_contact ON crm_contact_notes(contact_id, date);
+
+CREATE TABLE IF NOT EXISTS crm_tasks (
+    id          INTEGER PRIMARY KEY,
+    contact_id  INTEGER NOT NULL,              -- donors.id
+    type        TEXT NOT NULL DEFAULT 'none',
+    text        TEXT NOT NULL DEFAULT '',
+    due_date    TEXT NOT NULL,                 -- ISO
+    done_date   TEXT,                          -- ISO, null while open
+    sales_id,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_crm_tasks_contact ON crm_tasks(contact_id, due_date);
+
+CREATE TABLE IF NOT EXISTS crm_tags (
+    id    INTEGER PRIMARY KEY,
+    name  TEXT NOT NULL,
+    color TEXT NOT NULL                        -- hex, e.g. #c5dedd
+);
+
+-- Which tags a donor has, in the order they were given.
+CREATE TABLE IF NOT EXISTS crm_contact_tags (
+    contact_id INTEGER NOT NULL,               -- donors.id
+    tag_id     INTEGER NOT NULL REFERENCES crm_tags(id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (contact_id, tag_id)
+);
+
+-- What else this tab adds to a donor: the background text and "last seen".
+CREATE TABLE IF NOT EXISTS crm_contacts (
+    contact_id INTEGER PRIMARY KEY,            -- donors.id
+    background TEXT,
+    last_seen  TEXT,
+    updated_at TEXT NOT NULL
+);
+"""
+SCHEMA += CRM_SCHEMA
+TABLES = ["crm_contacts", "crm_contact_tags", "crm_tags", "crm_tasks", "crm_contact_notes"] + TABLES
+
+# Fundraising tags a new database starts with (mirrors DEFAULT_TAGS in providers/local/crmResources.ts).
+# Seeded only when crm_tags is first created, so a tag staff delete stays deleted.
+CRM_DEFAULT_TAGS = [
+    (1, "Board member", "#c5dedd"),
+    (2, "Volunteer", "#dbe7e4"),
+    (3, "Event guest", "#fde2e4"),
+    (4, "Monthly giver", "#d6e2e9"),
+    (5, "Major gift prospect", "#fff1e6"),
+    (6, "Legacy society", "#eddcd2"),
+]
+
 CONTACT_TYPES = ("giver", "neighbor", "community")
 # Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
 DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
@@ -493,8 +561,13 @@ ADDED_COLUMNS = {
 
 
 def create_schema(conn: sqlite3.Connection) -> None:
+    # Decided before anything runs SCHEMA (migrate_outreach_drafts does, on an older db)
+    new_tags_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'crm_tags'").fetchone() is None
     migrate_outreach_drafts(conn)
     conn.executescript(SCHEMA)
+    if new_tags_table:
+        conn.executemany("INSERT OR IGNORE INTO crm_tags (id, name, color) VALUES (?, ?, ?)", CRM_DEFAULT_TAGS)
     for table, columns in ADDED_COLUMNS.items():
         have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         for name, kind in columns.items():
@@ -787,6 +860,150 @@ def list_call_notes(conn: sqlite3.Connection, donor_id: int | None = None, proje
         sql += " LIMIT ?"
         params.append(int(limit))
     return [call_note_out(r) for r in conn.execute(sql, params)]
+
+
+# The Donors tab's notes, tasks and tags (service/routes_crm.py): the only code that writes the crm_* tables.
+# Table and column names below come from these constants, never from a request.
+CRM_COLUMNS = {
+    "contact_notes": ("contact_id", "text", "date", "status", "sales_id", "attachments"),
+    "tasks": ("contact_id", "type", "text", "due_date", "done_date", "sales_id"),
+    "tags": ("name", "color"),
+}
+CRM_STAMPED = {"contact_notes", "tasks"}       # tables with created_at / updated_at
+CRM_JSON = {"attachments"}
+_UNSET = object()
+
+
+def _crm_table(resource: str) -> str:
+    if resource not in CRM_COLUMNS:
+        raise ValueError(f"unknown CRM resource {resource!r}")
+    return f"crm_{resource}"
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def crm_out(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    for key in CRM_JSON & d.keys():
+        d[key] = json.loads(d[key] or "[]")
+    return d
+
+
+def crm_list(conn: sqlite3.Connection, resource: str, *, contact_id: int | None = None,
+             sales_id: str | None = None, ids: list[int] | None = None, sort: str = "id", order: str = "ASC",
+             page: int = 1, per_page: int = 25) -> tuple[list[dict], int]:
+    """(one page of records, total matching). sort must be a column of the table (routes_crm checks it)."""
+    table = _crm_table(resource)
+    if sort != "id" and sort not in CRM_COLUMNS[resource] + ("created_at", "updated_at"):
+        raise ValueError(f"can't sort {resource} by {sort!r}")
+    where, params = [], []
+    if contact_id is not None:
+        if resource == "tags":
+            where.append("id IN (SELECT tag_id FROM crm_contact_tags WHERE contact_id = ?)")
+        else:
+            where.append("contact_id = ?")
+        params.append(int(contact_id))
+    if sales_id is not None and resource != "tags":
+        where.append("CAST(sales_id AS TEXT) = ?")
+        params.append(str(sales_id))
+    if ids is not None:
+        where.append(f"id IN ({', '.join('?' for _ in ids)})" if ids else "0")
+        params += [int(i) for i in ids]
+    clause = f" WHERE {' AND '.join(where)}" if where else ""
+    total = conn.execute(f"SELECT COUNT(*) FROM {table}{clause}", params).fetchone()[0]
+    direction = "DESC" if order.upper() == "DESC" else "ASC"
+    rows = conn.execute(
+        f"SELECT * FROM {table}{clause} ORDER BY {sort} IS NULL, {sort} {direction}, id {direction} LIMIT ? OFFSET ?",
+        params + [int(per_page), (int(page) - 1) * int(per_page)])
+    return [crm_out(r) for r in rows], total
+
+
+def crm_get(conn: sqlite3.Connection, resource: str, record_id: int) -> dict | None:
+    row = conn.execute(f"SELECT * FROM {_crm_table(resource)} WHERE id = ?", (int(record_id),)).fetchone()
+    return crm_out(row) if row else None
+
+
+def _crm_values(resource: str, values: dict) -> dict:
+    out = {k: v for k, v in values.items() if k in CRM_COLUMNS[resource]}
+    for key in CRM_JSON & out.keys():
+        out[key] = json.dumps(out[key] or [], ensure_ascii=False)
+    return out
+
+
+def crm_create(conn: sqlite3.Connection, resource: str, values: dict) -> dict:
+    """Insert one record (the db picks the id) and return it."""
+    table = _crm_table(resource)
+    row = _crm_values(resource, values)
+    if resource in CRM_STAMPED:
+        row["created_at"] = row["updated_at"] = _now_iso()
+    cur = conn.execute(f"INSERT INTO {table} ({', '.join(row)}) VALUES ({', '.join('?' for _ in row)})",
+                       tuple(row.values()))
+    conn.commit()
+    return crm_get(conn, resource, cur.lastrowid)
+
+
+def crm_update(conn: sqlite3.Connection, resource: str, record_id: int, values: dict) -> dict | None:
+    """Change only the fields given. None when there is no such record."""
+    table = _crm_table(resource)
+    row = _crm_values(resource, values)
+    if resource in CRM_STAMPED:
+        row["updated_at"] = _now_iso()
+    if row:
+        cur = conn.execute(f"UPDATE {table} SET {', '.join(f'{c} = ?' for c in row)} WHERE id = ?",
+                           (*row.values(), int(record_id)))
+        conn.commit()
+        if cur.rowcount == 0:
+            return None
+    return crm_get(conn, resource, record_id)
+
+
+def crm_delete(conn: sqlite3.Connection, resource: str, record_id: int) -> dict | None:
+    """Delete one record and return it as it was. Deleting a tag also takes it off every donor."""
+    before = crm_get(conn, resource, record_id)
+    if before is None:
+        return None
+    conn.execute(f"DELETE FROM {_crm_table(resource)} WHERE id = ?", (int(record_id),))
+    conn.commit()
+    return before
+
+
+def crm_contacts(conn: sqlite3.Connection, contact_id: int | None = None) -> list[dict]:
+    """What this tab adds to each donor that has anything: {contact_id, tags: [tag ids], background, last_seen}."""
+    only = " WHERE contact_id = ?" if contact_id is not None else ""
+    params = (int(contact_id),) if contact_id is not None else ()
+    out: dict[int, dict] = {}
+
+    def entry(cid: int) -> dict:
+        return out.setdefault(cid, {"contact_id": cid, "tags": [], "background": None, "last_seen": None})
+
+    for r in conn.execute(f"SELECT contact_id, background, last_seen FROM crm_contacts{only}", params):
+        entry(r["contact_id"]).update(background=r["background"], last_seen=r["last_seen"])
+    for r in conn.execute(f"SELECT contact_id, tag_id FROM crm_contact_tags{only} ORDER BY contact_id, position, tag_id",
+                          params):
+        entry(r["contact_id"])["tags"].append(r["tag_id"])
+    return [out[k] for k in sorted(out)]
+
+
+def crm_save_contact(conn: sqlite3.Connection, contact_id: int, tags=_UNSET, background=_UNSET,
+                     last_seen=_UNSET) -> dict:
+    """Set a donor's tags (the whole list, in order), background and/or last seen. Omitted ones stay as they are."""
+    cid = int(contact_id)
+    if tags is not _UNSET:
+        conn.execute("DELETE FROM crm_contact_tags WHERE contact_id = ?", (cid,))
+        conn.executemany("INSERT OR IGNORE INTO crm_contact_tags (contact_id, tag_id, position) VALUES (?, ?, ?)",
+                         [(cid, int(t), i) for i, t in enumerate(tags or [])])
+    fields = {k: v for k, v in (("background", background), ("last_seen", last_seen)) if v is not _UNSET}
+    if fields:
+        conn.execute("INSERT INTO crm_contacts (contact_id, updated_at) VALUES (?, ?) ON CONFLICT(contact_id) DO NOTHING",
+                     (cid, _now_iso()))
+        conn.execute(f"UPDATE crm_contacts SET {', '.join(f'{k} = ?' for k in fields)}, updated_at = ? "
+                     "WHERE contact_id = ?", (*fields.values(), _now_iso(), cid))
+    conn.commit()
+    found = crm_contacts(conn, cid)
+    return found[0] if found else {"contact_id": cid, "tags": [], "background": None, "last_seen": None}
 
 
 def insert_donor(conn: sqlite3.Connection, donor: dict) -> int:

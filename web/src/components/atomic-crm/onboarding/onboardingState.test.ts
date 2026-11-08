@@ -1,19 +1,23 @@
 import {
+  EMPTY_LINKS,
   LAST_STEP,
+  LEGACY_STORAGE_KEY_V1,
   ONBOARDING_STORAGE_KEY,
+  STEPS,
+  WEBSITE_REQUIRED,
   initialOnboarding,
+  loadOnboarding,
+  migrateV1,
   normalizeSocialUrl,
   normalizeUrl,
   onboardingReducer,
   onboardingStore,
-  parseAmount,
   parseStored,
-  quarterEnd,
   readOnboardingParam,
   shouldAutoShow,
-  validateGoal,
+  shouldOfferTour,
   validateLinks,
-  EMPTY_LINKS,
+  type KeyValueStorage,
   type OnboardingData,
 } from "./onboardingState";
 
@@ -23,8 +27,25 @@ const reduce = (
   ...actions: Parameters<typeof onboardingReducer>[1][]
 ) => actions.reduce((s, a) => onboardingReducer(s, a, () => NOW), state);
 
+const memoryStorage = (initial: Record<string, string> = {}) => {
+  const map = new Map(Object.entries(initial));
+  const storage: KeyValueStorage = {
+    getItem: (k) => map.get(k) ?? null,
+    setItem: (k, v) => void map.set(k, v),
+    removeItem: (k) => void map.delete(k),
+  };
+  return { map, storage };
+};
+
+describe("the first-run steps (plan.md §21.2.2)", () => {
+  it("are files → organization → context, in that order", () => {
+    expect(STEPS).toEqual(["files", "organization", "context"]);
+    expect(LAST_STEP).toBe(2);
+  });
+});
+
 describe("onboardingReducer", () => {
-  it("starts at Welcome and walks forward and back within the five steps", () => {
+  it("walks forward and back within the three steps", () => {
     let state = reduce(initialOnboarding(), { type: "start" });
     expect(state).toMatchObject({
       status: "in_progress",
@@ -32,60 +53,79 @@ describe("onboardingReducer", () => {
       updatedAt: NOW,
     });
     state = reduce(state, { type: "back" });
-    expect(state.step).toBe(0); // never below Welcome
-    state = reduce(
-      state,
-      { type: "next" },
-      { type: "next" },
-      { type: "next" },
-      { type: "next" },
-      { type: "next" },
-    );
-    expect(state.step).toBe(LAST_STEP); // never past the tour
+    expect(state.step).toBe(0); // never below step 1
+    state = reduce(state, { type: "next" }, { type: "next" }, { type: "next" });
+    expect(state.step).toBe(LAST_STEP); // never past the context run
     state = reduce(state, { type: "back" });
-    expect(state.step).toBe(LAST_STEP - 1);
+    expect(state.step).toBe(1);
     expect(reduce(state, { type: "goTo", step: 99 }).step).toBe(LAST_STEP);
     expect(reduce(state, { type: "goTo", step: -3 }).step).toBe(0);
+    expect(reduce(state, { type: "goTo", step: Number.NaN }).step).toBe(0);
   });
 
   it("Finish later pauses and keeps progress and answers", () => {
     const state = reduce(
       initialOnboarding(),
       { type: "start" },
-      { type: "update", patch: { orgName: "Bayside Youth Fund" } },
+      {
+        type: "update",
+        patch: { files: { people: 68, gifts: 113, duplicates: 6, files: 7 } },
+      },
       { type: "next" },
       { type: "finishLater" },
     );
     expect(state).toMatchObject({
       status: "paused",
       step: 1,
-      orgName: "Bayside Youth Fund",
+      files: { people: 68, gifts: 113 },
     });
   });
 
-  it("finish completes; reopening and leaving again keeps it completed", () => {
+  it("finish completes and offers the tour once", () => {
     let state = reduce(
       initialOnboarding(),
       { type: "start" },
       { type: "finish" },
     );
-    expect(state).toMatchObject({ status: "completed", completedAt: NOW });
-    state = reduce(state, { type: "start" });
+    expect(state).toMatchObject({
+      status: "completed",
+      completedAt: NOW,
+      tourOffer: "pending",
+    });
+    // Answered once, it isn't offered again when setup is re-run.
+    state = reduce(
+      state,
+      { type: "update", patch: { tourOffer: "dismissed" } },
+      { type: "start" },
+      { type: "finish" },
+    );
+    expect(state.tourOffer).toBe("dismissed");
+  });
+
+  it("reopening and leaving a finished setup keeps it completed", () => {
+    let state = reduce(
+      initialOnboarding(),
+      { type: "finish" },
+      { type: "start" },
+    );
     expect(state.status).toBe("in_progress");
     state = reduce(state, { type: "finishLater" });
     expect(state.status).toBe("completed");
   });
 
-  it("restart keeps what was typed; reset forgets everything", () => {
+  it("restart keeps what was entered; reset forgets everything", () => {
     const typed = reduce(
       initialOnboarding(),
-      { type: "update", patch: { personName: "Dana Sample" } },
-      { type: "goTo", step: 3 },
+      {
+        type: "update",
+        patch: { links: { ...EMPTY_LINKS, website: "https://example.org/" } },
+      },
+      { type: "goTo", step: 2 },
       { type: "finish" },
     );
     expect(reduce(typed, { type: "start" })).toMatchObject({
       step: 0,
-      personName: "Dana Sample",
+      links: { website: "https://example.org/" },
     });
     expect(reduce(typed, { type: "reset" })).toEqual(initialOnboarding());
   });
@@ -100,9 +140,12 @@ describe("parseStored", () => {
         type: "update",
         patch: {
           links: { ...EMPTY_LINKS, website: "https://example.org/" },
-          goal: { amount: 5000, endDate: "2026-12-31" },
+          linksSavedTo: "live",
+          files: { people: 68, gifts: 113, duplicates: 6, files: 7 },
+          context: { outcome: "done", items: 14, tasks: 3 },
         },
       },
+      { type: "finish" },
     );
     expect(parseStored(JSON.stringify(state))).toEqual(state);
   });
@@ -110,36 +153,125 @@ describe("parseStored", () => {
   it("starts fresh on missing, broken or other-version data", () => {
     expect(parseStored(null)).toEqual(initialOnboarding());
     expect(parseStored("{not json")).toEqual(initialOnboarding());
-    expect(
-      parseStored(JSON.stringify({ version: 0, status: "completed" })),
-    ).toEqual(initialOnboarding());
     expect(parseStored("null")).toEqual(initialOnboarding());
+    expect(parseStored("[]")).toEqual(initialOnboarding());
+    expect(
+      parseStored(JSON.stringify({ version: 1, status: "completed" })),
+    ).toEqual(initialOnboarding());
   });
 
   it("repairs bad fields instead of trusting them", () => {
     const parsed = parseStored(
       JSON.stringify({
-        version: 1,
+        version: 2,
         status: "weird",
         step: 42,
-        links: { x: "@a" },
+        links: { x: "@a", website: 7, facebook: "https://facebook.com/a" },
+        linksSavedTo: "cloud",
+        files: { people: -1, gifts: "113", files: 2 },
+        context: { outcome: "maybe", items: 3 },
+        tourOffer: "always",
+        completedAt: 5,
       }),
     );
-    expect(parsed.status).toBe("new");
-    expect(parsed.step).toBe(LAST_STEP);
-    expect(parsed.links).toEqual({ ...EMPTY_LINKS, x: "@a" });
+    expect(parsed).toMatchObject({
+      status: "new",
+      step: LAST_STEP,
+      links: { ...EMPTY_LINKS, x: "@a" },
+      linksSavedTo: null,
+      files: { people: null, gifts: null, duplicates: null, files: 2 },
+      context: null,
+      tourOffer: null,
+      completedAt: null,
+    });
+    expect(parsed.links).not.toHaveProperty("facebook");
+  });
+});
+
+describe("migrating v1 progress", () => {
+  const v1 = (fields: Record<string, unknown>) =>
+    JSON.stringify({
+      version: 1,
+      status: "in_progress",
+      step: 3,
+      personName: "Dana Sample",
+      orgName: "Bayside Youth Fund",
+      links: {
+        website: "https://bayside.example.org/",
+        instagram: "https://www.instagram.com/bayside",
+        linkedin: "",
+        facebook: "https://www.facebook.com/bayside",
+        x: "https://x.com/bayside",
+        tiktok: "https://www.tiktok.com/@bayside",
+      },
+      linksSavedTo: "live",
+      donors: "sample",
+      goal: { amount: 150000, endDate: "2026-12-31" },
+      completedAt: null,
+      updatedAt: NOW,
+      ...fields,
+    });
+
+  it("keeps the links the service accepts and restarts at step 1", () => {
+    expect(migrateV1(v1({}))).toEqual({
+      ...initialOnboarding(),
+      status: "in_progress",
+      step: 0,
+      links: {
+        website: "https://bayside.example.org/",
+        x: "https://x.com/bayside",
+        linkedin: "",
+        instagram: "https://www.instagram.com/bayside",
+      },
+      linksSavedTo: "live",
+      updatedAt: NOW,
+    });
+  });
+
+  it("someone who finished v1 stays finished and isn't offered the tour again", () => {
+    expect(
+      migrateV1(v1({ status: "completed", completedAt: NOW })),
+    ).toMatchObject({
+      status: "completed",
+      completedAt: NOW,
+      tourOffer: "dismissed",
+    });
+  });
+
+  it("ignores anything that isn't v1", () => {
+    expect(migrateV1(null)).toBeNull();
+    expect(migrateV1("{broken")).toBeNull();
+    expect(migrateV1(JSON.stringify({ version: 2 }))).toBeNull();
+  });
+
+  it("loadOnboarding migrates once: writes v2 and removes v1", () => {
+    const { map, storage } = memoryStorage({ [LEGACY_STORAGE_KEY_V1]: v1({}) });
+    const loaded = loadOnboarding(storage);
+    expect(loaded.links.website).toBe("https://bayside.example.org/");
+    expect(map.has(LEGACY_STORAGE_KEY_V1)).toBe(false);
+    expect(JSON.parse(map.get(ONBOARDING_STORAGE_KEY)!)).toEqual(loaded);
+  });
+
+  it("v2 wins over a leftover v1, and nothing stored means a fresh start", () => {
+    const current = reduce(initialOnboarding(), { type: "finish" });
+    const { map, storage } = memoryStorage({
+      [ONBOARDING_STORAGE_KEY]: JSON.stringify(current),
+      [LEGACY_STORAGE_KEY_V1]: v1({}),
+    });
+    expect(loadOnboarding(storage)).toEqual(current);
+    expect(map.has(LEGACY_STORAGE_KEY_V1)).toBe(true); // untouched
+    expect(loadOnboarding(memoryStorage().storage)).toEqual(
+      initialOnboarding(),
+    );
   });
 });
 
 describe("onboardingStore persistence", () => {
-  const storage = new Map<string, string>();
+  let mem: ReturnType<typeof memoryStorage>;
   beforeEach(() => {
-    storage.clear();
+    mem = memoryStorage();
     vi.stubGlobal("window", {
-      localStorage: {
-        getItem: (k: string) => storage.get(k) ?? null,
-        setItem: (k: string, v: string) => void storage.set(k, v),
-      },
+      localStorage: mem.storage,
       addEventListener: () => {},
       removeEventListener: () => {},
     });
@@ -148,25 +280,54 @@ describe("onboardingStore persistence", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("writes every change under the versioned key and reads it back after a reload", () => {
-    onboardingStore.dispatch({ type: "start" }, true);
+    onboardingStore.dispatch({ type: "start" }, { open: true });
     onboardingStore.dispatch({ type: "next" });
     expect(onboardingStore.get().open).toBe(true);
-    expect(JSON.parse(storage.get(ONBOARDING_STORAGE_KEY)!)).toMatchObject({
-      version: 1,
+    expect(JSON.parse(mem.map.get(ONBOARDING_STORAGE_KEY)!)).toMatchObject({
+      version: 2,
       step: 1,
     });
 
     onboardingStore.forget(); // a page reload
     expect(onboardingStore.get()).toMatchObject({
       open: false,
+      tour: false,
       data: { status: "in_progress", step: 1 },
     });
+  });
+
+  it("a successful import is saved at once, so Finish later and a reload keep it", () => {
+    const summary = { people: 68, gifts: 113, duplicates: 6, files: 7 };
+    onboardingStore.dispatch({ type: "start" }, { open: true });
+    onboardingStore.dispatch({ type: "update", patch: { files: summary } });
+    onboardingStore.dispatch({ type: "finishLater" }, { open: false });
+    onboardingStore.forget(); // a page reload
+    expect(onboardingStore.get().data).toMatchObject({
+      status: "paused",
+      step: 0,
+      files: summary,
+    });
+    // Reopening resumes at step 1 with the import still recorded.
+    onboardingStore.dispatch({ type: "start", step: 0 }, { open: true });
+    expect(onboardingStore.get().data.files).toEqual(summary);
+  });
+
+  it("starting the tour closes setup and answers the offer", () => {
+    onboardingStore.dispatch({ type: "finish" }, { open: true });
+    onboardingStore.setTour(true);
+    expect(onboardingStore.get()).toMatchObject({
+      open: false,
+      tour: true,
+      data: { tourOffer: "taken" },
+    });
+    onboardingStore.setTour(false);
+    expect(onboardingStore.get().tour).toBe(false);
   });
 
   it("notifies subscribers", () => {
     const listener = vi.fn();
     const unsubscribe = onboardingStore.subscribe(listener);
-    onboardingStore.dispatch({ type: "finishLater" }, false);
+    onboardingStore.dispatch({ type: "finishLater" }, { open: false });
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
   });
@@ -196,9 +357,6 @@ describe("when the flow opens", () => {
     expect(
       shouldAutoShow({ status: "in_progress", completedAt: NOW }, "/", null),
     ).toBe(false);
-    expect(
-      shouldAutoShow({ status: "completed", completedAt: NOW }, "/", null),
-    ).toBe(false);
   });
 
   it("?onboarding=1 forces it anywhere; ?onboarding=0 suppresses it", () => {
@@ -213,10 +371,23 @@ describe("when the flow opens", () => {
       shouldAutoShow({ status: "new", completedAt: null }, "/", "suppress"),
     ).toBe(false);
   });
+
+  it("offers the tour on the dashboard only, until it's answered", () => {
+    expect(shouldOfferTour({ tourOffer: "pending" }, "/", null)).toBe(true);
+    expect(shouldOfferTour({ tourOffer: "pending" }, "/contacts", null)).toBe(
+      false,
+    );
+    expect(shouldOfferTour({ tourOffer: "pending" }, "/", "suppress")).toBe(
+      false,
+    );
+    expect(shouldOfferTour({ tourOffer: "taken" }, "/", null)).toBe(false);
+    expect(shouldOfferTour({ tourOffer: "dismissed" }, "/", null)).toBe(false);
+    expect(shouldOfferTour({ tourOffer: null }, "/", null)).toBe(false);
+  });
 });
 
 describe("normalizeUrl", () => {
-  it("accepts empty input: every link is optional", () => {
+  it("accepts empty input (validateLinks decides what's required)", () => {
     expect(normalizeUrl("  ")).toEqual({ ok: true, url: "" });
   });
 
@@ -252,9 +423,9 @@ describe("normalizeSocialUrl", () => {
       ok: true,
       url: "https://www.instagram.com/baysideyouth",
     });
-    expect(normalizeSocialUrl("tiktok", "baysideyouth")).toEqual({
+    expect(normalizeSocialUrl("x", "baysideyouth")).toEqual({
       ok: true,
-      url: "https://www.tiktok.com/@baysideyouth",
+      url: "https://x.com/baysideyouth",
     });
     expect(normalizeSocialUrl("x", "@bayside.youth")).toEqual({
       ok: true,
@@ -269,9 +440,8 @@ describe("normalizeSocialUrl", () => {
   it("accepts the platform's own domains and subdomains", () => {
     expect(normalizeSocialUrl("x", "twitter.com/bayside").ok).toBe(true);
     expect(
-      normalizeSocialUrl("facebook", "https://m.facebook.com/bayside").ok,
+      normalizeSocialUrl("instagram", "https://m.instagram.com/bayside").ok,
     ).toBe(true);
-    expect(normalizeSocialUrl("facebook", "fb.com/bayside").ok).toBe(true);
     expect(
       normalizeSocialUrl(
         "linkedin",
@@ -284,66 +454,37 @@ describe("normalizeSocialUrl", () => {
   });
 
   it("rejects another site, a look-alike domain or a bare homepage", () => {
-    const wrong = normalizeSocialUrl(
-      "instagram",
-      "https://facebook.com/bayside",
-    );
+    const wrong = normalizeSocialUrl("instagram", "https://x.com/bayside");
     expect(wrong).toMatchObject({ ok: false });
     if (!wrong.ok) expect(wrong.error).toContain("Instagram");
     expect(
       normalizeSocialUrl("instagram", "https://notinstagram.com/bayside").ok,
     ).toBe(false);
     expect(normalizeSocialUrl("x", "https://x.com/").ok).toBe(false);
-    expect(normalizeSocialUrl("tiktok", "bayside.org").ok).toBe(false);
+    expect(normalizeSocialUrl("linkedin", "bayside.org").ok).toBe(false);
   });
 });
 
 describe("validateLinks", () => {
+  it("requires the website", () => {
+    expect(validateLinks({ ...EMPTY_LINKS }).errors).toEqual({
+      website: WEBSITE_REQUIRED,
+    });
+    expect(
+      validateLinks({ ...EMPTY_LINKS, website: "not a site" }).errors.website,
+    ).toContain("spaces");
+  });
+
   it("normalizes good links and reports each bad one", () => {
     const { links, errors } = validateLinks({
-      ...EMPTY_LINKS,
       website: "bayside.example.org",
       instagram: "@bayside",
-      facebook: "https://instagram.com/bayside",
+      x: "https://instagram.com/bayside",
+      linkedin: "",
     });
     expect(links.website).toBe("https://bayside.example.org/");
     expect(links.instagram).toBe("https://www.instagram.com/bayside");
-    expect(Object.keys(errors)).toEqual(["facebook"]);
-  });
-});
-
-describe("quarter goal", () => {
-  it("parses amounts people type", () => {
-    expect(parseAmount("$150,000")).toBe(150000);
-    expect(parseAmount("150k")).toBe(150000);
-    expect(parseAmount("1.5M")).toBe(1500000);
-    expect(parseAmount("2500.50")).toBe(2500.5);
-    expect(parseAmount("0")).toBeNull();
-    expect(parseAmount("-5")).toBeNull();
-    expect(parseAmount("a lot")).toBeNull();
-  });
-
-  it("finds the end of the current quarter", () => {
-    expect(quarterEnd(new Date(2026, 10, 7))).toBe("2026-12-31");
-    expect(quarterEnd(new Date(2026, 0, 1))).toBe("2026-03-31");
-    expect(quarterEnd(new Date(2026, 4, 15))).toBe("2026-06-30");
-    expect(quarterEnd(new Date(2026, 8, 30))).toBe("2026-09-30");
-  });
-
-  it("validates amount and end date, both optional", () => {
-    const today = new Date(2026, 10, 7);
-    expect(validateGoal("", "", today)).toEqual({
-      goal: { amount: null, endDate: null },
-      errors: {},
-    });
-    expect(validateGoal("150,000", "2026-12-31", today)).toEqual({
-      goal: { amount: 150000, endDate: "2026-12-31" },
-      errors: {},
-    });
-    expect(validateGoal("lots", "2026-11-01", today).errors).toEqual({
-      amount: "Enter an amount, like 150,000.",
-      endDate: "Choose a date from today on.",
-    });
-    expect(validateGoal("5", "2026-11-07", today).errors).toEqual({}); // today is fine
+    expect(links.linkedin).toBe("");
+    expect(Object.keys(errors)).toEqual(["x"]);
   });
 });
