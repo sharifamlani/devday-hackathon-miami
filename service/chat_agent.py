@@ -1254,6 +1254,23 @@ def run_chat(message: str, tab: str, selection: list[int] | None = None, history
     return respond(result, ctx, spec)
 
 
+def keep_separate(interruptions, decisions: dict[str, bool]) -> list[int]:
+    """A declined merge card means the person said these are different people: dismiss the pair now (its review
+    task retires), since the run may pause again on other cards before the model could. Returns the ids."""
+    from service import agent_writes
+    done = []
+    for item in interruptions:
+        if item.name != "merge_duplicate" or decisions.get(item.call_id) is not False:
+            continue
+        sid = output_data(item.arguments).get("suggestion_id")
+        try:
+            with_conn(agent_writes.dismiss_duplicate, int(sid), actor="staff")
+        except (agent_writes.WriteError, TypeError, ValueError):
+            continue
+        done.append(int(sid))
+    return done
+
+
 def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> dict:
     """A person approved or declined some of the paused calls (call_id -> approve). Only those are decided:
     a call left out stays pending, so the run pauses on it again (same call_id, new run_id) and its card still
@@ -1264,6 +1281,7 @@ def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> di
     ctx = ChatContext(tab=spec["tab"], selection=spec["selection"], approved_by=approved_by)
     agent = build_agent(spec["tab"], spec["selection"], spec["event_id"], spec["first_turn"])
     state = asyncio.run(RunState.from_string(agent, spec["state"], context_override=ctx))
+    keep_separate(state.get_interruptions(), decisions)
     for item in state.get_interruptions():
         if item.call_id in decisions:
             (state.approve if decisions[item.call_id] else state.reject)(item)

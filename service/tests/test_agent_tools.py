@@ -608,3 +608,15 @@ def test_no_pending_duplicates_says_so(db_file):
     invoke("resolve_duplicates")
     out = invoke("resolve_duplicates")
     assert out["merged"] == [] and out["to_confirm"] == [] and out["note"] == "No possible duplicates right now."
+
+
+def test_keep_separate_on_a_merge_card_dismisses_the_pair_at_once(db_file):
+    """Other cards may still be waiting, so the run pauses again before the model could call dismiss_duplicate."""
+    from types import SimpleNamespace
+    nickname_pair(db_file)
+    sid = one(db_file, "SELECT id FROM duplicate_suggestions WHERE status = 'pending' ORDER BY confidence LIMIT 1")["id"]
+    items = [SimpleNamespace(name="merge_duplicate", call_id="m1", arguments=json.dumps({"suggestion_id": sid})),
+             SimpleNamespace(name="merge_duplicate", call_id="m2", arguments=json.dumps({"suggestion_id": 999999})),
+             SimpleNamespace(name="delete_task", call_id="d1", arguments=json.dumps({"task_id": 1}))]
+    assert ca.keep_separate(items, {"m1": False, "d1": False}) == [sid]          # m2 undecided, d1 isn't a merge
+    assert one(db_file, "SELECT status FROM duplicate_suggestions WHERE id = ?", sid)["status"] == "dismissed"
