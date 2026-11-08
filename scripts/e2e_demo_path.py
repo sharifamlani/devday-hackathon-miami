@@ -416,7 +416,11 @@ def s9_calendar(page: Page, api: Api, web: str, shots: Path):
 def s10_dictation(page: Page, web: str, shots: Path):
     page.goto(web)
     page.wait_for_timeout(2500)
-    mic = page.get_by_role("button", name="Start live transcript").last
+    # #123: the composer's mic is "Dictate" (dictation into the box); before it, the mic opened the live transcript
+    mic = page.get_by_role("button", name="Dictate", exact=True)
+    if not mic.count():
+        mic = page.get_by_role("button", name="Start live transcript")
+    mic = mic.last
     present = mic.count() > 0
     mic.click()
     page.wait_for_timeout(3000)
