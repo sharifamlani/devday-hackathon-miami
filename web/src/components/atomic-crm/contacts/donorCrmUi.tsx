@@ -8,8 +8,8 @@ import {
   type DonorTag,
 } from "../providers/local/crmDonors";
 
-/** The tile look until the shell's shared `tile` class lands: card + border. */
-export const tileClass = "rounded-2xl border border-border bg-card";
+/** The shell's Kindred tile (the `tile` utility in index.css). */
+export const tileClass = "tile";
 
 export const DonorTagBadge = ({
   tag,
