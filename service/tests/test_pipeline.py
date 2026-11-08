@@ -27,7 +27,7 @@ def stubs(monkeypatch):
     enrich = types.ModuleType("service.enrich_agent")
     enrich.read_cache = lambda: {"Amazon": [], "Frederick A. DeLuca Foundation": []}
 
-    def enrich_donor(name, org_name=None, city=None, focus=None, refresh=False, use_cache=False):
+    def enrich_donor(name, org_name=None, city=None, focus=None, refresh=False, use_cache=False, state=None, email=None):
         calls["enriched"].append(name)
         return [{"fact": f"{name} funds Miami arts", "source_url": f"https://example.org/{len(name)}",
                  "retrieved_at": "2026-11-07T00:00:00+00:00"}]

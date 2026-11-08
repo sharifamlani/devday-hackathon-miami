@@ -182,7 +182,7 @@ def stage_enrich(live: bool) -> str:
     cache = enrich_agent.read_cache()
     conn = db.connect()
     orgs = [dict(r) for r in conn.execute(
-        "SELECT id, full_name, org_name, city FROM donors WHERE donor_type = 'organization' "
+        "SELECT id, full_name, org_name, city, state, email FROM donors WHERE donor_type = 'organization' "
         "AND contact_type = 'giver' ORDER BY id")]
     individuals = conn.execute("SELECT COUNT(*) FROM donors WHERE donor_type = 'individual' "
                                "AND contact_type = 'giver'").fetchone()[0]
@@ -195,7 +195,8 @@ def stage_enrich(live: bool) -> str:
         if name not in cache and not live:
             skipped.append(name)
             continue
-        facts = enrich_agent.enrich_donor(name, org_name=org["org_name"], city=org["city"], use_cache=True)
+        facts = enrich_agent.enrich_donor(name, org_name=org["org_name"], city=org["city"], use_cache=True,
+                                          state=org["state"], email=org["email"])
         conn = db.connect()
         with conn:
             conn.execute("DELETE FROM research_facts WHERE donor_id = ?", (org["id"],))
