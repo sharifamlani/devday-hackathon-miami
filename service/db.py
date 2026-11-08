@@ -509,6 +509,31 @@ CREATE INDEX IF NOT EXISTS idx_call_notes_created ON call_notes(created_at);
 SCHEMA += CALLS_SCHEMA
 TABLES = ["call_notes"] + TABLES
 
+# Calls placed from the staff member's own phone (service/phone.py, plan §21 S1). One row per call; the
+# worker thread moves status along and links the saved call note. No phone numbers are stored here.
+PHONE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS phone_calls (
+    id             TEXT PRIMARY KEY,
+    donor_id       INTEGER NOT NULL,
+    donor_name     TEXT NOT NULL DEFAULT '',
+    status         TEXT NOT NULL CHECK (status IN ('calling_you', 'calling_donor', 'connected', 'processing',
+                                                   'done', 'failed')),
+    detail         TEXT,                        -- why it failed, or the processing step it is on
+    staff_call_sid TEXT,                        -- Twilio leg 1: the staff member's phone (recorded)
+    donor_call_sid TEXT,                        -- Twilio leg 2: the donor's phone
+    recording_sid  TEXT,
+    note_id        TEXT,                        -- call_notes.id once the note is saved
+    result         TEXT NOT NULL DEFAULT '{}',  -- JSON {summary, next_steps, summary_source, steps, actions}
+    started_at     TEXT NOT NULL,
+    connected_at   TEXT,
+    ended_at       TEXT,
+    duration_sec   INTEGER NOT NULL DEFAULT 0 CHECK (duration_sec >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_phone_calls_started ON phone_calls(started_at);
+"""
+SCHEMA += PHONE_SCHEMA
+TABLES = ["phone_calls"] + TABLES
+
 # The Donors tab's own notes, tasks and tags (Atomic CRM's contact_notes / tasks / tags), written by
 # service/routes_crm.py only. Private staff notes: never in GET /donors/{id} or the snapshot export.
 # contact_id is a donors.id with no foreign key on purpose: a merge deletes the dropped donor row and

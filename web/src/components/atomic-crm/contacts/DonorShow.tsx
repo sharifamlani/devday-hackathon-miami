@@ -13,6 +13,7 @@ import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
 import type { DonorDetail } from "../providers/local/types";
 import { TaskCreateSheet } from "../tasks/TaskCreateSheet";
+import { PhoneCallButton } from "../voice/PhoneCallButton";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { ContactTasksList } from "./ContactTasksList";
 import {
@@ -229,6 +230,7 @@ const ProfileHeader = ({
       </div>
     </div>
     <div className="mt-4 flex flex-wrap gap-2">
+      <PhoneCallButton donorId={record.id} />
       <Button size="sm" className="rounded-full" onClick={onAddTask}>
         <ListPlus aria-hidden />
         Add task
