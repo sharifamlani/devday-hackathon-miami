@@ -1,0 +1,257 @@
+/* Workspace panel zoom: layout beside the chat + View Transition animation. */
+.desk-home > .home-conversation {
+  view-transition-name: zoom-chat;
+}
+.desk-home.has-panel > .home-conversation {
+  display: none;
+}
+
+.desk-main-panel {
+  view-transition-name: zoom-frame;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.desk-panel-toolbar {
+  max-width: none;
+  margin: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+  justify-content: flex-start;
+}
+.desk-panel-toolbar h2 {
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+  margin-right: auto;
+  margin-left: 8px;
+}
+.desk-panel-toolbar > button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.desk-panel-toolbar > button:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.desk-panel-body {
+  view-transition-name: zoom-content;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--background);
+}
+.desk-panel-placeholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 240px;
+  color: var(--muted-foreground);
+}
+
+/* >=1200px: panel 2/3 left, chat 1/3 right (380px floor). */
+@media (min-width: 1200px) {
+  .desk-home.has-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(380px, 1fr);
+    gap: 16px;
+  }
+  .desk-home.has-panel > .home-conversation {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    max-width: none;
+    margin: 0;
+    height: 100%;
+  }
+  .desk-home.has-panel > .desk-main-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .desk-panel-back {
+    display: none !important;
+  }
+}
+/* Phone: full-screen sheet. */
+@media (max-width: 767px) {
+  .desk-main-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    border-radius: 0;
+    border: 0;
+  }
+}
+
+/* ---- View Transitions ---- */
+:root {
+  --zoom-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --zoom-dur: 340ms;
+}
+::view-transition-group(zoom-frame),
+::view-transition-group(zoom-content),
+::view-transition-group(zoom-chat) {
+  animation-duration: var(--zoom-dur);
+  animation-timing-function: var(--zoom-ease);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+/* Crop, never stretch. */
+::view-transition-old(zoom-content),
+::view-transition-new(zoom-content),
+::view-transition-old(zoom-chat),
+::view-transition-new(zoom-chat) {
+  width: auto;
+  height: auto;
+  object-fit: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(zoom-frame),
+::view-transition-new(zoom-frame) {
+  mix-blend-mode: normal;
+}
+::view-transition-old(zoom-content),
+::view-transition-new(zoom-content) {
+  object-position: top left;
+}
+::view-transition-old(zoom-chat),
+::view-transition-new(zoom-chat) {
+  object-position: top right;
+}
+
+@keyframes zoom-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes zoom-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Small-tile content fades out over the first 120ms; panel content fades in 140ms to end. */
+html[data-zoom="open"]::view-transition-old(zoom-frame) {
+  animation: zoom-fade-out 120ms linear both;
+}
+html[data-zoom="open"]::view-transition-new(zoom-frame) {
+  animation: zoom-fade-in 120ms linear both;
+}
+html[data-zoom="close"]::view-transition-old(zoom-frame) {
+  animation: zoom-fade-out 120ms linear 160ms both;
+}
+html[data-zoom="close"]::view-transition-new(zoom-frame) {
+  animation: zoom-fade-in 120ms linear 160ms both;
+}
+html[data-zoom="open"]::view-transition-new(zoom-content) {
+  animation: zoom-fade-in calc(var(--zoom-dur) - 140ms) linear 140ms both;
+}
+html[data-zoom="close"]::view-transition-old(zoom-content) {
+  animation: zoom-fade-out 120ms linear both;
+}
+html[data-zoom="switch"]::view-transition-old(zoom-content) {
+  animation: zoom-fade-out var(--zoom-dur) linear both;
+}
+html[data-zoom="switch"]::view-transition-new(zoom-content) {
+  animation: zoom-fade-in var(--zoom-dur) linear both;
+}
+/* Chat: same element before and after; the group moves and resizes, snapshots are cropped. */
+::view-transition-old(zoom-chat) {
+  animation: zoom-fade-out calc(var(--zoom-dur) * 0.4) linear both;
+}
+::view-transition-new(zoom-chat) {
+  animation: zoom-fade-in calc(var(--zoom-dur) * 0.4) linear both;
+}
+
+/* Phone sheet slides up. */
+@media (max-width: 767px) {
+  html[data-zoom]::view-transition-group(zoom-frame) {
+    animation: none;
+  }
+  html[data-zoom="open"]::view-transition-new(zoom-frame) {
+    animation: zoom-sheet-in 320ms var(--zoom-ease) both;
+  }
+  html[data-zoom="close"]::view-transition-old(zoom-frame) {
+    animation: zoom-sheet-out 280ms var(--zoom-ease) both;
+  }
+}
+@keyframes zoom-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes zoom-sheet-out {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Rows rise 4px, staggered 20ms (first 8 only). */
+@keyframes zoom-row {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(-n + 8) {
+  animation: zoom-row 200ms var(--zoom-ease) backwards;
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(1) { animation-delay: 140ms; }
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(2) { animation-delay: 160ms; }
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(3) { animation-delay: 180ms; }
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(4) { animation-delay: 200ms; }
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(5) { animation-delay: 220ms; }
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(6) { animation-delay: 240ms; }
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(7) { animation-delay: 260ms; }
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(8) { animation-delay: 280ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) {
+    animation: none !important;
+  }
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 120ms !important;
+    animation-delay: 0s !important;
+    animation-timing-function: linear !important;
+  }
+  ::view-transition-old(*) {
+    animation-name: zoom-fade-out !important;
+  }
+  ::view-transition-new(*) {
+    animation-name: zoom-fade-in !important;
+  }
+  .desk-panel-body * {
+    animation: none !important;
+  }
+}
