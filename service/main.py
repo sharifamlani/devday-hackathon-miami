@@ -481,15 +481,31 @@ def persist_fallback_context(urls: dict, sources: dict, result: dict | None) -> 
         cached_facts = [fact for source in source_status if source_status[source] == "cached"
                         for fact in facts_by_source[source]]
         saved = db.save_context(conn, {"profile": profile, "sources": source_status, "facts": cached_facts})
-        from service.org_context import after_context_saved
-        after_context_saved(conn)
         if saved.get("context_ids"):
             marks = ",".join("?" for _ in saved["context_ids"])
             conn.execute(f"UPDATE org_context SET cached = 1 WHERE id IN ({marks})", saved["context_ids"])
         conn.commit()
+        after_save_in_background()
         return {**saved, "cached_fallback": True, "cleared_previous_org": cleared}
     finally:
         conn.close()
+
+
+def after_save_in_background() -> None:
+    """The fallback answers on its deadline: index_context (a model call + embeddings) and the day's tasks run
+    after the response, on their own connection, the way the live path's refresh does."""
+    def job():
+        conn = db.connect()
+        try:
+            db.create_schema(conn)
+            from service.org_context import after_context_saved
+            after_context_saved(conn)
+            conn.commit()
+        except Exception:
+            log.exception("fallback context: indexing / tasks after save failed")
+        finally:
+            conn.close()
+    threading.Thread(target=job, daemon=True, name="fallback-after-save").start()
 
 
 def source_progress(req: "ContextRun", result: dict | None, fallback: bool = False, stored: bool = True) -> dict:
