@@ -3,7 +3,8 @@
 > Sources: our Sat Nov 7 evening conversation with Erica (The Miami Foundation) at The LAB, and the team
 > wireframe session that followed. Both are paraphrased here; raw transcripts stay in the gitignored
 > `transcripts/` folder. Challenge #2 requirements come from `docs/event-brief.md`.
-> Status is as of `main` @ `6a18d17` (Sat Nov 7 night): #48, #53, #58, #60, #62, #65, #67, #74 merged.
+> Status is as of `main` @ `8ee6258` (Sun Nov 8, re-derived from the code): #48, #58, #60, #65, #67, #78, #90, #107, #111, #112, #116, #124, #132 and
+> Christian's `WorkspaceSidebar` (`4241176`) are merged. Open: #126 (tabs), #134, #135, #123.
 
 ## 1. The problems, in Erica's terms
 
@@ -22,21 +23,22 @@
 
 | # | Solution | Where it lives | Status |
 |---|---|---|---|
-| P1 | **Voice-first capture:** a mic button beside the chat opens a live transcript panel (Wispr Flow style). At the end, staff attach the note to a person's profile in one click. | home chat bar → transcript panel → person timeline | ⏸ new. Live in-app calls are post-demo; the demo transcribes a call on speakerphone |
+| P1 | **Voice-first capture:** a mic button beside the chat opens a live transcript panel (Wispr Flow style). At the end, staff attach the note to a person's profile in one click. | home chat bar → transcript panel → person timeline | ✅ #78 "Call and transcribe" (`home/HomeChat.tsx`) + live transcript pane + call-notes API; #91/#94 Gemini live relay and speaker labels; #90 + #111 after-call agent (proposes actions, Apply writes them). Live in-app phone calls stay post-demo; the demo transcribes a call on speakerphone |
 | P1 | **One shared record:** every upload, note, gift and draft lands on the person, so nothing lives in someone's head or inbox. | Givers / Neighbors / Community tabs | ✅ #60 three-tab data layer |
 | P1 | **Chat agent with visible tool steps** answers "what do we know about X?" from the record. | right sidebar, every screen | ✅ #58 |
-| P2 | **Enrichment agent:** an **Enrich** button on a profile (or ask the agent) searches the web, **tags the donor's interest areas** (arts, health, youth…) from a fixed list with a source per tag, and adds other public contact details. | Givers profile | ✅ `POST /enrich/{id}` + ResearchPanel on the contact page (organizations only) |
-| P2 | **Gift alerts + "call today":** late and failed regular gifts surface before the donor lapses. | home money-raised card + to-do list, Givers | ~ backend merged (#48, `GET /alerts`); no screen reads it yet |
-| P2 | **Calendar the agent can edit:** events from the Foundation's site with invites pre-drafted per audience. The agent adds and changes items. | Calendar | ✅ #67. Outlook/Gmail sync is out of scope |
-| P3 | **Community tab:** the people the nonprofit serves, analyzed only from what they self-reported; outreach about programs, never a donation ask. | Community tab | ✅ data layer (#60); analysis view ⏸ |
-| P3 | **Neighbors tab:** people met but not yet donors or clients, with follow-ups drafted from current context. | Neighbors tab | ✅ #60 |
-| P4 | **Context agent:** reads the website and news on onboarding and every day, so outreach carries real success stories instead of generic asks. | onboarding step 2 + daily refresh | ~ backend on main (`/context/run`, `/context/refresh`); onboarding screen only in draft #70 |
+| P2 | **Enrichment agent:** an **Enrich** button on a profile (or ask the agent) searches the web, **tags the donor's interest areas** (arts, health, youth…) from a fixed list with a source per tag, and adds other public contact details. | Givers profile | ✅ `POST /enrich/{id}` + ResearchPanel (organizations only); #88/#115 interest-tag taxonomy and propose → Save to profile; #124 profile Enrich goes through review |
+| P2 | **Gift alerts + "call today":** late and failed regular gifts surface before the donor lapses. | home money-raised card + to-do list, Givers | ✅ #48 `GET /alerts` feeds the task generator (`service/tasks.py`: failed/late gift → "Call …" task); Home tasks (#100, #112) and the CRM attention list (`GET /people/attention`, #83) show them; #120 retires stale alert calls |
+| P2 | **Calendar the agent can edit:** events from the Foundation's site with invites pre-drafted per audience. The agent adds and changes items. | Calendar | ✅ #67; #113 Calendar reads tasks; #130 date fixes. Outlook/Gmail sync is out of scope |
+| P3 | **Community tab:** the people the nonprofit serves, analyzed only from what they self-reported; outreach about programs, never a donation ask. | Community tab | ✅ data layer (#60) and `GET /community/stats`; tabs in the UI are open PR #126 (Givers · Neighbors · Community). **Scope (Sharif): Givers only get new investment**; Neighbors/Community get none |
+| P3 | **Neighbors tab:** people met but not yet donors or clients, with follow-ups drafted from current context. | Neighbors tab | ✅ data layer (#60); UI tab in open PR #126; no new investment |
+| P4 | **Context agent:** reads the website and news on onboarding and every day, so outreach carries real success stories instead of generic asks. | onboarding step 2 + daily refresh | ✅ backend (`/context/run`, `/context/refresh`, `GET /context`, `GET /context/status`); onboarding screens merged (#93, #132) |
 | P4 | **Value-first outreach:** donor emails and texts lead with an impact update, then the ask. Nothing sends without approval. | chat agent + approval card | ✅ #58 (dry run by default; live only to allowlisted numbers) |
-| P5 | **Impact snapshot:** counts by zip code and program from Community records, ready to paste into a grant report. | Community tab → "Impact" panel | ⏸ stretch |
+| P5 | **Impact snapshot:** counts by zip code and program from Community records, ready to paste into a grant report. | Home → "Impact & story" panel (see next row) | ⏸ planned PR3c (`GET /community/stats` is on main; no screen reads it) |
+| P4+P5 | **Impact & story panel (Q4 tile, Ctrl+I):** org context facts with their sources (`GET /context`) and a "last refreshed" line (`GET /context/status`), plus Community self-reported counts by zip and program (`GET /community/stats`). Zooms open in the Home panel (§3.6). | Home Q4 tile → `?workspace=impact` | ⏸ planned PR3c (feat/impact-panel). Endpoints exist on main; the web client already has `getContext`/`community`/`context status` calls in `providers/local` |
 | P6 | **Upload any messy file, pick a tab or let the agent sort.** No setup per organization type; the context agent learns the mission from the website. | landing upload | ✅ ingest adapter on main, mounted via #58 |
-| P7 | **Flag payout-detail changes:** when a record's bank or payment details change, the change is held for a second staff approval. | dedupe / merge review | ⏸ named as a future limit, not built |
+| P7 | **Flag payout-detail changes:** when a record's bank or payment details change, the change is held for a second staff approval. | dedupe / merge review | ⏸ named limit (Sharif D9), not built |
 | C2 | **Duplicate review:** 6/6 sample duplicate groups found; staff approve each merge; gift history is kept on the survivor. | Givers → Review duplicates | ✅ #65 |
-| C2 | **Late gifts found in time:** Park and Quintero failed, Salinas/Brandt/Veloria late, all flagged on the sample data. | gift alerts | ~ backend merged (#48); no screen reads it yet |
+| C2 | **Late gifts found in time:** Park and Quintero failed, Salinas/Brandt/Veloria late, all flagged on the sample data. | gift alerts | ✅ #48 alerts → Home tasks + CRM attention list (see P2 row) |
 
 **Transcription model: Google Gemini 3.5 Transcribe (Sharif, Sat Nov 7 night).** Checked against Google's docs:
 
@@ -76,7 +78,7 @@ search bar goes (you ask the agent instead); the agent sidebar collapses to icon
 +--+------------+---------------------------------------------------+------------+
 ```
 
-### 3.2 Home: after (Sharif's hand sketch, Sat Nov 7 night)
+### 3.2 Home: after (Sharif's hand sketch, Sat Nov 7 night) — superseded by §3.6
 
 Three columns, one screen. Left: money raised on top, CRM below. Middle: the agent (interactions
 above, text box below). Right: calendar on top, to-do list below.
@@ -165,13 +167,50 @@ agent's 3-line summary (interests, next step).
 | Attachments | landing page only | [+] in the agent text box (files, events) |
 | Enrich | ask the agent | also a button on each profile |
 
+### 3.6 Home v3: zoom panels (Sun Nov 8)
+
+Approved by Sharif Sun Nov 8. Decisions: Tasks, Calendar, CRM and a new "Impact & story" view each open
+via `?workspace=` into a panel of about 2/3 width inside Home, with the agent chat still visible at about
+1/3 (chat at least 380 px; below about 1200 px the panel goes full width). The calendar is a day-grouped
+list through time on Home (no week grid; the `/calendar` page keeps its grid). The Projects section is
+removed; CRM stays, and its scope is Givers only. Close with the X, Esc, the same hotkey, or Back (no
+double-click). Hotkeys use physical key codes: Alt+C calendar, Alt+T tasks, Alt+M CRM, Ctrl+I impact,
+Alt+V dictation, Esc closes. On main today a panel hides the chat (`hidden={!!panel}` in `HomePage.tsx`).
+
+```
++--+-----------+----------------------------------+---------------+
+|R | AGENDA    |  PANEL (~2/3)  ?workspace=crm    | AGENT (~1/3)  |
+|a |  Today    |  [X]  CRM: Givers (primary)      |  chat thread  |
+|i |  . Call   |  ------------------------------  |  tool steps   |
+|l |   Park    |  Maria Delgado   $5,000  late    |  approvals    |
+|  |  Mon 9    |  Bayfront Arts   ★ score 82      |               |
+|  |  . Event  |  ...                             |  (>= 380 px)  |
+|  | [CRM]     |                                  | [+][mic] ...  |
+|  | [Impact]  |                                  |               |
++--+-----------+----------------------------------+---------------+
+  list calendar,   panel width / (panel + chat) = 0.63 to 0.70
+  no week grid     below ~1200 px: panel full width
+```
+
+| UI piece | Before (main @ 8ee6258) | After (Home v3) |
+|---|---|---|
+| Calendar on Home | week grid tile (`WeekCalendarTile`) | day-grouped list through time |
+| Projects section | `ProjectsTile` in the sidebar | removed |
+| Panel open | replaces the chat (chat hidden) | ~2/3 panel + chat ~1/3 |
+| Panel views | calendar, donors, organizations | tasks, calendar, CRM (Givers), impact & story |
+| Q4 / Overview tile | gauge | opens Impact & story |
+| After agent writes | refetch by scope (#112) | changed rows also flash |
+| Send labels | hardcoded "(simulated)" | "Sent via Gmail" / "Sent via Twilio" / "Dry run" from `simulated` and outbox `provider` |
+
+Planned PRs: PR2 feat/agenda-sidebar, PR3 feat/zoom-panels (View Transitions zoom, `scripts/verify_home_zoom.py`),
+PR3b feat/tasks-panel, PR3c feat/impact-panel, PR4 feat/workspace-hotkeys, PR5 feat/row-flash, PR6 fix/send-labels.
+
 ## 4. Build order for what is still open
 
-1. Home layout (3.2): Christian owns the UI, so this goes to him as a request, not a branch of ours.
-2. Voice-first panel (3.3): `gemini-3.5-transcribe-live`, OpenAI agent summary, save-to-profile.
-3. Enrich button on the profile (3.4), wired to the existing enrichment agent.
-4. Wire `GET /alerts` into the money-raised card and to-do list (backend already merged in #48).
-5. Stretch: Community impact snapshot (P5); payout-change hold (P7) stays a named limit.
+1. Home v3 (3.6): PR2 agenda sidebar, PR3 zoom panels, PR3b tasks panel, PR3c impact panel, PR4 hotkeys, PR5 row flash, PR6 send labels.
+2. Merge the open UI PRs: #126 tabs, #134, #135, #123.
+3. Done on main since the first draft: voice capture (#78, #91, #94, #90, #111), Enrich with interest tags (#88, #115, #124), alerts as tasks (#100, #112).
+4. P7 payout-change hold stays a named limit.
 
 ## 5. Evaluation criteria
 
@@ -179,28 +218,28 @@ agent's 3-line summary (interests, next step).
 |---|---|---|
 | Every Erica problem has a solution row and status | 8/8 (P1–P7 plus C2) | this file |
 | A call note reaches the right profile | saved note visible on the chosen person after reload | Playwright on the demo laptop |
-| Home shows the after-layout | money raised upper left, CRM left, agent middle, calendar upper right, to-do right; 0 console errors | Playwright DOM check |
+| Home zoom panel keeps the chat | Panel ~2/3 (ratio 0.63–0.70), chat ≥380px, 0 console errors | `scripts/verify_home_zoom.py` (planned in PR3; not yet on main) |
 | Enrich adds only sourced facts | 100% of new facts have a source URL | API check on 3 organizations |
 | Late and failed gifts on home | 5/5 expected alerts on sample data | API check vs `answer_key.json` |
 
-## 6. Audit: built vs missing (Sat Nov 7 night)
+## 6. Audit: built vs missing (refreshed Sun Nov 8, main @ 8ee6258)
 
 | Area | On main | Missing for the demo | Owner |
 |---|---|---|---|
 | Upload → three tabs | ingest adapter, `contact_type`, tabs (#60) | — | done |
 | Duplicates (C2) | 6/6 groups, approve/dismiss routes, merge keeps gifts (#65) | — | done |
-| Gift alerts (C2, P2) | `GET /alerts` (#48); answer key expects 5 on sample data, not re-checked on main | **a screen that shows them** (money-raised card + to-do) | UI: Christian |
-| Chat agent (P1) | `/chat`, tool steps, approval-gated `/send`, allowlist (#58) | assistant-ui panel #69 still open; home middle column per the sketch | QA #69; Christian for home |
+| Gift alerts (C2, P2) | `GET /alerts` (#48) → task generator → Home tasks + CRM attention list (#83, #100, #112, #120); answer key expects 5 on sample data, not re-checked on main | re-check the 5 alerts on the live sample | QA |
+| Chat agent (P1) | `/chat`, tool steps, approval-gated `/send`, allowlist (#58); main-UI agent tools + undo (#97); Home chat on the agent with live refetch (#112) | #135 task→agent open; #69 assistant-ui panel still open (preview) | QA |
 | Enrichment (P2) | `/enrich/{id}`, ResearchPanel (sourced facts) | **interest-area tags**: fixed tag list, `donor_interests` table, agent fills it, chips on the profile and as a filter | us (backend) + Christian (chips) |
 | ICP + prospects | `/icp/run`, `/prospects` (#62) | visible entry point on screen | Christian |
-| Calendar (P2) | calendar view (#67), `/events`, drafts routes | #49/#57 drafts still open: confirm what is left after main absorbed the routes | 86 + QA |
-| Context agent (P4) | `/context/run`, daily `/context/refresh` | **onboarding step 2 screen** (website + socials) is only in draft #70 | Christian adopts #70 |
+| Calendar (P2) | calendar view (#67), `/events`, drafts routes, tasks on the calendar (#113), mobile route (#110) | list calendar on Home (PR2, Home v3) | us |
+| Context agent (P4) | `/context/run`, daily `/context/refresh`, `GET /context`, `GET /context/status`; onboarding v3 (#93, #132) | **Impact & story panel** shows facts + sources + last refreshed (PR3c); set `REFRESH_DAILY_AT` on the demo laptop | us |
 | Value-first outreach (P4) | outreach + campaign agents, dry-run sends | — | done |
-| Community tab (P3) | demographic fields in `db.py` and ingest | analysis view; impact snapshot by zip (P5) | stretch |
-| **Voice-first (P1)** | **nothing** | 🎙 button, live transcript, save as a note on the person | new: backend us, button Christian |
+| Community tab (P3, P5) | demographic fields in `db.py` and ingest; `GET /community/stats` | tabs UI is open #126 (Givers primary; Neighbors/Community no new work); counts by zip/program shown in Impact & story (PR3c) | us |
+| **Voice-first (P1)** | "Call and transcribe" + live transcript pane (#78), Gemini relay + speaker labels (#91, #94), after-call agent (#90, #111), Ask dictation (#116) | composer dictation #123 open; Alt+V hotkey (PR4) | us |
 | Payout-change hold (P7) | nothing | name it as a limit in the README | docs |
-| Home layout (sketch 3.2) | #74 layout (Projects sidebar + cards) | three-column layout from the sketch | Christian |
-| Reliability | — | #73 event-loop fix (every other model call fails without it) | QA, top priority |
+| Home layout | three-column home (#78), dashboard design (#105, #107), `WorkspaceSidebar` with `?workspace=` panels (`4241176`) | Home v3 (§3.6): chat stays beside the panel, list calendar, no Projects, Impact & story | us (PR2–PR6) |
+| Reliability | #73 event-loop fix merged | — | done |
 | Persona | — | #76 decide: demo as fictional Tidepath, or keep The Miami Foundation | Sharif |
 
 ### Voice-first: laptop now, phone as a stretch
