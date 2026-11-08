@@ -99,6 +99,17 @@
 }
 
 /* ---- View Transitions ---- */
+/* Capture only the named layers (frame, content, chat), not a full-page root snapshot. */
+:root {
+  view-transition-name: none;
+}
+/* Blur is the costliest paint on Home; drop it for the duration of the zoom. */
+html[data-zoom] .home-tile {
+  backdrop-filter: none;
+}
+.desk-main-panel {
+  contain: layout paint;
+}
 :root {
   --zoom-ease: cubic-bezier(0.32, 0.72, 0, 1);
   --zoom-dur: 340ms;

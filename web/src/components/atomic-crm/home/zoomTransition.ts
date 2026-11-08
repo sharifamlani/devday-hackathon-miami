@@ -5,7 +5,12 @@
  */
 export type ZoomKind = "open" | "close" | "switch";
 
-type VT = { skipTransition: () => void; finished: Promise<unknown> };
+type VT = {
+  skipTransition: () => void;
+  finished: Promise<unknown>;
+  ready?: Promise<unknown>;
+  updateCallbackDone?: Promise<unknown>;
+};
 type VTDoc = {
   startViewTransition?: (cb: () => void | Promise<void>) => VT;
   documentElement: HTMLElement;
@@ -91,6 +96,9 @@ export function runZoomTransition(opts: {
     }
   });
   active = vt;
+  // A skipped transition rejects ready/updateCallbackDone; that is expected, not an error.
+  vt.ready?.catch(() => {});
+  vt.updateCallbackDone?.catch(() => {});
   const cleanup = () => {
     if (active === vt) active = null;
     if (source) source.style.viewTransitionName = "";

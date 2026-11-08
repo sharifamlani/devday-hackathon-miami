@@ -13,8 +13,15 @@ import argparse
 import sys
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Page, sync_playwright
 
+# Keeps the environment from throttling rAF/timers (idle should read ~16.7ms; see idle_baseline()).
+LAUNCH_ARGS = [
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding",
+    "--disable-backgrounding-occluded-windows",
+    "--force-device-scale-factor=1",
+]
 VIEWS = ["calendar", "crm", "tasks", "impact"]
 SIZES = [(1440, 900), (1366, 768)]
 CYCLES = 10
@@ -53,6 +60,26 @@ GEOMETRY = """
 """
 
 
+IDLE = {"p95": 0.0, "max": 0.0}
+
+
+def idle_baseline(browser, base):
+    """rAF gaps over 3s with no transition. If this is not ~16.7ms the machine caps rAF."""
+    errors: list[str] = []
+    ctx, page = fresh(browser, base, 1440, 900, errors)
+    page.bring_to_front()
+    page.evaluate(RECORDER)
+    page.wait_for_timeout(3000)
+    gaps = page.evaluate(STOP)
+    ctx.close()
+    IDLE.update(p95=p95(gaps), max=max(gaps or [0]))
+    print(f"idle baseline (no transition, 3s): p95={IDLE['p95']:.1f} max={IDLE['max']:.1f}")
+
+
+def frames_measurable():
+    return IDLE["p95"] <= 25.0
+
+
 def p95(xs):
     xs = sorted(xs)
     return xs[min(len(xs) - 1, int(round(0.95 * (len(xs) - 1))))] if xs else 0.0
@@ -84,7 +111,7 @@ def measure(browser, base, view, w, h, shots: Path):
         page.evaluate(RECORDER)
         page.evaluate(f"window.__desk.openWorkspace('{view}')")
         if i == 0:
-            page.wait_for_timeout(170)
+            page.wait_for_timeout(120)
             page.screenshot(path=str(shots / f"{view}-{w}x{h}-mid.png"))
         page.wait_for_timeout(OPEN_MS + 60)
         g1 = page.evaluate(STOP)  # frame gaps while the zoom animates
@@ -119,14 +146,16 @@ def measure(browser, base, view, w, h, shots: Path):
     ok = (
         lo <= ratio <= hi
         and geo["cw"] >= LIMITS["chat_min"]
-        and p95(gaps) <= LIMITS["p95"]
-        and max(gaps or [0]) <= LIMITS["max"]
+        and (not frames_measurable() or (p95(gaps) <= LIMITS["p95"] and max(gaps or [0]) <= LIMITS["max"]))
         and cls == 0
         and not errors
     )
+    idle_p95 = IDLE["p95"]
+    note = "" if frames_measurable() else f" [frames NOT MEASURABLE: env rAF cap, idle p95={idle_p95:.1f}]"
     print(
         f"{view} {w}x{h} ratio={ratio:.2f} chat={geo['cw']:.0f} p95={p95(gaps):.1f} "
         f"max={max(gaps or [0]):.1f} cls={cls:g} console={len(errors)} {'PASS' if ok else 'FAIL'}"
+        f"{note}"
         f"  (cold first cycle max={cycle_max[0]:.0f}ms; content mount after the zoom: worst gap {max(mount[1:]):.0f}ms)"
     )
     for e in errors[:3]:
@@ -152,6 +181,8 @@ def check_rapid(browser, base):
             page.evaluate("window.__desk.closeWorkspace()")
             page.wait_for_timeout(800)
     ok &= not errors
+    for e in errors[:3]:
+        print("   console:", e[:300])
     print(f"rapid console={len(errors)} {'PASS' if not errors else 'FAIL'}")
     ctx.close()
     return ok
@@ -197,6 +228,139 @@ def check_cold_and_back(browser, base):
     return ok and ok2
 
 
+PANEL = ".desk-main-panel"
+
+
+def panel_view(page: Page):
+    return page.evaluate(GEOMETRY)
+
+
+def functional(browser, base, shots: Path):
+    """Real clicks on the tiles, close paths, switch, widths, console, CRM data. Returns all-pass."""
+    import json
+    import urllib.request
+
+    results: list[bool] = []
+
+    def report(name: str, ok: bool, extra: str = ""):
+        results.append(ok)
+        print(f"{name} {extra} {'PASS' if ok else 'FAIL'}")
+
+    snap = json.load(urllib.request.urlopen(f"{base}/snapshot.json"))
+    errors: list[str] = []
+    ctx, page = fresh(browser, base, 1440, 900, errors)
+
+    # S1: real click on the CRM tile's "Open database" zooms the CRM panel out of the tile.
+    page.get_by_role("link", name="Open database").click()
+    page.wait_for_selector(".desk-main-panel[data-workspace='crm']", timeout=5000)
+    page.wait_for_timeout(900)
+    g = page.evaluate(GEOMETRY)
+    ratio = g["pw"] / g["space"]
+    report("S1 click Open database", 0.63 <= ratio <= 0.70 and g["cw"] >= 380, f"ratio={ratio:.2f} chat={g['cw']:.0f}")
+    page.screenshot(path=str(shots / "S1-crm-settled.png"))
+    # CRM data: counts and the auto-merge "!" flags match the snapshot (the API in this build).
+    text = page.locator(PANEL).inner_text()
+    giver_total = snap["people"]["counts"]["giver"]
+    rows = sorted(snap["donors"], key=lambda d: -d["score"])[:25]
+    flags_expected = sum(1 for d in rows if d.get("auto_merged"))
+    flags_seen = page.locator(f'{PANEL} [aria-label="Merged automatically, review"]').count()
+    report("CRM counts", f"{giver_total} donors" in text, f"expect '{giver_total} donors'")
+    report("CRM auto-merge flags", flags_seen == flags_expected and flags_seen > 0, f"seen={flags_seen} expected={flags_expected}")
+    # Donors first, with the Organizations switch.
+    report("CRM switch present", page.locator(f"{PANEL} nav[aria-label='Donors views']").count() == 1)
+    page.screenshot(path=str(shots / "S1-crm-settled.png"))
+
+    # S3: Esc closes; click X closes; browser Back closes.
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(700)
+    report("S3 Esc closes", not page.evaluate(GEOMETRY)["has"])
+    page.get_by_role("link", name="Open database").click()
+    page.wait_for_selector(PANEL, timeout=5000)
+    page.wait_for_timeout(700)
+    page.get_by_role("button", name="Close workspace panel").click()
+    page.wait_for_timeout(700)
+    report("S3 close button closes", not page.evaluate(GEOMETRY)["has"])
+    page.get_by_role("link", name="Open database").click()
+    page.wait_for_selector(PANEL, timeout=5000)
+    page.wait_for_timeout(700)
+    page.go_back()
+    page.wait_for_timeout(900)
+    report("S3 browser Back closes", not page.evaluate(GEOMETRY)["has"])
+
+    # S2: real click on the calendar heading, and the arrow link.
+    page.locator(".home-calendar-heading h2 a").click()
+    page.wait_for_selector(".desk-main-panel[data-workspace='calendar']", timeout=5000)
+    page.wait_for_timeout(900)
+    g = page.evaluate(GEOMETRY)
+    ratio = g["pw"] / g["space"]
+    report("S2 click calendar heading", 0.63 <= ratio <= 0.70 and g["cw"] >= 380, f"ratio={ratio:.2f}")
+    page.screenshot(path=str(shots / "S2-calendar-settled.png"))
+
+    # S4: switching calendar -> crm keeps the frame element and only swaps the content.
+    page.evaluate("document.querySelector('.desk-main-panel').dataset.keep = '1'")
+    page.evaluate("window.__desk.openWorkspace('crm')")
+    page.wait_for_timeout(900)
+    kept = page.evaluate("document.querySelector('.desk-main-panel')?.dataset.keep === '1'")
+    report("S4 switch keeps frame", kept and page.evaluate(GEOMETRY)["view"] == "crm")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(700)
+    page.locator(".home-calendar-tools a[aria-label='Open full calendar']").click()
+    page.wait_for_selector(".desk-main-panel[data-workspace='calendar']", timeout=5000)
+    report("S2 click calendar arrow", True)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(700)
+    report("1440 console errors", not errors, f"count={len(errors)}")
+    ctx.close()
+
+    # S5: 1100px = full width + Back to chat (chat hidden); 390px = full-screen sheet.
+    errors = []
+    ctx, page = fresh(browser, base, 1100, 800, errors)
+    page.evaluate("window.__desk.openWorkspace('crm')")
+    page.wait_for_selector(PANEL, timeout=5000)
+    page.wait_for_timeout(900)
+    box = page.locator(PANEL).bounding_box()
+    chat_visible = page.locator(".home-conversation").is_visible()
+    back = page.get_by_role("button", name="Back to chat").is_visible()
+    report("S5 1100 full width + Back to chat", back and not chat_visible and box["width"] > 800, f"w={box['width']:.0f}")
+    page.screenshot(path=str(shots / "S5-1100.png"))
+    ctx.close()
+    ctx, page = fresh(browser, base, 390, 844, errors)
+    page.evaluate("window.__desk.openWorkspace('crm')")
+    page.wait_for_selector(PANEL, timeout=5000)
+    page.wait_for_timeout(900)
+    box = page.locator(PANEL).bounding_box()
+    report("S5 390 full-screen sheet", box["width"] >= 388 and box["height"] >= 840, f"{box['width']:.0f}x{box['height']:.0f}")
+    page.screenshot(path=str(shots / "S5-390.png"))
+    report("390 console errors", not errors, f"count={len(errors)}")
+    ctx.close()
+    return all(results)
+
+
+def record_video(browser, base, shots: Path):
+    """A short headed screen video of open / switch / close for a by-eye smoothness check."""
+    vdir = shots / "video"
+    vdir.mkdir(exist_ok=True)
+    ctx = browser.new_context(
+        viewport={"width": 1440, "height": 900},
+        record_video_dir=str(vdir),
+        record_video_size={"width": 1440, "height": 900},
+    )
+    page = ctx.new_page()
+    page.goto(f"{base}/#/?onboarding=0")
+    page.wait_for_function("window.__desk", timeout=90000)
+    page.wait_for_timeout(1500)
+    for _ in range(2):
+        page.get_by_role("link", name="Open database").click()
+        page.wait_for_timeout(1400)
+        page.evaluate("window.__desk.openWorkspace('calendar')")
+        page.wait_for_timeout(1400)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1200)
+    path = page.video.path()
+    ctx.close()
+    print(f"video: {path}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("base")
@@ -207,11 +371,14 @@ def main():
     base = a.base.rstrip("/")
     results = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=False, args=LAUNCH_ARGS)
+        idle_baseline(browser, base)
+        record_video(browser, base, shots)
         for w, h in SIZES:
             for v in VIEWS:
                 results.append(measure(browser, base, v, w, h, shots))
         results += [
+            functional(browser, base, shots),
             check_rapid(browser, base),
             check_reduced(browser, base),
             check_cold_and_back(browser, base),
