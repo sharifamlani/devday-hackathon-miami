@@ -442,8 +442,8 @@ export const FilesStep = ({
         <p className="onb-status" data-tone="good">
           Sample data · This preview already has the example files loaded
           {existing ? `: ${plural(existing, "person", "people")}` : ""}. Every
-          name and amount is made up. Importing your own files needs the Gatherly
-           service.
+          name and amount is made up. Importing your own files needs the
+          Gatherly service.
         </p>
       ) : showReceipt && imported ? (
         <ImportReceipt
@@ -577,8 +577,8 @@ export const FilesStep = ({
 
           {!files.length && existing > 0 && (
             <p className="onb-note">
-              You already have {plural(existing, "person", "people")} in Gatherly.
-              Add more files or continue.
+              You already have {plural(existing, "person", "people")} in
+              Gatherly. Add more files or continue.
             </p>
           )}
         </>

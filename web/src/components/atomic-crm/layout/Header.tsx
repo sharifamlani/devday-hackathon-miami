@@ -4,6 +4,7 @@ import { UserMenu } from "@/components/admin/user-menu";
 
 import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { useConfigurationContext } from "../root/ConfigurationContext";
+import { wordmarkText } from "../root/defaultConfiguration";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { MotionMenuItems } from "./MotionMenuItems";
@@ -25,7 +26,7 @@ const Header = () => {
         data-testid="wordmark"
         className="wordmark flex min-w-0 items-center"
       >
-        <span className="truncate">{title}</span>
+        <span className="truncate">{wordmarkText(title)}</span>
       </span>
       <SampleDataBadge />
       <span className="flex-1" />

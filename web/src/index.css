@@ -220,8 +220,6 @@
   font-weight: 650;
   line-height: 1.2;
   letter-spacing: -1px;
-  /* The Gatherly logo is set in lowercase ("gatherly"); prose keeps "Gatherly". */
-  text-transform: lowercase;
 }
 
 /* Home's surface (home/dashboard.css .home-tile) for full-screen pages: soft gray-white with a

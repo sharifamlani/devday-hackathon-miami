@@ -277,7 +277,7 @@ export const KindredLanding = ({
         >
           Try sample data
         </button>
-        <ol className="kindred-steps" aria-label="How Kindred works">
+        <ol className="kindred-steps" aria-label="How Gatherly works">
           <li>Upload your list</li>
           <li>Understand your donors</li>
           <li>Reach out thoughtfully</li>
