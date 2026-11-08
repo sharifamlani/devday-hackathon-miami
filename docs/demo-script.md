@@ -80,13 +80,13 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    Give Miami Day gifts merges: today that wording finds 0 donors.)
 9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
    *"Add the Knight Foundation as a contact."* (about 5 s): **Add contact** · added organization John S. and James L.
-   Knight Foundation, with **Undo**. Then type *"Enrich John S. and James L. Knight Foundation"*: the steps **Find
+   Knight Foundation (person …, giver), with **Undo**. Then type *"Enrich John S. and James L. Knight Foundation"*: the steps **Find
    people** and **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)"), then a reply
    listing each fact with a **Source** link (e.g. its local-journalism and arts funding in the 26 communities where the
    Knight brothers published newspapers) and the interest tags, asking whether to save them. Type *"Yes, save all of
    them"*: **Accept enrichment** ("saved 4 facts and 4 interest tags") with **Undo**. "Nothing is saved until staff say
-   so, and every fact shows where it came from." (Never enrich a sample donor on stage: they're fictional, so it
-   correctly finds no public profile. The same research is on the **CRM** tile: expand the Knight row → **Enhance** →
+   so, and every fact shows where it came from." (Never enrich a sample donor on stage: individuals aren't
+   researched (the step says so), and the sample organizations are fictional. The same research is on the **CRM** tile: expand the Knight row → **Enhance** →
    **Save to profile**.)
 10. **Calendar.** In the briefing click **Open calendar** (or the calendar tile's heading). The panel reads
     **Calendar · Events** with **Add event**, **November 2026**, **Today** and the week (**‹ Nov 8 – 14 ›**), a day
@@ -114,8 +114,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     our notes."; **Connected · recording · 0:03** (about 15 s of preamble before anyone can talk). Say it as a known
     limit: "it's a trial account, so Twilio reads a notice first." Then both talk clearly for about 20 s; Christian says
     something actionable (e.g. "send me the Give Miami Day link") so there are follow-ups to show. **Hang up** from the
-    panel at about 0:20–0:25 on the timer. The card works through **Getting the recording…**, **Transcribing…** and
-    **Summarizing…**, then about 25 s later **✓ Saved to the call notes** with the **Summary** (1–3 short bullets) and,
+    panel at about 0:20–0:25 on the timer. The card works through **Getting the recording…**, **Transcribing…**,
+    **Summarizing…** and **Suggesting follow-ups…**, then about 25 s later **✓ Saved to the call notes** with the **Summary** (1–3 short bullets) and,
     when something actionable was said, **Suggested follow-ups**, each with its own **Apply**. Don't click **Call** twice,
     and don't close the card or reload while it says **Connected**. If the call drops, the transcript is empty, or Twilio
     errors: "Calls go through Twilio; here's the sheet and the demo call instead," and do the fallback demo call below.
