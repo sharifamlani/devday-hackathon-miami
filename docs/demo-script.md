@@ -4,8 +4,8 @@ Challenge #2: duplicate donor records, and donors who quietly stop giving.
 Judges score fit to "what solved looks like", originality, use of Codex and OpenAI, feasibility, and presentation (each /10).
 
 **Run order:** the laptop is the demo surface (http://localhost:5173: LIVE's service on :8001, web with
-`VITE_DATA_MODE=local`). The Vercel link (https://devday-donor-desk.vercel.app) is a read-only preview of sample data,
-and the backup if the laptop or network fails. Org: **The Miami Foundation**. Scope: **Givers only**.
+`VITE_DATA_MODE=local`). The Vercel link (https://devday-donor-desk.vercel.app) shows the same live data through the
+tunnel (rules 15–16); if the laptop or network fails it falls back to its built-in snapshot of sample data, the backup. Org: **The Miami Foundation**. Scope: **Givers only**.
 
 This is a skeleton: each step names the screen and the one point to land. Timings get set at the rehearsal.
 
@@ -14,12 +14,13 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 ## The flow
 
 Demo surface: **the laptop**, http://localhost:5173 (LIVE's service on :8001, web with `VITE_DATA_MODE=local`). The Vercel
-link is a read-only **preview** of sample data, not the demo. Scope: **Givers only**. Upload still sorts everyone into
+link shows the same live data through the tunnel, so anyone can follow along, but the demo runs on the laptop. Scope: **Givers only**. Upload still sorts everyone into
 Givers / Neighbors / Community, and the people page shows all three tabs (e.g. **Givers 40 · Neighbors 22 ·
 Community 15**), but the demo stays on **Givers**.
 
-Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run; the
-Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
+Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run (the Vercel link
+shows the same while the tunnel is up). Its snapshot fallback (**Sample data** badge) shows different numbers (10
+duplicates, 19 tasks): don't read numbers off it.
 
 1. **Empty start.** Open **http://localhost:5173/** (the bare URL). On an empty app, setup's first step is the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data** ("or drag and drop your files here (CSV, Excel, Word, notes)"), **Try sample data**, and Upload your list · Understand your donors · Reach out thoughtfully.
    Nothing is behind it: no people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during
@@ -190,7 +191,8 @@ within about 2 s and the answer types out live, so narrate the steps as they app
 | 12 Dictation | needs a mic and the live service | Type the question instead. |
 | 13 duplicates | fixed by the warm cache | "Nine close calls" (not ten). |
 
-If the laptop or network fails, switch to the Vercel preview tab (read-only sample data) and say so.
+If the laptop or network fails, switch to the Vercel tab and reload it: it falls back to its snapshot of sample data
+(the **Sample data** badge). Say so.
 
 ### The call (Sharif writes)
 
@@ -213,7 +215,7 @@ If the laptop or network fails, switch to the Vercel preview tab (read-only samp
 
 **"Is that live?"**
 - **On the laptop:** yes. The Python service and the agents run live, with nothing precomputed except a cache for repeat questions.
-- **On the Vercel link:** it serves a snapshot of the same data. The example questions are precomputed; free-text Ask works once `OPENAI_API_KEY` is set in Vercel.
+- **On the Vercel link:** yes, while the tunnel is up: it's the same laptop service and data, writes and calls included. If it shows the **Sample data** badge, it's the built-in snapshot (example questions precomputed): say so.
 - **Messages:** sending is a dry run unless email/SMS are switched on, and a live send reaches only allowlisted addresses.
 
 **"How do you know it's right?"**
@@ -244,7 +246,7 @@ If the laptop or network fails, switch to the Vercel preview tab (read-only samp
       information found: this looks like a private or fictional organization."
 - [ ] **Stay on the Givers tab** (scope); don't open Neighbors or Community.
 - [ ] Mic permission granted in the browser; test the voice panel once.
-- [ ] The Vercel preview open in a second tab (read-only sample data; the backup only).
+- [ ] The Vercel link open in a second tab (live through the tunnel; its snapshot is the backup if the laptop fails).
 - [ ] Browser zoom 110%, notifications off, a hotspot as Wi-Fi backup.
 
 ## Backup video
