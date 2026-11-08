@@ -5,12 +5,14 @@
  */
 
 export const TOUR_IDS = [
-  "ask",
-  "voice",
-  "glance",
+  "overview",
+  "calendar",
   "tasks",
   "crm",
-  "chat",
+  "projects",
+  "composer",
+  "voice",
+  "ask",
 ] as const;
 export type TourId = (typeof TOUR_IDS)[number];
 
@@ -20,36 +22,47 @@ export interface TourStop {
   body: string;
 }
 
+/** In the homepage's order: the workspace rail top to bottom, the agent, then live transcript and Ask. */
 export const TOUR_STOPS: TourStop[] = [
   {
-    id: "ask",
-    title: "Ask Donor Desk",
-    body: "Ask about your donors in plain words, like “Who gave this quarter and hasn’t been thanked?”",
+    id: "overview",
+    title: "Overview",
+    body: "Q4 progress against your goal, and today at a glance: gifts at risk, possible duplicates and tasks.",
+  },
+  {
+    id: "calendar",
+    title: "Calendar",
+    body: "This week's events and Give Miami Day. Pick a day to plan who to reach out to.",
+  },
+  {
+    id: "tasks",
+    title: "Tasks",
+    body: "Today's calls, thank-yous and reviews. Open one to see why it matters and what to do next.",
+  },
+  {
+    id: "crm",
+    title: "Donors",
+    body: "Find a donor, see who needs attention, and open the full Donors and Organizations lists.",
+  },
+  {
+    id: "projects",
+    title: "Projects",
+    body: "Campaigns, saved Ask questions and donor lists like Needs attention, in one place.",
+  },
+  {
+    id: "composer",
+    title: "Your agent",
+    body: "Ask for drafts, plans and reminders in plain words, or tap a suggestion. Nothing is sent without your approval.",
   },
   {
     id: "voice",
     title: "Live transcript",
-    body: "Tap the yellow button during a call or meeting. Donor Desk writes the notes and a summary for you.",
+    body: "Start a live transcript during a call or meeting. Donor Desk writes the notes and a summary for you.",
   },
   {
-    id: "glance",
-    title: "Today at a glance",
-    body: "Gifts at risk, possible duplicates and today’s tasks, counted for you each morning.",
-  },
-  {
-    id: "tasks",
-    title: "Tasks to do today",
-    body: "Open a task to see why it matters and what to do next, like a call or a thank-you note.",
-  },
-  {
-    id: "crm",
-    title: "CRM",
-    body: "Find a donor, see their giving history and fill in missing details.",
-  },
-  {
-    id: "chat",
-    title: "Your agent",
-    body: "Ask for drafts, plans and reminders. Nothing is sent without your approval.",
+    id: "ask",
+    title: "Ask",
+    body: "Ask about your donors, like “Who gave this quarter and hasn’t been thanked?”, in a side panel you can keep open.",
   },
 ];
 
