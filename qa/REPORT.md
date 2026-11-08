@@ -244,3 +244,6 @@ Integration: #45/#46/#47/#53 conflict in shared provider files; agreed merge ord
 
 Merged without a final QA pass while QA was paused (by Christian): #60, #53, #48, #62, #63, #58, #67, #74 → retro-check of main in progress.
 Upstream trap still live locally: dev/ingest-v2 and feat/ingest-adapter-v2 track origin/main.
+| #80 docs/contract-sync | f873011 | all 10 drifted endpoints now in ui-integration §2/§2.1; accept shape explicit; owner note: /tasks 3a (ui) vs 86 (plan §21.5 l.1034) | APPROVE |
+
+Merged by the lead on QA verdict: #73 (918cd24), #77 (067fa19). #69 parked (Christian's #78 shipped its own Ask pane; B10 reuses #69's pieces).
