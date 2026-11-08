@@ -32,7 +32,7 @@ In-session lead subagents: reviewing #107 and #111.
 | #113 | Calendar shows tasks; outreach plan = real tasks (supersedes #104) | feat/home-integration-2 | QA (with #110); retarget after #107; close #104 |
 | #110 | Phone Calendar route | feat/home-integration-2 | QA; conflicts on CalendarPage with #113 (rebase whichever lands second) |
 | #108 | README + demo script | main | **MERGED c28e2ac** (step 8 Knight beat gated on #111 + 42's Enrich UI; update labels when they land) |
-| #109 | Context-note undo (touches 86's after_call_agent; 86 OK'd) | main | QA reviewing |
+| #109 | Context-note undo | main | **MERGED** |
 | #95 #101 #104 | superseded | — | close when replacements merge |
 | #76 #69 #70 | parked | — | don't merge |
 
