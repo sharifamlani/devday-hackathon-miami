@@ -302,7 +302,7 @@ describe("graceful stop", () => {
 });
 
 describe("warmUpCaptions", () => {
-  it("keeps one 16 kHz context, runs it briefly, and runs it again on the first pointer press", async () => {
+  it("waits for a user gesture, then keeps one 16 kHz context, runs it briefly, and again on the first pointer press", async () => {
     const made: { sampleRate?: number; runs: number; state: string }[] = [];
     const Real = globalThis.AudioContext;
     globalThis.AudioContext = class {
@@ -322,7 +322,14 @@ describe("warmUpCaptions", () => {
       }
     } as unknown as typeof AudioContext;
     const settle = () => new Promise((r) => setTimeout(r, 0));
+    const activation = (hasBeenActive: boolean) =>
+      Object.defineProperty(navigator, "userActivation", { value: { hasBeenActive }, configurable: true });
     try {
+      activation(false);
+      warmUpCaptions(); // before any gesture: nothing (Chrome would only warn)
+      await settle();
+      expect(made).toHaveLength(0);
+      activation(true);
       warmUpCaptions();
       warmUpCaptions();
       await settle();
@@ -336,6 +343,7 @@ describe("warmUpCaptions", () => {
       expect(made[0].runs).toBe(3);
     } finally {
       globalThis.AudioContext = Real;
+      delete (navigator as unknown as Record<string, unknown>).userActivation;
     }
   });
 });

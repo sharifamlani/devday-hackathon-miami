@@ -400,8 +400,8 @@ def test_approval_cards_name_the_person_and_the_batch(db_file):
         conn.close()
     assert ca.approval_summary("call_person", {"person_id": pid}) == f"Call {name} at ***-***-0104"
     batch = invoke("draft_email", person_ids=[pid], intent="thank_you")["batch_id"]
-    assert ca.approval_summary("send", {"batch_id": batch}).startswith("Send 1 email")
-    assert ca.approval_summary("merge_duplicate", {"suggestion_id": 1}) is None
+    assert ca.approval_summary("send", {"batch_id": batch}) == f"Send thank-you email to {name}"   # the recipient
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": 999999}) is None              # unknown: show args
 
 
 def test_interest_filter_folds_case_and_plurals(db_file):
@@ -459,3 +459,24 @@ def test_a_call_that_cannot_happen_gets_no_approval_card(db_file, monkeypatch):
     monkeypatch.setattr(ca, "call_refusal", lambda person_id: None)
     assert asyncio.run(ca.call_needs_approval(RunContextWrapper(ca.ChatContext(tab="givers")),
                                               {"person_id": has_phone["id"]}, "c2")) is True
+
+
+def test_an_allowed_call_still_waits_on_the_card_and_never_dials_unapproved(db_file, monkeypatch):
+    """Everything in place (calls on, Twilio set, the donor allowlisted): the Call card shows, and nothing dials
+    before a person approves it."""
+    from agents import RunContextWrapper
+    from service import phone
+    donor = one(db_file, "SELECT id, phone FROM donors WHERE COALESCE(phone, '') != '' ORDER BY id LIMIT 1")
+    monkeypatch.setenv("PHONE_CALLS", "on")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "test-token")
+    monkeypatch.setenv("STAFF_PHONE", "+13055550199")
+    monkeypatch.setenv("TWILIO_PHONE_NUMBER", "+13055550198")
+    monkeypatch.setenv("SEND_ALLOWLIST", phone.e164(donor["phone"]))
+    dialed = []
+    monkeypatch.setattr(phone, "start_call", lambda *a, **k: dialed.append(a) or {"call_id": "x"})
+
+    context = ca.ChatContext(tab="givers")
+    assert ca.call_refusal(donor["id"]) is None
+    assert asyncio.run(ca.call_needs_approval(RunContextWrapper(context), {"person_id": donor["id"]}, "c1")) is True
+    assert context.refused_calls == {} and dialed == []                     # a card, and no call without it

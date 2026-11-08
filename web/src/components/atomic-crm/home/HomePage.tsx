@@ -31,13 +31,24 @@ import {
   tasksFromApi,
   type HomeTask,
 } from "./homeData";
+import { CalendarPanel } from "./panels/CalendarPanel";
+import { CrmPanel } from "./panels/CrmPanel";
+import { TasksPanel } from "./panels/TasksPanel";
+import {
+  PanelFrame,
+  PlaceholderPanel,
+  PANEL_TITLES,
+} from "./panels/PanelFrame";
+import { useWorkspaceView } from "./workspaceView";
 import "./dashboard.css";
+import "./zoom.css";
 
 /** White conversation canvas with a compact overview on the left.
  * Task actions remain available in a dialog selected from the project list.
  */
 export const HomePage = () => {
   const overview = useOverview();
+  const { view: panel, closeWorkspace } = useWorkspaceView();
   const targets = useTargets();
   // "Today" is the service's as-of date (the demo runs as of Nov 8), not this
   // browser's clock; the browser's date only holds until /targets answers.
@@ -134,12 +145,13 @@ export const HomePage = () => {
       </p>
       <div
         className={
-          overview.open ? "home-board" : "home-board home-overview-hidden"
+          (overview.open ? "home-board" : "home-board home-overview-hidden") +
+          (panel ? " has-panel" : "")
         }
       >
         <aside
           id={OVERVIEW_ID}
-          hidden={!overview.open}
+          hidden={!overview.open || !!panel}
           aria-label="Workspace overview"
           className="home-overview"
         >
@@ -203,6 +215,30 @@ export const HomePage = () => {
             }
           />
         </section>
+        {panel && (
+          <PanelFrame view={panel} onClose={closeWorkspace}>
+            {panel === "crm" ? (
+              <CrmPanel />
+            ) : panel === "calendar" ? (
+              <CalendarPanel />
+            ) : panel === "tasks" ? (
+              <TasksPanel
+                tasks={home.tasks.data ?? []}
+                today={today}
+                live={live}
+                isPending={tasksPending}
+                onWork={(task) => {
+                  if (live) workOn(task);
+                  else openDetails(task.key);
+                }}
+                onInfo={openDetails}
+                onAdd={() => openDay(today)}
+              />
+            ) : (
+              <PlaceholderPanel title={PANEL_TITLES[panel]} />
+            )}
+          </PanelFrame>
+        )}
       </div>
       <Dialog open={taskOpen && !!focus} onOpenChange={setTaskOpen}>
         <DialogContent className="home-task-dialog">
