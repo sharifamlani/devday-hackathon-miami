@@ -151,7 +151,7 @@ describe("GlobalSearchDialog", () => {
     await expect
       .element(
         screen
-          .getByRole("group", { name: "Companies" })
+          .getByRole("group", { name: "Organizations" })
           .getByText("Boulangerie Martin"),
       )
       .toBeVisible();
@@ -165,7 +165,7 @@ describe("GlobalSearchDialog", () => {
     await expect
       .element(
         screen
-          .getByRole("group", { name: "Companies" })
+          .getByRole("group", { name: "Organizations" })
           .getByText(/Boulangerie Martin/),
       )
       .toBeVisible();
@@ -213,12 +213,12 @@ describe("GlobalSearchDialog", () => {
     await expect
       .element(
         screen
-          .getByRole("group", { name: "Companies" })
+          .getByRole("group", { name: "Organizations" })
           .getByText(/Boulangerie Martin/),
       )
       .toBeVisible();
     await expect
-      .element(screen.getByRole("group", { name: "Contacts" }))
+      .element(screen.getByRole("group", { name: "Donors" }))
       .not.toBeInTheDocument();
   });
 
@@ -292,7 +292,7 @@ describe("GlobalSearchDialog", () => {
     await screen.getByPlaceholder(PLACEHOLDER).fill("boul");
 
     const match = screen
-      .getByRole("group", { name: "Companies" })
+      .getByRole("group", { name: "Organizations" })
       .getByText("Boul", { exact: true });
     await expect.element(match).toBeVisible();
     expect(match.element().tagName).toBe("MARK");
@@ -304,7 +304,7 @@ describe("GlobalSearchDialog", () => {
 
     await screen.getByPlaceholder(PLACEHOLDER).fill("Boulangerie");
     await expect
-      .element(screen.getByRole("group", { name: "Companies" }))
+      .element(screen.getByRole("group", { name: "Organizations" }))
       .toBeVisible();
     const searchedAt = Date.now();
     // any later cache change saves a snapshot that includes the results
@@ -398,7 +398,7 @@ describe("GlobalSearchDialog with many results in a group", () => {
 
     await screen.getByPlaceholder(PLACEHOLDER).fill("bakery");
 
-    const companies = screen.getByRole("group", { name: "Companies" });
+    const companies = screen.getByRole("group", { name: "Organizations" });
     await expect.element(companies.getByText("Show more")).toBeVisible();
     expect(companies.getByRole("option").elements()).toHaveLength(4);
     await expect
@@ -414,7 +414,7 @@ describe("GlobalSearchDialog with many results in a group", () => {
     const screen = await render(<Dialog data={manyCompanies} />);
 
     await screen.getByPlaceholder(PLACEHOLDER).fill("bakery");
-    const companies = screen.getByRole("group", { name: "Companies" });
+    const companies = screen.getByRole("group", { name: "Organizations" });
     await companies.getByText("Show more").click();
 
     await expect.element(companies.getByText("Bakery 1")).toBeVisible();
@@ -512,7 +512,7 @@ describe("GlobalSearchDialog recently viewed contacts", () => {
     await screen.getByPlaceholder(PLACEHOLDER).fill("Ada");
 
     await expect
-      .element(screen.getByRole("group", { name: "Contacts" }))
+      .element(screen.getByRole("group", { name: "Donors" }))
       .toBeVisible();
     await expect
       .element(screen.getByRole("group", RECENT_GROUP))
