@@ -1,157 +1,57 @@
-import { useId, useState } from "react";
-import { ArrowRight, CalendarPlus, Send, Sparkles, Target } from "lucide-react";
+import { useId, type ReactNode } from "react";
+import { ArrowRight, AudioLines, FileText, Plus, Search } from "lucide-react";
 import { Link } from "react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { formatUsd } from "../contacts/donorFormat";
-import type { CampaignSummary, DonationTarget } from "../providers/local/types";
-import { formatDayShort } from "../outreach/dates";
-import { AGENT_LABEL } from "../outreach/DayPlanner";
-import type { Recommendation } from "../outreach/recommend";
-import { campaignProgress, formatCompactUsd, initials } from "./homeData";
+import type {
+  CampaignSummary,
+  DonationTarget,
+  DonorSummary,
+} from "../providers/local/types";
+import type { DayMarks } from "../outreach/calendarMonth";
+import { describeMarks } from "../outreach/calendarMonth";
+import { formatDayLong, formatDayShort } from "../outreach/dates";
+import type { CallNote } from "../voice/callNotes";
+import {
+  donorMeta,
+  donorTag,
+  formatCompactUsd,
+  formatMonthDay,
+  formatRange,
+  initials,
+  type AgendaLine,
+  type HomeTask,
+} from "./homeData";
+import { focusRing, tagTone, tile, tileTitle } from "./tile";
 
-export const card = "rounded-[24px] bg-card p-5 shadow-sm sm:p-6";
-const pill =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
-
-/* ---------- Hero: today at a glance ---------- */
-
-export interface GlanceFigures {
-  raised: number | null;
-  raisedLabel: string | null; // "Q4 2026"
-  needCall: number | null;
-  drafts: number | null;
-}
-
-const Bubble = ({
-  value,
-  caption,
-  className,
+const TileHead = ({
+  id,
+  title,
+  children,
 }: {
-  value: string;
-  caption: string;
-  className: string;
+  id: string;
+  title: string;
+  children?: ReactNode;
 }) => (
-  <div
-    className={cn(
-      "absolute grid place-items-center rounded-full text-center shadow-[0_18px_40px_#24272814]",
-      className,
-    )}
-  >
-    <span className="px-2">
-      <span className="block text-xl font-semibold tabular-nums sm:text-2xl">
-        {value}
-      </span>
-      <span className="block text-[11px] font-medium">{caption}</span>
-    </span>
+  <div className="mb-3 flex items-center justify-between gap-2">
+    <h2 id={id} className={tileTitle}>
+      {title}
+    </h2>
+    {children}
   </div>
 );
 
-/**
- * Overlapping translucent bubbles in the Be.run style. They are decorative
- * (aria-hidden); the legend links and an sr-only sentence carry the figures.
- */
-export const GlanceCard = ({
-  figures,
-  isPending,
-}: {
-  figures: GlanceFigures;
-  isPending: boolean;
-}) => {
-  const headingId = useId();
-  const show = (value: number | null, format: (n: number) => string) =>
-    isPending || value == null ? "—" : format(value);
-  const raised = show(figures.raised, formatCompactUsd);
-  const needCall = show(figures.needCall, String);
-  const drafts = show(figures.drafts, String);
+const roundIcon = cn(
+  "grid size-8 shrink-0 place-items-center rounded-full border border-border hover:bg-accent",
+  focusRing,
+);
 
-  const legend = [
-    {
-      swatch: "bg-brand",
-      label: `Raised ${figures.raisedLabel ? `in ${figures.raisedLabel}` : "this quarter"}`,
-      value: raised,
-      to: "/inbox",
-    },
-    {
-      swatch: "bg-chart-3",
-      label: "Donors needing a call",
-      value: needCall,
-      to: "/inbox?view=attention",
-    },
-    {
-      swatch: "bg-primary",
-      label: "Drafts awaiting approval",
-      value: drafts,
-      to: "/campaigns",
-    },
-  ];
+/* ---------- Q4 progress ---------- */
 
-  return (
-    <section
-      aria-labelledby={headingId}
-      aria-busy={isPending}
-      className="relative overflow-hidden rounded-[24px] bg-olive p-5 sm:p-6"
-    >
-      <h2 id={headingId} className="text-lg font-semibold tracking-[-0.3px]">
-        Today at a glance
-      </h2>
-      <p className="text-sm text-muted-foreground">
-        Gifts after merging duplicates · sample data
-      </p>
-      <p className="sr-only">
-        {isPending
-          ? "Loading today’s figures."
-          : `${raised} raised ${figures.raisedLabel ? `in ${figures.raisedLabel}` : "this quarter"}, ${needCall} donors need a call, ${drafts} campaign drafts are waiting for approval.`}
-      </p>
-      <div className="mt-4 grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] sm:items-end">
-        <ul className="order-2 flex flex-col gap-1 sm:order-1">
-          {legend.map((item) => (
-            <li key={item.label}>
-              <Link
-                to={item.to}
-                className="flex min-h-11 items-center gap-3 rounded-full pr-3 text-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn("h-2.5 w-7 shrink-0 rounded-full", item.swatch)}
-                />
-                <span className="flex-1">{item.label}</span>
-                <span className="font-semibold tabular-nums">{item.value}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-        <div
-          aria-hidden="true"
-          className="relative order-1 mx-auto h-[210px] w-full max-w-[320px] sm:order-2"
-        >
-          <Bubble
-            value={raised}
-            caption="raised"
-            className="top-0 right-0 size-[170px] bg-brand/85 text-brand-foreground ring-8 ring-brand/30"
-          />
-          <Bubble
-            value={needCall}
-            caption="need a call"
-            className="bottom-0 left-[12%] size-[120px] bg-chart-3/85 text-brand-foreground ring-8 ring-chart-3/25 mix-blend-multiply dark:mix-blend-normal"
-          />
-          <Bubble
-            value={drafts}
-            caption="drafts"
-            className="top-[10%] left-[18%] size-[84px] bg-primary text-primary-foreground"
-          />
-        </div>
-      </div>
-    </section>
-  );
-};
+const ARC = Math.PI * 44; // semicircle, r = 44
 
-/* ---------- Goal gauge ---------- */
-
-const ARC = 2 * Math.PI * 52 * 0.75; // 270° of a r=52 circle
-
-export const GoalGaugeCard = ({
+export const Q4ProgressTile = ({
   target,
   isPending,
 }: {
@@ -159,371 +59,578 @@ export const GoalGaugeCard = ({
   isPending: boolean;
 }) => {
   const headingId = useId();
+  const gradientId = `q4-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const percent = target?.percent ?? null;
-  const filled = percent == null ? 0 : Math.min(percent, 100) / 100;
+  const filled =
+    percent == null ? 0 : Math.min(Math.max(percent, 0), 100) / 100;
   return (
-    <section
-      aria-labelledby={headingId}
-      className={cn(card, "flex flex-col gap-4")}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2
-            id={headingId}
-            className="text-lg font-semibold tracking-[-0.3px]"
-          >
-            {target ? `${target.label} goal` : "Quarter goal"}
-          </h2>
-          <p className="text-sm text-muted-foreground">Sample goal</p>
-        </div>
-        <span
-          aria-hidden="true"
-          className="grid size-9 place-items-center rounded-full bg-brand-soft text-brand-soft-foreground"
-        >
-          <Target className="size-4" />
-        </span>
-      </div>
+    <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
+      <TileHead
+        id={headingId}
+        title={target ? `${target.label} progress` : "Quarter progress"}
+      >
+        {target && (
+          <span className="text-xs text-muted-foreground">
+            {formatRange(target.start, target.end)}
+          </span>
+        )}
+      </TileHead>
       {isPending ? (
-        <Skeleton className="mx-auto size-36 rounded-full" />
+        <Skeleton className="h-16 w-full rounded-xl" />
       ) : !target ? (
         <p className="text-sm text-muted-foreground">
           Goals aren’t in this data yet.
         </p>
       ) : (
-        <div className="flex flex-wrap items-center gap-5">
-          <div className="relative size-36 shrink-0">
-            <svg
-              viewBox="0 0 120 120"
-              className="size-full -rotate-[225deg]"
-              aria-hidden="true"
-            >
-              <circle
-                cx="60"
-                cy="60"
-                r="52"
+        <div className="flex items-center gap-3.5">
+          <div className="relative h-[60px] w-[104px] shrink-0">
+            <svg viewBox="0 0 104 60" className="size-full" aria-hidden="true">
+              <defs>
+                <linearGradient id={gradientId} x1="0" x2="1" y1="0" y2="0">
+                  <stop offset="0%" style={{ stopColor: "var(--brand)" }} />
+                  <stop
+                    offset="100%"
+                    style={{
+                      stopColor:
+                        "color-mix(in oklab, var(--brand), var(--chart-2) 55%)",
+                    }}
+                  />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 8 52 A 44 44 0 0 1 96 52"
                 fill="none"
-                strokeWidth="12"
+                strokeWidth="10"
                 strokeLinecap="round"
                 className="stroke-quiet"
-                strokeDasharray={`${ARC} 999`}
               />
-              <circle
-                cx="60"
-                cy="60"
-                r="52"
-                fill="none"
-                strokeWidth="12"
-                strokeLinecap="round"
-                className="stroke-brand"
-                strokeDasharray={`${ARC * filled} 999`}
-              />
+              {filled > 0 && (
+                <path
+                  d="M 8 52 A 44 44 0 0 1 96 52"
+                  fill="none"
+                  strokeWidth="10"
+                  strokeLinecap="round"
+                  stroke={`url(#${gradientId})`}
+                  strokeDasharray={`${ARC * filled} ${ARC}`}
+                />
+              )}
             </svg>
-            <div className="absolute inset-0 grid place-items-center text-center">
-              <span>
-                <span className="block text-3xl font-semibold tabular-nums">
-                  {percent == null ? "—" : `${Math.round(percent)}%`}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  of goal
-                </span>
-              </span>
-            </div>
+            <span className="absolute inset-x-0 bottom-0 text-center text-[22px] leading-none font-bold tabular-nums">
+              {percent == null ? "—" : `${Math.round(percent)}%`}
+            </span>
           </div>
-          <dl className="flex min-w-0 flex-col gap-2 text-sm">
+          <dl className="grid min-w-0 gap-1 text-sm">
             <div>
-              <dt className="text-muted-foreground">Raised</dt>
-              <dd className="text-lg font-semibold tabular-nums">
-                {formatUsd(target.raised)}
+              <dt className="text-xs text-muted-foreground">Raised</dt>
+              <dd className="font-semibold tabular-nums">
+                {formatCompactUsd(target.raised)}
+                {target.goal != null && ` / ${formatCompactUsd(target.goal)}`}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Goal</dt>
-              <dd className="font-medium tabular-nums">
-                {formatUsd(target.goal)}
-              </dd>
-            </div>
-            <div>
-              <dt className="sr-only">Time left</dt>
-              <dd className="rounded-full bg-quiet px-3 py-1 text-quiet-foreground">
-                {target.days_left} {target.days_left === 1 ? "day" : "days"}{" "}
-                left
+              <dt className="text-xs text-muted-foreground">
+                Donors this quarter
+              </dt>
+              <dd className="font-semibold tabular-nums">
+                {target.donors_count}{" "}
+                {target.donors_count === 1 ? "donor" : "donors"}
               </dd>
             </div>
           </dl>
+          <p className="sr-only">
+            {percent == null
+              ? "No goal set."
+              : `${Math.round(percent)} percent of the ${target.label} goal.`}
+          </p>
         </div>
       )}
     </section>
   );
 };
 
-/* ---------- Campaign progress ---------- */
+/* ---------- Today at a glance ---------- */
 
-export const CampaignProgressCard = ({
-  campaign,
+const Bubble = ({
+  value,
+  caption,
+  to,
+  tone,
+}: {
+  value: string;
+  caption: string;
+  to?: string;
+  tone?: "alert" | "warn";
+}) => {
+  const body = (
+    <>
+      <span
+        className={cn(
+          "block text-[22px] leading-tight font-bold tabular-nums",
+          tone === "alert" && "text-alert-foreground",
+          tone === "warn" && "text-warn-foreground",
+        )}
+      >
+        {value}
+      </span>
+      <span className="block text-xs text-muted-foreground">{caption}</span>
+    </>
+  );
+  const shell = cn(
+    "block min-h-[76px] rounded-[14px] px-3 py-2.5",
+    tone === "alert" ? "bg-alert" : tone === "warn" ? "bg-warn" : "bg-surface",
+  );
+  return to ? (
+    <Link to={to} className={cn(shell, "hover:brightness-[0.97]", focusRing)}>
+      {body}
+    </Link>
+  ) : (
+    <div className={shell}>{body}</div>
+  );
+};
+
+export const GlanceTile = ({
+  today,
+  atRisk,
+  duplicates,
+  tasks,
+  gmdDays,
   isPending,
 }: {
-  campaign: CampaignSummary | null;
+  today: string;
+  atRisk: number | null;
+  duplicates: number | null;
+  tasks: number;
+  gmdDays: number;
   isPending: boolean;
 }) => {
   const headingId = useId();
-  const progress = campaign ? campaignProgress(campaign) : null;
+  const show = (n: number | null) => (isPending || n == null ? "—" : String(n));
   return (
     <section
+      data-tour="glance"
       aria-labelledby={headingId}
-      className={cn(card, "flex flex-col gap-4")}
+      aria-busy={isPending}
+      className={cn(tile, "p-4")}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2
-            id={headingId}
-            className="text-lg font-semibold tracking-[-0.3px]"
-          >
-            Campaign progress
-          </h2>
-          <p className="truncate text-sm text-muted-foreground">
-            {campaign ? campaign.name : "No campaign yet"}
-          </p>
-        </div>
-        {progress && (
-          <p className="text-right">
-            <span className="block text-2xl font-semibold tabular-nums">
-              {progress.percent}%
-            </span>
-            <span className="block text-xs text-muted-foreground">
-              approved or sent
-            </span>
-          </p>
-        )}
-      </div>
-      {isPending ? (
-        <Skeleton className="h-3 w-full" />
-      ) : !campaign || !progress ? (
-        <Link
-          to="/campaigns/new"
-          className={cn(
-            pill,
-            "w-fit bg-primary text-primary-foreground hover:bg-primary/85",
-          )}
-        >
-          <Send className="size-4" aria-hidden="true" />
-          Start a campaign
-        </Link>
-      ) : (
-        <>
-          <div
-            aria-hidden="true"
-            className="flex h-3 overflow-hidden rounded-full bg-quiet"
-          >
-            {progress.total > 0 && (
-              <>
-                <span
-                  className="bg-primary"
-                  style={{
-                    width: `${(progress.sent / progress.total) * 100}%`,
-                  }}
-                />
-                <span
-                  className="bg-brand"
-                  style={{
-                    width: `${(progress.approved / progress.total) * 100}%`,
-                  }}
-                />
-              </>
-            )}
-          </div>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <li className="flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="size-2.5 rounded-full bg-primary"
-              />
-              {progress.sent} sent
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="size-2.5 rounded-full bg-brand"
-              />
-              {progress.approved} approved
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="size-2.5 rounded-full border border-current"
-              />
-              {progress.draft} drafts
-            </li>
-            {progress.skipped > 0 && <li>{progress.skipped} skipped</li>}
-          </ul>
-          <Link
-            to={`/campaigns/${campaign.id}`}
-            className={cn(
-              pill,
-              "w-fit bg-quiet px-5 text-quiet-foreground hover:bg-accent",
-            )}
-          >
-            Review campaign
-            <span className="sr-only">: {campaign.name}</span>
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </>
-      )}
+      <TileHead id={headingId} title="Today at a glance">
+        <span className="text-xs text-muted-foreground">
+          {formatDayShort(today)}
+        </span>
+      </TileHead>
+      <ul className="grid grid-cols-2 gap-2">
+        <li>
+          <Bubble
+            value={show(atRisk)}
+            caption={atRisk === 1 ? "gift at risk" : "gifts at risk"}
+            to="/inbox?view=attention"
+            tone="alert"
+          />
+        </li>
+        <li>
+          <Bubble
+            value={show(duplicates)}
+            caption={
+              duplicates === 1 ? "possible duplicate" : "possible duplicates"
+            }
+            to="/inbox"
+            tone="warn"
+          />
+        </li>
+        <li>
+          <Bubble
+            value={isPending ? "—" : String(tasks)}
+            caption={tasks === 1 ? "task today" : "tasks today"}
+          />
+        </li>
+        <li>
+          <Bubble
+            value={gmdDays === 0 ? "Today" : String(gmdDays)}
+            caption={
+              gmdDays === 0
+                ? "is Give Miami Day"
+                : `${gmdDays === 1 ? "day" : "days"} to Give Miami Day`
+            }
+          />
+        </li>
+      </ul>
     </section>
   );
 };
 
-/* ---------- Recommended outreach ---------- */
+/* ---------- CRM ---------- */
 
-const SEGMENTS = 10;
-
-export const RecommendedCard = ({
-  recommendations,
+export const CrmTile = ({
+  donors,
   isPending,
   error,
-  onPlan,
+  onFind,
   onOpenDonor,
 }: {
-  recommendations: Recommendation[];
+  donors: DonorSummary[];
   isPending: boolean;
   error: Error | null;
-  onPlan: (rec: Recommendation) => boolean;
+  onFind: () => void;
   onOpenDonor: (id: number) => void;
 }) => {
   const headingId = useId();
-  const [status, setStatus] = useState("");
   return (
     <section
+      data-tour="crm"
       aria-labelledby={headingId}
-      className={cn(card, "flex flex-col gap-4")}
+      className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2
-            id={headingId}
-            className="text-lg font-semibold tracking-[-0.3px]"
-          >
-            Recommended outreach
-          </h2>
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Sparkles className="size-4 shrink-0" aria-hidden="true" />
-            {AGENT_LABEL}
-          </p>
-        </div>
+      <TileHead id={headingId} title="CRM">
         <Link
-          to="/inbox"
-          className={cn(pill, "bg-quiet text-quiet-foreground hover:bg-accent")}
+          to="/contacts"
+          className={cn(
+            "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
+            focusRing,
+          )}
         >
-          Outreach inbox
-          <ArrowRight className="size-4" aria-hidden="true" />
+          Open database
+          <ArrowRight className="size-3.5" aria-hidden="true" />
         </Link>
-      </div>
-      <p role="status" aria-live="polite" className="sr-only">
-        {status}
-      </p>
+      </TileHead>
+      <button
+        type="button"
+        onClick={onFind}
+        aria-haspopup="dialog"
+        className={cn(
+          "flex min-h-11 w-full items-center gap-2 rounded-full border border-border bg-card px-3 text-left text-sm text-muted-foreground hover:bg-accent",
+          focusRing,
+        )}
+      >
+        <Search className="size-4" aria-hidden="true" />
+        Find a donor
+      </button>
+      <h3 className="sr-only">Donors needing attention</h3>
       {error ? (
-        <p role="alert" className="text-sm text-alert-foreground">
-          We couldn’t load donors for recommendations: {error.message}
+        <p role="alert" className="mt-3 text-sm text-alert-foreground">
+          We couldn’t load donors: {error.message}
         </p>
       ) : isPending ? (
-        <div
-          className="flex flex-col gap-2"
-          aria-label="Loading recommendations"
-        >
+        <div className="mt-3 flex flex-col gap-2" aria-label="Loading donors">
           {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+            <Skeleton key={i} className="h-10 w-full rounded-xl" />
           ))}
         </div>
-      ) : recommendations.length === 0 ? (
-        <p className="rounded-2xl bg-surface p-4 text-sm text-muted-foreground">
-          Everyone who needs a call is already on your plan. Nice work.
+      ) : donors.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          No donors need attention right now.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {recommendations.map((rec) => {
-            const filled = Math.max(
-              1,
-              Math.min(SEGMENTS, Math.round((rec.priority / 150) * SEGMENTS)),
-            );
+        <ul className="mt-2 -mx-1 min-h-0 flex-1 overflow-y-auto">
+          {donors.map((donor) => {
+            const tag = donorTag(donor);
             return (
-              <li
-                key={rec.key}
-                className="flex flex-col gap-3 rounded-2xl bg-surface p-3 sm:flex-row sm:items-center"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
+              <li key={donor.id}>
+                <button
+                  type="button"
+                  onClick={() => onOpenDonor(donor.id)}
+                  className={cn(
+                    "flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-1 py-2 text-left hover:bg-surface",
+                    focusRing,
+                  )}
+                >
                   <span
                     aria-hidden="true"
-                    className="grid size-10 shrink-0 place-items-center rounded-full bg-card text-xs font-semibold"
+                    className="grid size-8 shrink-0 place-items-center rounded-full bg-quiet text-[11px] font-bold text-quiet-foreground"
                   >
-                    {rec.kind === "campaign" ? (
-                      <Send className="size-4" />
-                    ) : (
-                      initials(rec.label)
-                    )}
+                    {initials(donor.full_name)}
                   </span>
-                  <div className="min-w-0">
-                    {rec.donor_id != null ? (
-                      <button
-                        type="button"
-                        onClick={() => onOpenDonor(rec.donor_id as number)}
-                        data-donor-id={rec.donor_id}
-                        className="text-left text-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-                      >
-                        {rec.label}
-                      </button>
-                    ) : (
-                      <Link
-                        to={`/campaigns/${rec.campaign_id}`}
-                        className="text-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-                      >
-                        {rec.label}
-                      </Link>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {rec.reason}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-3 sm:justify-end">
-                  <span className="flex flex-col gap-1">
-                    <span className="text-[11px] text-muted-foreground">
-                      Priority
-                      <span className="sr-only">
-                        {" "}
-                        {filled} of {SEGMENTS}
-                      </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">
+                      {donor.full_name}
                     </span>
-                    <span aria-hidden="true" className="flex gap-0.5">
-                      {Array.from({ length: SEGMENTS }, (_, i) => (
-                        <span
-                          key={i}
-                          className={cn(
-                            "h-3 w-1.5 rounded-full",
-                            i < filled ? "bg-chart-3" : "bg-quiet",
-                          )}
-                        />
-                      ))}
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {donorMeta(donor)}
                     </span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const added = onPlan(rec);
-                      setStatus(
-                        added
-                          ? `Planned ${rec.label} for ${formatDayShort(rec.date)}.`
-                          : `${rec.label} is already planned for ${formatDayShort(rec.date)}.`,
-                      );
-                    }}
+                  <span
                     className={cn(
-                      pill,
-                      "shrink-0 bg-primary text-primary-foreground hover:bg-primary/85",
+                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap",
+                      tagTone[tag.tone],
                     )}
                   >
-                    <CalendarPlus className="size-4" aria-hidden="true" />
-                    Plan for {formatDayShort(rec.date)}
-                    <span className="sr-only">: {rec.label}</span>
-                  </button>
-                </div>
+                    {tag.label}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+};
+
+/* ---------- Week calendar ---------- */
+
+const WEEKDAY = ["M", "T", "W", "T", "F", "S", "S"];
+
+export const WeekTile = ({
+  today,
+  days,
+  marks,
+  agenda,
+  onOpenDay,
+}: {
+  today: string;
+  days: string[];
+  marks: Map<string, DayMarks>;
+  agenda: AgendaLine[];
+  onOpenDay: (date: string) => void;
+}) => {
+  const headingId = useId();
+  const month = new Date(`${today}T00:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+  });
+  return (
+    <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
+      <TileHead id={headingId} title={month}>
+        <button
+          type="button"
+          onClick={() => onOpenDay(today)}
+          aria-label="Plan today"
+          title="Plan today"
+          className={roundIcon}
+        >
+          <Plus className="size-4" aria-hidden="true" />
+        </button>
+      </TileHead>
+      <ol className="grid grid-cols-7 gap-1 text-center" aria-label="This week">
+        {days.map((date, i) => {
+          const mark = marks.get(date);
+          const planned = Math.min(mark?.planned ?? 0, 2);
+          const flagged =
+            !!mark &&
+            (mark.giveMiamiDay ||
+              mark.campaignEnds.length > 0 ||
+              mark.events.length > 0);
+          const isToday = date === today;
+          const words = describeMarks(mark);
+          return (
+            <li key={date}>
+              <span
+                aria-hidden="true"
+                className="block text-[11px] text-muted-foreground"
+              >
+                {WEEKDAY[i]}
+              </span>
+              <button
+                type="button"
+                onClick={() => onOpenDay(date)}
+                aria-current={isToday ? "date" : undefined}
+                aria-label={[formatDayLong(date), ...words].join(". ")}
+                className={cn(
+                  "mt-1 flex min-h-11 w-full flex-col items-center justify-center rounded-xl text-sm font-semibold hover:bg-accent",
+                  isToday &&
+                    "bg-primary text-primary-foreground hover:bg-primary/90",
+                  focusRing,
+                )}
+              >
+                {Number(date.slice(8, 10))}
+                <span aria-hidden="true" className="mt-0.5 flex h-1 gap-0.5">
+                  {Array.from({ length: planned }, (_, k) => (
+                    <i
+                      key={k}
+                      className={cn(
+                        "size-1 rounded-full",
+                        isToday ? "bg-brand" : "bg-brand-soft-foreground",
+                      )}
+                    />
+                  ))}
+                  {flagged && (
+                    <i
+                      className={cn(
+                        "size-1 rounded-full",
+                        isToday ? "bg-chart-3" : "bg-alert-foreground",
+                      )}
+                    />
+                  )}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      {agenda.length > 0 && (
+        <ul className="mt-3 grid gap-1.5" aria-label="Coming up">
+          {agenda.map((line) => (
+            <li
+              key={`${line.date}-${line.label}`}
+              className="flex gap-2 text-[13px]"
+            >
+              <time
+                dateTime={line.date}
+                className="w-[52px] shrink-0 text-muted-foreground"
+              >
+                {formatDayShort(line.date).replace(/,.*/, "")}{" "}
+                {Number(line.date.slice(8, 10))}
+              </time>
+              <span className="min-w-0">{line.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
+
+/* ---------- Tasks to do today ---------- */
+
+export const TasksTile = ({
+  tasks,
+  selectedKey,
+  onSelect,
+  onPlan,
+  isPending,
+}: {
+  tasks: HomeTask[];
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
+  onPlan: () => void;
+  isPending: boolean;
+}) => {
+  const headingId = useId();
+  return (
+    <section
+      data-tour="tasks"
+      aria-labelledby={headingId}
+      className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
+    >
+      <TileHead id={headingId} title="Tasks to do today">
+        <button
+          type="button"
+          onClick={onPlan}
+          aria-label="Add a task to today’s plan"
+          title="Add a task"
+          className={roundIcon}
+        >
+          <Plus className="size-4" aria-hidden="true" />
+        </button>
+      </TileHead>
+      {isPending ? (
+        <div className="flex flex-col gap-1.5" aria-label="Loading tasks">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-14 w-full rounded-[14px]" />
+          ))}
+        </div>
+      ) : tasks.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nothing left for today. Nice work.
+        </p>
+      ) : (
+        <ul className="grid min-h-0 gap-1.5 overflow-y-auto">
+          {tasks.map((task) => {
+            const selected = task.key === selectedKey;
+            return (
+              <li key={task.key}>
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onSelect(task.key)}
+                  className={cn(
+                    "flex w-full items-start gap-2.5 rounded-[14px] border bg-card p-2.5 text-left hover:bg-surface",
+                    selected ? "border-foreground" : "border-border",
+                    focusRing,
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 rounded-[5px] border-[1.5px] border-muted-foreground"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">
+                      {task.title}
+                    </span>
+                    <span className="line-clamp-2 block text-xs text-muted-foreground">
+                      {task.why}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+};
+
+/* ---------- Artifacts ---------- */
+
+export const ArtifactsTile = ({
+  notes,
+  campaigns,
+}: {
+  notes: CallNote[];
+  campaigns: CampaignSummary[];
+}) => {
+  const headingId = useId();
+  const drafts = [...campaigns]
+    .filter((c) => c.counts.draft > 0)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const rows = [
+    ...notes.map((note) => ({
+      key: `note-${note.id}`,
+      at: note.createdAt,
+      icon: AudioLines,
+      label: note.title || "Call notes",
+      to: null as string | null,
+    })),
+    ...drafts.map((c) => ({
+      key: `campaign-${c.id}`,
+      at: c.created_at,
+      icon: FileText,
+      label: `${c.name} drafts (${c.counts.draft})`,
+      to: `/campaigns/${c.id}`,
+    })),
+  ]
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 5);
+  return (
+    <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
+      <TileHead id={headingId} title="Artifacts">
+        <span className="text-xs text-muted-foreground">Notes and drafts</span>
+      </TileHead>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Call notes and drafts show up here.
+        </p>
+      ) : (
+        <ul className="grid gap-0.5">
+          {rows.map((row) => {
+            const Icon = row.icon;
+            const inner = (
+              <>
+                <Icon
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                <time
+                  dateTime={row.at}
+                  className="shrink-0 text-xs text-muted-foreground"
+                >
+                  {formatMonthDay(row.at)}
+                </time>
+              </>
+            );
+            const shell =
+              "flex min-h-9 items-center gap-2 rounded-lg px-1 py-1.5 text-[13px]";
+            return (
+              <li key={row.key}>
+                {row.to ? (
+                  <Link
+                    to={row.to}
+                    className={cn(shell, "hover:bg-surface", focusRing)}
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className={shell}>{inner}</div>
+                )}
               </li>
             );
           })}
