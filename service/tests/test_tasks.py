@@ -475,6 +475,8 @@ def test_undo_routes_interest_tokens(client, monkeypatch):
     fake = types.ModuleType("service.interests")
     fake.undo = lambda conn, token: {"undone": True, "op": "add_interest", "donor_id": 1}
     monkeypatch.setitem(sys.modules, "service.interests", fake)
+    import service
+    monkeypatch.setattr(service, "interests", fake, raising=False)   # the real module is loaded once #88 lands
     assert client.post("/undo/int_abc").json() == {"undone": True, "op": "add_interest", "donor_id": 1}
 
     def bad(conn, token):
@@ -488,5 +490,7 @@ def test_undo_interest_token_before_interests_lands(client, monkeypatch):
     import sys
 
     monkeypatch.setitem(sys.modules, "service.interests", None)   # import raises ImportError
+    import service
+    monkeypatch.delattr(service, "interests", raising=False)
     r = client.post("/undo/int_abc")
     assert r.status_code == 404 and "isn't available yet" in r.json()["detail"]
