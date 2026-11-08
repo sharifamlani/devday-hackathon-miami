@@ -27,6 +27,9 @@ CONTEXT_DEADLINE_S = float(os.getenv("CONTEXT_DEADLINE_S", "30"))
 # After a website read that ran past CONTEXT_DEADLINE_S, how much longer onboarding waits for the events search
 # (started at the same moment) so the dashboard still lands with events.
 ONBOARDING_EVENTS_GRACE_S = float(os.getenv("ONBOARDING_EVENTS_GRACE_S", "30"))
+# Invites drafted per event during setup (the first calendar): enough to review each event, done in minutes.
+# Refresh now / the daily pass still drafts up to refresh.MAX_DRAFTS_PER_EVENT for new events.
+SETUP_DRAFTS_PER_EVENT = int(os.getenv("SETUP_DRAFTS_PER_EVENT", "12"))
 # The chat panel and event drafting (plan.md §17): 90 s, then 504
 CHAT_DEADLINE_S = float(os.getenv("CHAT_DEADLINE_S", "90"))
 # Daily context + calendar refresh, local time "HH:MM" (e.g. 07:00). Unset = off; always off under pytest

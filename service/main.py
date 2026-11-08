@@ -856,11 +856,11 @@ def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
     from service.refresh import draft_invites_for, invites_failed
     conn = db.connect()
     try:
-        out = draft_invites_for(conn, events, ids, stored)
+        out = draft_invites_for(conn, events, ids, stored, per_event=config.SETUP_DRAFTS_PER_EVENT)
         detail = invites_failed(out)                         # never "done" with 0 of N invites
         status = "failed" if detail else "done"
         changes = {"drafts": out["drafts"], "attempted": out.get("attempted"), "drafted": out.get("drafted"),
-                   "errors": out["errors"][:10]}
+                   "errors": out["errors"][:10], "stats": out.get("stats")}
     except Exception as e:
         log.warning("onboarding invites failed: %s", e)
         status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
@@ -881,12 +881,15 @@ def pending_invites(changes: dict | None) -> tuple[dict | None, str | None]:
         pending, PENDING_INVITES[:] = PENDING_INVITES[:], []
     if not pending:
         return changes, None
-    from service.refresh import draft_invites_for
+    from service.refresh import draft_invites_for, invites_failed
     events, ids, stored = pending[0]
     conn = db.connect()
     try:
-        out = draft_invites_for(conn, events, ids, stored)
-        return {**(changes or {}), "onboarding_invites": {"drafts": out["drafts"], "errors": out["errors"][:10]}}, None
+        out = draft_invites_for(conn, events, ids, stored, per_event=config.SETUP_DRAFTS_PER_EVENT)
+        summary = {"drafts": out["drafts"], "attempted": out.get("attempted"), "drafted": out.get("drafted"),
+                   "errors": out["errors"][:10], "stats": out.get("stats")}
+        failed = invites_failed(out)                         # 0 of N handed-over invites is a failure, not done
+        return {**(changes or {}), "onboarding_invites": summary}, (f"onboarding invites: {failed}" if failed else None)
     except Exception as e:
         log.warning("onboarding invites (after the refresh) failed: %s", e)
         return changes, f"onboarding invites: {type(e).__name__}: {e}"
