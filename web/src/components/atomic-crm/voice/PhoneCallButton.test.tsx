@@ -14,7 +14,7 @@ vi.mock("../providers/local/phone", async (importOriginal) => ({
     reason: null,
     donor_id: donorId,
     donor_name: "James Carter",
-    donor_phone: "+1 (505) 944-6266",
+    donor_phone: "+1 (305) 555-0142",
     staff_phone: "+1 (305) 555-0100",
     notice: "Hello. This call is recorded for our notes.",
   })),
@@ -36,7 +36,7 @@ describe("PhoneCallButton (donor header)", () => {
     await screen.getByRole("button", { name: "Call" }).click();
     await expect.element(screen.getByRole("dialog")).toBeVisible();
     await expect.element(screen.getByText("Call James Carter")).toBeVisible();
-    await expect.element(screen.getByText(/\+1 \(505\) 944-6266/)).toBeVisible();
+    await expect.element(screen.getByText(/\+1 \(305\) 555-0142/)).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Call", exact: true }).last()).toBeEnabled();
   });
 });
