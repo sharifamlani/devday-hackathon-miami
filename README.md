@@ -33,7 +33,7 @@ features for those two tabs beyond that.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Onboarding** (3 steps) | **"Drag in your files."** → **"Tell us about your organization."** (the website) → **"Building your context."** → the dashboard. Step 1's receipt for the sample files ends "… · 131 gifts (+1 declined charge on record) from 8 files": a declined card charge is kept on record but never counted as a gift. | `web/.../onboarding/`, `service/ingest_adapter.py` |
+| **Onboarding** (3 steps) | **"Drag in your files."** → **"Tell us about your organization."** (the website) → **"Building your context."** → the dashboard. Step 1's receipt for the sample files reads "77 people · 131 gifts (+1 declined charge on record) from 8 files", then "9 possible duplicates to review": a declined card charge is kept on record but never counted as a gift. | `web/.../onboarding/`, `service/ingest_adapter.py` |
 | **Duplicates, with approval** | Fuzzy matches are suggestions: **Review merges →** opens "We found this donor twice", with **Merge ✓** or **Keep separate**. The gift history moves to the kept record; **Merge history → Undo merge** reverses it. | `web/.../contacts/DuplicateMerge.tsx`, `service/dedupe.py` |
 | **Automatic merges, reviewable** | Exact matches (same email, or the same name with nothing contradicting it) merge on upload and get a **"!"** marker: "Merged automatically, review", then **Keep merged** or **Split back**. | `web/.../contacts/AutoMergeFlag.tsx` |
 | **Home chat agent** | **"Ask the agent…"**: finds people, edits tasks and the calendar, drafts email and texts, plans event outreach, applies after-call actions, and shows each tool step. Writes have **Undo**. Sends, calls, merges and deletes wait on an approval card (**Send / Don't send**, **Call / Not now**, **Approve / Decline**). Sends are a **dry run** unless keys are set (below). | `web/.../home/HomeChat.tsx`, `service/chat_agent.py` |
@@ -109,14 +109,17 @@ add others with `CORS_ORIGINS` in `.env`.
 4. Open the app. **Step 1, "Drag in your files.":** drag in the 8 input files from `data/sample_inputs/`
    (`give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`,
    `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`,
-   `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`; not `answer_key.json` or `_README.md`) and choose
-   **Let the agent sort**. Upload is the only source of data.
-5. **Step 2:** enter the website (`https://miamifoundation.org`). **Step 3** fills the context store, then the
-   dashboard opens.
+   `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`; not `answer_key.json` or `_README.md`), or click
+   **Use the example files**. Keep **Let the agent sort** and click **Import 8 files**. Upload is the only source of
+   data. The receipt shows 77 people · 131 gifts (+1 declined charge on record) and 9 possible duplicates.
+5. **Step 2:** enter the website (`https://miamifoundation.org`) and **Continue**. **Step 3** fills the context store
+   ("Your desk is set up."), then **Go to the dashboard**: "Donors needing attention" leads with the failed card
+   charges, then the late givers.
 6. Check the upload against the answer key: `python scripts/demo_reset.py --check`. It approves every suggested
    duplicate on a copy of the database and compares people, gifts and alerts with
    `data/sample_inputs/answer_key.json`: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts. Exit 0 =
-   all PASS. The files are read by a model, so a fresh upload can land one person off (see Limits).
+   all PASS (5 gift alerts expected). The files are read by a model, so a fresh upload can land one person off
+   (see Limits).
 
 `demo_reset.py` with no flag backs up `data/donors.db` and resets it to empty; it refuses while the service answers
 on `--port` (default 8000).
