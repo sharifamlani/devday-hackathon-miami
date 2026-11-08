@@ -703,3 +703,45 @@ def crm_delete(conn: sqlite3.Connection, task_id: int) -> dict | None:
         return None
     delete_task(conn, task_id, actor="staff")
     return to_crm(row)
+
+
+# ---------- a person's next step (GET /people: every tab's "Next step" column) ----------
+# One task store, so a person's next step is their next open task. With none: neighbors get a plain follow-up,
+# community members a program invitation (never a donation ask); givers stay empty until a task exists.
+
+NO_TASK_STEP = {
+    "neighbor": "Follow up with {first}",
+    "community": "Invite {first} to an upcoming program",
+}
+
+
+def _first_name(person: dict) -> str:
+    return (person.get("first_name") or (person.get("full_name") or "them").split()[0]).strip()
+
+
+def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | None = None) -> list[dict]:
+    """Set person["next_step"] on each row (in place) and return the list."""
+    today = as_of or default_as_of()
+    ids = [p["id"] for p in people if p.get("id") is not None]
+    nxt: dict[int, dict] = {}
+    if ids and _has_table(conn, "tasks"):
+        for chunk in range(0, len(ids), 500):
+            part = ids[chunk:chunk + 500]
+            for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL AND done = 0 AND person_id IN "
+                                  f"({', '.join('?' * len(part))})", part):
+                r = dict(r)
+                key = (r["due"] or "9999", r["time"] or "99:99", KIND_ORDER.get(r["kind"], 9), r["id"])
+                best = nxt.get(r["person_id"])
+                if best is None or key < best["_key"]:
+                    nxt[r["person_id"]] = {**r, "_key": key}
+    for p in people:
+        t = nxt.get(p.get("id"))
+        if t:
+            due = t["due"]
+            when = (" · overdue" if due < today.isoformat() else "" if due == today.isoformat()
+                    else f" · {nice_date(due, today)}") if due else ""
+            p["next_step"] = f"{t['title']}{when}"
+        else:
+            template = NO_TASK_STEP.get(p.get("contact_type") or "")
+            p["next_step"] = template.format(first=_first_name(p)) if template else None
+    return people
