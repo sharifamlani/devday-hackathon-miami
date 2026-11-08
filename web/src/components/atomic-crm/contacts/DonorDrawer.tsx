@@ -172,7 +172,9 @@ export const DonorDrawer = ({
                     value={
                       projects.isPending
                         ? "…"
-                        : projects.projects.length
+                        : projects.isError
+                          ? "Couldn't load"
+                          : projects.projects.length
                           ? projects.projects.map((p) => p.name).join(", ")
                           : "None yet"
                     }

@@ -42,17 +42,27 @@ export const useCampaign = (id: number | null) => {
 };
 
 /**
- * The projects (campaigns) a donor is in: every campaign whose messages include them.
- * Reads each campaign's detail (cached per campaign), so it's cheap for a team's handful.
+ * The projects (campaigns) a donor is in: campaigns whose messages include them. Runs only
+ * while a donor is open (the drawer is mounted closed on several screens). There is no
+ * per-donor membership endpoint, so it reads campaign details, capped at the newest
+ * MAX_PROJECT_LOOKUPS and cached per campaign. A failed read is reported, never shown as "none".
  */
+const MAX_PROJECT_LOOKUPS = 20;
 export const useDonorProjects = (donorId: number | null) => {
   const dataProvider = useDonorDesk();
-  const list = useCampaigns();
+  const open = donorId != null;
+  const list = useQuery({
+    queryKey: campaignKeys.list,
+    queryFn: () => dataProvider.getCampaigns(),
+    enabled: open,
+  });
   const details = useQueries({
-    queries: (donorId == null ? [] : (list.data ?? [])).map((c) => ({
-      queryKey: campaignKeys.detail(c.id),
-      queryFn: () => dataProvider.getCampaign(c.id),
-    })),
+    queries: (open ? (list.data ?? []) : [])
+      .slice(0, MAX_PROJECT_LOOKUPS)
+      .map((c) => ({
+        queryKey: campaignKeys.detail(c.id),
+        queryFn: () => dataProvider.getCampaign(c.id),
+      })),
   });
   const projects = details
     .map((q) => q.data)
@@ -63,7 +73,8 @@ export const useDonorProjects = (donorId: number | null) => {
     .map((c) => ({ id: c.id, name: c.name }));
   return {
     projects,
-    isPending: list.isPending || details.some((q) => q.isPending),
+    isPending: open && (list.isPending || details.some((q) => q.isPending)),
+    isError: list.isError || details.some((q) => q.isError),
   };
 };
 
