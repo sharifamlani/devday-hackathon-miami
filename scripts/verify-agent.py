@@ -154,7 +154,7 @@ CASES = [
     # With PHONE_CALLS off (every test stack: never ring a phone) call_person refuses at once and the agent
     # says why; with calls on it pauses on a Call / Not now card. Either is a pass; the card is never clicked.
     Case("call a donor", "Call Elizabeth Fontaine", tools_all={"call_person"},
-         reply=r"calls? (are|is) (disabled|off|turned off)|no phone|Waiting for you: Call"),
+         reply=r"(calls?|calling) (are|is) (disabled|off|turned off)|no phone|Waiting for you: Call"),
     Case("CRM write", "Update Carmen Ibarra's city to Coral Gables", tools_all={"update_person"},
          probe=crm_probe),
     Case("events read", "What are the next events coming up?", tools_any={"get_events", "get_calendar"},
