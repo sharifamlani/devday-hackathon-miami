@@ -10,10 +10,14 @@ import os
 
 import httpx
 
+from service.public_mode import forced_simulated
+
 TWILIO_URL = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
 
 
 def provider() -> str:
+    if forced_simulated():   # public mode: nothing leaves the laptop
+        return "dryrun"
     return (os.getenv("SMS_PROVIDER") or "dryrun").strip().lower()
 
 
