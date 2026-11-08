@@ -5,8 +5,8 @@ propose(conn, note_id) reads the call note (call_notes, Christian's table) and r
 the proposal is kept in memory (and a temp file, so a restart keeps it) until Apply.
 
 The model returns a list of typed actions (create_task, rsvp_event, record_pledge,
-add_context_note, tag_interest), each with a verbatim evidence quote. Code then checks every one:
-  - the evidence must appear in the transcript;
+add_context_note, tag_interest), each with an evidence quote. Code then checks every one:
+  - the evidence must be grounded in the transcript (same words, ignoring case and punctuation);
   - an RSVP must point at a real upcoming event whose date matches what was said ("the 21st",
     "Thursday"); if none matches, it becomes a review task, never an invented event;
   - a pledge's amount must appear in the transcript;
@@ -52,7 +52,7 @@ class NotFound(LookupError):
 class ProposedAction(BaseModel):
     type: Literal["create_task", "rsvp_event", "record_pledge", "add_context_note", "tag_interest"]
     label: str = Field(description="What staff will see on the button, e.g. 'Text Rosa a secure link to update her card'")
-    evidence: str = Field(description="A short span copied verbatim from the transcript that this action rests on")
+    evidence: str = Field(description="A short span copied from the transcript that this action rests on")
     task_kind: Literal["call", "email", "review", "prep", "other"] | None = Field(None, description="create_task only")
     task_title: str | None = Field(None, description="create_task only: the task as it should read on the list")
     task_due: str | None = Field(None, description="create_task only: YYYY-MM-DD, or null")
@@ -303,6 +303,41 @@ def payload_of(a: ProposedAction, person: dict | None, note_id: str) -> dict:
     }[a.type]()
 
 
+def line_of(evidence: str, note: dict) -> int:
+    """The transcript line the evidence comes from (-1 if none): a stable anchor across re-proposals."""
+    e = plain(evidence)
+    for i, line in enumerate(note["transcript"]):
+        t = plain(line.get("text") or "")
+        if e and t and (e in t or t in e):
+            return i
+    return -1
+
+
+def signature(a: ProposedAction, payload: dict, note: dict) -> str:
+    """What makes two proposed actions the same action, whatever the model's wording this time:
+    a task or note = its type, person and transcript line; an RSVP = event + person; a pledge =
+    person + amount + frequency; a tag = person + tag."""
+    pid = payload.get("person_id")
+    if a.type == "rsvp_event":
+        return f"rsvp:{payload['event_id']}:{pid}"
+    if a.type == "record_pledge":
+        return f"pledge:{pid}:{payload['amount']:.2f}:{payload['frequency']}"
+    if a.type == "tag_interest":
+        return f"tag:{pid}:{payload['tag']}"
+    return f"{a.type}:{pid}:line{line_of(a.evidence, note)}"
+
+
+def with_spoken_facts(model: CallProposal, rules: CallProposal, note: dict) -> CallProposal:
+    """The model sometimes skips a spoken fact (a note, a pledge, an RSVP) between runs. Add any the
+    rules found that the model didn't cover, so the proposal is stable; tasks stay the model's call."""
+    have_types = {a.type for a in model.actions}
+    note_lines = {line_of(a.evidence, note) for a in model.actions if a.type == "add_context_note"}
+    extra = [a for a in rules.actions
+             if (a.type == "add_context_note" and line_of(a.evidence, note) not in note_lines)
+             or (a.type in ("record_pledge", "rsvp_event") and a.type not in have_types)]
+    return CallProposal(steps=model.steps, actions=model.actions + extra)
+
+
 def propose(conn: sqlite3.Connection, note_id: str, today: date | None = None, use_model: bool | None = None) -> dict:
     """{steps, actions:[{id, type, label, payload, evidence}], dropped:[...], person, drafted_by}. No db writes."""
     conn.row_factory = sqlite3.Row
@@ -314,10 +349,12 @@ def propose(conn: sqlite3.Connection, note_id: str, today: date | None = None, u
     text = transcript_text(note)
     use_model = model_available() if use_model is None else use_model
     drafted_by = "model" if use_model else "rules"
+    rules = rule_proposal(note, person, events, tags, today)
     try:
-        raw = (model_proposal if use_model else rule_proposal)(note, person, events, tags, today)
+        raw = with_spoken_facts(model_proposal(note, person, events, tags, today), rules, note) if use_model else rules
     except Exception as e:                              # model error: the rules still give staff something
-        raw, drafted_by = rule_proposal(note, person, events, tags, today), f"rules (model failed: {type(e).__name__}: {e}"[:160] + ")"
+        raw, drafted_by = rules, f"rules (model failed: {type(e).__name__}: {e}"[:160] + ")"
+    prior = _store().get(note_id, {}).get("applied", {})   # carried forward: re-proposing never forgets an Apply
     actions, dropped, seen = [], [], set()
     for a in raw.actions:
         checked, why = check_action(a, text, person, events, tags, today)
@@ -325,15 +362,16 @@ def propose(conn: sqlite3.Connection, note_id: str, today: date | None = None, u
             dropped.append({"type": a.type, "label": a.label, "why": why})
             continue
         payload = payload_of(checked, person, note_id)
-        key = (checked.type, json.dumps({k: v for k, v in payload.items() if k != "why" and k != "note"}, sort_keys=True))
-        if key in seen:
+        sig = signature(checked, payload, note)
+        if sig in seen:
             continue
-        seen.add(key)
+        seen.add(sig)
         actions.append({"id": f"a{len(actions) + 1}", "type": checked.type, "label": checked.label,
-                        "payload": payload, "evidence": checked.evidence})
+                        "payload": payload, "evidence": checked.evidence, "signature": sig,
+                        "applied": sig in prior})
     out = {"note_id": note_id, "steps": raw.steps, "actions": actions, "dropped": dropped,
            "person": person, "drafted_by": drafted_by}
-    _remember(note_id, {"actions": actions, "applied": {}})
+    _remember(note_id, {"actions": actions, "applied": prior})
     return out
 
 
@@ -390,6 +428,22 @@ def write_action(conn: sqlite3.Connection, action: dict, note_id: str) -> dict:
     raise ValueError(f"unknown action type {kind}")
 
 
+def already_written(conn: sqlite3.Connection, action: dict, note_id: str) -> dict | None:
+    """The row this action would write, if it's already there (the proposal store can be lost on a
+    restart; the database can't). Pledges: same call, person, amount and frequency. Notes: same call,
+    person and transcript evidence."""
+    p = action["payload"]
+    if action["type"] == "record_pledge":
+        row = conn.execute("SELECT id FROM pledges WHERE call_note_id = ? AND person_id = ? AND abs(amount - ?) < 0.005 "
+                           "AND frequency = ?", (note_id, p["person_id"], p["amount"], p["frequency"])).fetchone()
+        return {"pledge_id": row[0]} if row else None
+    if action["type"] == "add_context_note":
+        row = conn.execute("SELECT id FROM research_facts WHERE donor_id = ? AND source_url = ? AND fact = ?",
+                           (p["person_id"], p["source"], p["fact"])).fetchone()
+        return {"research_fact_id": row[0]} if row else None
+    return None
+
+
 def apply(conn: sqlite3.Connection, note_id: str, action_ids: list[str]) -> dict:
     """{applied:[{id, type, ref}], skipped:[{id, why}]}. Each action is written at most once."""
     conn.row_factory = sqlite3.Row
@@ -403,8 +457,13 @@ def apply(conn: sqlite3.Connection, note_id: str, action_ids: list[str]) -> dict
         if aid not in by_id:
             skipped.append({"id": aid, "why": "not in this call's proposal"})
             continue
-        if aid in entry["applied"]:
-            skipped.append({"id": aid, "why": "already applied", "ref": entry["applied"][aid]})
+        sig = by_id[aid].get("signature", aid)
+        if sig in entry["applied"]:
+            skipped.append({"id": aid, "why": "already applied", "ref": entry["applied"][sig]})
+            continue
+        if (dup := already_written(conn, by_id[aid], note_id)) is not None:
+            entry["applied"][sig] = dup
+            skipped.append({"id": aid, "why": "already applied", "ref": dup})
             continue
         try:
             ref = write_action(conn, by_id[aid], note_id)
@@ -413,7 +472,7 @@ def apply(conn: sqlite3.Connection, note_id: str, action_ids: list[str]) -> dict
             conn.rollback()
             skipped.append({"id": aid, "why": f"{type(e).__name__}: {e}"[:200]})
             continue
-        entry["applied"][aid] = ref
+        entry["applied"][sig] = ref
         applied.append({"id": aid, "type": by_id[aid]["type"], "ref": ref})
     _remember(note_id, entry)
     return {"applied": applied, "skipped": skipped}

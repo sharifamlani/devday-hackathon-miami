@@ -117,8 +117,10 @@ def test_model_actions_are_checked_against_the_transcript_and_calendar(env, monk
     ])
     monkeypatch.setattr(aca, "model_proposal", lambda *a, **k: fake)
     got = aca.propose(conn, "note-1", TODAY, use_model=True)
-    assert [a["type"] for a in got["actions"]] == ["rsvp_event"]                  # the made-up id re-resolved by its date
-    assert got["actions"][0]["payload"]["event_id"] == beach
+    rsvps = [a for a in got["actions"] if a["type"] == "rsvp_event"]
+    assert len(rsvps) == 1 and rsvps[0]["payload"]["event_id"] == beach          # the made-up id re-resolved by its date
+    assert not any(a["type"] == "record_pledge" for a in got["actions"])         # $500 was never said
+    assert not any("tote" in a["label"].lower() for a in got["actions"])
     why = {d["label"]: d["why"] for d in got["dropped"]}
     assert "amount isn't said" in why["Pledge $500"] and "isn't in the transcript" in why["Invented"]
     assert "interest tags" in why["Tag"]
@@ -136,3 +138,50 @@ def test_routes(env):
     pledge_id = next(a["id"] for a in prop["actions"] if a["type"] == "record_pledge")
     c.post("/call-notes/note-1/apply", json={"action_ids": [pledge_id]})
     assert c.get(f"/people/{rosa}/pledges").json()[0]["amount"] == 50.0
+
+
+def test_propose_apply_propose_apply_writes_nothing_the_second_time(env, monkeypatch):
+    conn, _, _ = env
+    first = aca.propose(conn, "note-1", TODAY)
+    aca.apply(conn, "note-1", [a["id"] for a in first["actions"]])
+    after_first = counts(conn)
+    # the model rewords everything on the second pass: same actions, different labels and note text
+    P = aca.ProposedAction
+    reworded = aca.CallProposal(steps=["Again."], actions=[
+        P(type="create_task", label="Send card link", evidence="I got a new card last month", task_kind="email",
+          task_title="Email Rosa the card form", task_due=TODAY.isoformat()),
+        P(type="record_pledge", label="Monthly pledge", evidence="keep giving $50 a month", amount=50, frequency="monthly"),
+        P(type="add_context_note", label="Card", evidence="I got a new card last month", note="Rosa's card was replaced."),
+    ])
+    monkeypatch.setattr(aca, "model_proposal", lambda *a, **k: reworded)
+    second = aca.propose(conn, "note-1", TODAY, use_model=True)
+    assert all(a["applied"] for a in second["actions"])                         # every one recognized as done
+    out = aca.apply(conn, "note-1", [a["id"] for a in second["actions"]])
+    assert out["applied"] == [] and counts(conn) == after_first
+
+
+def test_a_lost_proposal_store_still_never_doubles_a_pledge_or_note(env):
+    conn, _, _ = env
+    first = aca.propose(conn, "note-1", TODAY)
+    aca.apply(conn, "note-1", [a["id"] for a in first["actions"] if a["type"] in ("record_pledge", "add_context_note")])
+    before = counts(conn)
+    aca._PROPOSALS.clear(); aca.PROPOSALS_FILE.unlink()                          # a restart that lost the store
+    second = aca.propose(conn, "note-1", TODAY)
+    aca.apply(conn, "note-1", [a["id"] for a in second["actions"] if a["type"] in ("record_pledge", "add_context_note")])
+    assert counts(conn) == before
+
+
+def test_spoken_facts_the_model_skips_are_added_from_the_rules(env, monkeypatch):
+    conn, _, _ = env
+    P = aca.ProposedAction
+    skimpy = aca.CallProposal(steps=["Text the link."], actions=[
+        P(type="create_task", label="Text link", evidence="I can text you a secure link to update your card.",
+          task_kind="other", task_title="Text Rosa the card link", task_due=TODAY.isoformat()),
+        P(type="add_context_note", label="New card", evidence="I got a new card last month.", note="Rosa has a new card."),
+    ])
+    monkeypatch.setattr(aca, "model_proposal", lambda *a, **k: skimpy)
+    got = aca.propose(conn, "note-1", TODAY, use_model=True)
+    types = [a["type"] for a in got["actions"]]
+    assert types.count("add_context_note") == 2                                  # "since 2021" restored, "new card" not doubled
+    assert "record_pledge" in types and "rsvp_event" in types
+    assert types.count("create_task") == 1                                       # tasks stay the model's call
