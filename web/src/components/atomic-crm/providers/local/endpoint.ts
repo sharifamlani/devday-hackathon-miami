@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DATA_MODE, MOCK_ENDPOINTS } from "./config";
 import { ApiError, request } from "./httpClient";
@@ -78,6 +79,10 @@ const loggedMocks = new Set<string>();
 
 export const LIVE_ONLY = "This needs the live API; the snapshot build doesn’t have it.";
 
+/** Sample data is read-only: a refused write says so on screen (one toast, deduplicated by id). */
+export const SAMPLE_READ_ONLY = "Sample data is read-only here. Changes need the live app.";
+export const READ_ONLY_TOAST_ID = "snapshot-read-only";
+
 export interface CallOptions<T> {
   body?: unknown;
   /** Snapshot builds return this for reads instead of calling. */
@@ -107,6 +112,7 @@ export const call = async <T>(
       if (value !== undefined) return value;
     }
     if ("snapshotValue" in options) return options.snapshotValue as T;
+    if (method !== "GET") toast.error(SAMPLE_READ_ONLY, { id: READ_ONLY_TOAST_ID });
     throw new Error(LIVE_ONLY);
   }
   if (source === "mock") {

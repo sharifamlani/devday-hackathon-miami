@@ -7,7 +7,10 @@ import { getArtifacts, getCalendarFeed } from "./calendarFeed";
 import { getHomeSummary, getPeopleAttention, getTargetQuarters } from "./homeSummary";
 import { attentionTag } from "./homeFeed";
 import { createTask, getTasks } from "./tasks";
-import { LIVE_ONLY } from "./endpoint";
+import { LIVE_ONLY, READ_ONLY_TOAST_ID, SAMPLE_READ_ONLY } from "./endpoint";
+
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock("sonner", () => ({ toast: { error: toastError } }));
 
 const task = (id: number, due: string, person_id: number | null) => ({
   id, kind: "call", title: `Task ${id}`, why: null, person_id, chips: [], due, time: null, done: false, source: "generator",
@@ -65,8 +68,12 @@ describe("home in the snapshot build", () => {
     expect(await getArtifacts()).toEqual(snapshot.artifacts);
   });
 
-  it("still refuses writes", async () => {
+  it("still refuses writes, and says so on screen; reads don't toast", async () => {
+    toastError.mockClear();
+    await getTasks({ due: "today" });
+    expect(toastError).not.toHaveBeenCalled();
     await expect(createTask({ title: "x" })).rejects.toThrow(LIVE_ONLY);
+    expect(toastError).toHaveBeenCalledWith(SAMPLE_READ_ONLY, { id: READ_ONLY_TOAST_ID });
   });
 
   it("maps the service's 'failed' badge to Card failed", () => {
