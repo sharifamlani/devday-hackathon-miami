@@ -279,3 +279,10 @@ Process note: the #98 review agent ran `taskkill /IM node.exe` (ended all Node p
 
 Open on main (not from a PR under review): test_crm.py::test_snapshot_never_exports_crm_records fails on plain main f8329f6 (#98 × #100 privacy leak); the lead assigned it to 3a.
 PAUSED Sun Nov 8 at Sharif's request; all review agents and their servers stopped.
+
+### Resumed after the overnight pause (Sun Nov 8)
+Main 5ecf010 baseline: answer key unchanged; ingest_check cold + 2 warm, 0 FAIL, 9 pending each run.
+
+| PR | SHA | Checks | Verdict |
+|---|---|---|---|
+| #108 docs/readme-demo | 5d20dba | models/limits/licenses/dates/Vercel ok; Knight Enrich beat premature (no add-contact path, no Save button on main); counts stated without "after approvals" and without excluding answer_key.json/_README.md; "Let the agent sort" not in UI | CHANGES (owner 86) |
