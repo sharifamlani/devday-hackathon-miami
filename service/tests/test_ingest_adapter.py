@@ -106,8 +106,11 @@ def _judgments():
 def test_ingest_events_writes_db(tmp_path, with_status):
     conn = db.connect(tmp_path / "t.db")
     db.create_schema(conn)
-    if with_status:
+    has_status = "status" in {r[1] for r in conn.execute("PRAGMA table_info(gifts)")}
+    if with_status and not has_status:
         conn.execute("ALTER TABLE gifts ADD COLUMN status TEXT NOT NULL DEFAULT 'ok'")
+    elif not with_status and has_status:
+        pytest.skip("gifts.status is part of the schema now (#60); the no-status path can't occur")
     res = ia.ingest_events(_events(), "auto", conn, judgments=_judgments())
     assert res["people_added"] == 5
     assert res["by_tab"] == {"giver": 3, "neighbor": 1, "community": 1}
@@ -124,7 +127,8 @@ def test_ingest_events_writes_db(tmp_path, with_status):
         )
     else:
         assert res["gifts_added"] == 4 and any("declined" in w for w in res["warnings"])
-    assert conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0] == 5
+    # With the three tabs (#60) only Givers get a propensity score; Neighbors/Community are not scored.
+    assert conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0] == res["by_tab"]["giver"]
 
 
 def test_router_unreadable_file_refuses_whole_batch(tmp_path, monkeypatch):
