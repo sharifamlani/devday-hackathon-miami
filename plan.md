@@ -986,3 +986,96 @@ Evaluation additions:
 | Nothing is written without a click | 0 rows in tasks / pledges / event_audience before Apply | SQL before and after |
 | Live stage run | full script (research → call → apply → proof) under 4 min, 0 console errors | timed rehearsal + Playwright log |
 | Pledges don't inflate money raised | raised unchanged after the $1M pledge | GET /targets/quarters before and after |
+
+## 20. Execution plan: audit → builds → owners → integration (Sat Nov 7 night). For Sharif's review; no code until approved
+
+Supersedes the order in §19. §19 / §19.1 / §19.2 keep the detail (tree, smokes, criteria) per build.
+
+### 20.1 Audit: every problem and demo beat → build → owner
+
+| Need | Source | Build | Status today | Owner |
+|---|---|---|---|---|
+| Event-loop crash on every other model call | bug | #73 | PR open, waiting on QA | 98 → lead merges |
+| P1 loss of context: record calls | Erica, demo beat 2 | **B3** voice backend + **B3+** who-talked-to-whom | not built | **Agent Phone** |
+| P1: "who did he talk to last" | demo beat 1 | B3+ (`call_notes.staff_name`, `contact_name`) + chat tool | not built | Agent Phone + 90 |
+| P2 interest areas | Sharif, demo beat 1 | **B1** interest tags + enrich output | free-text field, never filled | **42** |
+| P2 / C2 late + failed gifts on screen | Erica, challenge #2 | alerts card + to-do (backend done, #48) | no screen | Christian (spec B4) |
+| Money raised by quarter | Sharif | **B2** `/targets/quarters` | current quarter only | **48** |
+| After the call: tasks, calendar, context | demo beat 3 | **B6** after-call agent + tasks / pledges / RSVP tables | not built | **86** |
+| Rehearsable demo story | demo | **B7** seed (Bill, Susan, Oct 12 note) + `--reset` | not built | **8b** |
+| Web data layer for all new endpoints | integration | **B9** hooks + types in `providers/local/` | not built | **80** |
+| Chat agent knows the new data | demo beat 1, 3 | **B10** chat tools: `find_people(interest=)`, `get_call_notes`, `get_tasks`, after-call steps in the thread | not built | **90** |
+| Screens: home sketch, money card, alerts, onboarding, chips, 🎙 panel, after-call card | sketch, wireframes | **B4** spec → Christian builds | spec not written | lead → Christian |
+| P4 context: onboarding screen | Erica | adopt #70 | draft | Christian |
+| P4 context: daily refresh on | Erica | set `REFRESH_DAILY_AT` + "last refreshed" | off | lead |
+| Calendar leftovers | 5E | close #49 / #57 | drafts | 86 + 98 |
+| Sidebar panel | 5D | #69 | PR open | 98 → lead merges |
+| Persona | #76 | Sharif decides Tidepath vs Miami Foundation | open | Sharif |
+| Ship-out | rules | **B5** demo script, README, deploy + prod walk, repo public MIT | not started | lead + submission-scribe |
+| Independent grading | Sharif rule | evaluator subagent grades §19 criteria | — | new subagent (not a builder) |
+| Stretch: phone call via Twilio | Sharif | S1 | — | Agent Phone, only after B3 passes |
+| P5 impact by zip, P7 payout hold | Erica | stretch / named limit in README | — | B5 |
+
+### 20.2 The integration contract (frozen before anyone codes; builders code to it, 80 and Christian mock it)
+
+| Endpoint | Request | Response | Built by |
+|---|---|---|---|
+| `GET /interest-tags` | — | `[{slug, label, definition}]` (17) | 42 |
+| `GET /people/{id}/interests` | — | `[{tag, sub_tag, confidence, evidence, source_url, set_by}]` | 42 |
+| `POST /people/{id}/interests` | `{tag, sub_tag?}` | the row (set_by staff) | 42 |
+| `DELETE /people/{id}/interests/{tag}` | — | `{removed: true}` (row kept, status removed) | 42 |
+| `POST /enrich/{id}` | — | existing body + `interests[]` + `contact{}` | 42 |
+| `GET /targets/quarters?as_of=` | — | `{quarters: [{label: "2026-Q3", start, end, raised}], ytd: {year: 2026, raised}}` | 48 |
+| `WS /transcribe/live` | binary PCM16 LE 16 kHz mono, ~100 ms frames; text `{"type":"end"}` | `{"type":"interim"\|"final","text"}`; `{"type":"error","detail"}` | Agent Phone |
+| `POST /people/{id}/call-notes` | `{transcript, staff_name, contact_name, duration_s}` | `{id, summary, created_at}` | Agent Phone |
+| `GET /people/{id}/call-notes` | — | `[{id, staff_name, contact_name, summary, transcript, created_at}]` | Agent Phone |
+| `POST /call-notes/{id}/actions` | — | `{steps: [...], actions: [{id, type, label, payload}]}`; types `create_task`, `rsvp_event`, `record_pledge`, `add_context_note`, `tag_interest` | 86 |
+| `POST /call-notes/{id}/apply` | `{action_ids: [...]}` | `{applied: [{id, type, ref}]}` | 86 |
+| `GET /tasks?person_id=` / `PATCH /tasks/{id}` | `{done}` | `[{id, person_id, title, due, done, source}]` | 86 |
+| `GET /events/{id}` | — | existing + `audience[].rsvp` (invited / attending / declined) | 86 |
+| `GET /people/{id}/pledges` | — | `[{amount, expected_by, status}]` (never in `raised`) | 86 |
+
+Conflict rules:
+- **New routers, not `main.py` bodies:** `routes_interests.py` (42), `routes_voice.py` (Agent Phone),
+  `routes_after_call.py` (86). Each adds one `include_router` line to `main.py`.
+- **`db.py`:** each builder adds only its own `CREATE TABLE IF NOT EXISTS` block (and 86 one `ADD COLUMN` guarded by a
+  column check). Landing order is 42 → Agent Phone → 86; later PRs rebase.
+- `donors` and `service/ingest/` are untouched (🔒 Carlos).
+
+### 20.3 Owners and dispatch
+
+| Session | Build | Owns (files) | Depends on |
+|---|---|---|---|
+| **42** | B1 interest tags | `service/interests.py`, `routes_interests.py`, `enrich_agent.py`, tests | — |
+| **48** | B2 money by quarter | `service/targets.py`, `routes_targets.py`, tests | — |
+| **Agent Phone** | B3 + B3+ voice backend, then S1 | `service/transcribe.py`, `call_notes.py`, `routes_voice.py`, `scripts/smoke-*.py`, `requirements.txt` (+google-genai) | Gemini key (smoke 1) |
+| **86** | B6 after-call agent | `service/after_call_agent.py`, `routes_after_call.py`, tests; also closes #49/#57 | B3 table shape (contract) |
+| **8b** | B7 demo seed | `scripts/seed_demo.py` | B1, B3, B6 tables |
+| **80** | B9 web hooks + types (mock until each endpoint lands) | `web/.../providers/local/*` | contract only |
+| **90** | B10 chat tools | `service/chat_agent.py` | B1, B3, B6 |
+| **Christian** | screens from B4 spec | his UI files | B9 hooks |
+| **98 (QA)** | reviews every PR against its §19 smokes; lead merges pinned to the approved SHA | — | — |
+| **lead (this session)** | contract, B4 spec, B5, merges, deploys, Playwright walks, ROADMAP flips | docs, ROADMAP | — |
+| **evaluator subagent** | grades §19 / §19.2 criteria after the merges; loops until all PASS | read-only | all merged |
+
+Each dispatch uses the five fields from CLAUDE.md (CONTEXT / OWNS / TASK / DONE WHEN / RETURN), points at this
+contract, and requires: a branch via `git worktree add --no-track`, a check that `@{upstream}` is not main, a PR to QA,
+no direct push to main.
+
+### 20.4 Timeline (freeze Sun 4:15 PM)
+
+| When | What |
+|---|---|
+| Sat night, wave 1 (parallel) | 42 B1 · 48 B2 · Agent Phone B3 · 80 B9 (mocks) · lead B4 spec to Christian · 98 clears #73 and #69 |
+| Sat late, wave 2 | 86 B6 (after B3's table lands) · 90 B10 · 8b B7 |
+| Sun 9 AM | merges + deploy + prod walk; evaluator round 1; fixes |
+| Sun 11 AM | demo rehearsal x3 with `seed_demo.py --reset`; B5 README + demo script |
+| Sun 1 PM | evaluator final scorecard; stretch S1 only if every criterion passes |
+| Sun 3:30 PM | tag `demo`; repo public with MIT; freeze 4:15 PM |
+
+### 20.5 Decisions needed from Sharif before dispatch
+1. Approve this plan (§19, §19.1, §19.2, §20).
+2. Demo donor: Veloria Bay Foundation with a fictional "Bill", or another name.
+3. Live demo from the laptop (recommended), or a tunnel to the public URL.
+4. Money card: 2026 year to date + quarter bars (recommended), or % of a sample goal.
+5. #76 persona: Tidepath or The Miami Foundation.
