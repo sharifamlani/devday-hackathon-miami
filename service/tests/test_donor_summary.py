@@ -150,3 +150,36 @@ def test_the_writer_uses_the_luna_model_from_openai_model_fast(monkeypatch):
     assert ds.summary_model().model == "gpt-6-luna"
     monkeypatch.delenv("SUMMARY_WRITER")
     assert ds.model_available() is True                        # gated on OPENAI_MODEL_FAST, not DEFAULT
+
+
+def accented(db_file) -> dict:
+    conn = sqlite3.connect(db_file)
+    try:
+        ids = {}
+        for name, first in (("Joséphine Abara-Lutz", "Joséphine"), ("Renée Okafor", "Renée"), ("Renee Okafor-Bell", "Renee")):
+            ids[name] = conn.execute("INSERT INTO donors (full_name, first_name, donor_type, contact_type) "
+                                     "VALUES (?, ?, 'individual', 'giver')", (name, first)).lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return ids
+
+
+def test_names_match_without_accents_and_with_part_of_a_hyphenated_surname(db_file):
+    """82: 'add a note to Maria Delgado' missed María Delgado-Ruiz: the lookup wasn't accent-insensitive."""
+    ids = accented(db_file)
+    conn = db.connect()
+    try:
+        assert ds.resolve(conn, name="Josephine Abara")["id"] == ids["Joséphine Abara-Lutz"]
+        assert ds.resolve(conn, name="JOSÉPHINE abara-lutz")["id"] == ids["Joséphine Abara-Lutz"]
+        assert ds.resolve(conn, name="Renee Okafor")["id"] == ids["Renée Okafor"]   # an exact name beats a partial one
+        with pytest.raises(ds.WriteError, match="which one"):     # ambiguity is still asked, never guessed
+            ds.resolve(conn, name="okafor")
+    finally:
+        conn.close()
+
+
+def test_find_people_by_name_ignores_accents(db_file):
+    ids = accented(db_file)
+    found = [p["id"] for p in invoke("find_people", name="josephine abara", limit=50)["people"]]
+    assert ids["Joséphine Abara-Lutz"] in found
