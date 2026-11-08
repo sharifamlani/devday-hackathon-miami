@@ -19,8 +19,21 @@ export type AgentStep = {
   call_id?: string | null;
   undone?: boolean;
   /** A richer card from the service, drawn by kind (e.g. "call_sheet", "merged_pairs"). */
-  card?: { kind: string; [k: string]: unknown } | null;
+  card?: StepCardData | null;
 };
+
+/** One pair the agent merged by itself (80%+ match), with its own Undo. */
+export type MergedPair = {
+  suggestion_id: number;
+  kept: string;
+  merged_in: string;
+  confidence: number;
+  evidence: string;
+  undo_token: string | null;
+  undone?: boolean;
+};
+
+export type StepCardData = { kind: "merged_pairs"; pairs: MergedPair[] } | { kind: string; [key: string]: unknown };
 
 export type AgentApproval = {
   call_id: string;
@@ -273,6 +286,25 @@ export const undoStep = async (msgIndex: number, stepIndex: number, refetch: Ref
     refetch(scopesForTool(step.tool));
   } catch (e) {
     set({ error: `Couldn’t undo: ${e instanceof Error ? e.message : String(e)}` });
+  }
+};
+
+/** Undo one of the pairs the agent merged by itself (POST /undo/{token} splits them again). */
+export const undoMergedPair = async (msgIndex: number, stepIndex: number, pairIndex: number, refetch: Refetch) => {
+  const m = state.messages[msgIndex];
+  const step = m?.role === "assistant" ? m.steps[stepIndex] : undefined;
+  const card = step?.card;
+  if (!step || card?.kind !== "merged_pairs") return;
+  const pairs = (card as { pairs: MergedPair[] }).pairs;
+  const pair = pairs[pairIndex];
+  if (!pair?.undo_token || pair.undone) return;
+  try {
+    await post(`/undo/${encodeURIComponent(pair.undo_token)}`, undefined);
+    const next = pairs.map((p, k) => (k === pairIndex ? { ...p, undone: true } : p));
+    patchStep(msgIndex, stepIndex, { card: { kind: "merged_pairs", pairs: next } });
+    refetch(scopesForTool("merge_duplicate"));
+  } catch (e) {
+    set({ error: `Couldn’t undo the merge: ${e instanceof Error ? e.message : String(e)}` });
   }
 };
 

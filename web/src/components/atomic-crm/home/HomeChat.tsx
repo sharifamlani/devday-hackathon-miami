@@ -24,7 +24,7 @@ import { type AskAnswer } from "../providers/local/ask";
 import { DATA_MODE } from "../providers/local/config";
 import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
-import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
+import { decide, sendToAgent, undoMergedPair, undoStep, useAgentChat } from "./agentChat";
 import { ApprovalCard, StepCard, UndoneNote, undoneSummary } from "./AgentCards";
 import { DictationButton, DictationHint } from "../voice/DictationButton";
 import { useDictationInput } from "../voice/useDictationInput";
@@ -296,7 +296,12 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
             {m.steps.length > 0 && (
               <ul aria-label="Steps" className="flex flex-col gap-1.5">
                 {m.steps.map((step, j) => (
-                  <StepCard key={`${i}-${j}`} step={step} onUndo={() => undoStep(i, j, refetch)} />
+                  <StepCard
+                    key={`${i}-${j}`}
+                    step={step}
+                    onUndo={() => undoStep(i, j, refetch)}
+                    onUndoPair={(k) => undoMergedPair(i, j, k, refetch)}
+                  />
                 ))}
               </ul>
             )}
