@@ -43,7 +43,8 @@ def undo(token: str) -> dict:
 
 
 def test_sends_merges_and_deletes_are_approval_gated_and_nothing_else():
-    assert ca.APPROVAL_TOOLS == {"send", "merge_duplicate", "delete_task", "delete_calendar_item", "call_person"}
+    assert ca.APPROVAL_TOOLS == {"send", "merge_duplicate", "delete_task", "delete_calendar_item", "call_person",
+                                "delete_event"}
     reads = {"find_people", "get_person", "get_alerts", "get_events", "get_calendar", "get_tasks",
              "get_call_notes", "search_context"}
     writes = {"update_person", "add_interest", "remove_interest", "accept_enrichment", "merge_duplicate",
@@ -78,20 +79,20 @@ def test_update_and_complete_task_then_undo_restores(db_file):
 
 
 def test_calendar_items_add_move_delete_and_undo(db_file):
+    """Calendar v3: add_calendar_item makes an organization event (source agent), not a dated task."""
     item = invoke("add_calendar_item", title="Board meeting", date="2026-11-12", time="15:00")
     cal = invoke("get_calendar", from_date="2026-11-01", to_date="2026-11-30")["items"]
-    assert any(i["title"] == "Board meeting" and i["date"] == "2026-11-12" for i in cal)
+    assert any(i["title"] == "Board meeting" and i["date"] == "2026-11-12" and i["kind"] == "event" for i in cal)
 
-    moved = invoke("move_calendar_item", ref=f"task:{item['id']}", date="2026-11-13")
-    assert one(db_file, "SELECT due FROM tasks WHERE id = ?", item["id"])["due"] == "2026-11-13"
+    moved = invoke("move_event", event_id=item["id"], date="2026-11-13")
+    assert one(db_file, "SELECT starts_at FROM events WHERE id = ?", item["id"])["starts_at"] == "2026-11-13"
     undo(moved["undo_token"])
-    assert one(db_file, "SELECT due FROM tasks WHERE id = ?", item["id"])["due"] == "2026-11-12"
+    assert one(db_file, "SELECT starts_at FROM events WHERE id = ?", item["id"])["starts_at"] == "2026-11-12T15:00"
 
-    gone = invoke("delete_calendar_item", ref=f"task:{item['id']}")     # the card's approval is tested live below
-    assert one(db_file, "SELECT deleted_at FROM tasks WHERE id = ?", item["id"])["deleted_at"]
+    gone = invoke("delete_event", event_id=item["id"])                 # the card's approval is tested live below
+    assert one(db_file, "SELECT id FROM events WHERE id = ?", item["id"]) is None
     undo(gone["undo_token"])
-    assert one(db_file, "SELECT deleted_at FROM tasks WHERE id = ?", item["id"])["deleted_at"] is None
-
+    assert one(db_file, "SELECT title FROM events WHERE id = ?", item["id"])["title"] == "Board meeting"
 
 def test_delete_task_and_undo(db_file):
     task = invoke("create_task", kind="other", title="Order name badges")
@@ -482,6 +483,7 @@ def test_an_allowed_call_still_waits_on_the_card_and_never_dials_unapproved(db_f
     assert context.refused_calls == {} and dialed == []                     # a card, and no call without it
 
 
+@needs_key
 @pytest.mark.parametrize("approve_b", [True, False])
 def test_live_approving_one_of_two_cards_leaves_the_other_pending(db_file, approve_b):
     """Two delete cards: deciding the first must not decide the second. It comes back under a new run id
@@ -540,6 +542,7 @@ def test_call_list_follows_the_home_attention_order(db_file):
     assert all(p["phone_on_file"] == phones[p["id"]] for p in people)
 
 
+@needs_key
 def test_live_who_to_call_leads_with_the_failed_gift_and_cites_next_steps(db_file):
     """'Who should I call today?' answers from the CRM's attention order: the failed-gift donor first, and a
     giver's saved next step quoted."""
@@ -552,3 +555,128 @@ def test_live_who_to_call_leads_with_the_failed_gift_and_cites_next_steps(db_fil
     others = [n for n in ("McDermott", "Maria Delgado", "Luis Herrera", "Angela Brooks") if n in reply]
     assert "Robert Nguyen" in reply and all(reply.index("Robert Nguyen") < reply.index(n) for n in others)
     assert "spring scholarship lunch" in reply.lower()
+
+
+def nickname_pair(db_file) -> None:
+    """Bill / William Hartwell: a name-only match (unclear), next to the seed's same-email Maria Delgado pair (sure)."""
+    conn = sqlite3.connect(db_file)
+    try:
+        for name, first in (("Bill Hartwell", "Bill"), ("William Hartwell", "William")):
+            cur = conn.execute("INSERT INTO donors (full_name, first_name, last_name, donor_type, contact_type) "
+                               "VALUES (?, ?, 'Hartwell', 'individual', 'giver')", (name, first))
+            conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 100, '2026-03-01', 'online')",
+                         (cur.lastrowid,))
+        conn.commit()
+    finally:
+        conn.close()
+    from service import dedupe
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        dedupe.run(conn)
+    finally:
+        conn.close()
+
+
+def gift_totals(db_file) -> tuple:
+    return tuple(one(db_file, "SELECT COUNT(*), ROUND(SUM(amount), 2) FROM gifts WHERE COALESCE(status, 'ok') = 'ok'"))
+
+
+def test_resolve_duplicates_merges_sure_pairs_and_returns_the_rest_with_findings(db_file):
+    """Sharif: at or above 80% the agent merges without asking; below that it brings the pair to the user."""
+    assert "resolve_duplicates" not in ca.APPROVAL_TOOLS
+    nickname_pair(db_file)
+    before = gift_totals(db_file)
+    sure = one(db_file, "SELECT id FROM duplicate_suggestions WHERE status = 'pending' AND confidence >= 0.8")["id"]
+    out = invoke("resolve_duplicates")
+    assert [m["suggestion_id"] for m in out["merged"]] == [sure]
+    assert out["merged"][0]["reasons"] and out["merged"][0]["undo_merge_id"]
+    assert one(db_file, "SELECT status FROM duplicate_suggestions WHERE id = ?", sure)["status"] == "merged"
+    ask = out["to_confirm"]
+    assert [frozenset((p["a"]["full_name"], p["b"]["full_name"])) for p in ask] == [frozenset(("Bill Hartwell", "William Hartwell"))]
+    assert ask[0]["confidence"] < 0.8 and ask[0]["reasons"] and ask[0]["a"]["gifts"] == 1 and ask[0]["a"]["total_given"] == 100
+    assert gift_totals(db_file) == before                       # no gift lost or double-counted
+    assert out["gifts"] == {"count": before[0], "total": before[1]}
+    assert ca.summarize(out) == "merged 1 sure pair (80%+); 1 to confirm"
+
+
+def test_a_pair_to_confirm_gets_a_merge_card_with_the_findings(db_file):
+    nickname_pair(db_file)
+    pair = invoke("resolve_duplicates")["to_confirm"][0]
+    line = ca.approval_summary("merge_duplicate", {"suggestion_id": pair["suggestion_id"]})
+    assert line.startswith("Merge ") and "Hartwell" in line and "60%" in line and "1 gift" in line
+
+
+def test_no_pending_duplicates_says_so(db_file):
+    invoke("resolve_duplicates")
+    out = invoke("resolve_duplicates")
+    assert out["merged"] == [] and out["to_confirm"] == [] and out["note"] == "No possible duplicates right now."
+
+
+def test_keep_separate_on_a_merge_card_dismisses_the_pair_at_once(db_file):
+    """Other cards may still be waiting, so the run pauses again before the model could call dismiss_duplicate."""
+    from types import SimpleNamespace
+    nickname_pair(db_file)
+    sid = one(db_file, "SELECT id FROM duplicate_suggestions WHERE status = 'pending' ORDER BY confidence LIMIT 1")["id"]
+    items = [SimpleNamespace(name="merge_duplicate", call_id="m1", arguments=json.dumps({"suggestion_id": sid})),
+             SimpleNamespace(name="merge_duplicate", call_id="m2", arguments=json.dumps({"suggestion_id": 999999})),
+             SimpleNamespace(name="delete_task", call_id="d1", arguments=json.dumps({"task_id": 1}))]
+    assert ca.keep_separate(items, {"m1": False, "d1": False}) == [sid]          # m2 undecided, d1 isn't a merge
+    assert one(db_file, "SELECT status FROM duplicate_suggestions WHERE id = ?", sid)["status"] == "dismissed"
+
+
+def test_several_cards_get_a_short_waiting_line_not_every_card_again():
+    one_card = [{"tool": "send", "summary": "Send 2 emails"}]
+    five = [{"tool": "merge_duplicate", "summary": f"Merge pair {i}"} for i in range(5)]
+    assert ca.waiting_line(one_card) == "Waiting for you: Send 2 emails."
+    assert ca.waiting_line(five) == "Waiting for you: 5 decisions on the cards above."
+
+
+def test_a_gift_on_both_records_is_named_as_counted_once_not_hidden(db_file):
+    """#185: the same gift recorded on both records is counted once after the merge, so the totals move; the
+    tool must say which gift instead of letting the agent claim the totals are unchanged."""
+    pair = one(db_file, "SELECT id, donor_a_id, donor_b_id FROM duplicate_suggestions WHERE status = 'pending' "
+                        "ORDER BY confidence DESC LIMIT 1")
+    conn = sqlite3.connect(db_file)
+    try:
+        # ingest's count-once rule: same amount, within 2 days, from different files, one of them the check log
+        for donor, channel, source in ((pair["donor_a_id"], "check", "check_deposit_log.docx | row:3"),
+                                       (pair["donor_b_id"], "online", "online_gifts.xlsx | row:9")):
+            conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row, status) "
+                         "VALUES (?, 777, '2026-05-05', ?, ?, 'ok')", (donor, channel, source))
+        conn.commit()
+    finally:
+        conn.close()
+    out = invoke("resolve_duplicates")
+    merged = next(m for m in out["merged"] if m["suggestion_id"] == pair["id"])
+    assert merged["counted_once"] == [{"amount": 777, "date": "2026-05-05"}]
+    assert out["gifts_unchanged"] is False
+
+
+def test_a_named_pair_is_found_and_only_that_pair_is_handled(db_file):
+    """a4: "Merge Bill Hartwell and William Hartwell" must reach that pair (merge if 80%+, else a card)."""
+    nickname_pair(db_file)
+    sure = one(db_file, "SELECT id FROM duplicate_suggestions WHERE status = 'pending' AND confidence >= 0.8")["id"]
+    out = invoke("resolve_duplicates", names=["bill hartwell", "William Hartwell"])
+    assert out["merged"] == []                                            # the sure Maria pair isn't touched
+    assert [frozenset((p["a"]["full_name"], p["b"]["full_name"])) for p in out["to_confirm"]] == \
+        [frozenset(("Bill Hartwell", "William Hartwell"))]
+    assert one(db_file, "SELECT status FROM duplicate_suggestions WHERE id = ?", sure)["status"] == "pending"
+    none = invoke("resolve_duplicates", names=["Bill Hartwell", "Nobody Here"])
+    assert none["merged"] == [] and none["to_confirm"] == []
+    assert none["note"] == "No pending duplicate pair for Bill Hartwell and Nobody Here."
+
+
+def test_the_merge_card_names_the_record_the_merge_will_keep(db_file):
+    """dedupe.merge keeps the record with more gifts (ties: lower id); the card must say the same."""
+    nickname_pair(db_file)
+    william = one(db_file, "SELECT id FROM donors WHERE full_name = 'William Hartwell'")["id"]
+    conn = sqlite3.connect(db_file)
+    try:
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 50, '2026-04-01', 'online')",
+                     (william,))
+        conn.commit()
+    finally:
+        conn.close()
+    sid = next(p["suggestion_id"] for p in invoke("resolve_duplicates", names=["Bill Hartwell", "William Hartwell"])["to_confirm"])
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": sid}).startswith("Merge Bill Hartwell into William Hartwell")

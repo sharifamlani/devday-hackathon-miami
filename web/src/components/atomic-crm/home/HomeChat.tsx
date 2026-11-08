@@ -20,11 +20,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
-import { EXAMPLE_QUESTIONS, type AskAnswer } from "../providers/local/ask";
+import { type AskAnswer } from "../providers/local/ask";
 import { DATA_MODE } from "../providers/local/config";
 import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
-import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
+import { decide, sendToAgent, undoMergedPair, undoStep, useAgentChat } from "./agentChat";
 import { ApprovalCard, StepCard, UndoneNote, undoneSummary } from "./AgentCards";
 import { DictationButton, DictationHint } from "../voice/DictationButton";
 import { useDictationInput } from "../voice/useDictationInput";
@@ -290,13 +290,18 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
         ) : (
           <div
             key={i}
-            className="flex max-w-[78%] flex-col gap-2 self-start rounded-2xl rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm"
+            className="flex min-w-0 max-w-full flex-col gap-2 self-start rounded-2xl sm:max-w-[78%] rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm"
           >
             <span className="block text-[11px] font-bold text-muted-foreground">Agent</span>
             {m.steps.length > 0 && (
               <ul aria-label="Steps" className="flex flex-col gap-1.5">
                 {m.steps.map((step, j) => (
-                  <StepCard key={`${i}-${j}`} step={step} onUndo={() => undoStep(i, j, refetch)} />
+                  <StepCard
+                    key={`${i}-${j}`}
+                    step={step}
+                    onUndo={() => undoStep(i, j, refetch)}
+                    onUndoPair={(k) => undoMergedPair(i, j, k, refetch)}
+                  />
                 ))}
               </ul>
             )}
@@ -314,7 +319,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
             {m.text && (
               // every change in this reply undone: grey the prose so "Added …" can't read as still true
               <div className={cn(undoneSummary(m.steps).all && "opacity-55")} data-undone={undoneSummary(m.steps).all || undefined}>
-                <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>
+                <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>
               </div>
             )}
             <UndoneNote steps={m.steps} />
@@ -396,17 +401,8 @@ const AskThread = ({ intro }: { intro?: ReactNode }) => {
 
 /* ---------- Composer ---------- */
 
-/** Generic example questions, used until GET /home/summary has chips for this data. */
-export const SUGGESTIONS = EXAMPLE_QUESTIONS.slice(1, 4);
-
-export const Composer = ({
-  onUploadList,
-  suggestions = SUGGESTIONS,
-}: {
-  onUploadList: () => void;
-  /** GET /home/summary.suggestions. */
-  suggestions?: string[];
-}) => {
+/** No suggestion chips above the input (Sharif); /home/summary.suggestions is not rendered. */
+export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   const session = useAskSession();
   const agent = useAgentChat();
   const refetch = useAgentRefetch();
@@ -442,23 +438,6 @@ export const Composer = ({
 
   return (
     <div data-tour="composer" className="home-composer">
-      <ul aria-label="Suggestions" className="mb-2.5 flex flex-wrap gap-2">
-        {suggestions.map((question) => (
-          <li key={question} className="max-w-full">
-            <button
-              type="button"
-              onClick={() => send(question)}
-              disabled={busy}
-              className={cn(
-                "inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-left text-xs hover:bg-accent disabled:opacity-60",
-                focusRing,
-              )}
-            >
-              {question}
-            </button>
-          </li>
-        ))}
-      </ul>
       <form onSubmit={onSubmit} className="home-composer-input">
         <span
           key={bloomId}

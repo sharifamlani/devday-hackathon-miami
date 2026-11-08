@@ -45,14 +45,19 @@ Rules:
 - On the community tab, outreach is about programs and help only: never ask for a donation (intent check_in).
 - If a tool says data is not loaded yet, say so plainly.
 - Today is {today}. Turn relative dates ("Tuesday", "next week") into YYYY-MM-DD from today before calling a tool.
+- The calendar holds organization events only: add_event / move_event / delete_event. A to-do for staff is a task
+  (create_task), never a calendar event.
 - You can change records directly (people, tasks, calendar, interests, RSVPs, duplicates). Each change applies at
   once and the user sees an Undo button; say what you changed. Sends, merges and deletes wait for the user's
   approval: call the tool, and the user approves or declines on a card.
 - When the user shares something about a person (a conversation, family, plans, preferences: "I talked to
   Rafael..."), call update_donor_summary with their words, then confirm "Updated <first name>'s summary". If the
   tool says no one or several people match, ask who they meant; never guess or write it to someone else.
-- To phone someone, call call_person (it waits for the approval card). The user's own phone rings first,
-  then the person's; the call is recorded with a spoken notice and saved as a call note afterwards.
+- Call protocol: "call <person>", "phone <person>" or a call task -> call prep_call, and nothing that dials. Its
+  sheet has the Call button; that button is how the user calls. Say in a line or two who they are and the
+  suggested points; never add facts the sheet does not have. Use call_person only when, after seeing the sheet,
+  the user says to dial now (it waits for an approval card; their phone rings first, then the person's, the call
+  is recorded with a spoken notice and saved as a call note).
 - For event outreach use plan_event_outreach: it makes one batch per event; report each event's drafts and
   who needs individual approval.
 - "Who should I call / contact / reach out to / thank today?": call get_call_list and keep its order. It is the
@@ -62,9 +67,20 @@ Rules:
 - "Work on this task: ... (task #N)" means do the work, not describe it: call get_task(N), then get_person for its
   person, then take the next step yourself. Call/email task about a late or failed gift: draft_email (or
   draft_sms if they give by text) with intent re_engage; a welcome: intent thank_you. Never send; say the
-  draft is ready to review. Review task: say which records look like the same person and why, and offer the
-  merge (it waits for approval). Prep task: list who is invited and what to prepare. End with "Mark done?";
+  draft is ready to review. Review task: follow the duplicates protocol. Prep task: list who is invited and what to prepare. End with "Mark done?";
   call complete_task only when the user says so.
+- Duplicates protocol ("fix / merge / clean up the duplicates", or a review task): call resolve_duplicates once.
+  When the user names the people ("merge Bob Nguyen and Robert Nguyen"), pass names=[both names]: only that pair
+  is handled, and if it comes back in to_confirm, show its merge card as below.
+  It merges every pair that is 80%+ sure by itself. Say how many it merged and name each pair with its score and
+  evidence (each has an Undo on its card). Say the gift totals are unchanged only when gifts_unchanged is true;
+  otherwise name each gift in a merged pair's counted_once (the same gift was on both records and now counts
+  once: amount and date). Then, for EVERY pair in
+  to_confirm, call merge_duplicate (one card per pair, all in this same turn; the person picks Merge or Keep
+  separate) and give your findings for each in a short list: the evidence, both records' giving, and what makes it
+  uncertain. If a merge card comes back declined, the person said keep them separate: call dismiss_duplicate for
+  that pair. With nothing pending, say "No possible duplicates right now." Never call resolve_duplicates unless
+  the user asked.
 {first_turn}{selection}"""
 
 FIRST_TURN = """- This is the start of the conversation: before answering, call get_context and get_events. If any event
@@ -676,6 +692,109 @@ def dismiss_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int) -
     return write(agent_writes.dismiss_duplicate, suggestion_id, actor="agent")
 
 
+# Sharif (Nov 8): a pair at or above this confidence the agent merges by itself when asked to fix duplicates;
+# below it, the pair comes to the user on a Merge / Keep separate card with the agent's findings.
+AUTO_MERGE_AT = float(os.getenv("AUTO_MERGE_AT", "0.8"))
+
+
+def duplicate_pairs(conn) -> list[dict]:
+    """Pending duplicate pairs, surest first, each side with its giving (gifts that went through), so the
+    agent and the user can judge. Addresses are masked."""
+    from service.routes_campaigns import mask_address
+    out = []
+    for s in conn.execute("SELECT * FROM duplicate_suggestions WHERE status = 'pending' ORDER BY confidence DESC, id"):
+        sides = {}
+        for side in ("a", "b"):
+            pid = s[f"donor_{side}_id"]
+            d = conn.execute("SELECT id, full_name, donor_type, contact_type, email, phone, city FROM donors WHERE id = ?",
+                             (pid,)).fetchone()
+            g = conn.execute("SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total, MAX(gift_date) AS last FROM gifts "
+                             "WHERE donor_id = ? AND COALESCE(status, 'ok') = 'ok'", (pid,)).fetchone()
+            sides[side] = None if d is None else {
+                **dict(d), "email": mask_address(d["email"], "email"), "phone": mask_address(d["phone"], "text"),
+                "gifts": g["n"], "total_given": round(g["total"], 2), "last_gift": g["last"]}
+        out.append({"suggestion_id": s["id"], "confidence": s["confidence"], "reasons": json.loads(s["reasons"]),
+                    "a": sides["a"], "b": sides["b"]})
+    return out
+
+
+def gift_totals(conn) -> dict:
+    """Gifts that went through: the merge must leave these exactly as they were."""
+    r = conn.execute("SELECT COUNT(*), ROUND(COALESCE(SUM(amount), 0), 2) FROM gifts "
+                     "WHERE COALESCE(status, 'ok') = 'ok'").fetchone()
+    return {"count": r[0], "total": r[1]}
+
+
+def giver_count(conn) -> int:
+    return conn.execute("SELECT COUNT(*) FROM donors WHERE COALESCE(contact_type, 'giver') = 'giver'").fetchone()[0]
+
+
+def names_match(pair: dict, names: list[str]) -> bool:
+    """Each name the user gave matches one side of the pair (case-insensitive, either way round)."""
+    sides = [(pair[k] or {}).get("full_name", "").lower() for k in ("a", "b")]
+    wanted = [n.strip().lower() for n in names if n.strip()]
+    if not wanted:
+        return True
+    return all(any(w in side or side in w for side in sides if side) for w in wanted) and (
+        len(wanted) < 2 or {i for w in wanted for i, side in enumerate(sides) if side and (w in side or side in w)} == {0, 1})
+
+
+@function_tool
+def resolve_duplicates(ctx: RunContextWrapper[ChatContext], names: list[str] | None = None) -> dict:
+    """Duplicates protocol, only when the user asks to fix / merge / clean up duplicates (or works a review task).
+    Merges every pending pair that is at least 80% sure, by itself, and returns each with its evidence and an Undo;
+    returns the less certain pairs in to_confirm, with both records' giving, for the user to decide.
+    names: when the user names the people ("merge Bob Nguyen and Robert Nguyen"), only the pair matching them."""
+    from service import agent_writes, dedupe, score
+    names = [n for n in (names or []) if n and n.strip()]
+
+    def pending(conn) -> list[dict]:
+        return [p for p in duplicate_pairs(conn) if names_match(p, names)]
+
+    def run(conn):
+        before = {"gifts": gift_totals(conn), "givers": giver_count(conn)}
+        merged, skipped, tried = [], [], set()
+        for _ in range(3):        # each merge re-scans, which can surface a new sure pair (a chain of three records)
+            sure = [p for p in pending(conn) if p["confidence"] >= AUTO_MERGE_AT and p["suggestion_id"] not in tried]
+            if not sure:
+                break
+            for p in sure:
+                tried.add(p["suggestion_id"])
+                try:
+                    result, token = agent_writes.merge_duplicate(conn, p["suggestion_id"], None,
+                                                                 f"agent ({AUTO_MERGE_AT:.0%}+ match)", actor="agent")
+                except agent_writes.WriteError as e:      # superseded by an earlier merge in this pass
+                    skipped.append({"suggestion_id": p["suggestion_id"], "reason": str(e)})
+                    continue
+                kept_a = result.get("kept_donor_id") == p["a"]["id"]
+                kept, gone = (p["a"], p["b"]) if kept_a else (p["b"], p["a"])
+                once = [int(i) for i in result.get("counted_once") or []]     # #185: the same gift on both records
+                counted_once = [{"amount": r["amount"], "date": r["gift_date"]} for r in conn.execute(
+                    f"SELECT amount, gift_date FROM gifts WHERE id IN ({', '.join('?' * len(once))}) ORDER BY gift_date",
+                    once)] if once else []
+                merged.append({"suggestion_id": p["suggestion_id"], "confidence": p["confidence"],
+                               "reasons": p["reasons"], "kept": kept["full_name"], "merged_in": gone["full_name"],
+                               "counted_once": counted_once, "undo_token": token,
+                               "undo_merge_id": result.get("merge_id")})
+            score.run(conn)
+            dedupe.run(conn)
+        rest = pending(conn)
+        after = {"gifts": gift_totals(conn), "givers": giver_count(conn)}
+        out = {"merged": merged, "skipped": skipped, "to_confirm": rest, "gifts": after["gifts"],
+               "gifts_unchanged": after["gifts"] == before["gifts"],
+               "givers": {"before": before["givers"], "after": after["givers"]}}
+        if not merged and not rest:
+            out["note"] = (f"No pending duplicate pair for {' and '.join(names)}." if names
+                           else "No possible duplicates right now.")
+        if merged:
+            out["card"] = {"kind": "merged_pairs", "pairs": [
+                {"suggestion_id": m["suggestion_id"], "kept": m["kept"], "merged_in": m["merged_in"],
+                 "confidence": m["confidence"], "evidence": m["reasons"][0] if m["reasons"] else "",
+                 "undo_token": m["undo_token"]} for m in merged]}
+        return out
+    return with_conn(run)
+
+
 @function_tool
 def rsvp_event(ctx: RunContextWrapper[ChatContext], event_id: int, person_id: int,
                rsvp: Literal["yes", "no", "maybe"]) -> dict:
@@ -728,15 +847,54 @@ def delete_task(ctx: RunContextWrapper[ChatContext], task_id: int) -> dict:
     return write(lambda conn: t.delete_task(conn, task_id, actor="agent"))
 
 
+# ---------- calendar v3: organization events (3a). The calendar holds events only; tasks stay on the to-do list.
+
+EventKind = Literal["fundraising", "stewardship", "community", "other"]
+
+
+def event_write(fn) -> dict:
+    """An events_crud write as a tool result: the event + undo_token, or {"error"}."""
+    from service import events_crud as ev
+    try:
+        event, token = with_conn(fn)
+    except (ev.EventError, ev.EventNotFound, ev.EventLocked) as e:
+        return {"error": str(e)}
+    return {**event, "undo_token": token}
+
+
+@function_tool
+def add_event(ctx: RunContextWrapper[ChatContext], title: str, date: str, time: str | None = None,
+              place: str | None = None, event_kind: EventKind | None = None, notes: str | None = None) -> dict:
+    """Add an organization event to the calendar (a board meeting, a gala, an open house) on a YYYY-MM-DD date,
+    optional HH:MM time. Applies at once; the user sees Undo. Tasks go through create_task, not here."""
+    from service import events_crud as ev
+    return event_write(lambda conn: ev.add_event(conn, title=title, starts_at_=ev.starts_at(day=date, time=time),
+                                                 source="agent", actor="agent", place=place, event_kind=event_kind,
+                                                 notes=notes))
+
+
+@function_tool
+def move_event(ctx: RunContextWrapper[ChatContext], event_id: int, date: str, time: str | None = None) -> dict:
+    """Move an event the staff or the agent added (event_id from get_calendar's ref 'event:N') to a new date/time.
+    Events found on the Foundation's website can't be moved here."""
+    from service import events_crud as ev
+    return event_write(lambda conn: ev.move_event(conn, event_id, day=date, time=time, actor="agent"))
+
+
+@function_tool(needs_approval=True)
+def delete_event(ctx: RunContextWrapper[ChatContext], event_id: int) -> dict:
+    """Remove an event the staff or the agent added. Needs the user's approval; Undo puts it back."""
+    from service import events_crud as ev
+    return event_write(lambda conn: ev.delete_event(conn, event_id, actor="agent"))
+
+
 @function_tool
 def add_calendar_item(ctx: RunContextWrapper[ChatContext], title: str, date: str, time: str | None = None,
-                      kind: TaskKind = "other", why: str | None = None, person_id: int | None = None) -> dict:
-    """Put something on the calendar on a YYYY-MM-DD date (a dated task)."""
-    t = tasks_module()
-    if t is None:
-        return {"error": "the calendar is not available yet"}
-    return write(lambda conn: t.add_calendar_item(conn, title=title, date_=date, time=time, kind=kind, why=why,
-                                                  person_id=person_id, actor="agent"))
+                      place: str | None = None) -> dict:
+    """Put an organization event on the calendar (same as add_event). A to-do for staff is create_task instead."""
+    from service import events_crud as ev
+    return event_write(lambda conn: ev.add_event(conn, title=title, starts_at_=ev.starts_at(day=date, time=time),
+                                                 source="agent", actor="agent", place=place))
 
 
 @function_tool
@@ -850,6 +1008,18 @@ def call_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
 
 
 @function_tool
+def prep_call(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
+    """Prepare a call: the person's call sheet (relationship with the Foundation, giving history, any declined
+    charge, interests, recent call notes, open tasks, sourced facts, suggested talking points). It appears in the
+    panel with a Call button, or says there is no phone number on file. Nothing is dialed."""
+    from service import call_sheet
+    try:
+        return {"card": with_conn(call_sheet.build, person_id)}
+    except LookupError as e:
+        return {"error": str(e)}
+
+
+@function_tool
 def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
     """Undo one earlier change by its undo_token."""
     from service import agent_writes, tasks
@@ -882,10 +1052,10 @@ TOOLS = [
     # reads
     find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_call_list, get_calendar,
     get_task, get_tasks,
-    get_call_notes, build_brief, community_stats,
+    get_call_notes, build_brief, community_stats, prep_call,
     # writes (each returns an undo_token)
-    update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
-    create_task, update_task, complete_task, add_calendar_item, move_calendar_item, get_after_call_actions,
+    update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, resolve_duplicates, rsvp_event,
+    create_task, update_task, complete_task, add_calendar_item, add_event, move_event, delete_event, move_calendar_item, get_after_call_actions,
     apply_after_call_actions, update_donor_summary,
     draft_email, draft_sms, plan_event_outreach, undo,
     # approval-gated: the run pauses on an approval card
@@ -923,6 +1093,14 @@ def summarize(output) -> str:
         return f"error: {data['error']}"
     if data.get("summary_updated"):                                                # update_donor_summary
         return f"Updated {data.get('first_name') or data.get('full_name')}'s summary"
+    if isinstance(data.get("card"), dict) and data["card"].get("kind") == "call_sheet":
+        from service import call_sheet
+        return call_sheet.summary_line(data["card"])
+    if "to_confirm" in data and "merged" in data:          # resolve_duplicates
+        if data.get("note"):
+            return data["note"]
+        n = len(data["merged"])
+        return f"merged {n} sure pair{'s' if n != 1 else ''} ({AUTO_MERGE_AT:.0%}+); {len(data['to_confirm'])} to confirm"
     if isinstance(data.get("task"), dict):                  # get_task
         t = data["task"]
         return f"task #{t.get('id')}: {t.get('title')}" + (" (done)" if t.get("done") else "")
@@ -1028,6 +1206,8 @@ def steps_from(items) -> list[dict]:
                 calls[call_id]["summary"] = summary
                 calls[call_id]["status"] = "error" if summary.startswith("error") else "done"
                 calls[call_id]["undo_token"] = output_data(item.output).get("undo_token")
+                if output_data(item.output).get("card"):                    # a richer card for the UI (kind = ...)
+                    calls[call_id]["card"] = output_data(item.output)["card"]
     return steps
 
 
@@ -1064,9 +1244,24 @@ def approval_summary(tool: str, args: dict) -> str | None:
                      "JOIN donors b ON b.id = s.donor_b_id WHERE s.id = ?", (args["suggestion_id"],))
         if rows:
             r = rows[0]
-            keep_a = args.get("keep_id") in (None, r["a_id"])
+            keep_id = args.get("keep_id")
+            if keep_id is None:            # dedupe.merge's default keeper: more gifts, ties -> lower id
+                counts = {d: query("SELECT COUNT(*) AS n FROM gifts WHERE donor_id = ?", (d,))[0]["n"]
+                          for d in (r["a_id"], r["b_id"])}
+                keep_id = sorted(counts, key=lambda d: (-counts[d], d))[0]
+            keep_a = keep_id == r["a_id"]
             kept, merged = (r["a_name"], r["b_name"]) if keep_a else (r["b_name"], r["a_name"])
-            return f"Merge {merged} into {kept}"
+            pair = next((p for p in with_conn(duplicate_pairs) if p["suggestion_id"] == args["suggestion_id"]), None)
+            if pair is None:
+                return f"Merge {merged} into {kept}"
+            giving = " vs ".join(f"{x['gifts']} gift{'s' if x['gifts'] != 1 else ''} · ${x['total_given']:,.0f}"
+                                 for x in (pair["a"], pair["b"]) if x)
+            evidence = pair["reasons"][0] if pair["reasons"] else "similar records"
+            return f"Merge {merged} into {kept} ({pair['confidence']:.0%} match: {evidence}; {giving})"
+    if tool == "delete_event" and args.get("event_id") is not None:
+        rows = query("SELECT title, starts_at FROM events WHERE id = ?", (args["event_id"],))
+        if rows:
+            return f"Delete event: {rows[0]['title']} ({rows[0]['starts_at'][:10]})"
     if tool in ("delete_task", "delete_calendar_item"):
         ref = args.get("task_id") if tool == "delete_task" else str(args.get("ref") or "").partition(":")[2]
         rows = query("SELECT title FROM tasks WHERE id = ?", (ref,)) if str(ref or "").isdigit() else []
@@ -1130,6 +1325,15 @@ def approval_items(interruptions) -> list[dict]:
     return out
 
 
+def waiting_line(approvals: list[dict]) -> str:
+    """The stand-in reply for a run paused on cards with no words of its own. One card: what it does. Several
+    (e.g. five merge cards): a count, since each card already says what it does."""
+    if len(approvals) == 1:
+        a = approvals[0]
+        return f"Waiting for you: {a['summary'] or a['tool'].replace('_', ' ')}."
+    return f"Waiting for you: {len(approvals)} decisions on the cards above."
+
+
 def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = None) -> dict:
     """The /chat response for a finished or paused run. shown = steps the thread already displays (a resumed
     run): the SDK's resumed result repeats them, so only new steps and the approved call's result go back."""
@@ -1154,9 +1358,7 @@ def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = Non
             batches = [pending_batch(rc.campaign_detail(conn, b)) for b in ctx.batches]
         finally:
             conn.close()
-    reply = result.final_output if not approvals else (
-        result.final_output or "Waiting for you: " + "; ".join(a["summary"] or a["tool"].replace("_", " ")
-                                                              for a in approvals) + ".")
+    reply = result.final_output if not approvals else (result.final_output or waiting_line(approvals))
     if ctx.blocked:
         reply = READ_ONLY_REPLY
     return {"reply": reply, "tab": ctx.tab, "steps": steps, "run_id": run_id, "approvals": approvals,
@@ -1176,6 +1378,23 @@ def run_chat(message: str, tab: str, selection: list[int] | None = None, history
     return respond(result, ctx, spec)
 
 
+def keep_separate(interruptions, decisions: dict[str, bool]) -> list[int]:
+    """A declined merge card means the person said these are different people: dismiss the pair now (its review
+    task retires), since the run may pause again on other cards before the model could. Returns the ids."""
+    from service import agent_writes
+    done = []
+    for item in interruptions:
+        if item.name != "merge_duplicate" or decisions.get(item.call_id) is not False:
+            continue
+        sid = output_data(item.arguments).get("suggestion_id")
+        try:
+            with_conn(agent_writes.dismiss_duplicate, int(sid), actor="staff")
+        except (agent_writes.WriteError, TypeError, ValueError):
+            continue
+        done.append(int(sid))
+    return done
+
+
 def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> dict:
     """A person approved or declined some of the paused calls (call_id -> approve). Only those are decided:
     a call left out stays pending, so the run pauses on it again (same call_id, new run_id) and its card still
@@ -1186,6 +1405,7 @@ def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> di
     ctx = ChatContext(tab=spec["tab"], selection=spec["selection"], approved_by=approved_by)
     agent = build_agent(spec["tab"], spec["selection"], spec["event_id"], spec["first_turn"])
     state = asyncio.run(RunState.from_string(agent, spec["state"], context_override=ctx))
+    keep_separate(state.get_interruptions(), decisions)
     for item in state.get_interruptions():
         if item.call_id in decisions:
             (state.approve if decisions[item.call_id] else state.reject)(item)
