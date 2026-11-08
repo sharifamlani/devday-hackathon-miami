@@ -136,21 +136,19 @@ describe("donorTags", () => {
 });
 
 describe("contact details", () => {
-  it("shows the full email on the laptop and masks it in the snapshot build", () => {
-    expect(contactEmail("maria.delgado@example.com", "local")).toBe(
-      "maria.delgado@example.com",
-    );
-    expect(contactEmail("maria.delgado@example.com", "snapshot")).toBe(
-      "m•••@example.com",
-    );
-    expect(contactEmail("noatsign", "snapshot")).toBe("•••");
+  it("shows the full email in every mode, snapshot included", () => {
+    for (const mode of ["local", "snapshot"] as const) {
+      expect(contactEmail("maria.delgado@example.com", mode)).toBe(
+        "maria.delgado@example.com",
+      );
+    }
   });
 
-  it("formats the phone on the laptop and keeps the last four digits in the snapshot build", () => {
-    expect(contactPhone("+13055550101", "local")).toBe("(305) 555-0101");
-    expect(contactPhone("305-555-0101", "local")).toBe("(305) 555-0101");
-    expect(contactPhone("+44 20 7946 0958", "local")).toBe("+44 20 7946 0958");
-    expect(contactPhone("+13055550101", "snapshot")).toBe("•••-•••-0101");
+  it("formats the phone in every mode, snapshot included", () => {
+    for (const mode of ["local", "snapshot"] as const) {
+      expect(contactPhone("+13055550101", mode)).toBe("(305) 555-0101");
+      expect(contactPhone("+44 20 7946 0958", mode)).toBe("+44 20 7946 0958");
+    }
   });
 
   it("returns null for a donor with no email or phone, in either mode", () => {
@@ -162,11 +160,10 @@ describe("contact details", () => {
     }
   });
 
-  it("leaves values that are already masked alone in the snapshot build", () => {
+  it("passes values the server already masked (PUBLIC_MODE) through untouched", () => {
     expect(contactEmail("r***@example.com", "snapshot")).toBe(
       "r***@example.com",
     );
-    expect(contactPhone("***-***-0101", "snapshot")).toBe("***-***-0101");
   });
 });
 
@@ -294,11 +291,10 @@ describe("toDonorContact", () => {
     });
   });
 
-  it("masks contact info when the row comes from the public snapshot", () => {
+  it("keeps contact info in full when the row comes from the snapshot", () => {
     const contact = toDonorContact(row(), AS_OF, { mode: "snapshot" });
-    expect(contact.email).toBe("a•••@example.com");
-    expect(contact.phone).toBe("•••-•••-0199");
-    expect(JSON.stringify(contact)).not.toContain("ana.example@example.com");
+    expect(contact.email).toBe("ana.example@example.com");
+    expect(contact.phone).toBe("(305) 555-0199");
   });
 
   it("reads interests sent as a JSON string", () => {

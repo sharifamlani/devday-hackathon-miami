@@ -357,6 +357,8 @@ export const decidedLabel = (tool: string, approve: boolean) =>
     merge_duplicate: approve ? "merging" : "kept separate",
     send: approve ? "sending" : "not sent",
     call_person: approve ? "calling" : "not called",
+    delete_event: approve ? "deleting" : "kept (not deleted)",
+    delete_calendar_item: approve ? "deleting" : "kept (not deleted)",
   })[tool] ?? (approve ? "approved" : "declined");
 
 /** True once every card in this message has an answer (or the run was already handled). */
