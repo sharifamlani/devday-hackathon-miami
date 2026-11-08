@@ -16,11 +16,15 @@ npm run test:unit:app -- --run --project app \
   src/components/atomic-crm/onboarding/OnboardingSteps.receipt.test.tsx \
   src/components/atomic-crm/onboarding/onboardingState.test.ts \
   src/components/atomic-crm/onboarding/firstRun.test.ts \
-  src/components/atomic-crm/home/panels/ImpactPanel.test.tsx
+  src/components/atomic-crm/home/panels/ImpactPanel.test.tsx \
+  src/components/atomic-crm/home/calendar/CalendarV3.test.tsx \
+  src/components/atomic-crm/calendar/CalendarPage.test.tsx \
+  src/components/atomic-crm/ask/AskSidebar.render.test.tsx
 ```
 
-**Result:** 7 files passed, 109 tests passed. This covers the current sample import and onboarding flow, the
-default organization name, accepted `.txt` files, and the dashboard's cached-research label.
+**Result:** 10 files passed, 124 tests passed. This covers the current sample import and onboarding flow, the
+default organization name, accepted `.txt` files, the dashboard's cached-research label, and the latest calendar
+and Ask-panel updates.
 
 ## Type checking
 
