@@ -742,3 +742,31 @@ def test_an_approved_merge_step_names_the_pair(db_file):
     out = invoke("merge_duplicate", suggestion_id=sid)
     # one gift each: dedupe.merge keeps the lower id (Bill), and the step says so
     assert ca.summarize(out) == "merged William Hartwell into Bill Hartwell"
+
+
+def test_dismissing_a_pair_already_kept_separate_is_a_quiet_success(db_file):
+    """keep_separate() dismisses a declined pair at once; a later dismiss_duplicate must not show an error."""
+    sid = one(db_file, "SELECT id FROM duplicate_suggestions WHERE status = 'pending' LIMIT 1")["id"]
+    assert "error" not in invoke("dismiss_duplicate", suggestion_id=sid)
+    again = invoke("dismiss_duplicate", suggestion_id=sid)
+    assert "error" not in again and again["status"] == "dismissed"
+    assert ca.summarize(again) == "already kept separate"
+    assert "error" in invoke("dismiss_duplicate", suggestion_id=999999)
+
+
+def test_a_call_seen_twice_in_a_resumed_run_is_one_step():
+    from agents.items import ToolCallItem, ToolCallOutputItem
+    from types import SimpleNamespace
+    def call():
+        c = ToolCallItem.__new__(ToolCallItem)
+        c.raw_item = SimpleNamespace(call_id="m1", name="merge_duplicate", arguments='{"suggestion_id": 3}')
+        return c
+    out = ToolCallOutputItem.__new__(ToolCallOutputItem)
+    out.raw_item = {"call_id": "m1"}
+    out.output = {"suggestion_id": 3, "label": "merged A into B", "undo_token": "u1"}
+    steps = ca.steps_from([call(), call(), out])
+    assert len(steps) == 1 and steps[0]["summary"] == "merged A into B" and steps[0]["undo_token"] == "u1"
+
+
+def test_the_protocol_no_longer_asks_for_a_dismiss_after_a_decline():
+    assert "call dismiss_duplicate for\n  that pair" not in ca.INSTRUCTIONS and "comes back declined" not in ca.INSTRUCTIONS

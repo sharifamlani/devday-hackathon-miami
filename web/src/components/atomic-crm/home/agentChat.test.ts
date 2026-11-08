@@ -314,3 +314,42 @@ describe("agent chat: the last conversation survives a reload", () => {
     expect(loaded[1]).toMatchObject({ streaming: undefined, steps: [expect.objectContaining({ status: "error", summary: "no result" })] });
   });
 });
+
+describe("agent chat: a decided card's outcome replaces its placeholder", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetAgentChat();
+  });
+
+  it("the merge result lands on the card's own step, not as a second row", async () => {
+    const cards = ["m1", "m2"].map((id) => ({ call_id: id, tool: "merge_duplicate", args: { suggestion_id: 1 }, summary: `Merge ${id}` }));
+    vi.spyOn(window, "fetch")
+      .mockImplementationOnce(() =>
+        reply({
+          reply: null,
+          steps: cards.map((c) => ({ tool: "merge_duplicate", args: {}, summary: "waiting for your approval to merge",
+            status: "awaiting_approval", undo_token: null, call_id: c.call_id })),
+          approvals: cards,
+          run_id: "r1",
+        }),
+      )
+      .mockImplementationOnce(() =>
+        reply({
+          reply: null,
+          steps: [{ tool: "merge_duplicate", args: {}, summary: "merged A into B", status: "done", undo_token: "u1", call_id: "m1" }],
+          approvals: cards.slice(1),
+          run_id: "r2",
+        }),
+      );
+    await sendToAgent("fix the duplicate records", () => {});
+    await decide(1, { m1: true }, () => {});
+    const thread = agentChatMessages();
+    expect(thread).toHaveLength(2);                                  // no extra bubble repeating the step
+    const m = thread[1];
+    if (m.role !== "assistant") throw new Error("no reply");
+    expect(m.steps.filter((s) => s.call_id === "m1")).toEqual([
+      expect.objectContaining({ status: "done", summary: "merged A into B", undo_token: "u1" }),
+    ]);
+    expect(m.steps.find((s) => s.call_id === "m2")).toMatchObject({ status: "awaiting_approval" });
+  });
+});
