@@ -19,7 +19,6 @@ import {
   giveMiamiDay,
   goalEnds,
   kindLabel,
-  maskEmail,
   searchDonors,
   tasksFromApi,
   type CalendarItem,
@@ -122,11 +121,6 @@ describe("home data: donors", () => {
     expect(donorMeta(donor(1, { gift_count: 0 }))).toBe("No gifts yet");
   });
 
-  it("masks email addresses", () => {
-    expect(maskEmail("priya@example.org")).toBe("p•••@example.org");
-    expect(maskEmail(null)).toBe("—");
-    expect(maskEmail("@example.org")).toBe("•••");
-  });
 
   it("searches name, email and organization word by word", () => {
     const list = [

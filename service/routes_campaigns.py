@@ -8,7 +8,8 @@ POST  /campaigns/{id}/approve-small       bulk-approve only drafts that need no 
 POST  /campaigns/{id}/send                approved messages -> outbox (simulated: no provider, nothing leaves the laptop)
 GET   /outbox                             the simulated outbox = the contact log (?campaign_id=, ?donor_id=)
 
-Addresses are stored in full in the local db but always masked in responses (r***@example.com, ***-***-0101).
+Addresses are stored in full in the local db and returned in full by the live API. Only the public snapshot's
+sample campaign (campaigns_demo) masks them (r***@example.com, ***-***-0101).
 """
 
 from __future__ import annotations
@@ -40,7 +41,7 @@ def now() -> str:
 
 
 # ----------------------------------------------------------------------------------------------
-# Masking
+# Masking (the public snapshot's sample campaign only; the live API returns addresses in full)
 # ----------------------------------------------------------------------------------------------
 
 def mask_address(address: str | None, channel: str) -> str | None:
@@ -130,7 +131,7 @@ LEFT JOIN donor_scores s ON s.donor_id = m.donor_id
 """
 
 
-def message_out(row: sqlite3.Row | dict) -> dict:
+def message_out(row: sqlite3.Row | dict, mask: bool = False) -> dict:
     m = dict(row)
     donor = {"is_star": bool(m.get("is_star")), "donor_type": m.get("donor_type"), "tier": m.get("tier")}
     address = m.get("email") if m["channel"] == "email" else m.get("phone")
@@ -142,7 +143,7 @@ def message_out(row: sqlite3.Row | dict) -> dict:
         "why": json.loads(m["why"]) if m.get("why") else None,
         "needs_individual_approval": bool(m["needs_individual_approval"]),
         "approval_reason": ca.approval_reason(donor) if m["needs_individual_approval"] else None,
-        "channel": m["channel"], "to": mask_address(address, m["channel"]),
+        "channel": m["channel"], "to": mask_address(address, m["channel"]) if mask else address,
         "subject": m.get("subject"), "body": m["body"],
         "facts_used": json.loads(m.get("facts_used") or "[]"), "flags": json.loads(m.get("flags") or "[]"),
         "drafted_by": m["drafted_by"], "draft_note": m.get("draft_note"),
@@ -174,7 +175,7 @@ def campaign_detail(conn: sqlite3.Connection, campaign_id: int) -> dict:
 
 def outbox_out(row: sqlite3.Row) -> dict:
     d = dict(row)
-    d["to"] = mask_address(d.pop("to_address"), d["channel"])
+    d["to"] = d.pop("to_address")
     d["simulated"] = bool(d["simulated"])
     return d
 
@@ -429,14 +430,14 @@ def demo_message(donor: dict, why: dict, draft: ca.CampaignDraft, channel: str, 
         "subject": draft.subject, "body": draft.body, "facts_used": json.dumps(draft.facts_used),
         "flags": json.dumps(draft.flags), "drafted_by": draft.drafted_by, "draft_note": draft.note,
         "status": "draft", "approved_by": None, "approved_via": None, "approved_at": None, "sent_at": None,
-        "outreach_draft_id": None})
+        "outreach_draft_id": None}, mask=True)
 
 
 def campaigns_demo(conn: sqlite3.Connection) -> dict:
     """{label, campaigns: [sample campaign detail], outbox: [], drafts: {donor_id: {"intent:channel": message}}}.
 
     Template path only (no model, no writes), so the Vercel build can show create -> approve -> send in the tab.
-    Addresses are masked already; the browser never sees a full email or phone number."""
+    Addresses stay masked in this sample (the snapshot's donor rows are masked by the web build, not here)."""
     ids = [r[0] for r in conn.execute("SELECT d.id FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id "
                                       "ORDER BY s.score IS NULL, s.score DESC, d.id LIMIT ?", (SNAPSHOT_DRAFT_DONORS,))]
     drafts: dict[str, dict] = {}

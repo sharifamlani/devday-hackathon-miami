@@ -119,7 +119,7 @@ def test_star_and_org_donors_cannot_be_bulk_approved(client):
     assert star["status"] == "approved" and star["approved_by"] == "Sharif" and star["approved_via"] == "individual"
 
 
-def test_send_moves_approved_messages_to_a_masked_simulated_outbox(client):
+def test_send_moves_approved_messages_to_a_simulated_outbox_with_full_addresses(client):
     c = client.post("/campaigns", json={"donor_ids": [1, 5, 9, 6], "intent": "thank_you", "channel": "email"}).json()
     msgs = by_donor(c)
     client.post(f"/campaigns/{c['id']}/approve-small")
@@ -134,7 +134,7 @@ def test_send_moves_approved_messages_to_a_masked_simulated_outbox(client):
     out = client.get("/outbox").json()
     assert {o["donor_name"] for o in out} == {"Maria Delgado", "Robert Nguyen"}
     maria = next(o for o in out if o["donor_id"] == 1)
-    assert maria["to"] == "m***@example.com" and "maria.delgado" not in str(out)
+    assert maria["to"] == "maria.delgado@example.com" and "***" not in str(out)
     assert maria["channel"] == "email" and maria["sent_at"] and maria["simulated"] is True
     assert maria["campaign_name"] == c["name"]
     sent = by_donor(client.get(f"/campaigns/{c['id']}").json())
@@ -183,13 +183,13 @@ def test_outbox_and_send_report_what_really_happened(client, monkeypatch):
     assert [(o["provider"], o["simulated"], o["delivery_status"], o["provider_id"]) for o in real] ==         [("gmail", False, "sent", "gm-1")]
 
 
-def test_text_campaign_masks_phone_and_stays_under_320(client):
+def test_text_campaign_shows_full_phone_and_stays_under_320(client):
     c = client.post("/campaigns", json={"donor_ids": [1, 9, 11], "intent": "re_engage", "channel": "text"}).json()
     assert all(len(m["body"]) <= ca.SMS_MAX and m["subject"] is None for m in c["messages"])
-    assert by_donor(c)[1]["to"] == "***-***-0101"
+    assert by_donor(c)[1]["to"] == "+13055550101"
     client.post(f"/campaigns/{c['id']}/approve-small")
     client.post(f"/campaigns/{c['id']}/send")
-    assert client.get(f"/outbox?campaign_id={c['id']}").json()[0]["to"] == "***-***-0101"
+    assert client.get(f"/outbox?campaign_id={c['id']}").json()[0]["to"] == "+13055550101"
 
 
 def test_guardrail_flags_an_invented_amount_and_blocks_approval(client):

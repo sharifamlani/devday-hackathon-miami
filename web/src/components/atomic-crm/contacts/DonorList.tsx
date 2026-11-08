@@ -658,7 +658,7 @@ const ExportAllButton = () => {
   );
 };
 
-/** CSV of what the screen shows: masked contact details, no raw addresses. */
+/** CSV of what the screen shows (contact details are masked only in the snapshot build). */
 const exportDonors = (records: DonorContact[]) =>
   jsonExport(
     records.map((d) => ({
@@ -674,7 +674,8 @@ const exportDonors = (records: DonorContact[]) =>
       gifts: d.gift_count,
       usual_timing: d.usual_cadence ?? "",
       city: d.city ?? "",
-      email_masked: d.email ?? "",
+      email: d.email ?? "",
+      phone: d.phone ?? "",
       source_list: d.source,
     })),
     {},
