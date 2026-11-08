@@ -27,7 +27,10 @@ export const Rail = () => {
     !!matchPath("/outbox", location.pathname);
 
   return (
-    <nav aria-label="Main" className="flex flex-col items-center gap-6 py-2.5">
+    <nav
+      aria-label="Main"
+      className="flex flex-col items-center gap-6 py-2.5"
+    >
       <Link
         to="/"
         aria-label="Donor Desk home"
