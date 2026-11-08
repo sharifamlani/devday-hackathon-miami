@@ -25,9 +25,39 @@ const reply = (status: number, body: unknown) =>
       new Response(JSON.stringify(body), { status }),
   );
 
-describe("askHosted: snapshot mode with /api/ask", () => {
+describe("askHosted: snapshot build without VITE_ASK_API=on (the default)", () => {
   beforeEach(() => resetHostedAsk());
   afterEach(() => resetHostedAsk());
+
+  it("answers free text with the fallback and makes 0 requests (S1)", async () => {
+    const fetchImpl = reply(200, {});
+    for (const q of ["who are my top donors this fall?", "hello?", "donors in Coral Gables"]) {
+      const answer = await askHosted(snapshot(), q, null, null, fetchImpl);
+      expect(answer.understood).toBe(false);
+      expect(answer.interpretation).toBe(HOSTED_MESSAGES.notConfigured);
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    // Example questions still answer from the cache.
+    const example = await askHosted(snapshot(), EXAMPLE_QUESTIONS[0], null, null, fetchImpl);
+    expect(example.understood).toBe(true);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("askHosted: snapshot mode with /api/ask", () => {
+  beforeEach(() => resetHostedAsk(true));
+  afterEach(() => resetHostedAsk());
+
+  it.each([404, 501])("after one %i (no function), later free-text questions make no request", async (status) => {
+    const first = reply(status, {});
+    expect((await askHosted(snapshot(), "hello?", null, null, first)).interpretation).toBe(
+      HOSTED_MESSAGES.notConfigured,
+    );
+    const later = reply(200, {});
+    await askHosted(snapshot(), "who gave this week?", null, null, later);
+    expect(later).not.toHaveBeenCalled();
+  });
 
   it("after one 503 (not configured), later free-text questions make no request", async () => {
     const first = reply(503, { error: "not_configured" });

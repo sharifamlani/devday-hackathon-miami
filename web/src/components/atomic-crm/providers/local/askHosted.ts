@@ -19,12 +19,19 @@ import {
 export const ASK_API_URL = "/api/ask";
 
 /**
- * Once /api/ask says it isn't configured (503), later free-text questions skip the request and go straight
- * to the friendly fallback, so a deployment without a key logs one console error, not one per question.
- * Remembered for the browser session; VITE_ASK_API=off skips the API from the first question.
+ * /api/ask needs a server key, so the snapshot build only calls it when built with VITE_ASK_API=on (set it
+ * alongside the key on Vercel). Off by default: free text goes straight to the friendly fallback, no request.
+ */
+const ASK_API_ON = import.meta.env.VITE_ASK_API === "on";
+
+/**
+ * Once /api/ask answers that it isn't there (503 not configured, 404/501 no function), later free-text
+ * questions skip the request, so a deployment without it logs one console error, not one per question.
+ * Remembered for the browser session.
  */
 const UNCONFIGURED_KEY = "donordesk.askApi.unconfigured";
-let unconfigured = import.meta.env.VITE_ASK_API === "off" || readUnconfigured();
+const UNCONFIGURED_STATUS = new Set([404, 501, 503]);
+let unconfigured = !ASK_API_ON || readUnconfigured();
 
 function readUnconfigured(): boolean {
   try {
@@ -43,9 +50,9 @@ const rememberUnconfigured = () => {
   }
 };
 
-/** For tests: forget a cached 503. */
-export const resetHostedAsk = () => {
-  unconfigured = import.meta.env.VITE_ASK_API === "off";
+/** For tests: forget a cached 503, with the API on or off (default: as built). */
+export const resetHostedAsk = (apiOn: boolean = ASK_API_ON) => {
+  unconfigured = !apiOn;
   try {
     window.sessionStorage.removeItem(UNCONFIGURED_KEY);
   } catch {
@@ -115,7 +122,7 @@ export const askHosted = async (
   } catch {
     return notAnswered(HOSTED_MESSAGES.unavailable);
   }
-  if (response.status === 503) {
+  if (UNCONFIGURED_STATUS.has(response.status)) {
     rememberUnconfigured();
     return notAnswered(HOSTED_MESSAGES.notConfigured);
   }
