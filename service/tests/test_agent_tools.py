@@ -148,8 +148,10 @@ def test_writes_not_on_this_build_say_so(db_file):
     import importlib.util
     if importlib.util.find_spec("service.interests") is None:                # until 42's PR #88 lands
         assert "not available yet" in invoke("add_interest", person_id=1, tag="arts_culture")["error"]
-    assert "not available yet" in invoke("rsvp_event", event_id=1, person_id=1, rsvp="yes")["error"]
-    assert "not available yet" in invoke("apply_after_call_actions", call_note_id="c1", action_ids=["a"])["error"]
+    if "rsvp" not in {r[1] for r in sqlite3.connect(db_file).execute("PRAGMA table_info(event_audience)")}:
+        assert "not available yet" in invoke("rsvp_event", event_id=1, person_id=1, rsvp="yes")["error"]
+    if importlib.util.find_spec("service.after_call_agent") is None:                # until 86's PR #90 lands
+        assert "not available yet" in invoke("apply_after_call_actions", call_note_id="c1", action_ids=["a"])["error"]
 
 
 def test_reads_return_rows(db_file):
@@ -221,3 +223,44 @@ def test_delete_steps_say_deleted_and_the_prompt_allows_send_via_approval():
                                 output={"id": 4, "kind": "other", "title": "Order badges", "undo_token": "t"})]
     assert ca.steps_from(items)[0]["summary"] == "deleted: Order badges"
     assert "You cannot send" not in ca.INSTRUCTIONS and "call send" in ca.INSTRUCTIONS
+
+
+def test_get_and_apply_after_call_actions(db_file, monkeypatch, tmp_path):
+    aca = pytest.importorskip("service.after_call_agent")          # 86's B6 (PR #90)
+    monkeypatch.setenv("AFTER_CALL_DRAFTER", "rules")
+    monkeypatch.setattr(aca, "PROPOSALS_FILE", tmp_path / "proposals.json")
+    aca._PROPOSALS.clear()
+    conn = sqlite3.connect(db_file)
+    script = [("you", "Staff", "Hi Maria, thanks for taking my call."),
+              ("them", "Maria", "I still want to keep giving $50 a month."),
+              ("you", "Staff", "Wonderful, thank you so much.")]
+    conn.execute("INSERT INTO call_notes (id, title, created_at, transcript, destinations) VALUES (?, ?, ?, ?, ?)",
+                 ("note-b10", "Call with Maria", "2026-11-08T10:00:00",
+                  json.dumps([{"speaker": s, "name": n, "text": t, "at": i} for i, (s, n, t) in enumerate(script)]),
+                  json.dumps([{"kind": "donor", "id": 1, "label": "Maria Delgado"}])))
+    conn.commit()
+    conn.close()
+
+    proposed = invoke("get_after_call_actions", call_note_id="note-b10")
+    pledge = next(a for a in proposed["actions"] if a["type"] == "record_pledge")
+    assert one(db_file, "SELECT COUNT(*) AS n FROM pledges")["n"] == 0                   # proposing writes nothing
+    invoke("apply_after_call_actions", call_note_id="note-b10", action_ids=[pledge["id"]])
+    assert one(db_file, "SELECT COUNT(*) AS n FROM pledges WHERE person_id = 1")["n"] == 1
+    assert "error" in invoke("get_after_call_actions", call_note_id="no-such-note")
+
+
+def test_rsvp_event_and_undo(db_file):
+    conn = sqlite3.connect(db_file)
+    if "rsvp" not in {r[1] for r in conn.execute("PRAGMA table_info(event_audience)")}:
+        conn.close()
+        pytest.skip("event_audience.rsvp arrives with 86's B6 (PR #90)")
+    event = conn.execute("INSERT INTO events (title, starts_at, source_url) VALUES "
+                         "('Beach Cleanup (SAMPLE)', '2026-11-21', 'https://example.org/beach')").lastrowid
+    conn.execute("INSERT INTO event_audience (event_id, person_id, reason) VALUES (?, 1, 'test')", (event,))
+    conn.commit()
+    conn.close()
+
+    out = invoke("rsvp_event", event_id=event, person_id=1, rsvp="yes")
+    assert one(db_file, "SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = 1", event)["rsvp"] == "yes"
+    undo(out["undo_token"])
+    assert one(db_file, "SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = 1", event)["rsvp"] is None
