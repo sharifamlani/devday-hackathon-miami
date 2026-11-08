@@ -1,5 +1,13 @@
 import jsonExport from "jsonexport/dist";
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   downloadCSV,
   ListBase,
@@ -7,7 +15,14 @@ import {
   useListContext,
   type Exporter,
 } from "ra-core";
-import { Download, Filter, Megaphone, Upload, X } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  Filter,
+  Megaphone,
+  Upload,
+  X,
+} from "lucide-react";
 import { Link } from "react-router";
 
 import { BulkExportButton } from "@/components/admin/bulk-export-button";
@@ -42,9 +57,9 @@ import {
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { AutoMergeFlag } from "./AutoMergeFlag";
+import { DonorRowDetails } from "./DonorRowDetails";
 import { DuplicateBanner } from "./DuplicateMerge";
-import { AlsoFound, PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
-import { usePeopleTab } from "./usePeopleTab";
+import { countSourceFiles } from "./sourceFiles";
 
 const SORTS = [
   { value: "score:DESC", label: "Priority score" },
@@ -73,7 +88,6 @@ const DonorListLayout = () => {
     useListContext<DonorContact>();
   const [importOpen, setImportOpen] = useState(false);
   const facets = useFacets();
-  const [tab] = usePeopleTab();
 
   // Imports and merges refetch the donor-desk queries; follow them.
   const donorsUpdatedAt = useDonors().dataUpdatedAt;
@@ -104,16 +118,9 @@ const DonorListLayout = () => {
         </div>
       </div>
       <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
-      <PeopleTabBar />
-      {tab !== "giver" && <PeopleTabPanel tab={tab} />}
-      {tab === "giver" && <DuplicateBanner />}
+      <DuplicateBanner />
 
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-2",
-          tab !== "giver" && "hidden",
-        )}
-      >
+      <div className="flex flex-wrap items-center gap-2">
         <SearchBox />
         <SortSelect />
         <Popover>
@@ -137,13 +144,12 @@ const DonorListLayout = () => {
             sideOffset={8}
             className="desk-directory-filters"
           >
-            <h2 className="font-semibold">Filter donors</h2>
             <DonorFilters facets={facets} />
           </PopoverContent>
         </Popover>
       </div>
 
-      <div className={cn("flex gap-4", tab !== "giver" && "hidden")}>
+      <div className="flex gap-4">
         <div className="min-w-0 flex-1 space-y-2">
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {isPending
@@ -177,10 +183,7 @@ const DonorListLayout = () => {
           )}
         </div>
       </div>
-      {tab === "giver" && (
-        <AlsoFound query={String(filterValues.q ?? "")} current="giver" />
-      )}
-      {tab === "giver" && <BulkBar />}
+      <BulkBar />
     </div>
   );
 };
@@ -261,9 +264,7 @@ const useFacets = (): Facets | null => {
       status: count(data.flatMap((d) => d.status_tags ?? [])),
       tier: count(data.map((d) => d.tier)),
       lastGift: count(data.map((d) => d.last_gift_range)),
-      sources: Object.entries(count(data.map((d) => d.source))).sort(
-        ([a], [b]) => a.localeCompare(b),
-      ),
+      sources: countSourceFiles(data.map((d) => d.source)),
       drafts: data.filter((d) => d.drafts_awaiting > 0).length,
       recurring: data.filter((d) => d.recurring).length,
       organizations: data.filter((d) => d.donor_type === "organization").length,
@@ -275,125 +276,185 @@ const DonorFilters = ({ facets }: { facets: Facets | null }) => {
   const { filterValues, setFilters } = useListContext();
   const { data: tags = [] } = useTags();
   const hasFilters = Object.keys(filterValues).some((k) => k !== "q");
+  const activeIn = (...keys: string[]) =>
+    keys.filter((k) => filterValues[k] !== undefined && filterValues[k] !== "")
+      .length;
   return (
-    <div className="space-y-4">
-      <FilterGroup label="Status">
-        {DONOR_TAGS.map((tag) => (
-          <FilterChip
-            key={tag}
-            filterKey="status_tag"
-            value={tag}
-            count={facets ? (facets.status[tag] ?? 0) : undefined}
+    <div
+      className="space-y-3"
+      style={{ gridTemplateColumns: "minmax(0, 1fr)" }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Filter donors</h2>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full"
+            onClick={() =>
+              setFilters(filterValues.q ? { q: filterValues.q } : {}, {})
+            }
           >
-            {DONOR_TAG_LABELS[tag]}
-          </FilterChip>
-        ))}
-      </FilterGroup>
-      <FilterGroup label="Giving tier">
-        {(["big", "mid", "small"] as Tier[]).map((tier) => (
-          <FilterChip
-            key={tier}
-            filterKey="tier"
-            value={tier}
-            count={facets ? (facets.tier[tier] ?? 0) : undefined}
-          >
-            {tierLabel[tier]}
-          </FilterChip>
-        ))}
-      </FilterGroup>
-      <FilterGroup label="Last gift">
-        {(Object.keys(LAST_GIFT_RANGE_LABELS) as LastGiftRange[]).map(
-          (range) => (
-            <FilterChip
-              key={range}
-              filterKey="last_gift_range"
-              value={range}
-              count={facets ? (facets.lastGift[range] ?? 0) : undefined}
-            >
-              {LAST_GIFT_RANGE_LABELS[range]}
-            </FilterChip>
-          ),
+            <X aria-hidden />
+            Clear all
+          </Button>
         )}
-      </FilterGroup>
-      {tags.length > 0 && (
-        <FilterGroup label="Tags">
-          {tags.map((tag) => (
-            <FilterChip key={tag.id} filterKey="tags@cs" value={`{${tag.id}}`}>
-              <span
-                aria-hidden
-                className="inline-block size-2.5 rounded-full border border-border"
-                style={{ backgroundColor: tag.color }}
-              />
-              {tag.name}
-            </FilterChip>
-          ))}
-        </FilterGroup>
-      )}
-      {facets && facets.sources.length > 0 && (
-        <FilterGroup label="Source list">
-          {facets.sources.map(([source, n]) => (
+      </div>
+      <div className="divide-y divide-border rounded-2xl border border-border">
+        <FilterGroup label="Status" active={activeIn("status_tag")} defaultOpen>
+          {DONOR_TAGS.map((tag) => (
             <FilterChip
-              key={source}
-              filterKey="source"
-              value={source}
-              count={n}
+              key={tag}
+              filterKey="status_tag"
+              value={tag}
+              count={facets ? (facets.status[tag] ?? 0) : undefined}
             >
-              {source}
+              {DONOR_TAG_LABELS[tag]}
             </FilterChip>
           ))}
         </FilterGroup>
-      )}
-      <FilterGroup label="More">
-        <FilterChip filterKey="has_draft" value={true} count={facets?.drafts}>
-          Draft awaiting approval
-        </FilterChip>
-        <FilterChip
-          filterKey="recurring"
-          value={true}
-          count={facets?.recurring}
+        <FilterGroup label="Giving tier" active={activeIn("tier")}>
+          {(["big", "mid", "small"] as Tier[]).map((tier) => (
+            <FilterChip
+              key={tier}
+              filterKey="tier"
+              value={tier}
+              count={facets ? (facets.tier[tier] ?? 0) : undefined}
+            >
+              {tierLabel[tier]}
+            </FilterChip>
+          ))}
+        </FilterGroup>
+        <FilterGroup label="Last gift" active={activeIn("last_gift_range")}>
+          {(Object.keys(LAST_GIFT_RANGE_LABELS) as LastGiftRange[]).map(
+            (range) => (
+              <FilterChip
+                key={range}
+                filterKey="last_gift_range"
+                value={range}
+                count={facets ? (facets.lastGift[range] ?? 0) : undefined}
+              >
+                {LAST_GIFT_RANGE_LABELS[range]}
+              </FilterChip>
+            ),
+          )}
+        </FilterGroup>
+        <FilterGroup label="Tags" active={activeIn("tags@cs")}>
+          {tags.length === 0 ? (
+            <NoneNote />
+          ) : (
+            tags.map((tag) => (
+              <FilterChip
+                key={tag.id}
+                filterKey="tags@cs"
+                value={`{${tag.id}}`}
+              >
+                <span
+                  aria-hidden
+                  className="inline-block size-2.5 rounded-full border border-border"
+                  style={{ backgroundColor: tag.color }}
+                />
+                {tag.name}
+              </FilterChip>
+            ))
+          )}
+        </FilterGroup>
+        <FilterGroup label="Source list" active={activeIn("source_file")}>
+          {!facets || facets.sources.length === 0 ? (
+            <NoneNote />
+          ) : (
+            facets.sources.map(([file, n]) => (
+              <FilterChip
+                key={file}
+                filterKey="source_file"
+                value={file}
+                count={n}
+                title={file}
+              >
+                <span className="max-w-[16rem] truncate">{file}</span>
+              </FilterChip>
+            ))
+          )}
+        </FilterGroup>
+        <FilterGroup
+          label="More"
+          active={activeIn("has_draft", "recurring", "donor_type")}
         >
-          Recurring donors
-        </FilterChip>
-        <FilterChip
-          filterKey="donor_type"
-          value="organization"
-          count={facets?.organizations}
-        >
-          Organizations
-        </FilterChip>
-      </FilterGroup>
-      {hasFilters && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="rounded-full"
-          onClick={() =>
-            setFilters(filterValues.q ? { q: filterValues.q } : {}, {})
-          }
-        >
-          <X aria-hidden />
-          Clear filters
-        </Button>
-      )}
+          <FilterChip filterKey="has_draft" value={true} count={facets?.drafts}>
+            Draft awaiting approval
+          </FilterChip>
+          <FilterChip
+            filterKey="recurring"
+            value={true}
+            count={facets?.recurring}
+          >
+            Recurring donors
+          </FilterChip>
+          <FilterChip
+            filterKey="donor_type"
+            value="organization"
+            count={facets?.organizations}
+          >
+            Organizations
+          </FilterChip>
+        </FilterGroup>
+      </div>
     </div>
   );
 };
 
+const NoneNote = () => <p className="text-sm text-muted-foreground">None</p>;
+
+/** One collapsible row: name, active count, chevron. Several can be open at once. */
 const FilterGroup = ({
   label,
+  active,
+  defaultOpen = false,
   children,
 }: {
   label: string;
+  active: number;
+  defaultOpen?: boolean;
   children: ReactNode;
 }) => {
+  const [open, setOpen] = useState(defaultOpen);
   const id = useId();
   return (
-    <div role="group" aria-labelledby={id} className="space-y-1.5">
-      <h2 id={id} className="text-xs font-semibold text-muted-foreground">
-        {label}
-      </h2>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
+    <section>
+      <h3>
+        <button
+          type="button"
+          id={`${id}-header`}
+          aria-expanded={open}
+          aria-controls={`${id}-panel`}
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-h-12 w-full items-center gap-2 px-4 text-left text-sm font-semibold hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        >
+          <span className="flex-1">{label}</span>
+          {active > 0 && (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+              {active}
+            </span>
+          )}
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              "size-4 text-muted-foreground transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+      </h3>
+      <div
+        id={`${id}-panel`}
+        role="region"
+        aria-labelledby={`${id}-header`}
+        hidden={!open}
+        className="flex flex-wrap gap-1.5 px-4 pb-4"
+      >
+        {children}
+      </div>
+    </section>
   );
 };
 
@@ -402,11 +463,13 @@ const FilterChip = ({
   filterKey,
   value,
   count,
+  title,
   children,
 }: {
   filterKey: string;
   value: string | boolean;
   count?: number;
+  title?: string;
   children: ReactNode;
 }) => {
   const { filterValues, setFilters, displayedFilters } = useListContext();
@@ -422,6 +485,7 @@ const FilterChip = ({
     <button
       type="button"
       aria-pressed={active}
+      title={title}
       onClick={toggle}
       className={cn(
         "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
@@ -457,6 +521,22 @@ const DonorRows = () => {
   } = useListContext<DonorContact>();
   const allSelected =
     data.length > 0 && data.every((d) => selectedIds.includes(d.id));
+  const [openId, setOpenId] = useState<number | null>(null);
+  const listId = useId();
+  // Keep the clicked row where it is: opening B closes A, which can sit above B.
+  const anchor = useRef<{ el: HTMLElement; top: number } | null>(null);
+  const toggle = (id: number, el: HTMLElement) => {
+    anchor.current = { el, top: el.getBoundingClientRect().top };
+    setOpenId((cur) => (cur === id ? null : id));
+  };
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    anchor.current = null;
+    if (!a || !a.el.isConnected) return;
+    const delta = a.el.getBoundingClientRect().top - a.top;
+    if (Math.abs(delta) < 1) return;
+    scrollParent(a.el).scrollBy({ top: delta });
+  }, [openId]);
   return (
     <>
       <div className="flex items-center gap-3 border-b border-border px-3 py-2 text-xs text-muted-foreground">
@@ -481,98 +561,128 @@ const DonorRows = () => {
       </div>
       <ul className="divide-y divide-border">
         {data.map((donor) => (
-          <li
-            key={donor.id}
-            className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50"
-          >
-            <Checkbox
-              aria-label={`Select ${donor.full_name}`}
-              checked={selectedIds.includes(donor.id)}
-              onCheckedChange={() => onToggleItem(donor.id)}
-            />
-            <InitialsAvatar name={donor.full_name ?? [donor.first_name, donor.last_name].filter(Boolean).join(" ")} size="sm" />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <Link
-                  to={`/contacts/${donor.id}/show`}
-                  className="truncate rounded-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  {donor.is_star && (
-                    <>
-                      <span aria-hidden className="mr-0.5">
-                        ★
-                      </span>
-                      <span className="sr-only">Star donor: </span>
-                    </>
-                  )}
-                  {donor.full_name}
-                </Link>
-                <AutoMergeFlag
-                  personId={donor.id}
-                  name={donor.full_name}
-                  autoMerged={donor.auto_merged}
-                  mergedFrom={donor.merged_from}
-                />
-                <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
-                  {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
-                    <DonorTagBadge key={tag} tag={tag} />
-                  ))}
-                </span>
-              </div>
-              <p className="truncate text-xs text-muted-foreground">
-                {[
-                  donor.company_name && donor.company_name !== donor.full_name
-                    ? donor.company_name
-                    : null,
-                  donor.city,
-                  donor.usual_cadence ? `gives ${donor.usual_cadence}` : null,
-                  donor.why_short,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              {donor.next_step && (
-                <p className="truncate text-xs" data-testid="donor-next-step">
-                  <span className="font-medium">Next step:</span>{" "}
-                  {donor.next_step}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground @min-[640px]:hidden">
-                Last gift {formatDay(donor.last_gift_date)} ·{" "}
-                {formatUsd(donor.total_given)} lifetime
-              </p>
-            </div>
+          <li key={donor.id}>
             <div
-              className="hidden w-32 flex-wrap gap-1 @min-[900px]:flex"
-              aria-label={`Status for ${donor.full_name}`}
-            >
-              {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
-                <DonorTagBadge key={tag} tag={tag} />
-              ))}
-            </div>
-            <div className="hidden w-28 text-sm @min-[640px]:block">
-              {donor.last_gift_date ? (
-                <>
-                  <div>{formatUsd(donor.last_gift_amount)}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatDay(donor.last_gift_date)}
-                  </div>
-                </>
-              ) : (
-                <span className="text-muted-foreground">None yet</span>
+              className={cn(
+                "relative flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50",
+                openId === donor.id && "bg-muted/40",
               )}
+            >
+              <span className="relative z-10 flex">
+                <Checkbox
+                  aria-label={`Select ${donor.full_name}`}
+                  checked={selectedIds.includes(donor.id)}
+                  onCheckedChange={() => onToggleItem(donor.id)}
+                />
+              </span>
+              <InitialsAvatar
+                name={
+                  donor.full_name ??
+                  [donor.first_name, donor.last_name].filter(Boolean).join(" ")
+                }
+                size="sm"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <button
+                    type="button"
+                    aria-expanded={openId === donor.id}
+                    aria-controls={`${listId}-${donor.id}`}
+                    onClick={(e) => toggle(donor.id, e.currentTarget)}
+                    className="truncate rounded-sm text-left font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring after:absolute after:inset-0 after:content-['']"
+                  >
+                    {donor.is_star && (
+                      <>
+                        <span aria-hidden className="mr-0.5">
+                          ★
+                        </span>
+                        <span className="sr-only">Star donor: </span>
+                      </>
+                    )}
+                    {donor.full_name}
+                  </button>
+                  <span className="relative z-10 inline-flex">
+                    <AutoMergeFlag
+                      personId={donor.id}
+                      name={donor.full_name}
+                      autoMerged={donor.auto_merged}
+                      mergedFrom={donor.merged_from}
+                    />
+                  </span>
+                  <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
+                    {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
+                      <DonorTagBadge key={tag} tag={tag} />
+                    ))}
+                  </span>
+                </div>
+                <p className="truncate text-xs text-muted-foreground">
+                  {[
+                    donor.company_name && donor.company_name !== donor.full_name
+                      ? donor.company_name
+                      : null,
+                    donor.city,
+                    donor.usual_cadence ? `gives ${donor.usual_cadence}` : null,
+                    donor.why_short,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                {donor.next_step && (
+                  <p className="truncate text-xs" data-testid="donor-next-step">
+                    <span className="font-medium">Next step:</span>{" "}
+                    {donor.next_step}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground @min-[640px]:hidden">
+                  Last gift {formatDay(donor.last_gift_date)} ·{" "}
+                  {formatUsd(donor.total_given)} lifetime
+                </p>
+              </div>
+              <div
+                className="hidden w-32 flex-wrap gap-1 @min-[900px]:flex"
+                aria-label={`Status for ${donor.full_name}`}
+              >
+                {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
+                  <DonorTagBadge key={tag} tag={tag} />
+                ))}
+              </div>
+              <div className="hidden w-28 text-sm @min-[640px]:block">
+                {donor.last_gift_date ? (
+                  <>
+                    <div>{formatUsd(donor.last_gift_amount)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDay(donor.last_gift_date)}
+                    </div>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">None yet</span>
+                )}
+              </div>
+              <div className="hidden w-24 text-right text-sm tabular-nums md:block">
+                {formatUsd(donor.total_given)}
+              </div>
+              <div className="w-12 text-right font-semibold tabular-nums">
+                {donor.score}
+              </div>
             </div>
-            <div className="hidden w-24 text-right text-sm tabular-nums md:block">
-              {formatUsd(donor.total_given)}
-            </div>
-            <div className="w-12 text-right font-semibold tabular-nums">
-              {donor.score}
-            </div>
+            {openId === donor.id && (
+              <DonorRowDetails donor={donor} id={`${listId}-${donor.id}`} />
+            )}
           </li>
         ))}
       </ul>
     </>
   );
+};
+
+/** The nearest ancestor that scrolls (the zoomed CRM panel), else the page. */
+const scrollParent = (el: HTMLElement): HTMLElement | Window => {
+  for (let n = el.parentElement; n; n = n.parentElement) {
+    const { overflowY } = getComputedStyle(n);
+    if (/(auto|scroll)/.test(overflowY) && n.scrollHeight > n.clientHeight)
+      return n;
+  }
+  return window;
 };
 
 const EmptyState = ({

@@ -35,7 +35,10 @@ export const DictationButton = ({
         disabled={!available}
         aria-pressed={listening}
         aria-label={label}
-        title={error ?? (listening ? "Listening… press to stop, Esc to cancel" : label)}
+        title={
+          error ??
+          (listening ? "Listening… press to stop, Esc to cancel" : label)
+        }
         data-dictation={state}
         className={cn(
           "relative grid size-9 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40",
@@ -50,7 +53,7 @@ export const DictationButton = ({
         {listening && (
           <span
             aria-hidden
-            className="absolute inset-0 animate-ping rounded-full bg-[#e5484d]/40 motion-reduce:animate-none"
+            className="absolute inset-0 animate-ping rounded-full bg-[#e5484d]/40"
           />
         )}
         {state === "error" ? (
@@ -88,7 +91,9 @@ export const DictationHint = ({
     <p
       role="status"
       aria-live="polite"
-      data-dictation-hint={error ? "error" : showListening ? "listening" : "idle"}
+      data-dictation-hint={
+        error ? "error" : showListening ? "listening" : "idle"
+      }
       className={cn(
         error
           ? "mt-2 flex items-center gap-1.5 text-xs text-[#c62a2f]"
@@ -106,7 +111,11 @@ export const DictationHint = ({
       ) : showListening ? (
         <>
           <Mic className="size-3.5 shrink-0 text-[#e5484d]" aria-hidden />
-          <span className="truncate italic">{interim ? `Listening… ${interim}` : "Listening… speak, then pause."}</span>
+          <span className="truncate italic">
+            {interim
+              ? `Listening… ${interim}`
+              : "Listening… speak, then pause."}
+          </span>
         </>
       ) : null}
     </p>

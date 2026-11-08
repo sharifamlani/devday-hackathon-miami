@@ -1,4 +1,4 @@
-import { Check, CircleAlert, Clock, Undo2, X } from "lucide-react";
+import { Check, CircleAlert, Clock, Loader2, Undo2, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { AgentApproval, AgentStep } from "./agentChat";
@@ -31,7 +31,14 @@ const chip = cn(
 );
 
 export const StepCard = ({ step, onUndo }: { step: AgentStep; onUndo?: () => void }) => {
-  const Icon = step.status === "error" ? CircleAlert : step.status === "awaiting_approval" ? Clock : Check;
+  const Icon =
+    step.status === "error"
+      ? CircleAlert
+      : step.status === "awaiting_approval"
+        ? Clock
+        : step.status === "running"
+          ? Loader2
+          : Check;
   return (
     <li
       data-testid="agent-step"
@@ -41,7 +48,11 @@ export const StepCard = ({ step, onUndo }: { step: AgentStep; onUndo?: () => voi
       )}
     >
       <Icon
-        className={cn("mt-0.5 size-4 shrink-0", step.status === "error" ? "text-alert-foreground" : "text-muted-foreground")}
+        className={cn(
+          "mt-0.5 size-4 shrink-0",
+          step.status === "error" ? "text-alert-foreground" : "text-muted-foreground",
+          step.status === "running" && "animate-spin motion-reduce:animate-none",
+        )}
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1">

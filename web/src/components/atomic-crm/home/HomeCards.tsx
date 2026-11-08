@@ -1,8 +1,6 @@
 import { zoomClick } from "./workspaceView";
 import { useId, useState, type ReactNode } from "react";
 import {
-  ArrowRight,
-  ArrowUpRight,
   AudioLines,
   ChevronDown,
   Clock,
@@ -37,18 +35,31 @@ import { focusRing, tagTone, tile, tileTitle } from "./tile";
 /** What the panels without a snapshot source say instead of a false "all caught up". */
 export const LIVE_ONLY = "Live data appears when the service is connected.";
 
+/** Keyboard hint beside a tile heading (see useWorkspaceHotkeys). */
+const KeyHint = ({ keys }: { keys: string }) => (
+  <kbd
+    aria-hidden="true"
+    className="hidden font-sans text-[11px] font-normal text-muted-foreground md:inline"
+  >
+    {keys}
+  </kbd>
+);
+
 const TileHead = ({
   id,
   title,
+  hint,
   children,
 }: {
   id: string;
   title: ReactNode;
+  hint?: string;
   children?: ReactNode;
 }) => (
   <div className="mb-3 flex items-center justify-between gap-2">
-    <h2 id={id} className={tileTitle}>
+    <h2 id={id} className={cn(tileTitle, hint && "flex items-baseline gap-2")}>
       {title}
+      {hint && <KeyHint keys={hint} />}
     </h2>
     {children}
   </div>
@@ -58,6 +69,47 @@ const roundIcon = cn(
   "grid size-8 shrink-0 place-items-center rounded-full border border-border hover:bg-accent",
   focusRing,
 );
+
+/** A tile's name is its open button: underline on hover, ring on keyboard focus. */
+const headingLink = cn(
+  "-mx-1 inline-flex items-center rounded-sm px-1 hover:underline hover:underline-offset-4 hover:decoration-2",
+  focusRing,
+);
+
+/* ---------- Impact & story ---------- */
+
+/** Compact card under Q4: the whole card opens the Impact panel. */
+export const ImpactTile = ({ factCount }: { factCount: number }) => {
+  const headingId = useId();
+  return (
+    <section
+      data-tour="impact"
+      data-zoom-source="impact"
+      aria-labelledby={headingId}
+      className={cn(tile, "relative p-4")}
+    >
+      <h2 id={headingId} className={cn(tileTitle, "flex items-baseline gap-2")}>
+        <Link
+          to="/?workspace=impact"
+          onClick={zoomClick("impact")}
+          title="Open Impact & story"
+          className={cn(
+            "rounded-sm hover:underline hover:underline-offset-4 hover:decoration-2 after:absolute after:inset-0 after:rounded-2xl",
+            focusRing,
+          )}
+        >
+          Impact &amp; story
+        </Link>
+        <KeyHint keys="Ctrl+I" />
+      </h2>
+      <p className="mt-1 truncate text-[13px] text-muted-foreground">
+        {factCount > 0
+          ? `${factCount} sourced ${factCount === 1 ? "fact" : "facts"} · Copy for a grant report`
+          : "Read your website to collect stories"}
+      </p>
+    </section>
+  );
+};
 
 /* ---------- Q4 progress ---------- */
 
@@ -88,20 +140,18 @@ export const Q4ProgressTile = ({
     <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
       <TileHead
         id={headingId}
-        title={target ? `${target.label} outreach` : "Quarter progress"}
-      >
-        <Link
-          to="/?workspace=impact"
-          onClick={zoomClick("impact")}
-          className={cn(
-            "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
-            focusRing,
-          )}
-        >
-          Impact &amp; story
-          <ArrowUpRight className="size-3.5" aria-hidden="true" />
-        </Link>
-      </TileHead>
+        title={
+          <Link
+            to="/?workspace=impact"
+            onClick={zoomClick("impact")}
+            title="Open Impact & story"
+            aria-label="Open Impact & story"
+            className={headingLink}
+          >
+            {target ? `${target.label} outreach` : "Quarter progress"}
+          </Link>
+        }
+      />
       {isPending ? (
         <Skeleton className="h-16 w-full rounded-xl" />
       ) : !target ? (
@@ -325,22 +375,25 @@ export const CrmTile = ({
   return (
     <section
       data-tour="crm"
+      data-zoom-source="crm"
       aria-labelledby={headingId}
       className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
     >
-      <TileHead id={headingId} title="CRM">
-        <Link
-          to="/contacts"
-          onClick={zoomClick("crm")}
-          className={cn(
-            "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
-            focusRing,
-          )}
-        >
-          Open database
-          <ArrowRight className="size-3.5" aria-hidden="true" />
-        </Link>
-      </TileHead>
+      <TileHead
+        id={headingId}
+        hint="Alt+M"
+        title={
+          <Link
+            to="/contacts"
+            onClick={zoomClick("crm")}
+            title="Open CRM"
+            aria-label="Open CRM"
+            className={headingLink}
+          >
+            CRM
+          </Link>
+        }
+      />
       <button
         type="button"
         onClick={onFind}
@@ -584,23 +637,22 @@ export const TasksTile = ({
   return (
     <section
       data-tour="tasks"
+      data-zoom-source="tasks"
       aria-labelledby={headingId}
       className={cn(tile, "home-projects")}
     >
       <TileHead
         id={headingId}
+        hint="Alt+T"
         title={
           <Link
             to="/?workspace=tasks"
             onClick={zoomClick("tasks")}
             title="Open all tasks"
-            className={cn(
-              "inline-flex items-center gap-1 rounded-sm hover:underline",
-              focusRing,
-            )}
+            aria-label="Open all tasks"
+            className={headingLink}
           >
             Tasks
-            <ArrowUpRight className="size-3.5" aria-hidden="true" />
           </Link>
         }
       >

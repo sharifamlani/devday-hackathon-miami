@@ -28,6 +28,7 @@ import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
 import { ApprovalCard, StepCard, UndoneNote, undoneSummary } from "./AgentCards";
 import { DictationButton, DictationHint } from "../voice/DictationButton";
 import { useDictationInput } from "../voice/useDictationInput";
+import { DICTATION_TOGGLE_EVENT } from "./useWorkspaceHotkeys";
 import {
   answerSummary,
   appendAnswer,
@@ -259,12 +260,17 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
   const { messages, pending, error } = useAgentChat();
   const refetch = useAgentRefetch();
   const endRef = useRef<HTMLDivElement>(null);
+  const last = messages[messages.length - 1];
+  // While a reply streams in, its own step cards and text show the progress; "Thinking…" covers the wait before
+  const streamingShown =
+    last?.role === "assistant" && Boolean(last.streaming) && (last.steps.length > 0 || last.text !== "");
+  const progress = last?.role === "assistant" ? `${last.steps.length}:${last.text.length}` : "";
 
   useEffect(() => {
     // Nothing said yet: stay at the top so an opening briefing is read from its first line.
     if (messages.length === 0 && !pending) return;
     endRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [messages.length, pending]);
+  }, [messages.length, pending, progress]);
 
   return (
     <div
@@ -315,7 +321,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
           </div>
         ),
       )}
-      {pending && (
+      {pending && !streamingShown && (
         <p className="self-start rounded-2xl bg-surface px-3.5 py-2.5 text-sm text-muted-foreground">
           Thinking…
         </p>
@@ -410,6 +416,16 @@ export const Composer = ({
   const [bloomId, setBloomId] = useState(0);
   const busy = LIVE_AGENT ? agent.pending : session.pending;
   const dictation = useDictationInput(text, setText);
+  // Alt+V (useWorkspaceHotkeys) toggles the mic like a click on it.
+  const dictationRef = useRef(dictation);
+  dictationRef.current = dictation;
+  useEffect(() => {
+    const onToggle = () => {
+      if (dictationRef.current.available) dictationRef.current.toggle();
+    };
+    window.addEventListener(DICTATION_TOGGLE_EVENT, onToggle);
+    return () => window.removeEventListener(DICTATION_TOGGLE_EVENT, onToggle);
+  }, []);
 
   const send = (question: string) => {
     const q = question.trim();
@@ -486,6 +502,7 @@ export const Composer = ({
         </label>
         <input
           id={inputId}
+          data-hotkeys="composer"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={dictation.interim || "Ask the agent…"}

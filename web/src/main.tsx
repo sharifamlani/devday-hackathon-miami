@@ -1,7 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import { applyMotionPreference, readMotionPreference } from "./lib/motion";
 import { probeAndFlag } from "./components/atomic-crm/providers/local/apiProbe";
+
+// The saved "Reduce motion" choice, on <html> before anything renders or animates.
+applyMotionPreference(readMotionPreference());
 
 // After a new deploy, the service worker may replace its pre-cache while
 // the page still holds old chunk references. A reload picks up the new

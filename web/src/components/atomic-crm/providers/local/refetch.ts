@@ -62,9 +62,9 @@ export const TOOL_SCOPES: Record<string, RefetchScope[]> = {
   delete_task: ["tasks", "calendar", "summary"],
   save_call_note: ["call_notes", "artifacts", "summary", "targets"],
   apply_after_call_actions: ["tasks", "calendar", "interests", "call_notes", "context", "summary"],
-  draft_email: ["campaigns"],
-  draft_sms: ["campaigns"],
-  send: ["campaigns", "targets", "summary"],
+  draft_email: ["campaigns", "artifacts"],   // a new campaign is a Files & drafts row
+  draft_sms: ["campaigns", "artifacts"],
+  send: ["campaigns", "artifacts", "targets", "summary"],
 };
 
 /** Non-hook form, for code that already holds the QueryClient. */
