@@ -244,7 +244,7 @@ const useFacets = (): Facets | null => {
         return acc;
       }, {});
     return {
-      status: count(data.flatMap((d) => d.status_tags)),
+      status: count(data.flatMap((d) => d.status_tags ?? [])),
       tier: count(data.map((d) => d.tier)),
       lastGift: count(data.map((d) => d.last_gift_range)),
       sources: Object.entries(count(data.map((d) => d.source))).sort(
@@ -476,7 +476,7 @@ const DonorRows = () => {
               checked={selectedIds.includes(donor.id)}
               onCheckedChange={() => onToggleItem(donor.id)}
             />
-            <InitialsAvatar name={donor.full_name} size="sm" />
+            <InitialsAvatar name={donor.full_name ?? [donor.first_name, donor.last_name].filter(Boolean).join(" ")} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Link
@@ -494,7 +494,7 @@ const DonorRows = () => {
                   {donor.full_name}
                 </Link>
                 <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
-                  {donor.status_tags.slice(0, 2).map((tag) => (
+                  {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
                     <DonorTagBadge key={tag} tag={tag} />
                   ))}
                 </span>
@@ -520,7 +520,7 @@ const DonorRows = () => {
               className="hidden w-32 flex-wrap gap-1 @min-[900px]:flex"
               aria-label={`Status for ${donor.full_name}`}
             >
-              {donor.status_tags.slice(0, 2).map((tag) => (
+              {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
                 <DonorTagBadge key={tag} tag={tag} />
               ))}
             </div>

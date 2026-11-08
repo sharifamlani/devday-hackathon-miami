@@ -34,15 +34,26 @@ export const ResearchPanel = ({
         caption="Enrich agent · public, professional sources only"
       >
         {live && isOrg && found ? (
-          <Button
-            size="sm"
-            className="rounded-full px-4 font-semibold focus-visible:outline-2 focus-visible:outline-ring"
-            onClick={review.save}
-            disabled={accept.isPending || picked === 0}
-          >
-            {accept.isPending ? <Spinner /> : <Check />}
-            {accept.isPending ? "Saving…" : "Save to profile"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-full px-3 font-semibold focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={review.discard}
+              disabled={accept.isPending}
+            >
+              Discard
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-full px-4 font-semibold focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={review.save}
+              disabled={accept.isPending || picked === 0}
+            >
+              {accept.isPending ? <Spinner /> : <Check />}
+              {accept.isPending ? "Saving…" : "Save to profile"}
+            </Button>
+          </div>
         ) : (
           live &&
           isOrg && (
