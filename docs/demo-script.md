@@ -43,7 +43,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    still running, "We're still reading your website. Want a one-minute tour while it finishes?"): click **Not now**. Point at:
    - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
      card with it (the Foundation's impact and stories);
-   - the **Today's briefing** button;
+   - the **Today's briefing** message at the top of the chat (tap a line);
    - the week strip (**November · Nov 8 – 14**) and the agenda under it: **Today · Sunday, Nov 8** e.g. "9 reviews · 5
      calls · 3 preps · 1 email", Thu 12 **Prep list: Give Miami Day**, Sat 14 **Give Miami Day — Early Giving opens**,
      Sun 15 **The Give Miami 5K** (8:00 AM) and the Post-Race Festival (8:30 AM), Thu 19 **Give Miami Day**. "The agent
