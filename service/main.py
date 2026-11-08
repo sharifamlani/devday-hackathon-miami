@@ -65,6 +65,7 @@ app.include_router(targets_router)
 from service.routes_campaigns import router as campaigns_router  # noqa: E402  (#38: simulated outbox only)
 app.include_router(campaigns_router)
 app.include_router(ask_router)  # POST /ask (issue #36)
+app.include_router(importlib.import_module("service.routes_interests").router)  # B1 interests; owns POST /enrich (dry_run)
 
 def module_present(name: str) -> bool:
     try:
