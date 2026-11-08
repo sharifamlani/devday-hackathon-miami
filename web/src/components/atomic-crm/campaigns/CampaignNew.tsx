@@ -20,7 +20,8 @@ import {
   isIntent,
   pillButton,
 } from "./campaignFormat";
-import { LinkPill, PageShell, SimulatedNote } from "./campaignUi";
+import { LinkPill, PageShell } from "./campaignUi";
+import { SendModeNote } from "./SendModeNote";
 
 const MAX_DONORS = 25;
 
@@ -220,7 +221,7 @@ export const CampaignNew = () => {
         </section>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <SimulatedNote className="max-w-md" />
+          <SendModeNote className="max-w-md" />
           <Button
             type="submit"
             className={cn(

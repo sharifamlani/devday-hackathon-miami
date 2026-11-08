@@ -101,6 +101,11 @@ export const useEnrichReview = (donor: DonorDetail) => {
     toggleTag: (tag: string) => setTags((s) => toggled(s, tag)),
     run,
     save,
+    /** Drop the proposal without saving (nothing was written by the dry run). */
+    discard: () => {
+      preview.reset();
+      accept.reset();
+    },
   };
 };
 

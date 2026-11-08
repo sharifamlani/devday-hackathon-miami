@@ -42,6 +42,8 @@ import {
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { DuplicateBanner } from "./DuplicateMerge";
+import { AlsoFound, PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
+import { usePeopleTab } from "./usePeopleTab";
 
 const SORTS = [
   { value: "score:DESC", label: "Priority score" },
@@ -70,6 +72,7 @@ const DonorListLayout = () => {
     useListContext<DonorContact>();
   const [importOpen, setImportOpen] = useState(false);
   const facets = useFacets();
+  const [tab] = usePeopleTab();
 
   // Imports and merges refetch the donor-desk queries; follow them.
   const donorsUpdatedAt = useDonors().dataUpdatedAt;
@@ -100,9 +103,16 @@ const DonorListLayout = () => {
         </div>
       </div>
       <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
-      <DuplicateBanner />
+      <PeopleTabBar />
+      {tab !== "giver" && <PeopleTabPanel tab={tab} />}
+      {tab === "giver" && <DuplicateBanner />}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2",
+          tab !== "giver" && "hidden",
+        )}
+      >
         <SearchBox />
         <SortSelect />
         <Popover>
@@ -132,7 +142,7 @@ const DonorListLayout = () => {
         </Popover>
       </div>
 
-      <div className="flex gap-4">
+      <div className={cn("flex gap-4", tab !== "giver" && "hidden")}>
         <div className="min-w-0 flex-1 space-y-2">
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {isPending
@@ -166,7 +176,10 @@ const DonorListLayout = () => {
           )}
         </div>
       </div>
-      <BulkBar />
+      {tab === "giver" && (
+        <AlsoFound query={String(filterValues.q ?? "")} current="giver" />
+      )}
+      {tab === "giver" && <BulkBar />}
     </div>
   );
 };
@@ -244,7 +257,7 @@ const useFacets = (): Facets | null => {
         return acc;
       }, {});
     return {
-      status: count(data.flatMap((d) => d.status_tags)),
+      status: count(data.flatMap((d) => d.status_tags ?? [])),
       tier: count(data.map((d) => d.tier)),
       lastGift: count(data.map((d) => d.last_gift_range)),
       sources: Object.entries(count(data.map((d) => d.source))).sort(
@@ -476,7 +489,7 @@ const DonorRows = () => {
               checked={selectedIds.includes(donor.id)}
               onCheckedChange={() => onToggleItem(donor.id)}
             />
-            <InitialsAvatar name={donor.full_name} size="sm" />
+            <InitialsAvatar name={donor.full_name ?? [donor.first_name, donor.last_name].filter(Boolean).join(" ")} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Link
@@ -494,7 +507,7 @@ const DonorRows = () => {
                   {donor.full_name}
                 </Link>
                 <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
-                  {donor.status_tags.slice(0, 2).map((tag) => (
+                  {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
                     <DonorTagBadge key={tag} tag={tag} />
                   ))}
                 </span>
@@ -520,7 +533,7 @@ const DonorRows = () => {
               className="hidden w-32 flex-wrap gap-1 @min-[900px]:flex"
               aria-label={`Status for ${donor.full_name}`}
             >
-              {donor.status_tags.slice(0, 2).map((tag) => (
+              {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
                 <DonorTagBadge key={tag} tag={tag} />
               ))}
             </div>
