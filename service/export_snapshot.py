@@ -184,9 +184,15 @@ def campaigns_snapshot(conn) -> dict | None:
     """#38's sample campaign + template drafts; null when the outreach lane isn't on this build."""
     try:
         from service.routes_campaigns import campaigns_demo
-        return campaigns_demo(conn)
+        demo = campaigns_demo(conn)
     except ImportError:
         return None
+    # The campaign picker offers Givers only (GET /donors), so cached drafts for Neighbors and Community can never
+    # be used on Vercel: drop them to stay inside the 2 MB budget. Every selectable donor keeps all six drafts.
+    givers = {str(r[0]) for r in conn.execute("SELECT id FROM donors WHERE contact_type = 'giver'")}
+    if demo and isinstance(demo.get("drafts"), dict):
+        demo["drafts"] = {k: v for k, v in demo["drafts"].items() if k in givers}
+    return demo
 
 
 def write_snapshot(snapshot: dict, out: Path) -> int:
