@@ -419,7 +419,12 @@ export const micTranscriptSource = (): TranscriptSource =>
 let warmContext: AudioContext | null = null;
 let listeningForGesture = false;
 
+/** Chrome only starts audio after a user gesture; before one, an AudioContext just logs a warning. */
+const gestureSeen = () =>
+  typeof navigator === "undefined" || !("userActivation" in navigator) || navigator.userActivation.hasBeenActive;
+
 const warm = () => {
+  if (!gestureSeen()) return; // the pointerdown listener warms it on the first press
   try {
     if (!warmContext) warmContext = new AudioContext({ sampleRate: 16000 });
     const ctx = warmContext;
