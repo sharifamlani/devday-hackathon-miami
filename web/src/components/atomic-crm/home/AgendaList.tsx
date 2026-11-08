@@ -2,6 +2,7 @@ import { useId, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Link } from "react-router";
 import { zoomClick } from "./workspaceView";
+import { requestAddEvent } from "../calendar/calendarFocus";
 import type { CalendarItem } from "../providers/local/calendarFeed";
 import { useCalendarEvents } from "../providers/local/events";
 import { addDays } from "../outreach/dates";
@@ -199,10 +200,13 @@ export const AgendaList = ({
           </button>
           <button
             type="button"
-            aria-label="Plan today"
-            title="Plan today"
+            aria-label="Add event"
+            title="Add event"
             className={cn("home-calendar-add", focusRing)}
-            onClick={() => onOpenDay(today)}
+            onClick={(e) => {
+              requestAddEvent();
+              zoomClick("calendar")(e);
+            }}
           >
             <Plus size={15} aria-hidden="true" />
           </button>
