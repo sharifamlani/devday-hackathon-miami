@@ -7,10 +7,6 @@ import { DonorDrawer } from "../contacts/DonorDrawer";
 import MobileHeader from "../layout/MobileHeader";
 import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
 import {
-  useOnboarding,
-  useOnboardingQuarterGoal,
-} from "../onboarding/onboardingState";
-import {
   useCampaigns,
   useDonors,
   useOrgProfile,
@@ -69,8 +65,6 @@ export const HomePage = () => {
   const campaigns = useCampaigns();
   const plan = useOutreachPlan();
   const profile = useOrgProfile();
-  const onboarding = useOnboarding();
-  const quarterGoal = useOnboardingQuarterGoal();
   const completeTask = useCompleteTask();
   const [params, setParams] = useSearchParams();
   const [donorId, setDonorId] = useState<number | null>(null);
@@ -173,12 +167,12 @@ export const HomePage = () => {
       .map((item) => item.title),
   ];
 
-  // Staff name: the org profile's if it ever carries one, else what was typed
-  // in onboarding; no name at all reads as a plain greeting.
+  // Staff name: the org profile's if it ever carries one; no name at all
+  // reads as a plain greeting (onboarding no longer asks for one).
   const staffName = (
     profile.data as { staff_name?: string | null } | null | undefined
   )?.staff_name;
-  const name = firstName(staffName) ?? firstName(onboarding.data.personName);
+  const name = firstName(staffName);
   const summaryPending = home.summary.isPending;
   const tasksPending = home.tasks.isPending;
 
@@ -211,7 +205,11 @@ export const HomePage = () => {
         <div className="order-2 flex min-h-0 flex-col gap-3 @min-[721px]:order-none">
           <Q4ProgressTile
             target={targets.data?.quarter}
-            goal={quarterGoal?.amount ?? null}
+            goal={
+              targets.data?.quarter && !targets.data.quarter.goal_is_sample
+                ? targets.data.quarter.goal
+                : null
+            }
             reachedToday={summary ? summary.reached_today : null}
             isPending={targets.isPending}
           />

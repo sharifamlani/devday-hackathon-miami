@@ -7,7 +7,7 @@ DELETE /tasks/{id}                                  {deleted: true, undo_token}
 POST   /tasks/generate                              {created, tasks} (idempotent)
 GET    /calendar?from&to                            [{date, time, title, kind: event|task, source, ref}]
 GET    /artifacts                                   [{kind: call_note|draft|report, title, date, ref}]
-POST   /undo/{token}                                {undone: true}
+POST   /undo/{token}                                {undone: true}; int_… tokens go to service.interests
 """
 
 from __future__ import annotations
@@ -110,4 +110,14 @@ def get_artifacts(limit: int = Query(50, ge=1, le=500), conn: sqlite3.Connection
 
 @router.post("/undo/{token}")
 def post_undo(token: str, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    """One undo for every agent write: "int_…" tokens belong to interests (42), the rest to tasks."""
+    if token.startswith("int_"):
+        try:
+            from service import interests
+        except ImportError:
+            raise HTTPException(404, "interest undo isn't available yet")
+        try:
+            return interests.undo(conn, token)
+        except (ValueError, KeyError) as exc:   # a malformed token (bad base64 / JSON) is a ValueError
+            raise HTTPException(422, f"bad interest undo token: {exc}")
     return _call(tasks.undo, conn, token)

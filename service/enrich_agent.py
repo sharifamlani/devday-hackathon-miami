@@ -47,6 +47,7 @@ class Fact(BaseModel):
     fact: str
     source_url: str
     retrieved_at: str  # ISO 8601 UTC, stamped by us when the run finishes
+    cached: bool = False  # True when it came from data/research_cache.json because the live run failed
 
 
 # What the model returns; retrieved_at is stamped in code, not trusted to the model
@@ -110,7 +111,7 @@ def read_cache() -> dict[str, list[dict]]:
 def write_cache(name: str, facts: list[Fact]) -> None:
     """Store one donor's facts in the cache under its name, replacing any earlier entry."""
     cache = read_cache()
-    cache[name] = [f.model_dump() for f in facts]
+    cache[name] = [f.model_dump(exclude={"cached"}) for f in facts]
     CACHE_JSON.parent.mkdir(parents=True, exist_ok=True)
     CACHE_JSON.write_text(json.dumps(cache, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
@@ -126,22 +127,39 @@ def skip_reason(org_name: str | None = None, donor_type: str | None = None) -> s
     return None
 
 
+def cached_facts(name: str) -> list[Fact] | None:
+    """The committed cache's facts for this name, each flagged cached=True; None when it has none."""
+    cached = read_cache().get(name)
+    return None if cached is None else [Fact(**{**f, "cached": True}) for f in cached]
+
+
 def enrich_donor(name: str, org_name: str | None = None, city: str | None = None,
                  focus: str | None = None, refresh: bool = False,
-                 donor_type: str | None = None) -> list[Fact]:
+                 donor_type: str | None = None, use_cache: bool = False) -> list[Fact]:
     """Research one donor and return sourced facts whose URLs load. Empty list means nothing public found.
 
-    Cached donors come back from data/research_cache.json without a model call unless refresh=True.
-    focus steers the search (e.g. "Miami giving"); it only applies to live runs.
+    Always a live run. data/research_cache.json is read only when the live run raises (refresh=False),
+    and those facts come back flagged cached=True so the UI can say so. use_cache=True serves the cache
+    without a model call: the precompute pipeline's explicit snapshot build, never the app.
+    focus steers the search (e.g. "Miami giving").
     Individuals are never researched live (see skip_reason); cached entries are vetted organizations.
     """
-    if not refresh:
-        cached = read_cache().get(name)
+    if use_cache and not refresh:
+        cached = cached_facts(name)
         if cached is not None:
-            return [Fact(**f) for f in cached]
+            return cached
     if skip_reason(org_name, donor_type):
         return []
+    try:
+        return research_live(name, org_name, city, focus)
+    except Exception:
+        cached = None if refresh else cached_facts(name)
+        if cached is None:
+            raise
+        return cached
 
+
+def research_live(name: str, org_name: str | None, city: str | None, focus: str | None) -> list[Fact]:
     query = f"Donor: {name}"
     if org_name:
         query += f"\nOrganization: {org_name}"
@@ -174,14 +192,15 @@ def save_facts(donor_id: int, facts: list[Fact], agent_run_id: str) -> int:
         db = None
     if db is not None and db.db_path().exists():
         conn = db.connect()
+        db.create_schema(conn)          # an older donors.db gains research_facts.cached
         written = 0
         with conn:
             for f in facts:
                 written += conn.execute(
-                    "INSERT INTO research_facts (donor_id, fact, source_url, retrieved_at, agent_run_id) "
-                    "SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM research_facts "
+                    "INSERT INTO research_facts (donor_id, fact, source_url, retrieved_at, agent_run_id, cached) "
+                    "SELECT ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM research_facts "
                     "WHERE donor_id = ? AND source_url = ? AND fact = ?)",
-                    (donor_id, f.fact, f.source_url, f.retrieved_at, agent_run_id,
+                    (donor_id, f.fact, f.source_url, f.retrieved_at, agent_run_id, int(f.cached),
                      donor_id, f.source_url, f.fact),
                 ).rowcount
         conn.close()

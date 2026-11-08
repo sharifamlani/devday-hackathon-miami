@@ -18,17 +18,6 @@ export const DEFAULT_USER = {
 
 export const USER_STORAGE_KEY = "user";
 
-/** The name typed in the guided onboarding (onboarding/onboardingState.ts keeps it in this key). */
-const onboardingPersonName = (): string => {
-  try {
-    const raw = localStorage.getItem("donordesk.onboarding.v1");
-    const name = raw ? (JSON.parse(raw) as { personName?: unknown }).personName : "";
-    return typeof name === "string" ? name.trim() : "";
-  } catch {
-    return "";
-  }
-};
-
 localStorage.setItem(USER_STORAGE_KEY, JSON.stringify({ ...DEFAULT_USER }));
 
 async function getUser(email: string) {
@@ -87,11 +76,11 @@ export const authProvider: AuthProvider = {
     const userItem = localStorage.getItem(USER_STORAGE_KEY);
     const user = userItem ? (JSON.parse(userItem) as Sale) : null;
     // The built-in demo login is "Jane Doe" with a stock photo: placeholder
-    // data. For it, show the name typed in onboarding (if any) and no photo.
+    // data. For it, show a neutral label and no photo.
     if (!user || user.email === DEFAULT_USER.email) {
       return Promise.resolve({
         id: user?.id ?? 0,
-        fullName: onboardingPersonName() || "Account",
+        fullName: "Account",
         avatar: undefined,
       });
     }
