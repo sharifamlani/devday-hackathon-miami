@@ -40,7 +40,7 @@ describe("Try sample data (snapshot mode)", () => {
 
     await expect.element(screen.getByText("Sample run (cached)")).toBeVisible();
     await expect
-      .element(screen.getByText(/It wasn’t built from these files/))
+      .element(screen.getByText(/built from the 8 example files in data.sample_inputs/))
       .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: "Open the CRM" }))
