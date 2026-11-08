@@ -33,6 +33,7 @@ import {
 } from "./homeData";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { CrmPanel } from "./panels/CrmPanel";
+import { ImpactPanel } from "./panels/ImpactPanel";
 import {
   PanelFrame,
   PlaceholderPanel,
@@ -220,6 +221,8 @@ export const HomePage = () => {
               <CrmPanel />
             ) : panel === "calendar" ? (
               <CalendarPanel />
+            ) : panel === "impact" ? (
+              <ImpactPanel />
             ) : (
               <PlaceholderPanel title={PANEL_TITLES[panel]} />
             )}

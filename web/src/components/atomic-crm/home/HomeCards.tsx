@@ -2,6 +2,7 @@ import { zoomClick } from "./workspaceView";
 import { useId, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  ArrowUpRight,
   AudioLines,
   ChevronDown,
   Clock,
@@ -86,7 +87,19 @@ export const Q4ProgressTile = ({
       <TileHead
         id={headingId}
         title={target ? `${target.label} outreach` : "Quarter progress"}
-      />
+      >
+        <Link
+          to="/?workspace=impact"
+          onClick={zoomClick("impact")}
+          className={cn(
+            "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
+            focusRing,
+          )}
+        >
+          Impact &amp; story
+          <ArrowUpRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      </TileHead>
       {isPending ? (
         <Skeleton className="h-16 w-full rounded-xl" />
       ) : !target ? (
