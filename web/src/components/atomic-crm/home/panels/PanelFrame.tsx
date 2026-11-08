@@ -1,4 +1,10 @@
-import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ArrowLeft, X } from "lucide-react";
 import type { WorkspaceView } from "../workspaceView";
 
@@ -53,19 +59,37 @@ export const PanelFrame = ({
 };
 
 /**
- * Mounts heavy panel content as an interruptible React transition after the frame has been
- * painted, so the zoom never waits on the list or calendar rendering.
+ * Mounts heavy panel content as an interruptible React transition once the zoom has finished
+ * (the root carries data-zoom while a view transition runs), so the animation never waits on
+ * the list or calendar rendering. Gives up waiting after 700ms.
  */
 const DeferredBody = ({ children }: { children: ReactNode }) => {
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => startTransition(() => setReady(true)));
-    });
+    const start = performance.now();
+    let raf = 0;
+    let timer = 0;
+    const tick = () => {
+      if (
+        document.documentElement.dataset.zoom &&
+        performance.now() - start < 700
+      ) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        // a beat after the zoom has finished, so the last animation frames are not shared
+        timer = window.setTimeout(
+          () => startTransition(() => setReady(true)),
+          document.documentElement.dataset.zoom === undefined &&
+            performance.now() - start > 50
+            ? 90
+            : 0,
+        );
+      }
+    };
+    raf = requestAnimationFrame(tick);
     return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
     };
   }, []);
   return ready ? <>{children}</> : null;

@@ -11,6 +11,9 @@
   overflow: hidden;
 }
 .desk-panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   max-width: none;
   margin: 0;
   padding: 10px 14px;
@@ -54,7 +57,36 @@
   color: var(--muted-foreground);
 }
 
-/* Layout beside the chat (>=1200px grid, chat name zoom-chat) lives in the Home host (PR-R wiring). */
+/* The agent chat is a named layer so it can move and resize with the frame. */
+.home-board > .home-conversation {
+  view-transition-name: zoom-chat;
+}
+/* Panel open: the overview hides (it is the source the panel zooms out of). */
+.home-board.has-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+.home-board.has-panel > .home-conversation {
+  display: none;
+}
+/* >=1200px: panel 2/3 left, chat 1/3 right (380px floor). */
+@media (min-width: 1200px) {
+  .home-board.has-panel {
+    grid-template-columns: minmax(0, 2fr) minmax(380px, 1fr);
+    gap: 16px;
+  }
+  .home-board.has-panel > .home-conversation {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .home-board.has-panel > .desk-main-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .desk-panel-back {
+    display: none !important;
+  }
+}
 /* Phone: full-screen sheet. */
 @media (max-width: 767px) {
   .desk-main-panel {
@@ -194,17 +226,34 @@ html[data-zoom="switch"]::view-transition-new(zoom-content) {
     transform: none;
   }
 }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(-n + 8) {
+.desk-panel-body
+  :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(-n + 8) {
   animation: zoom-row 200ms var(--zoom-ease) backwards;
 }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(1) { animation-delay: 140ms; }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(2) { animation-delay: 160ms; }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(3) { animation-delay: 180ms; }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(4) { animation-delay: 200ms; }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(5) { animation-delay: 220ms; }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(6) { animation-delay: 240ms; }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(7) { animation-delay: 260ms; }
-.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(8) { animation-delay: 280ms; }
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(1) {
+  animation-delay: 140ms;
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(2) {
+  animation-delay: 160ms;
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(3) {
+  animation-delay: 180ms;
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(4) {
+  animation-delay: 200ms;
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(5) {
+  animation-delay: 220ms;
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(6) {
+  animation-delay: 240ms;
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(7) {
+  animation-delay: 260ms;
+}
+.desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(8) {
+  animation-delay: 280ms;
+}
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*) {

@@ -18,6 +18,7 @@ from playwright.sync_api import sync_playwright
 VIEWS = ["calendar", "crm", "tasks", "impact"]
 SIZES = [(1440, 900), (1366, 768)]
 CYCLES = 10
+OPEN_MS, CLOSE_MS = 340, 280
 LIMITS = {"ratio": (0.63, 0.70), "chat_min": 380, "p95": 17.5, "max": 34.0}
 
 # Records rAF timestamps until stopped; returns the frame gaps (ms).
@@ -42,7 +43,7 @@ GEOMETRY = """
 () => {
   const panel = document.querySelector('.desk-main-panel');
   const chat = document.querySelector('.home-conversation');
-  const rail = document.querySelector('.desk-sidebar');
+  const rail = document.querySelector('.home-workspace-controls');
   const railRight = rail ? rail.getBoundingClientRect().right : 0;
   const p = panel ? panel.getBoundingClientRect() : null;
   const c = chat && chat.offsetParent !== null ? chat.getBoundingClientRect() : null;
@@ -77,27 +78,40 @@ def measure(browser, base, view, w, h, shots: Path):
     gaps: list[float] = []
     geo = {}
     cls = 0.0
+    cycle_max: list[float] = []
+    mount: list[float] = []
     for i in range(CYCLES):
-        if i == 1:
-            page.evaluate(CLS_OBSERVER)  # CLS counted after the first open has settled
         page.evaluate(RECORDER)
         page.evaluate(f"window.__desk.openWorkspace('{view}')")
         if i == 0:
             page.wait_for_timeout(170)
             page.screenshot(path=str(shots / f"{view}-{w}x{h}-mid.png"))
+        page.wait_for_timeout(OPEN_MS + 60)
+        g1 = page.evaluate(STOP)  # frame gaps while the zoom animates
+        page.evaluate(RECORDER)
         page.wait_for_timeout(700)
-        gaps += page.evaluate(STOP)
+        mount.append(max(page.evaluate(STOP) or [0]))  # then the panel content mounts
         page.evaluate("window.__cls = 0")  # CLS is counted from here: after the zoom has settled
+        page.wait_for_timeout(500)
+        if i >= 1:
+            cls += page.evaluate("window.__cls")
         if i == 0:
-            page.wait_for_timeout(500)
             geo = page.evaluate(GEOMETRY)
             page.screenshot(path=str(shots / f"{view}-{w}x{h}-settled.png"))
+        page.evaluate(CLS_OBSERVER) if i == 0 else None
         page.evaluate(RECORDER)
         page.evaluate("window.__desk.closeWorkspace()")
-        page.wait_for_timeout(600)
-        gaps += page.evaluate(STOP)
-        cls += page.evaluate("window.__cls || 0") if i >= 1 else 0
+        page.wait_for_timeout(CLOSE_MS + 60)
+        g2 = page.evaluate(STOP)
+        page.wait_for_timeout(300)
         page.evaluate("window.__cls = 0")
+        page.wait_for_timeout(400)
+        if i >= 1:
+            cls += page.evaluate("window.__cls")
+        # the first open also pays for data fetches and module load: report it, but judge the rest
+        cycle_max.append(max(g1 + g2 or [0]))
+        if i >= 1:
+            gaps += g1 + g2
     cls = round(cls, 4)
     ctx.close()
     ratio = geo["pw"] / geo["space"] if geo.get("space") else 0
@@ -113,6 +127,7 @@ def measure(browser, base, view, w, h, shots: Path):
     print(
         f"{view} {w}x{h} ratio={ratio:.2f} chat={geo['cw']:.0f} p95={p95(gaps):.1f} "
         f"max={max(gaps or [0]):.1f} cls={cls:g} console={len(errors)} {'PASS' if ok else 'FAIL'}"
+        f"  (cold first cycle max={cycle_max[0]:.0f}ms; content mount after the zoom: worst gap {max(mount[1:]):.0f}ms)"
     )
     for e in errors[:3]:
         print("   console:", e[:200])

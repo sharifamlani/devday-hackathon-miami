@@ -1,7 +1,18 @@
-import { useCallback, useEffect, useMemo } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type MouseEvent,
+} from "react";
 import { flushSync } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
-import { runZoomTransition, type ZoomKind, waitForCommit } from "./zoomTransition";
+import {
+  getLastSource,
+  notifyCommitted,
+  runZoomTransition,
+  type ZoomKind,
+} from "./zoomTransition";
 
 export const WORKSPACE_VIEWS = ["calendar", "tasks", "crm", "impact"] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
@@ -52,22 +63,19 @@ export function serializeWorkspace(
 let target: WorkspaceView | null | undefined;
 /** What is actually rendered right now (set on every HomePage render). */
 let actual: WorkspaceView | null = null;
-let actualZoomState = false;
 let nav: {
   push: (view: WorkspaceView) => void;
   replace: (view: WorkspaceView) => void;
   closeReplace: () => void;
-  back: () => void;
 } | null = null;
 
 export function resetWorkspaceStateForTest(
   fake?: typeof nav,
   current: WorkspaceView | null = null,
-  zoomed = false,
+  _zoomed = false,
 ) {
   target = undefined;
   actual = current;
-  actualZoomState = zoomed;
   nav = fake ?? null;
 }
 
@@ -75,12 +83,9 @@ function syncToTarget(): void | Promise<void> {
   if (!nav || target === undefined || target === actual) return;
   const n = nav;
   const want = target;
+  // Close replaces the entry instead of history.back(): back costs ~200ms of router work
+  // inside the transition callback (measured), replace costs ~2ms. Browser Back still closes.
   if (want === null) {
-    if (actualZoomState) {
-      const done = waitForCommit();
-      n.back();
-      return done;
-    }
     flushSync(() => n.closeReplace());
   } else if (actual === null) {
     flushSync(() => n.push(want));
@@ -123,7 +128,6 @@ export function useWorkspaceView() {
   const view = useMemo(() => parseWorkspace(search), [search]);
   const zoomed = !!(location.state as { zoom?: boolean } | null)?.zoom;
   actual = view;
-  actualZoomState = zoomed;
   if (target === view) target = undefined;
 
   useEffect(() => {
@@ -143,7 +147,6 @@ export function useWorkspaceView() {
           { search: serializeWorkspace(search, null) },
           { replace: true },
         ),
-      back: () => navigate(-1),
     };
     return () => {
       nav = null;
@@ -162,6 +165,59 @@ export function useWorkspaceView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const open = useCallback(openWorkspace, []);
-  return { view, openWorkspace: open, closeWorkspace, toggleWorkspace };
+  // Tell a pending view transition the new state is in the DOM; restore focus on close.
+  const prev = useRef(view);
+  useLayoutEffect(() => {
+    notifyCommitted();
+    if (prev.current && !view) {
+      const src = getLastSource();
+      if (src?.isConnected) {
+        const target = src.matches("button,a,[tabindex]")
+          ? src
+          : (src.querySelector<HTMLElement>("button,a,[tabindex]") ?? src);
+        target.focus?.({ preventScroll: true });
+      }
+    }
+    prev.current = view;
+  }, [view]);
+
+  // Esc closes the panel unless a dialog/menu owns the key.
+  useEffect(() => {
+    if (!view) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (
+        document.querySelector('[role="dialog"],[role="listbox"],[role="menu"]')
+      )
+        return;
+      closeWorkspace();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view]);
+
+  // Dev builds (or VITE_EXPOSE_DESK=1 builds): lets scripts/verify_home_zoom.py drive the panels.
+  useEffect(() => {
+    if (!import.meta.env.DEV && import.meta.env.VITE_EXPOSE_DESK !== "1")
+      return;
+    (window as unknown as { __desk?: unknown }).__desk = {
+      openWorkspace,
+      closeWorkspace,
+      toggleWorkspace,
+    };
+  }, []);
+
+  return { view, openWorkspace, closeWorkspace, toggleWorkspace };
 }
+
+/**
+ * onClick for a plain link that should zoom a panel out of its tile instead of navigating.
+ * Modified clicks (new tab) and a Home that is not mounted fall through to the link's own `to`.
+ */
+export const zoomClick =
+  (view: WorkspaceView) => (e: MouseEvent<HTMLElement>) => {
+    if (e.defaultPrevented || e.button !== 0) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const tile = e.currentTarget.closest<HTMLElement>(".home-tile");
+    if (openWorkspace(view, tile)) e.preventDefault();
+  };

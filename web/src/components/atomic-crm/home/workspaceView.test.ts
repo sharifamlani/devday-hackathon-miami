@@ -16,6 +16,8 @@ vi.mock("react-dom", async (orig) => ({
 
 const vtMock = vi.hoisted(() => ({ calls: [] as string[] }));
 vi.mock("./zoomTransition", () => ({
+  getLastSource: () => null,
+  notifyCommitted: () => {},
   waitForCommit: () => Promise.resolve(),
   runZoomTransition: (o: { kind: string; update: () => void }) => {
     vtMock.calls.push(o.kind);
@@ -47,7 +49,6 @@ describe("actions", () => {
     push: vi.fn(),
     replace: vi.fn(),
     closeReplace: vi.fn(),
-    back: vi.fn(),
   };
   beforeEach(() => {
     vtMock.calls.length = 0;
@@ -65,10 +66,10 @@ describe("actions", () => {
     expect(nav.closeReplace).toHaveBeenCalled();
     expect(vtMock.calls).toEqual(["open", "switch", "close"]);
   });
-  it("close uses history back when opened in-app", () => {
+  it("close always replaces, even when opened in-app", () => {
     resetWorkspaceStateForTest(nav, "tasks", true);
     closeWorkspace();
-    expect(nav.back).toHaveBeenCalled();
+    expect(nav.closeReplace).toHaveBeenCalled();
   });
   it("same-view open is a no-op; toggle flips on pending target", () => {
     resetWorkspaceStateForTest(nav, "tasks", true);

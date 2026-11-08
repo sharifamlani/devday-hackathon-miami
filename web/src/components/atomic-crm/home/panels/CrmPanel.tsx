@@ -10,9 +10,13 @@ import { crmSubview } from "../workspaceView";
  */
 export const CrmPanel = () => {
   const { search } = useLocation();
-  return crmSubview(search) === "organizations" ? (
-    <OrganizationList embedded />
-  ) : (
-    <DonorList embedded />
+  return (
+    <div className="p-4">
+      {crmSubview(search) === "organizations" ? (
+        <OrganizationList embedded />
+      ) : (
+        <DonorList embedded />
+      )}
+    </div>
   );
 };
