@@ -298,7 +298,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
               <ApprovalCard
                 key={a.call_id}
                 approval={a}
-                decided={Boolean(m.decided)}
+                decided={Boolean(m.handled) || m.decisions?.[a.call_id] !== undefined}
                 decision={m.decisions?.[a.call_id]}
                 handled={m.handled}
                 disabled={pending}
