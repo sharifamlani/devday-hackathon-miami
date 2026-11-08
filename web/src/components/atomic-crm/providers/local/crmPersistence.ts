@@ -3,6 +3,7 @@ import type { Identifier, RaRecord } from "ra-core";
 import { DATA_MODE } from "./config";
 import type { ContactOverlay } from "./crmDonors";
 import { request } from "./httpClient";
+import { isPublicMode } from "./publicMode";
 import { loadSnapshot } from "./snapshotClient";
 
 /**
@@ -11,6 +12,8 @@ import { loadSnapshot } from "./snapshotClient";
  * background, last seen), so they survive a reload:
  *
  * - local mode: the service (service/routes_crm.py, /crm/...), in donors.db.
+ *   In public mode (the tunnel) the service refuses /crm/...: they are private
+ *   staff notes, so the tab loads none and asks for none.
  * - snapshot mode (Vercel, no API): this browser's localStorage, under one
  *   versioned key. Nothing leaves the browser, and the snapshot export never
  *   carries these records: they are private staff notes.
@@ -438,7 +441,10 @@ export const overlayFromApi = (row: ApiOverlay): ContactOverlay => {
 export const API_PAGE_SIZE = 1000;
 
 /** Records saved in donors.db through service/routes_crm.py. */
-export const apiPersistence = (req: Requester = request): CrmPersistence => {
+export const apiPersistence = (
+  req: Requester = request,
+  isPublic: () => Promise<boolean> = isPublicMode,
+): CrmPersistence => {
   const all = async (resource: CrmRecordResource) => {
     const out: CrmRecord[] = [];
     for (let page = 1; ; page += 1) {
@@ -452,6 +458,8 @@ export const apiPersistence = (req: Requester = request): CrmPersistence => {
   return {
     where: "server",
     load: async () => {
+      if (await isPublic())
+        return { contact_notes: [], tasks: [], tags: [], overlays: new Map() };
       const [contact_notes, tasks, tags, overlays] = await Promise.all([
         all("contact_notes"),
         all("tasks"),

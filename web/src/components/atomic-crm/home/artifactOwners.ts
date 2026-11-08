@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { DATA_MODE } from "../providers/local/config";
 import type { ApiCallNote } from "../providers/local/calls";
 import { request } from "../providers/local/httpClient";
+import { isPublicMode } from "../providers/local/publicMode";
 import { loadSnapshot } from "../providers/local/snapshotClient";
 
 /**
  * GET /artifacts names a draft or a call note but not whose it is, so the
  * Files & drafts tile looks the donor up: drafts from the snapshot's donor
- * details, call notes from GET /calls (their saved destinations).
+ * details, call notes from GET /calls (their saved destinations). Public mode refuses GET /calls (call
+ * notes stay private), so there it isn't asked and the note rows stay plain text.
  */
 export interface ArtifactOwners {
   /** outreach draft id → donor id */
@@ -31,6 +33,7 @@ const loadOwners = async (): Promise<ArtifactOwners> => {
         owners.drafts[String(draft.id)] = donor.id;
     return owners;
   }
+  if (await isPublicMode()) return owners;
   try {
     const calls = await request<ApiCallNote[]>("/calls?limit=200");
     for (const note of calls) {

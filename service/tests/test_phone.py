@@ -304,3 +304,83 @@ def test_routes(setup, monkeypatch):
     monkeypatch.setenv("PHONE_CALLS", "off")
     r = client.post("/phone/calls", json={"donor_id": JAMES})
     assert r.status_code == 409 and "Phone calls are off" in r.json()["detail"]
+
+
+# ----------------------------------------------------------------------------------------------
+# Transcription failures (live call, Sun Nov 8: "[WinError 10054] ... forcibly closed by the remote host")
+# ----------------------------------------------------------------------------------------------
+
+def flaky(failures: int):
+    """A transcriber that drops the connection `failures` times, then works."""
+    left = {"n": failures}
+
+    def transcriber(audio, mime):
+        if left["n"] > 0:
+            left["n"] -= 1
+            raise ConnectionResetError("[WinError 10054] An existing connection was forcibly closed by the remote host")
+        return fake_transcriber(audio, mime)
+    return transcriber
+
+
+def recorded_call():
+    return FakeTwilio(staff=["in-progress", "completed"], donor=["in-progress", "completed"],
+                      recording=wav([STAFF_SIDE, HEARD_SIDE]))
+
+
+def test_a_dropped_connection_is_retried(setup, db_file, monkeypatch):
+    monkeypatch.setattr(phone, "RETRY_PAUSES", (0, 0))
+    fake = recorded_call()
+    call = run(setup, db_file, fake, transcriber=flaky(2))      # 2 drops, then it works
+    assert call["status"] == "done" and call["note_id"]
+    assert fake.deleted == ["RE1"]
+
+
+def test_transcript_failure_keeps_the_recording_and_try_again_finishes(setup, db_file, monkeypatch):
+    monkeypatch.setattr(phone, "RETRY_PAUSES", (0, 0))
+    fake = recorded_call()
+    call = run(setup, db_file, fake, transcriber=flaky(99))     # every attempt drops
+    assert call["status"] == "failed" and call["result"] == {"retryable": True}
+    assert "recording is kept" in call["detail"] and call["recording_sid"] == "RE1"
+    assert fake.deleted == [] and call["note_id"] is None        # nothing said on the call is lost
+    assert setup.execute("SELECT COUNT(*) FROM call_notes").fetchone()[0] == 0
+
+    again = phone.retry_call(setup, call["id"], client=fake, background=False)
+    assert again["status"] == "processing" and again["result"] == {}
+    phone.run_call(call["id"], fake, sleep=lambda s: None, connect=lambda: db.connect(db_file),
+                   transcriber=fake_transcriber, step=phone._finish)
+    done = phone.get_call(setup, call["id"])
+    assert done["status"] == "done" and done["note_id"] == f"phone-{call['id']}"
+    assert fake.deleted == ["RE1"]
+    assert len(fake.created) == 2                                # Try again places no new call
+
+
+def test_try_again_is_refused_unless_a_recorded_transcript_failed(setup, db_file):
+    call = run(setup, db_file, FakeTwilio(staff=["ringing", "no-answer"]))
+    with pytest.raises(phone.PhoneError, match="tried again"):
+        phone.retry_call(setup, call["id"], client=FakeTwilio(["ringing"]), background=False)
+    client = TestClient(app)
+    assert client.post("/phone/calls/nope/retry").status_code == 404
+    assert client.post(f"/phone/calls/{call['id']}/retry").status_code == 409
+
+
+def test_trial_message_and_prompts_never_reach_the_transcript():
+    """The live call's 'them' channel opened with the trial message and the hold prompt as ONE line, and the
+    staff phone's mic caught the donor's notice; none of it was said by anyone on the call."""
+    def live_shaped(audio, mime):
+        with wave.open(io.BytesIO(audio)) as w:
+            first = np.frombuffer(w.readframes(1), dtype=np.int16)[0]
+        if first == 1000:   # the staff phone's channel
+            return [{"speaker": "spk:0", "text": "Hi, I'm calling to Hello, this call is recorded for our notes.", "start": 32.8},
+                    {"speaker": "spk:0", "text": "Hey, how's it going?", "start": 42.8}]
+        return [{"speaker": "spk:0", "start": 0.0, "text": "you have a trial account. You can remove this message at any "
+                 "time by upgrading to a full account. Press any key to execute your code. Calling James Carter. Please hold."},
+                {"speaker": "spk:0", "text": "Oh, awesome. Thanks.", "start": 43.5}]
+    lines = phone.transcript_from_recording(wav([HEARD_SIDE, STAFF_SIDE]), "James Carter", live_shaped)
+    assert [(l["speaker"], l["text"]) for l in lines] == [
+        ("you", "Hi, I'm calling to"), ("you", "Hey, how's it going?"), ("them", "Oh, awesome. Thanks.")]
+
+
+def test_strip_phrases():
+    assert phone.strip_phrases("you have a trial account. Hi there!", list(phone.TRIAL_PHRASES)) == "Hi there!"
+    assert phone.strip_phrases("CALLING james carter, please hold", ["Calling James Carter. Please hold."]) == ""
+    assert phone.has_phrase("... Calling James Carter. Please hold.", "Calling James Carter. Please hold.")

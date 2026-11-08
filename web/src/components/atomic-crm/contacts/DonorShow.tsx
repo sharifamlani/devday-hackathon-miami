@@ -8,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NoteCreate, NotesIterator } from "../notes";
-import { DATA_MODE } from "../providers/local/config";
 import { reasonLabel } from "../providers/local/crmDonors";
 import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
@@ -34,6 +33,7 @@ import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
 import { TagsListEdit } from "./TagsListEdit";
 import { AutoMergeFlag } from "./AutoMergeFlag";
+import { AboutPanel } from "./AboutPanel";
 import { isNonGiver, TAB_ONE } from "./personTab";
 
 const TABS = ["overview", "notes", "tasks"] as const;
@@ -275,6 +275,7 @@ const Overview = ({
   if (!donor) return <Skeleton className="h-64 w-full rounded-2xl" />;
   return (
     <>
+      <AboutPanel donor={donor} />
       <ScoreWhyPanel
         donor={donor}
         title="Why they're ranked here"
@@ -331,11 +332,6 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
         <Row label="Fund" value={record.fund_type ?? "Not recorded"} />
         <Row label="Source list" value={record.source} />
       </dl>
-      {DATA_MODE === "snapshot" ? (
-        <p className="text-xs text-muted-foreground">
-          Contact details are masked in this public demo.
-        </p>
-      ) : null}
     </ProfileSection>
 
     <ProfileSection
