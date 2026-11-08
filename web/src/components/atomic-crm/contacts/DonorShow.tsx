@@ -24,6 +24,7 @@ import {
 import { scoreClass, statusLabel, tierLabel } from "./donorFormat";
 import { DuplicateBanner } from "./DuplicateMerge";
 import { GivingPanel } from "./GivingPanel";
+import { InterestAreasEditor } from "./InterestChips";
 import { MergeHistory } from "./MergeHistory";
 import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
@@ -338,21 +339,14 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
       <TagsListEdit />
     </ProfileSection>
 
-    <ProfileSection title="Interest areas">
-      {record.interests.length ? (
-        <ul className="flex flex-wrap gap-1.5">
-          {record.interests.map((interest) => (
-            <li
-              key={interest}
-              className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
-            >
-              {interest}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          None recorded yet. Enrichment or a call note can add them.
+    <ProfileSection
+      title="Interest areas"
+      caption="What they support, with the source for each"
+    >
+      <InterestAreasEditor personId={record.id} />
+      {record.interests.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          From the uploaded list: {record.interests.join(", ")}
         </p>
       )}
     </ProfileSection>

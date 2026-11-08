@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { ArrowLeft, Search, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Search, Sparkles } from "lucide-react";
 
 import {
   Dialog,
@@ -13,7 +13,14 @@ import { cn } from "@/lib/utils";
 import { SourceLink } from "../contacts/ResearchPanel";
 import { formatUsd } from "../contacts/donorFormat";
 import { DATA_MODE } from "../providers/local/config";
-import { useDonor, useEnrichDonor } from "../providers/local/hooks";
+import { useDonor } from "../providers/local/hooks";
+import {
+  type EnrichPreview,
+  useAcceptEnrichment,
+  useEnrichPreview,
+  usePersonInterests,
+} from "../providers/local/interests";
+import { InterestChip, tagLabel, useTagLabels } from "../contacts/InterestChips";
 import type { DonorDetail, DonorSummary } from "../providers/local/types";
 import {
   donorMeta,
@@ -31,9 +38,11 @@ const pill = cn(
 
 /**
  * "Find a donor" from the CRM tile: search by name, email or organization,
- * pick one, see the essentials and any research the enrich agent saved.
- * "Enrich profile" runs the enrich agent on the live service; the static
- * snapshot only shows what was saved.
+ * pick one, see the essentials and anything the enrich agent saved.
+ * "Enrich profile" runs the agent on the live service as a dry run: it proposes
+ * facts and interest areas (each with a source) and nothing is written until
+ * staff press "Save to profile". Organizations only; the static snapshot only
+ * shows what was saved.
  */
 export const FindDonorDialog = ({
   open,
@@ -227,76 +236,241 @@ const DonorSummaryView = ({
         <Fact label="Email" value={maskEmail(donor.email)} />
         <Fact label="Pattern" value={donorMeta(donor) || "—"} />
       </dl>
-      <Research donor={donor} live={live} />
+      <Saved donor={donor} live={live} />
+      <Enrich donor={donor} live={live} onOpenRecord={onOpenRecord} />
+    </>
+  );
+};
+
+const box = "rounded-xl border-l-4 border-brand bg-surface px-3.5 py-2.5 text-sm";
+
+/** What's already on the profile: saved research facts and interest areas. */
+const Saved = ({ donor, live }: { donor: DonorDetail; live: boolean }) => {
+  const { data: interests } = usePersonInterests(donor.id);
+  const labels = useTagLabels();
+  const tags = interests ?? [];
+  if (donor.research.length === 0 && tags.length === 0)
+    return (
+      <p className={cn(box, "text-muted-foreground")}>
+        {!live
+          ? "Nothing saved for this donor yet. Enrichment runs on the live service."
+          : donor.donor_type === "organization"
+            ? "Nothing saved yet. Enrich profile looks up public, professional sources."
+            : "Nothing saved yet."}
+      </p>
+    );
+  return (
+    <div className={box}>
+      <p className="font-semibold">On the profile</p>
+      {tags.length > 0 && (
+        <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Saved interest areas">
+          {tags.map((interest) => (
+            <InterestChip
+              key={`${interest.tag}:${interest.sub_tag ?? ""}`}
+              interest={interest}
+              label={tagLabel(interest, labels)}
+            />
+          ))}
+        </ul>
+      )}
+      {donor.research.length > 0 && (
+        <ul className="mt-1.5 grid gap-1">
+          {donor.research.map((fact) => (
+            <li key={fact.id}>
+              {fact.fact} <SourceLink href={fact.source_url} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+const contactLine = (contact: EnrichPreview["contact"]) => {
+  const c = contact as Record<string, unknown>;
+  const website = typeof c.website === "string" ? c.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : null;
+  return [website, c.public_phone, c.public_email].filter((v): v is string => typeof v === "string" && v.length > 0);
+};
+
+/**
+ * Enrich profile → the agent proposes (dry run, nothing written) → staff tick what to keep →
+ * Save to profile writes only those facts and tags. Individuals aren't researched.
+ */
+const Enrich = ({
+  donor,
+  live,
+  onOpenRecord,
+}: {
+  donor: DonorDetail;
+  live: boolean;
+  onOpenRecord: () => void;
+}) => {
+  const preview = useEnrichPreview();
+  const accept = useAcceptEnrichment();
+  const labels = useTagLabels();
+  const [facts, setFacts] = useState<Set<string>>(new Set());
+  const [tags, setTags] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState<string | null>(null);
+  const isOrg = donor.donor_type === "organization";
+  const proposal = preview.data;
+  const found = proposal && (proposal.facts.length > 0 || proposal.interests.length > 0);
+
+  const run = () => {
+    setSaved(null);
+    accept.reset();
+    preview.mutate(donor.id, {
+      onSuccess: (p) => {
+        setFacts(new Set(p.facts.map((f) => String(f.id))));
+        setTags(new Set(p.interests.map((i) => i.tag)));
+      },
+    });
+  };
+
+  const save = () =>
+    accept.mutate(
+      { personId: donor.id, fact_ids: proposal!.facts.filter((f) => facts.has(String(f.id))).map((f) => f.id), tags: [...tags] },
+      {
+        onSuccess: (res) => {
+          const s = typeof res.saved === "number" ? { facts: res.saved } : res.saved;
+          const parts = [
+            s.facts ? `${s.facts} ${s.facts === 1 ? "fact" : "facts"}` : null,
+            s.interests ? `${s.interests} interest ${s.interests === 1 ? "area" : "areas"}` : null,
+          ].filter(Boolean);
+          const skipped = "skipped_staff_tags" in s && s.skipped_staff_tags?.length
+            ? ` Kept your team’s choice for ${s.skipped_staff_tags.length === 1 ? "1 tag" : `${s.skipped_staff_tags.length} tags`}.`
+            : "";
+          setSaved(`${parts.length ? `Saved ${parts.join(" and ")} to the profile.` : "Nothing new to save."}${skipped}`);
+          preview.reset();
+        },
+      },
+    );
+
+  const toggle = (set: Set<string>, key: string, update: (s: Set<string>) => void) => {
+    const next = new Set(set);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    update(next);
+  };
+
+  const contact = proposal ? contactLine(proposal.contact) : [];
+  const picked = facts.size + tags.size;
+
+  return (
+    <>
+      {live && !isOrg && (
+        <p className={cn(box, "text-muted-foreground")}>
+          Not researched: the enrichment agent looks up organizations only, so individual donors stay private.
+        </p>
+      )}
+      {preview.isPending && (
+        <p className={cn(box, "flex items-center gap-2")} aria-live="polite">
+          <Spinner /> Searching public sources for {donor.full_name}…
+        </p>
+      )}
+      {proposal && !found && (
+        <p className={cn(box, "text-muted-foreground")} aria-live="polite">
+          {proposal.identity_match === "ambiguous"
+            ? "More than one organization matched this name, so nothing was suggested."
+            : "No public information found."}
+        </p>
+      )}
+      {proposal && found && (
+        <section className={box} aria-label="Enrichment suggestions">
+          <p className="font-semibold">Enrichment agent found (public web, review before saving):</p>
+          {proposal.interests.length > 0 && (
+            <>
+              <p className="mt-2 text-xs font-semibold text-muted-foreground">Interest areas</p>
+              <ul className="mt-1 flex flex-wrap gap-1.5" aria-label="Suggested interest areas">
+                {proposal.interests.map((interest) => (
+                  <InterestChip
+                    key={`${interest.tag}:${interest.sub_tag ?? ""}`}
+                    interest={interest}
+                    label={tagLabel(interest, labels)}
+                    selected={tags.has(interest.tag)}
+                    onToggle={() => toggle(tags, interest.tag, setTags)}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+          {proposal.facts.length > 0 && (
+            <>
+              <p className="mt-2 text-xs font-semibold text-muted-foreground">Facts</p>
+              <ul className="mt-1 grid gap-1.5">
+                {proposal.facts.map((fact) => {
+                  const id = String(fact.id);
+                  return (
+                    <li key={id} className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        id={`fact-${id}`}
+                        checked={facts.has(id)}
+                        onChange={() => toggle(facts, id, setFacts)}
+                        className="mt-1 size-4 shrink-0 accent-foreground"
+                      />
+                      <label htmlFor={`fact-${id}`} className={cn(!facts.has(id) && "text-muted-foreground line-through")}>
+                        {fact.fact}
+                      </label>
+                      <SourceLink href={fact.source_url} />
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+          {contact.length > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Public contact (shown only, not saved): {contact.join(" · ")}
+            </p>
+          )}
+        </section>
+      )}
+      {saved && (
+        <p className="flex items-center gap-1.5 text-sm font-medium" role="status">
+          <Check className="size-4" aria-hidden="true" /> {saved}
+        </p>
+      )}
+      {(preview.isError || accept.isError) && (
+        <p role="alert" className="text-sm text-alert-foreground">
+          {(preview.error ?? accept.error)?.message}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        {live && <EnrichButton donor={donor} />}
+        {live && isOrg && found ? (
+          <button
+            type="button"
+            onClick={save}
+            disabled={accept.isPending || picked === 0}
+            className={cn(pill, "bg-primary text-primary-foreground hover:bg-primary/85")}
+          >
+            {accept.isPending && <Spinner />}
+            {accept.isPending ? "Saving…" : "Save to profile"}
+          </button>
+        ) : (
+          live &&
+          isOrg && (
+            <button
+              type="button"
+              onClick={run}
+              disabled={preview.isPending}
+              className={cn(pill, "bg-primary text-primary-foreground hover:bg-primary/85")}
+            >
+              {preview.isPending ? <Spinner /> : <Sparkles className="size-4" aria-hidden="true" />}
+              {preview.isPending ? "Enriching…" : "Enrich profile"}
+            </button>
+          )
+        )}
         <button
           type="button"
           onClick={onOpenRecord}
           className={cn(
             pill,
-            live
-              ? "bg-surface hover:bg-accent"
-              : "bg-primary text-primary-foreground hover:bg-primary/85",
+            live && isOrg ? "bg-surface hover:bg-accent" : "bg-primary text-primary-foreground hover:bg-primary/85",
           )}
         >
           Open full record
         </button>
       </div>
-    </>
-  );
-};
-
-const Research = ({ donor, live }: { donor: DonorDetail; live: boolean }) => {
-  if (donor.research.length === 0)
-    return (
-      <p className="rounded-xl border-l-4 border-brand bg-surface px-3.5 py-2.5 text-sm text-muted-foreground">
-        {live
-          ? "No research yet. Enrich profile looks up public, professional sources."
-          : "No saved research for this donor. Enrichment runs on the live service."}
-      </p>
-    );
-  return (
-    <div className="rounded-xl border-l-4 border-brand bg-surface px-3.5 py-2.5 text-sm">
-      <p className="font-semibold">
-        Enrichment found (public web, review before using):
-      </p>
-      <ul className="mt-1 grid gap-1">
-        {donor.research.map((fact) => (
-          <li key={fact.id}>
-            {fact.fact} <SourceLink href={fact.source_url} />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
-
-const EnrichButton = ({ donor }: { donor: DonorDetail }) => {
-  const enrich = useEnrichDonor(donor.id);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => enrich.mutate()}
-        disabled={enrich.isPending}
-        className={cn(
-          pill,
-          "bg-primary text-primary-foreground hover:bg-primary/85",
-        )}
-      >
-        {enrich.isPending ? (
-          <Spinner />
-        ) : (
-          <Sparkles className="size-4" aria-hidden="true" />
-        )}
-        {enrich.isPending ? "Enriching…" : "Enrich profile"}
-      </button>
-      {enrich.isError && (
-        <p role="alert" className="basis-full text-sm text-alert-foreground">
-          {enrich.error.message}
-        </p>
-      )}
     </>
   );
 };
