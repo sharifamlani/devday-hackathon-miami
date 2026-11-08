@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Donor Desk · Shell mockup · Option A (throwaway review mock)</title>
+<style>
+/* Throwaway mockup. Made-up data only. Tokens from the approved Home spec. */
+:root{
+  --ink:#242728; --muted:#5f6264; --line:#e4e1d9; --surface:#f3f1ea; --yellow:#f4d958;
+  --tile:rgb(245 246 247 / 84%);
+  --glow:radial-gradient(120% 100% at 100% 0%, rgb(244 217 88 / 13%) 0%, rgb(244 217 88 / 0%) 60%);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff;color:var(--ink);font-family:"Avenir Next",Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* State switching: each hash shows one 1440x900 (or 390x844) screen. Default shows #donors. */
+.state{display:none;width:100%;height:900px;overflow:hidden;background:#fff;flex-direction:column}
+.state.phone{width:390px;height:844px;padding:0 16px;position:relative}
+.state:target{display:flex}
+:root:not(:has(.state:target)) #donors{display:flex}
+
+.tile{background:var(--glow),var(--tile);border:1px solid rgb(228 225 217 / 70%);border-radius:16px;box-shadow:0 1px 2px rgb(36 39 40 / 4%)}
+
+/* Caption: what changed, 2-3 lines, small and muted */
+.cap{flex:none;padding:12px 16px 0}
+.state.phone .cap{padding:12px 0 0}
+.caption{margin:0;font-size:12px;line-height:1.5;color:var(--muted);max-width:1180px;border-left:3px solid var(--yellow);padding-left:10px}
+.caption strong{color:var(--ink);font-weight:600}
+
+/* Shell (desktop): control column + main */
+.frame{flex:1;min-height:0;display:grid;grid-template-columns:64px minmax(0,1fr)}
+.control{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0 16px}
+.grow{flex:1}
+.ic{width:40px;height:40px;border-radius:999px;border:0;background:transparent;display:grid;place-items:center;color:var(--ink);cursor:pointer;text-decoration:none}
+.ic:hover{background:var(--surface)}
+.avatar{width:36px;height:36px;border-radius:999px;border:0;background:var(--yellow);color:var(--ink);font-weight:700;font-size:14px;cursor:pointer;display:grid;place-items:center}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.main{min-width:0;display:flex;flex-direction:column;padding:6px 16px 16px 0}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;height:44px;flex:none}
+.brandrow{display:flex;align-items:center;gap:10px;min-width:0}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;font-size:17px;letter-spacing:-.01em;white-space:nowrap}
+.pill{font-size:11px;font-weight:500;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap}
+
+.switch{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--surface);flex:none}
+.switch a{font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:999px;white-space:nowrap;line-height:1.2}
+.switch a:hover:not([aria-current]){color:var(--ink)}
+.switch a[aria-current="page"]{background:var(--ink);color:#fff;font-weight:600}
+
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:14px 4px 12px;flex:none}
+h1{margin:0;font-size:28px;line-height:1.15;font-weight:650;letter-spacing:-.015em}
+.meta{margin:4px 0 0;font-size:13px;color:var(--muted)}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 13px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:13px;font-weight:600;color:var(--ink);text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn svg.i{width:15px;height:15px}
+.btn.soft{background:var(--surface);border-color:transparent;border-radius:999px}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:#fff;border-radius:999px}
+.btn.round{width:34px;padding:0;border-radius:999px}
+
+/* Quiet notice row */
+.banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 10px 10px 14px;margin-bottom:12px;flex:none}
+.banner .l{display:flex;align-items:center;gap:10px;font-size:14px;min-width:0}
+.warn{width:28px;height:28px;border-radius:999px;background:var(--yellow);display:grid;place-items:center;flex:none}
+.warn svg.i{width:15px;height:15px;stroke-width:1.9}
+
+/* Donors table tile */
+.list-tile{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.tools{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);flex:none}
+.search{flex:1;max-width:460px;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:13px;color:var(--muted);cursor:text}
+.search svg.i{width:15px;height:15px;color:var(--muted)}
+.search .lab{font-weight:600;color:var(--ink);white-space:nowrap}
+.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:13px;color:var(--ink)}
+.search input::placeholder{color:var(--muted)}
+.tools .sp{flex:1}
+.tbl-wrap{flex:1;min-height:0;overflow:hidden}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:6px 14px;border-bottom:1px solid #efede7;height:52px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.who{display:flex;align-items:center;gap:10px;min-width:0}
+.dn{font-weight:600;font-size:14px;color:var(--ink);text-decoration:none;white-space:nowrap}
+a.dn:hover{text-decoration:underline}
+.ds{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px}
+.av{width:32px;height:32px;flex:none;border-radius:999px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:700;letter-spacing:.02em}
+.chips{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.chip{font-size:11px;font-weight:600;line-height:1;padding:5px 8px;border-radius:999px;white-space:nowrap;background:#fbe4e0;color:#7d2417}
+.chip.late{background:#fbf0b8;color:#4d3d00}
+.chip.new{background:#e2ebf6;color:#1f3f66}
+.chip.quiet{background:var(--surface);color:var(--ink)}
+.score{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.sc-note{display:block;font-size:11px;color:var(--muted);font-weight:400}
+
+/* Donor record */
+.back{font-size:13px;margin:0 0 10px 4px;flex:none}
+.back a{color:var(--muted);text-decoration:none;font-weight:600}
+.back a:hover{color:var(--ink);text-decoration:underline}
+.rec-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 18px;flex:none}
+.rec-id{display:flex;gap:14px;align-items:center;min-width:0}
+.av.lg{width:52px;height:52px;font-size:16px}
+.rec-name{margin:0;font-size:22px;font-weight:650;letter-spacing:-.01em;line-height:1.2}
+.rec-sub{margin:3px 0 8px;font-size:13px;color:var(--muted)}
+.rec-chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.prio{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--yellow);color:var(--ink);white-space:nowrap}
+.rec-actions{display:flex;gap:8px;align-items:center;flex:none}
+.rec-body{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;flex:1;min-height:0;margin-top:12px}
+.col{display:flex;flex-direction:column;gap:12px;min-height:0}
+.about{padding:16px 18px;flex:none}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;display:flex;align-items:center;gap:6px}
+.eyebrow svg.i{width:13px;height:13px;stroke-width:2}
+.about p{margin:0;font-size:14px;line-height:1.6}
+.bubbles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;flex:none}
+.bubble{padding:10px 16px;border-radius:26px;min-width:0}
+.bubble .k{font-size:11px;color:var(--muted);font-weight:600}
+.bubble .v{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.secs{flex:none;padding:0 18px}
+details.sec{border-top:1px solid var(--line)}
+details.sec:first-child{border-top:0}
+details.sec summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:48px;cursor:pointer}
+details.sec summary::-webkit-details-marker{display:none}
+details.sec summary .t{font-size:14px;font-weight:600;flex:none}
+details.sec summary .l{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+details.sec summary svg.i{width:16px;height:16px;transition:transform .15s}
+details.sec[open] summary svg.i{transform:rotate(180deg)}
+details.sec .body{padding:0 0 14px 0;font-size:13px;line-height:1.55}
+.details{padding:16px 18px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
+.details h2{margin:0;font-size:15px;font-weight:650}
+dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px 14px;font-size:13px}
+dt{color:var(--muted)}
+dd{margin:0;font-weight:600;text-align:right}
+.note{font-size:13px;line-height:1.5;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+.note .k{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:3px}
+.src{margin-top:auto;font-size:12px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line);padding-top:10px}
+
+/* Calendar */
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;flex:none}
+.day{padding:12px 10px 10px;text-align:center}
+.day .dow{font-size:12px;color:var(--muted);font-weight:600}
+.day .num{margin:6px auto 0;width:36px;height:36px;border-radius:999px;display:grid;place-items:center;font-size:18px;font-weight:650}
+.day.today .num{background:var(--ink);color:#fff}
+.day .tag{margin-top:8px;height:22px;display:flex;justify-content:center;align-items:center}
+.day .ev{font-size:11px;font-weight:600;background:var(--yellow);border-radius:999px;padding:4px 9px;white-space:nowrap}
+.day .none{font-size:11px;color:var(--muted)}
+.cal-body{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;margin-top:12px;flex:1;min-height:0}
+.wl{padding:4px 0;overflow:hidden;min-height:0}
+.wrow{display:grid;grid-template-columns:170px minmax(0,1fr);gap:14px;padding:12px 18px;border-top:1px solid var(--line);font-size:13px;align-items:baseline}
+.wrow:first-child{border-top:0}
+.wrow .d{font-weight:600}
+.wrow .d small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+.wrow .muted{color:var(--muted)}
+.wrow .t{color:var(--muted);font-variant-numeric:tabular-nums;margin-right:10px;white-space:nowrap}
+.sugg{padding:18px;display:flex;flex-direction:column;gap:10px}
+.sugg h2{margin:0;font-size:18px;line-height:1.25;font-weight:650}
+.sugg p{margin:0;font-size:13px;line-height:1.55}
+.sugg .foot{margin-top:auto;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+.sugg .row-btns{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Phone */
+.p-brand{display:flex;align-items:center;justify-content:space-between;height:52px;flex:none;padding-top:6px}
+.p-switch{display:flex;width:100%;flex:none}
+.p-switch a{flex:1;text-align:center;padding:8px 2px;font-size:12.5px}
+.p-title{padding:14px 2px 10px;flex:none}
+.p-title h1{font-size:24px}
+.p-banner{margin-bottom:10px;padding:10px 12px}
+.p-banner .l{font-size:13px}
+.p-banner .btn{height:32px;padding:0 11px;font-size:12px}
+.p-search{max-width:none;margin-bottom:10px;flex:none}
+.p-list{flex:1;min-height:0;overflow:hidden;margin-bottom:92px}
+.prow{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:10px;padding:12px 14px;border-top:1px solid var(--line);align-items:center}
+.prow:first-child{border-top:0}
+.prow .nm{font-weight:600;font-size:14px;line-height:1.25}
+.prow .sb{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 6px}
+.prow .sc{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;text-align:right}
+.prow .sc small{display:block;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.bbar{position:absolute;left:0;right:0;bottom:0;height:80px;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:6px 8px 12px}
+.bbar a,.bbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:64px;min-height:44px;border:0;background:transparent;text-decoration:none;font-size:11px;font-weight:600;color:var(--ink);cursor:pointer;border-radius:12px;padding:4px 6px}
+.bbar .avatar{width:30px;height:30px;font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- Shared SVG icon set (stroke icons, inherit currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-toggle" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.8V19.5h4.5v-5h4v5h4.5V9.8"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10v4"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 4l1.5 4.5L18 10l-4.5 1.5L12 16l-1.5-4.5L6 10l4.5-1.5z"/><path d="M18.5 15.5l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4.5h3.5l1.7 4.2-2.2 1.4a11 11 0 0 0 5.9 5.9l1.4-2.2 4.2 1.7V19a1.5 1.5 0 0 1-1.5 1.5A15.5 15.5 0 0 1 3.5 6 1.5 1.5 0 0 1 5 4.5z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="18" cy="12" r="1.4" fill="currentColor"/></symbol>
+  <symbol id="i-dup" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4 21 19.5H3z"/><path d="M12 10v4.5M12 17v.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-task" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4.5 7l7.5 6 7.5-6"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 15v3.5h14V15"/></symbol>
+  <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 15v3.5h14V15"/></symbol>
+</svg>
+
+<!-- ===================== #donors (desktop 1440x900) ===================== -->
+<section class="state" id="donors" aria-label="Donors list, Option A">
+  <div class="cap">
+    <p class="caption"><strong>Option A · Donors list.</strong> Changed: the old icon rail and page header are gone. The shell now matches Home: a narrow control column (sidebar toggle, Home, voice, Ask, account), the wordmark, and a compact page switcher on the white canvas.
+    The table sits in one soft tile; the duplicates notice is a quiet row above it. All names and amounts are made up.</p>
+  </div>
+  <div class="frame">
+    <nav class="control" aria-label="Controls">
+      <button class="ic" type="button" aria-label="Toggle sidebar" title="Toggle sidebar"><svg class="i"><use href="#i-toggle"/></svg></button>
+      <a class="ic" href="#home" aria-label="Home" title="Home"><svg class="i"><use href="#i-home"/></svg></a>
+      <span class="grow"></span>
+      <button class="ic" type="button" aria-label="Voice" title="Voice"><svg class="i"><use href="#i-wave"/></svg></button>
+      <button class="ic" type="button" aria-label="Ask the agent" title="Ask"><svg class="i"><use href="#i-spark"/></svg></button>
+      <button class="avatar" type="button" aria-label="Account">A</button>
+    </nav>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="brandrow">
+          <a class="brand" href="#home" aria-label="Donor Desk, go to Home">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#f4d958" stroke="#242728" stroke-width="1.8" aria-hidden="true"><path d="M12 19.5s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 7.8a3.8 3.8 0 0 1 7 2.5c0 4.9-7 9.2-7 9.2z"/></svg>
+            Donor Desk
+          </a>
+          <span class="pill">Sample data</span>
+        </div>
+        <nav class="switch" aria-label="Pages">
+          <a href="#home">Home</a>
+          <a href="#donors" aria-current="page">Donors</a>
+          <a href="#calendar">Calendar</a>
+          <a href="#campaigns">Campaigns</a>
+        </nav>
+      </header>
+
+      <div class="pagehead">
+        <div>
+          <h1>Donors</h1>
+          <p class="meta">40 donors · sorted by priority score</p>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button"><svg class="i"><use href="#i-import"/></svg>Import donors</button>
+          <button class="btn" type="button"><svg class="i"><use href="#i-export"/></svg>Export CSV</button>
+        </div>
+      </div>
+
+      <div class="tile banner" role="status">
+        <div class="l">
+          <span class="warn" aria-hidden="true"><svg class="i"><use href="#i-warn"/></svg></span>
+          <span><strong>10 possible duplicates found</strong> <span style="color:var(--muted)">· Same name or address on two records</span></span>
+        </div>
+        <button class="btn soft" type="button">Review merges <span aria-hidden="true">→</span></button>
+      </div>
+
+      <section class="tile list-tile" aria-label="Donor list">
+        <div class="tools">
+          <label class="search">
+            <span class="lab">Search</span>
+            <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+            <input type="text" placeholder="Name, organization or city" aria-label="Search donors by name, organization or city">
+          </label>
+          <span class="sp"></span>
+          <button class="btn soft" type="button">Sort: Priority score</button>
+          <button class="btn" type="button"><svg class="i"><use href="#i-filter"/></svg>Filter</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <caption style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Donors sorted by priority score</caption>
+            <thead>
+              <tr>
+                <th scope="col">Donor</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="r">Last gift</th>
+                <th scope="col" class="r">Lifetime</th>
+                <th scope="col" class="r">Priority</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="who"><span class="av">HL</span><div><span class="dn">Harbor Lane Foundation</span><div class="ds">Organization · gives yearly, usually in November</div></div></div></td>
+                <td><div class="chips"><span class="chip late">Late</span></div></td>
+                <td class="r">$12,000<div class="ds" style="max-width:none">Oct 22</div></td>
+                <td class="r">$48,500</td>
+                <td class="r"><span class="score">93</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">TO</span><div><span class="dn">Tamsin Okafor-Reyes</span><div class="ds">Gives quarterly · Q3 gift not yet received</div></div></div></td>
+                <td><div class="chips"><span class="chip">Needs a call</span></div></td>
+                <td class="r">$600<div class="ds" style="max-width:none">Aug 14</div></td>
+                <td class="r">$2,400</td>
+                <td class="r"><span class="score">90</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">KM</span><div><span class="dn">Kestrel Mill Co.</span><div class="ds">Matching gifts · usually in December</div></div></div></td>
+                <td><div class="chips"><span class="chip late">Late</span></div></td>
+                <td class="r">$1,200<div class="ds" style="max-width:none">Sep 30</div></td>
+                <td class="r">$1,200</td>
+                <td class="r"><span class="score">88</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">DW</span><div><span class="dn">Dorian Whitfield</span><div class="ds">Monthly · card on file</div></div></div></td>
+                <td><div class="chips"><span class="chip">Card failed</span></div></td>
+                <td class="r">$75<div class="ds" style="max-width:none">Oct 1</div></td>
+                <td class="r">$1,350</td>
+                <td class="r"><span class="score">86</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">RV</span><div><a class="dn" href="#record">Renata Vasquez-Hale</a><div class="ds">Individual · gives every November</div></div></div></td>
+                <td><div class="chips"><span class="chip late">Late</span></div></td>
+                <td class="r">$300<div class="ds" style="max-width:none">Nov 20, 2025</div></td>
+                <td class="r">$1,100</td>
+                <td class="r"><span class="score">85</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">AC</span><div><span class="dn">Alder Creek Pantry Trust</span><div class="ds">Gives yearly · December gift</div></div></div></td>
+                <td><div class="chips"><span class="chip quiet">On track</span></div></td>
+                <td class="r">$5,000<div class="ds" style="max-width:none">Dec 3, 2025</div></td>
+                <td class="r">$19,000</td>
+                <td class="r"><span class="score">82</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">SA</span><div><span class="dn">Simon Abara</span><div class="ds">Gives twice a year · May and November</div></div></div></td>
+                <td><div class="chips"><span class="chip quiet">On track</span></div></td>
+                <td class="r">$180<div class="ds" style="max-width:none">May 12</div></td>
+                <td class="r">$900</td>
+                <td class="r"><span class="score">80</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">IC</span><div><span class="dn">Inés Calderón</span><div class="ds">No gift since 2024 · lapsing</div></div></div></td>
+                <td><div class="chips"><span class="chip late">Late</span></div></td>
+                <td class="r">$150<div class="ds" style="max-width:none">Mar 9, 2024</div></td>
+                <td class="r">$450</td>
+                <td class="r"><span class="score">74</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">PN</span><div><span class="dn">Priya Nandakumar-Lee</span><div class="ds">New donor · first gift in September</div></div></div></td>
+                <td><div class="chips"><span class="chip new">New</span></div></td>
+                <td class="r">$100<div class="ds" style="max-width:none">Sep 27</div></td>
+                <td class="r">$100</td>
+                <td class="r"><span class="score">61</span></td>
+              </tr>
+              <tr>
+                <td><div class="who"><span class="av">OF</span><div><span class="dn">Oakridge Family Trust</span><div class="ds">Gives yearly · usually in June</div></div></div></td>
+                <td><div class="chips"><span class="chip quiet">On track</span></div></td>
+                <td class="r">$2,500<div class="ds" style="max-width:none">Jun 18</div></td>
+                <td class="r">$7,500</td>
+                <td class="r"><span class="score">58</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== #record (desktop 1440x900) ===================== -->
+<section class="state" id="record" aria-label="Donor record, Option A">
+  <div class="cap">
+    <p class="caption"><strong>Option A · Donor record.</strong> Changed: same Home shell instead of the old rail. The header strip holds the name, one status chip, a Priority pill and the actions. About is agent-written, with four contact bubbles under it.
+    Sections collapse to one line each; the source file sits at the bottom of the Details card. All names and amounts are made up.</p>
+  </div>
+  <div class="frame">
+    <nav class="control" aria-label="Controls">
+      <button class="ic" type="button" aria-label="Toggle sidebar" title="Toggle sidebar"><svg class="i"><use href="#i-toggle"/></svg></button>
+      <a class="ic" href="#home" aria-label="Home" title="Home"><svg class="i"><use href="#i-home"/></svg></a>
+      <span class="grow"></span>
+      <button class="ic" type="button" aria-label="Voice" title="Voice"><svg class="i"><use href="#i-wave"/></svg></button>
+      <button class="ic" type="button" aria-label="Ask the agent" title="Ask"><svg class="i"><use href="#i-spark"/></svg></button>
+      <button class="avatar" type="button" aria-label="Account">A</button>
+    </nav>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="brandrow">
+          <a class="brand" href="#home" aria-label="Donor Desk, go to Home">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#f4d958" stroke="#242728" stroke-width="1.8" aria-hidden="true"><path d="M12 19.5s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 7.8a3.8 3.8 0 0 1 7 2.5c0 4.9-7 9.2-7 9.2z"/></svg>
+            Donor Desk
+          </a>
+          <span class="pill">Sample data</span>
+        </div>
+        <nav class="switch" aria-label="Pages">
+          <a href="#home">Home</a>
+          <a href="#donors" aria-current="page">Donors</a>
+          <a href="#calendar">Calendar</a>
+          <a href="#campaigns">Campaigns</a>
+        </nav>
+      </header>
+
+      <div class="back" style="margin-top:12px"><a href="#donors">← All donors</a></div>
+
+      <section class="tile rec-head" aria-label="Donor summary">
+        <div class="rec-id">
+          <span class="av lg" aria-hidden="true">RV</span>
+          <div>
+            <h1 class="rec-name">Renata Vasquez-Hale</h1>
+            <p class="rec-sub">Individual · Mid donor · Lapsing</p>
+            <div class="rec-chips">
+              <span class="chip late">Late · needs a call</span>
+              <span class="prio">Priority 85</span>
+            </div>
+          </div>
+        </div>
+        <div class="rec-actions">
+          <button class="btn soft" type="button"><svg class="i"><use href="#i-phone"/></svg>Call</button>
+          <button class="btn" type="button"><svg class="i"><use href="#i-mail"/></svg>Review draft</button>
+          <button class="btn dark" type="button"><svg class="i"><use href="#i-task"/></svg>Add task</button>
+          <button class="btn round" type="button" aria-label="More actions" title="More actions"><svg class="i"><use href="#i-more"/></svg></button>
+        </div>
+      </section>
+
+      <div class="rec-body">
+        <div class="col">
+          <section class="tile about" aria-labelledby="about-h">
+            <p class="eyebrow" id="about-h">About · written by the agent</p>
+            <p>Renata has given every November since 2022, usually $250 to $300 to the unrestricted fund. Nothing has come in for 2026 yet, so her November gift is now overdue and she is lapsing ahead of Riverside Give Day. A short personal call is more likely to land than another email; her invite draft is ready if she agrees.</p>
+          </section>
+
+          <div class="bubbles" aria-label="Contact and context">
+            <div class="tile bubble"><div class="k">Email</div><div class="v">renata@example.org</div></div>
+            <div class="tile bubble"><div class="k">Phone</div><div class="v">(555) 010-0148</div></div>
+            <div class="tile bubble"><div class="k">Organization</div><div class="v">Hale Family Farm</div></div>
+            <div class="tile bubble"><div class="k">Project</div><div class="v">Riverside Give Day</div></div>
+          </div>
+
+          <section class="tile" style="flex:none" aria-label="Collapsible sections">
+            <div class="secs">
+              <details class="sec">
+                <summary><span class="t">Draft email</span><span class="l">Thank-you and Riverside Give Day invite · waiting for your approval</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+                <div class="body">Draft in the Foundation's voice, built from six sourced facts. Nothing is sent until you approve.</div>
+              </details>
+              <details class="sec">
+                <summary><span class="t">Giving history</span><span class="l">Lifetime $1,100 · 4 gifts · last $300 on Nov 20, 2025</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+                <div class="body">Nov 17, 2022 · $250 · Nov 16, 2023 · $250 · Nov 21, 2024 · $300 · Nov 20, 2025 · $300.</div>
+              </details>
+              <details class="sec">
+                <summary><span class="t">Why priority 85</span><span class="l">Urgency 55/55 · value 12.7/25 · frequency 9.6/12 · engagement 8/8</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+                <div class="body">Score computed from gift history. Gave in November 2025 and not again yet in 2026.</div>
+              </details>
+              <details class="sec">
+                <summary><span class="t">Call notes</span><span class="l">No call notes yet · notes from calls appear here</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+                <div class="body">No calls logged for this donor.</div>
+              </details>
+            </div>
+          </section>
+        </div>
+
+        <aside class="tile details" aria-label="Details">
+          <h2>Details</h2>
+          <dl>
+            <dt>Fund</dt><dd>Unrestricted</dd>
+            <dt>Last gift</dt><dd>$300 · Nov 20, 2025</dd>
+            <dt>Gifts</dt><dd>4 since Nov 2022</dd>
+            <dt>Lifetime</dt><dd>$1,100</dd>
+          </dl>
+          <div class="note">
+            <div class="k">Imported note</div>
+            Anchor donor, given every November since 2022. Prefers unrestricted gifts.
+          </div>
+          <p class="src">Source: donor_import_2026-10.csv, row 214 · imported Oct 3</p>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== #calendar (desktop 1440x900) ===================== -->
+<section class="state" id="calendar" aria-label="Calendar, Option A">
+  <div class="cap">
+    <p class="caption"><strong>Option A · Calendar.</strong> Changed: the old icon rail and header are replaced by the Home shell. The week strip, week list and the agent suggestion are now tiles on the white canvas. Calendar is the current page in the switcher.
+    All events and counts are made up.</p>
+  </div>
+  <div class="frame">
+    <nav class="control" aria-label="Controls">
+      <button class="ic" type="button" aria-label="Toggle sidebar" title="Toggle sidebar"><svg class="i"><use href="#i-toggle"/></svg></button>
+      <a class="ic" href="#home" aria-label="Home" title="Home"><svg class="i"><use href="#i-home"/></svg></a>
+      <span class="grow"></span>
+      <button class="ic" type="button" aria-label="Voice" title="Voice"><svg class="i"><use href="#i-wave"/></svg></button>
+      <button class="ic" type="button" aria-label="Ask the agent" title="Ask"><svg class="i"><use href="#i-spark"/></svg></button>
+      <button class="avatar" type="button" aria-label="Account">A</button>
+    </nav>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="brandrow">
+          <a class="brand" href="#home" aria-label="Donor Desk, go to Home">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#f4d958" stroke="#242728" stroke-width="1.8" aria-hidden="true"><path d="M12 19.5s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 7.8a3.8 3.8 0 0 1 7 2.5c0 4.9-7 9.2-7 9.2z"/></svg>
+            Donor Desk
+          </a>
+          <span class="pill">Sample data</span>
+        </div>
+        <nav class="switch" aria-label="Pages">
+          <a href="#home">Home</a>
+          <a href="#donors">Donors</a>
+          <a href="#calendar" aria-current="page">Calendar</a>
+          <a href="#campaigns">Campaigns</a>
+        </nav>
+      </header>
+
+      <div class="pagehead">
+        <div>
+          <h1>November 2026</h1>
+          <p class="meta">Sample calendar · week of Nov 8–14</p>
+        </div>
+        <div class="actions">
+          <button class="btn soft" type="button">Today</button>
+          <button class="btn round" type="button" aria-label="Previous week"><svg class="i"><use href="#i-left"/></svg></button>
+          <button class="btn round" type="button" aria-label="Next week"><svg class="i"><use href="#i-right"/></svg></button>
+        </div>
+      </div>
+
+      <div class="week" role="list" aria-label="Week of November 8 to 14">
+        <div class="tile day today" role="listitem"><div class="dow">Sun</div><div class="num">8</div><div class="tag"><span class="none">Today</span></div></div>
+        <div class="tile day" role="listitem"><div class="dow">Mon</div><div class="num">9</div><div class="tag"><span class="none">—</span></div></div>
+        <div class="tile day" role="listitem"><div class="dow">Tue</div><div class="num">10</div><div class="tag"><span class="none">—</span></div></div>
+        <div class="tile day" role="listitem"><div class="dow">Wed</div><div class="num">11</div><div class="tag"><span class="none">—</span></div></div>
+        <div class="tile day" role="listitem"><div class="dow">Thu</div><div class="num">12</div><div class="tag"><span class="none">Prep</span></div></div>
+        <div class="tile day" role="listitem"><div class="dow">Fri</div><div class="num">13</div><div class="tag"><span class="none">—</span></div></div>
+        <div class="tile day" role="listitem"><div class="dow">Sat</div><div class="num">14</div><div class="tag"><span class="ev">Riverside Give Day</span></div></div>
+      </div>
+
+      <div class="cal-body">
+        <section class="tile wl" aria-label="This week">
+          <div class="wrow"><div class="d">Sunday, Nov 8<small>Today</small></div><div><span class="t">All day</span>6 calls · 4 reviews · 2 preps</div></div>
+          <div class="wrow"><div class="d">Monday, Nov 9</div><div class="muted">Nothing scheduled</div></div>
+          <div class="wrow"><div class="d">Tuesday, Nov 10</div><div><span class="t">2:00 PM</span>Board finance check-in</div></div>
+          <div class="wrow"><div class="d">Wednesday, Nov 11</div><div class="muted">Nothing scheduled</div></div>
+          <div class="wrow"><div class="d">Thursday, Nov 12</div><div><span class="t">All day</span>Prep list: Riverside Give Day</div></div>
+          <div class="wrow"><div class="d">Friday, Nov 13</div><div class="muted">Nothing scheduled</div></div>
+          <div class="wrow"><div class="d">Saturday, Nov 14</div><div><span class="t">All day</span>Riverside Give Day · Early Giving opens</div></div>
+        </section>
+
+        <aside class="tile sugg" aria-labelledby="sugg-h">
+          <p class="eyebrow" style="margin:0"><svg class="i" aria-hidden="true"><use href="#i-spark"/></svg> Suggested by the agent</p>
+          <h2 id="sugg-h">Approve 18 invites for Riverside Give Day</h2>
+          <p>Early Giving opens Sat, Nov 14. Invites are drafted from six sourced facts. Nothing is sent until you approve.</p>
+          <div class="row-btns">
+            <button class="btn dark" type="button">Review invites</button>
+            <button class="btn soft" type="button">Not now</button>
+          </div>
+          <p class="foot">3 donors skipped: no email on file. Drafts are not sent automatically.</p>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== #donors-phone (390x844) ===================== -->
+<section class="state phone" id="donors-phone" aria-label="Donors list on phone, Option A">
+  <div class="cap">
+    <p class="caption"><strong>Option A · Phone.</strong> Changed: control column becomes the bottom bar (Home, voice, Ask, account), labels visible. Switcher fits 358px with no horizontal scroll. Made-up data.</p>
+  </div>
+
+  <div class="p-brand">
+    <a class="brand" href="#home" aria-label="Donor Desk, go to Home" style="font-size:16px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#f4d958" stroke="#242728" stroke-width="1.8" aria-hidden="true"><path d="M12 19.5s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 7.8a3.8 3.8 0 0 1 7 2.5c0 4.9-7 9.2-7 9.2z"/></svg>
+      Donor Desk
+    </a>
+    <span class="pill">Sample data</span>
+  </div>
+
+  <nav class="switch p-switch" aria-label="Pages">
+    <a href="#home">Home</a>
+    <a href="#donors-phone" aria-current="page">Donors</a>
+    <a href="#calendar">Calendar</a>
+    <a href="#campaigns">Campaigns</a>
+  </nav>
+
+  <div class="p-title">
+    <h1>Donors</h1>
+    <p class="meta">40 donors · sorted by priority score</p>
+  </div>
+
+  <div class="tile banner p-banner" role="status">
+    <div class="l">
+      <span class="warn" aria-hidden="true"><svg class="i"><use href="#i-warn"/></svg></span>
+      <span><strong>10 possible duplicates</strong></span>
+    </div>
+    <button class="btn soft" type="button">Review merges <span aria-hidden="true">→</span></button>
+  </div>
+
+  <label class="search p-search">
+    <span class="lab">Search</span>
+    <input type="text" placeholder="Name, organization or city" aria-label="Search donors by name, organization or city">
+  </label>
+
+  <section class="tile p-list" aria-label="Donor list">
+    <div class="prow">
+      <span class="av">HL</span>
+      <div style="min-width:0"><div class="nm">Harbor Lane Foundation</div><div class="sb">Gives yearly · usually in November</div><div class="chips"><span class="chip late">Late</span></div></div>
+      <div class="sc">93<small>Priority</small></div>
+    </div>
+    <div class="prow">
+      <span class="av">TO</span>
+      <div style="min-width:0"><div class="nm">Tamsin Okafor-Reyes</div><div class="sb">Gives quarterly · Q3 gift not yet received</div><div class="chips"><span class="chip">Needs a call</span></div></div>
+      <div class="sc">90<small>Priority</small></div>
+    </div>
+    <div class="prow">
+      <span class="av">KM</span>
+      <div style="min-width:0"><div class="nm">Kestrel Mill Co.</div><div class="sb">Matching gifts · usually in December</div><div class="chips"><span class="chip late">Late</span></div></div>
+      <div class="sc">88<small>Priority</small></div>
+    </div>
+    <div class="prow">
+      <span class="av">DW</span>
+      <div style="min-width:0"><div class="nm">Dorian Whitfield</div><div class="sb">Monthly · card on file</div><div class="chips"><span class="chip">Card failed</span></div></div>
+      <div class="sc">86<small>Priority</small></div>
+    </div>
+    <div class="prow">
+      <span class="av">RV</span>
+      <div style="min-width:0"><div class="nm">Renata Vasquez-Hale</div><div class="sb">Individual · gives every November</div><div class="chips"><span class="chip late">Late</span></div></div>
+      <div class="sc">85<small>Priority</small></div>
+    </div>
+    <div class="prow">
+      <span class="av">AC</span>
+      <div style="min-width:0"><div class="nm">Alder Creek Pantry Trust</div><div class="sb">Gives yearly · December gift</div><div class="chips"><span class="chip quiet">On track</span></div></div>
+      <div class="sc">82<small>Priority</small></div>
+    </div>
+    <div class="prow">
+      <span class="av">SA</span>
+      <div style="min-width:0"><div class="nm">Simon Abara</div><div class="sb">Gives twice a year</div><div class="chips"><span class="chip quiet">On track</span></div></div>
+      <div class="sc">80<small>Priority</small></div>
+    </div>
+  </section>
+
+  <nav class="bbar" aria-label="Controls">
+    <a href="#home"><svg class="i"><use href="#i-home"/></svg>Home</a>
+    <button type="button"><svg class="i"><use href="#i-wave"/></svg>Voice</button>
+    <button type="button"><svg class="i"><use href="#i-spark"/></svg>Ask</button>
+    <button type="button" aria-label="Account, A"><span class="avatar" aria-hidden="true">A</span>Account</button>
+  </nav>
+</section>
+
+</body>
+</html>
