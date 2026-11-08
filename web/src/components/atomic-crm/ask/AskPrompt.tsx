@@ -141,7 +141,9 @@ export const AskPrompt = ({
                 ghostRef.current.scrollTop = event.currentTarget.scrollTop;
             }}
             aria-describedby={hint ? `${hintId} ${completeId}` : completeId}
-            placeholder={placeholder}
+            // While dictating, the greyed words show in the ghost layer; a placeholder under them
+            // would run together with them (QA saw "no text" on #/ask).
+            placeholder={dictation.interim ? "" : placeholder}
             className={cn(
               textClass,
               "relative block resize-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none",

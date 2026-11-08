@@ -396,8 +396,8 @@ def _call_chips(f: dict | None, today: date) -> list[str]:
 def _alert_why(alert: dict, today: date) -> str:
     cadence = (alert.get("cadence") or "regular").replace("_gmd", " (Give Miami Day)")
     if alert["kind"] == "failed":
-        return f"{cadence.capitalize()} gift on {nice_date(alert['expected_date'], today)} failed, with no gift since."
-    return (f"{cadence.capitalize()} giver; the gift due {nice_date(alert['expected_date'], today)} "
+        return f"{cadence[:1].upper() + cadence[1:]} gift on {nice_date(alert['expected_date'], today)} failed, with no gift since."
+    return (f"{cadence[:1].upper() + cadence[1:]} giver; the gift due {nice_date(alert['expected_date'], today)} "
             f"is {alert['days_late']} days late.")
 
 
@@ -430,17 +430,23 @@ def _touched_by_people(conn: sqlite3.Connection, task_id: int) -> bool:
                         "AND action != 'create_task' AND undone_at IS NULL", (f"task:{task_id}",)).fetchone() is not None
 
 
+def _undo_generator_retire(conn: sqlite3.Connection, task_id: int, action: str) -> dict | None:
+    """If the task's latest standing change is the generator retiring it (`action`), undo that and return the task;
+    otherwise (staff deleted it, or it isn't retired) None: it stays as it is."""
+    last = conn.execute("SELECT token, action FROM agent_actions WHERE target = ? AND undone_at IS NULL "
+                        "ORDER BY id DESC LIMIT 1", (f"task:{task_id}",)).fetchone()
+    if last is None or last["action"] != action:
+        return None
+    undo(conn, last["token"])
+    return get_task(conn, task_id)
+
+
 def _revive_retired(conn: sqlite3.Connection, gen_key: str) -> dict | None:
     """If the generator retired this alert's task and nothing changed it since, undo the retire."""
     row = conn.execute("SELECT id, deleted_at FROM tasks WHERE gen_key = ?", (gen_key,)).fetchone()
     if row is None or row["deleted_at"] is None:
         return None
-    last = conn.execute("SELECT token, action FROM agent_actions WHERE target = ? AND undone_at IS NULL "
-                        "ORDER BY id DESC LIMIT 1", (f"task:{row['id']}",)).fetchone()
-    if last is None or last["action"] != "retire_stale_alert":
-        return None                                    # staff deleted it: stays deleted
-    undo(conn, last["token"])
-    return get_task(conn, row["id"])
+    return _undo_generator_retire(conn, row["id"], "retire_stale_alert")
 
 
 def generate_safely(conn: sqlite3.Connection, after: str) -> dict | None:
@@ -521,6 +527,10 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
             continue
         keep = candidates[0]
         claimed.add(keep["id"])
+        if keep["deleted_at"] and (back := _undo_generator_retire(conn, keep["id"], "retire_stale_review")):
+            # the generator retired it when its duplicates were resolved; they're pending again (merge undone)
+            created.append(back)
+            keep = {**keep, "deleted_at": None}
         if keep["deleted_at"] or keep["done"]:
             # Handled before. A member that wasn't in that review needs a look: a fresh task for the whole group.
             if group - keep["member_set"]:
@@ -535,6 +545,13 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
             task, _ = update_task(conn, keep["id"], actor="generator", _action="update_duplicate_review",
                                   _raw={"members": json.dumps(ids)}, **fields)
             updated.append(task)
+
+    # 2b. retire open reviews whose duplicates are no longer pending (merged or dismissed): no group claimed them.
+    # Members stay, so undoing the merge revives the same task. Done tasks and ones people changed stay.
+    for r in reviews:
+        if r["id"] not in claimed and not r["deleted_at"] and not r["done"] and not _touched_by_people(conn, r["id"]):
+            delete_task(conn, r["id"], actor="generator", _action="retire_stale_review")
+            retired += 1
 
     # 3. first gift in the last 30 days -> welcome
     for donor_id, f in facts.items():
