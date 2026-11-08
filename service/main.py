@@ -724,7 +724,8 @@ async def agent_ping(text: str = "hello") -> dict:
 
 # ----------------------------------------------------------------------------------------------
 # Stubs for routes the UI already calls (plan.md §17): a clear 503 until the owning lane lands.
-# Registered last, so the real route (routes_data.router, gift alerts) wins as soon as it exists.
+# Registered last: routes are matched in registration order, so the real route (routes_data.router, gift
+# alerts, mounted above) answers first as soon as it exists; the path check below only skips obvious duplicates.
 # ----------------------------------------------------------------------------------------------
 
 STUBS = {"/people": "the people list", "/events": "the event calendar", "/community/stats": "community analysis",
