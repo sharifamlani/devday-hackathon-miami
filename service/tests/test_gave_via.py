@@ -7,7 +7,7 @@ import sqlite3
 from service import chat_agent as ca
 from service.tests.test_agent_tools import invoke
 
-GMD_FILE = "give_miami_day_export_2022-2025.xlsx | sheet 'GMD gifts' row "
+GMD_FILE = "give_miami_day_export_2022-2025.xlsx | sheet:GMD gifts:row:"   # the real upload's format
 
 
 def uploaded(db_file):
@@ -52,3 +52,23 @@ def test_find_people_finds_the_give_miami_day_givers(db_file):
     people = {p["id"] for p in invoke("find_people", gave_via="Give Miami Day", limit=50)["people"]}
     assert {ids[n] for n in ("Gma One", "Gma Two", "Gma Three")} <= people
     assert ids["Declined Only"] not in people and ids["Stock Giver"] not in people
+
+
+def test_gmd_is_a_whole_word_never_part_of_another(db_file):
+    """Reviewer (#188): compacting then substring-matching let 'gmd' match 'Big MD' (bigmd contains gmd)."""
+    ids, _ = uploaded(db_file)
+    conn = sqlite3.connect(db_file)
+    big = conn.execute("INSERT INTO donors (full_name, donor_type) VALUES ('Big MD Donor', 'individual')").lastrowid
+    conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row, status) VALUES "
+                 "(?, 500, '2026-01-05', 'Big MD Annual Fund', 'big_md_fund.xlsx | sheet:Big MD:row:3', 'ok')", (big,))
+    camel = conn.execute("INSERT INTO donors (full_name, donor_type) VALUES ('Camel Case', 'individual')").lastrowid
+    conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row, status) VALUES "
+                 "(?, 75, '2025-11-20', 'GiveMiamiDay', 'online.csv | row 2', 'ok')", (camel,))
+    conn.commit()
+    conn.close()
+    for asked in ("GMD", "Give Miami Day"):
+        found = ca.gave_via_ids(asked)
+        assert big not in found, asked                          # "Big MD Annual Fund" / sheet "Big MD": no match
+        assert camel in found, asked                            # "GiveMiamiDay" run together: still a match
+    assert ca._says("give_miami_day_export_2022-2025.xlsx | sheet:GMD gifts:row:9", ["gmd"])
+    assert not ca._says("Big MD Annual Fund", ["gmd"])
