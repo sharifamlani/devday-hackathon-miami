@@ -17,6 +17,16 @@ All people, gifts, emails and phone numbers in `data/sample_inputs/` are fiction
 **Neighbors** and **Community** tabs, and the agent never sends a Community member a donation ask, but we built no
 features for those two tabs beyond that.
 
+## Challenge #2, answered
+
+- **Duplicate donor records.** Fuzzy matches are only *suggestions*: a person approves each merge (**Merge ✓** or
+  **Keep separate**), the gift history moves to the kept record, and **Undo merge** reverses it. Exact matches (the
+  same email, or the same name with nothing contradicting it) merge on upload, and each gets a **"!"** marker so
+  staff can **Keep merged** or **Split back**.
+- **Donors who quietly stop giving.** Plain-Python gift alerts flag a failed charge (a declined card) or a regular
+  giver past their usual date; each becomes a call task on Home ("Call Hye-jin Park"), and Home's attention list
+  orders them failed → late → new. A declined charge is never counted as money raised.
+
 ---
 
 ## What's in the app (on-screen names)
@@ -47,10 +57,11 @@ features for those two tabs beyond that.
 
 | Job | Model | Where |
 |---|---|---|
-| Agents (chat, outreach, campaigns, context, events, enrichment, after-call, Ask, ICP) | **OpenAI** via the **OpenAI Agents SDK** (`openai-agents`): `OPENAI_MODEL_DEFAULT = gpt-6.1-sol`. Tiers in `.env.example`: `gpt-6-astra` (flagship), `gpt-6.1-sol` (default), `gpt-6.1-terra` (efficient), `gpt-6-luna` (fast) | `service/*_agent.py` |
+| Agents: home chat, outreach, campaigns, context, events and invites, enrichment, after-call, ICP | **OpenAI** via the **OpenAI Agents SDK** (`openai-agents`): `OPENAI_MODEL_DEFAULT`, **`gpt-6.1-sol`** in `.env.example` | `service/chat_agent.py`, `outreach_agent.py`, `campaign_agent.py`, `org_context.py`, `events_agent.py`, `enrich_agent.py`, `after_call_agent.py`, `icp_agent.py` |
+| Reading uploaded files (ingest), Ask, call summaries | OpenAI via the Agents SDK: `OPENAI_MODEL_FAST`, **`gpt-6-luna`** in `.env.example` (ingest falls back to `OPENAI_MODEL_DEFAULT`, then `gpt-4.1-mini`) | `service/ingest_adapter.py`, `routes_ask.py`, `routes_calls.py` |
+| Hosted Ask on the Vercel preview (opt-in, off by default) | OpenAI Agents SDK in a Vercel Function: `OPENAI_MODEL_FAST`, else `OPENAI_MODEL_DEFAULT` | `web/api/ask.ts` |
 | Web research for context, events and enrichment | Agents SDK hosted `WebSearchTool`; a fact is kept only if its URL is among the search's own results | `service/org_context.py`, `events_agent.py`, `enrich_agent.py` |
-| Context search | **OpenAI `text-embedding-3-small`** embeddings, ranked by cosine similarity × recency (90-day half-life) | `GET /context/search` |
-| Reading uploaded files (ingest) | OpenAI via the Agents SDK: `OPENAI_MODEL_FAST`, else `OPENAI_MODEL_DEFAULT`, else `gpt-4.1-mini` when no tier is set | `service/ingest_adapter.py` |
+| Context search | **OpenAI `text-embedding-3-small`** embeddings, ranked by cosine similarity × recency (90-day half-life) | `service/org_context.py` (`GET /context/search`) |
 | Voice (live transcript, dictation, call notes) | **Google `gemini-3.5-transcribe-live`** (live) and **`gemini-3.5-transcribe`** (recorded file, with speaker labels) | `service/transcribe.py`, `routes_voice.py` |
 
 Numbers are never computed by a model: scores, totals, quarters, duplicate matching and merge/undo are plain Python.
@@ -87,9 +98,13 @@ uvicorn service.main:app --host 127.0.0.1 --port 8000
 
 # 3. Web (second terminal)
 cd web
-npm install
+npm ci
 VITE_DATA_MODE=local VITE_API_URL=http://localhost:8000 npm run dev    # http://localhost:5173
 ```
+
+On Windows (PowerShell or cmd), put the two `VITE_` lines in `web/.env.local` instead (copy `web/.env.example` and
+set `VITE_DATA_MODE=local`), then run `npm run dev`. The service accepts the browser from `localhost:5173`/`5174`;
+add others with `CORS_ORIGINS` in `.env`.
 
 4. Open the app. **Step 1, "Drag in your files.":** drag in the 8 input files from `data/sample_inputs/`
    (`give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`,
@@ -101,7 +116,7 @@ VITE_DATA_MODE=local VITE_API_URL=http://localhost:8000 npm run dev    # http://
 6. Check the upload against the answer key: `python scripts/demo_reset.py --check`. It approves every suggested
    duplicate on a copy of the database and compares people, gifts and alerts with
    `data/sample_inputs/answer_key.json`: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts. Exit 0 =
-   all PASS.
+   all PASS. The files are read by a model, so a fresh upload can land one person off (see Limits).
 
 `demo_reset.py` with no flag backs up `data/donors.db` and resets it to empty; it refuses while the service answers
 on `--port` (default 8000).
@@ -113,6 +128,14 @@ Sending is a **dry run** by default: email goes out only with `EMAIL_SEND=on` an
 
 ## Limits (named honestly)
 
+- **Nothing is really sent by default.** Email, texts and campaign sends are dry runs unless `EMAIL_SEND=on` (with a
+  Gmail token) or `SMS_PROVIDER` is set, and even then only addresses on `SEND_ALLOWLIST` are reached.
+- **No real calls by default.** `PHONE_CALLS` is off in `.env.example`; with it off, the agent says so instead of
+  showing a Call card.
+- **Reading the files is a model step, so counts can vary by one.** Sorting and matching people from the messy
+  sample files is done by an LLM; a fresh, uncached upload can come out one person over or under the answer key
+  (gift totals and duplicate matching are plain Python). `scripts/demo_reset.py --warm` caches the reading so the
+  stage upload is repeatable.
 - **Payout-change fraud hold is not built.** Flagging a change to a donor's or grantee's bank details for a second
   approval is designed but not implemented.
 - **Social media is not read.** Social links are "Saved for later; the agent doesn't read them yet." Official X,
