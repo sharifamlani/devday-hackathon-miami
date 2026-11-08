@@ -19,7 +19,7 @@ export interface PersonInterest {
   confidence: InterestConfidence | null;
   evidence: string | null;
   source_url: string | null; // always set for agent tags; null for staff tags
-  set_by: string; // "agent" | "staff"
+  set_by?: string; // "agent" | "staff"; absent on dry-run proposals (all agent-found)
   label?: string; // the tag's label, when the service includes it
   source_type?: string | null; // board_seat, named_gift, statement, ...
 }

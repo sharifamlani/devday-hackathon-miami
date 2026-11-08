@@ -42,6 +42,9 @@ export const useTagLabels = () => {
 
 const subTag = (s: string | null) => (s ? s.replace(/_/g, " ") : null);
 
+/** Agent-found unless staff set it (dry-run proposals carry no set_by: they all come from the agent). */
+const byAgent = (interest: PersonInterest) => interest.set_by !== "staff";
+
 /** What a chip's popover says: who set it, how sure, the evidence and its source. */
 const InterestDetails = ({ interest, label }: { interest: PersonInterest; label: string }) => (
   <div className="grid gap-1.5">
@@ -50,7 +53,7 @@ const InterestDetails = ({ interest, label }: { interest: PersonInterest; label:
       {interest.sub_tag && <span className="font-normal text-muted-foreground"> · {subTag(interest.sub_tag)}</span>}
     </p>
     <p className="text-xs text-muted-foreground">
-      {interest.set_by === "agent"
+      {byAgent(interest)
         ? `Found by the enrichment agent · ${confidenceLabel[interest.confidence ?? "low"]} confidence`
         : "Added by your team"}
     </p>
@@ -115,7 +118,7 @@ export const InterestChip = ({
         <PopoverTrigger className={cn(chipBase, reviewing ? "pl-1" : "")} aria-label={`${label}: details and source`}>
           <span aria-hidden className={cn("size-2 rounded-full", confidenceDot[confidence])} />
           {label}
-          {interest.set_by === "agent" && (
+          {byAgent(interest) && (
             <span className="font-normal opacity-75">· {confidenceLabel[confidence]}</span>
           )}
         </PopoverTrigger>
@@ -135,6 +138,27 @@ export const InterestChip = ({
         </button>
       )}
     </li>
+  );
+};
+
+/** Read-only chips for a person's saved tags (the donor drawer); nothing when there are none. */
+export const SavedInterestChips = ({ personId }: { personId: number }) => {
+  const { data: interests } = usePersonInterests(personId);
+  const labels = useTagLabels();
+  if (!interests?.length) return null;
+  return (
+    <div className="grid gap-1.5">
+      <p className="text-sm text-muted-foreground">Interest areas</p>
+      <ul className="flex flex-wrap gap-1.5" aria-label="Interest areas">
+        {interests.map((interest) => (
+          <InterestChip
+            key={`${interest.tag}:${interest.sub_tag ?? ""}`}
+            interest={interest}
+            label={tagLabel(interest, labels)}
+          />
+        ))}
+      </ul>
+    </div>
   );
 };
 
