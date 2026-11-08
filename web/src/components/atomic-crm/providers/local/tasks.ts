@@ -36,8 +36,23 @@ export const taskKeys = {
 
 /* ---------- API ---------- */
 
+/** The snapshot's tasks, filtered the way GET /tasks filters them. */
+const snapshotTasks = (s: Record<string, unknown>, filter: TaskFilter): Task[] | undefined => {
+  if (filter.due === "today") return s.tasks_today as Task[] | undefined;
+  const all = s.tasks as Task[] | undefined;
+  return all?.filter(
+    (t) =>
+      (!filter.from || (t.due ?? "") >= filter.from) &&
+      (!filter.to || (t.due ?? "") <= filter.to) &&
+      (filter.person_id == null || t.person_id === filter.person_id),
+  );
+};
+
 export const getTasks = (filter: TaskFilter = {}) =>
-  call<Task[]>("Tasks", "GET", `/tasks${qs({ ...filter })}`, { snapshotValue: [] });
+  call<Task[]>("Tasks", "GET", `/tasks${qs({ ...filter })}`, {
+    snapshotValue: [],
+    snapshot: (s) => snapshotTasks(s, filter),
+  });
 
 export const createTask = (input: TaskInput) => call<Task>("Adding a task", "POST", "/tasks", { body: input });
 

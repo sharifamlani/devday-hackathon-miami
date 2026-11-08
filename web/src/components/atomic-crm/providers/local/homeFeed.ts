@@ -42,6 +42,7 @@ export const useHomeData = (today: string, calendarDays = 14) => {
 export type AttentionTone = "alert" | "warn" | "good" | "quiet";
 
 const BADGES: Record<string, { label: string; tone: AttentionTone }> = {
+  failed: { label: "Card failed", tone: "alert" }, // what the service sends
   card_failed: { label: "Card failed", tone: "alert" },
   late: { label: "Late", tone: "alert" },
   new: { label: "New", tone: "good" },
