@@ -2,6 +2,7 @@ import { zoomClick } from "./workspaceView";
 import { useId, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  ArrowUpRight,
   AudioLines,
   ChevronDown,
   Clock,
@@ -26,9 +27,11 @@ import {
   formatMonthDay,
   initials,
   type AgendaLine,
+  artifactTarget,
   type ArtifactRow,
   type HomeTask,
 } from "./homeData";
+import { useArtifactOwners } from "./artifactOwners";
 import { focusRing, tagTone, tile, tileTitle } from "./tile";
 
 /** What the panels without a snapshot source say instead of a false "all caught up". */
@@ -40,7 +43,7 @@ const TileHead = ({
   children,
 }: {
   id: string;
-  title: string;
+  title: ReactNode;
   children?: ReactNode;
 }) => (
   <div className="mb-3 flex items-center justify-between gap-2">
@@ -572,7 +575,23 @@ export const TasksTile = ({
       aria-labelledby={headingId}
       className={cn(tile, "home-projects")}
     >
-      <TileHead id={headingId} title="Tasks">
+      <TileHead
+        id={headingId}
+        title={
+          <Link
+            to="/?workspace=tasks"
+            onClick={zoomClick("tasks")}
+            title="Open all tasks"
+            className={cn(
+              "inline-flex items-center gap-1 rounded-sm hover:underline",
+              focusRing,
+            )}
+          >
+            Tasks
+            <ArrowUpRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        }
+      >
         <span className="ml-auto text-xs text-muted-foreground">
           {tasks.length}
         </span>
@@ -694,6 +713,7 @@ const ARTIFACT_ICON: Record<string, typeof FileText> = {
 
 export const ArtifactsTile = ({ rows }: { rows: ArtifactRow[] }) => {
   const headingId = useId();
+  const owners = useArtifactOwners(rows);
   return (
     <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
       <TileHead id={headingId} title="Files & drafts" />
@@ -703,7 +723,8 @@ export const ArtifactsTile = ({ rows }: { rows: ArtifactRow[] }) => {
         </p>
       ) : (
         <ul className="grid gap-0.5">
-          {rows.map((row) => {
+          {rows.map((r) => {
+            const row = { ...r, to: r.to ?? artifactTarget(r, owners) };
             const Icon = ARTIFACT_ICON[row.kind] ?? FileText;
             const inner = (
               <>
