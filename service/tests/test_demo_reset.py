@@ -101,6 +101,84 @@ def test_warm_uploads_once_then_leaves_an_empty_db(db_file, tmp_path, monkeypatc
     assert sum(line.startswith("PASS reset") for line in lines) == 2
 
 
+def warm_inputs(tmp_path):
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    (inputs / "a.xlsx").write_bytes(b"x")
+    return inputs
+
+
+def uploads_giving(db_file, cache, people_per_attempt):
+    """A fake upload: attempt n writes its own cached answer and gives people_per_attempt[n] people."""
+    calls = []
+
+    def fake_upload(files):
+        n = len(calls)
+        calls.append(n)
+        if cache is not None:
+            (cache / f"answer-{n}.json").write_text("{}")
+        conn = db.connect(db_file)
+        for i in range(people_per_attempt[min(n, len(people_per_attempt) - 1)]):
+            db.insert_donor(conn, {"full_name": f"Person {i}"})
+        conn.commit()
+        conn.close()
+        return {}
+
+    return fake_upload, calls
+
+
+def test_warm_asks_again_until_the_stage_numbers_match(db_file, tmp_path, monkeypatch):
+    """S1: a cold read that adds a person (a ghost from a mention) is asked again; that attempt's answers go."""
+    cache = tmp_path / "cache"
+    monkeypatch.setenv("INGEST_CACHE_DIR", str(cache))
+    upload, calls = uploads_giving(db_file, cache, [3, 2])
+    lines = []
+    info = demo_reset.warm(db_file, free_port(), warm_inputs(tmp_path), upload=upload, log=lines.append,
+                           expect={"people": 2, "pairs": 0}, tries=3)
+    assert info["matched"] and info["attempts"] == 2 and len(calls) == 2
+    assert sorted(p.name for p in cache.iterdir()) == ["answer-1.json"]   # attempt 1's answers dropped, 2's kept
+    assert any(line.startswith("RETRY the upload gave 3 people / 0 pairs") for line in lines)
+    assert any(line.startswith("PASS stage numbers: 2 people / 0 duplicate suggestions") for line in lines)
+    assert count(db_file) == 0                                            # empty again for the stage
+
+
+def test_warm_stops_after_tries_and_says_what_the_stage_will_show(db_file, tmp_path, monkeypatch):
+    """S-neg: never loops forever; after `tries` uploads it keeps the last cache and FAILs with the numbers."""
+    cache = tmp_path / "cache"
+    monkeypatch.setenv("INGEST_CACHE_DIR", str(cache))
+    upload, calls = uploads_giving(db_file, cache, [3])
+    lines = []
+    info = demo_reset.warm(db_file, free_port(), warm_inputs(tmp_path), upload=upload, log=lines.append,
+                           expect={"people": 2, "pairs": 0}, tries=3)
+    assert not info["matched"] and info["attempts"] == 3 and len(calls) == 3
+    assert [p.name for p in cache.iterdir()] == ["answer-2.json"]          # the last attempt's cache is kept
+    assert any(line.startswith("FAIL stage numbers: 3 people / 0 duplicate suggestions (expected 2 / 0, 3 uploads)")
+               for line in lines)
+    assert count(db_file) == 0
+
+
+def test_warm_moves_aside_an_older_cache_that_gives_the_wrong_numbers(db_file, tmp_path, monkeypatch):
+    """An already-warm cache that replays the wrong numbers is set aside (not deleted) so the model is asked again."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "old-answer.json").write_text("{}")
+    monkeypatch.setenv("INGEST_CACHE_DIR", str(cache))
+    upload, calls = uploads_giving(db_file, None, [3, 2])                  # attempt 1 replays: writes nothing new
+    info = demo_reset.warm(db_file, free_port(), warm_inputs(tmp_path), upload=upload, log=lambda *_: None,
+                           expect={"people": 2, "pairs": 0}, tries=3)
+    assert info["matched"] and info["attempts"] == 2
+    aside = [p for p in tmp_path.iterdir() if p.name.startswith("cache.set-aside-")]
+    assert len(aside) == 1 and (aside[0] / "old-answer.json").exists()
+    assert not (cache / "old-answer.json").exists()
+
+
+def test_warm_without_an_expectation_uploads_once(db_file, tmp_path, monkeypatch):
+    monkeypatch.setenv("INGEST_CACHE_DIR", str(tmp_path / "cache"))
+    upload, calls = uploads_giving(db_file, None, [3])
+    info = demo_reset.warm(db_file, free_port(), warm_inputs(tmp_path), upload=upload, log=lambda *_: None, tries=3)
+    assert info["matched"] and info["attempts"] == 1 and len(calls) == 1
+
+
 def test_warm_refuses_while_the_service_runs(db_file, tmp_path, busy_port):
     with pytest.raises(demo_reset.Refused):
         demo_reset.warm(db_file, busy_port, tmp_path, upload=lambda files: {}, log=lambda *_: None)

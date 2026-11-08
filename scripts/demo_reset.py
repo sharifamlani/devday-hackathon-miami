@@ -14,7 +14,11 @@ before a reset), --force (reset even if the service answers on --port), --inputs
 
 Why --warm matters: the upload path asks a model to read and sort the files, and caches every answer in
 data/ingest_cache/. After one warm-up run, the on-stage upload replays those answers, so it is fast and the
-duplicate count shown on stage is fixed. The cache is kept; only the database is emptied.
+duplicate count shown on stage is fixed. The cache is kept; only the database is emptied. On a cold cache the
+model can read a file differently (an extra person from a mention in the retreat notes, one more pair), so --warm
+checks the upload against the expected stage numbers (77 people / 9 pairs; --expect-people / --expect-pairs) and,
+if they differ, drops that attempt's cached answers and asks again, up to --tries 3 uploads. If the numbers still
+differ it says what the stage will show and exits 1.
 
 Every run is idempotent, prints PASS/FAIL lines, and exits non-zero on any failure:
     0 = all good   1 = a check failed   2 = refused (service running, missing files, bad arguments)
@@ -139,34 +143,81 @@ def cache_files(cache_dir: Path) -> int:
     return sum(1 for p in cache_dir.rglob("*") if p.is_file()) if cache_dir.exists() else 0
 
 
-def warm(path: Path, port: int, inputs: Path, force: bool = False, upload=upload_via_service, log=print) -> dict:
-    """reset -> one upload of the sample inputs (primes the model-answer cache) -> report -> reset again."""
+def cache_set(cache_dir: Path | None) -> set[Path]:
+    return {p for p in cache_dir.rglob("*") if p.is_file()} if cache_dir and cache_dir.exists() else set()
+
+
+# A clean read of data/sample_inputs (Nov 8): the numbers the demo script and the stage expect. The model can read
+# the retreat notes differently on a cold cache (an extra person from a mention, one more pair), so --warm asks
+# again until the upload gives these. Override with --expect-people / --expect-pairs when the inputs change.
+EXPECTED_WARM = {"people": 77, "pairs": 9}
+WARM_TRIES = 3
+
+
+def forget_attempt(cache_dir: Path | None, before: set[Path], log=print) -> None:
+    """Make the next upload ask the model again: drop the answers this attempt wrote. If it wrote none (every answer
+    came from an older cache), move those aside to a dated folder instead of deleting them."""
+    if cache_dir is None:
+        return
+    new = cache_set(cache_dir) - before
+    if new:
+        for p in new:
+            p.unlink()
+        log(f".... dropped the {len(new)} cached answers from that attempt")
+        return
+    aside = cache_dir.with_name(f"{cache_dir.name}.set-aside-{datetime.now():%Y%m%d-%H%M%S}")
+    cache_dir.rename(aside)
+    cache_dir.mkdir()
+    log(f".... every answer came from an older cache: moved it to {aside}")
+
+
+def warm(path: Path, port: int, inputs: Path, force: bool = False, upload=upload_via_service, log=print,
+         expect: dict | None = None, tries: int = 1) -> dict:
+    """reset -> upload the sample inputs (primes the model-answer cache) -> report -> reset again. With expect
+    ({"people", "pairs"}), an upload that gives other numbers is asked again, up to `tries` uploads in all; the
+    cache of the last upload is kept either way, and "matched" says whether the stage will show the expected numbers."""
     from service.ingest_adapter import _cache_dir
 
     cache_dir = _cache_dir()
     reset(path, port, force, log)
     files = input_files(inputs)
     before = cache_files(cache_dir) if cache_dir else 0
-    log(f".... warm-up upload of {len(files)} files through POST /ingest (a cold cache asks the model; "
-        f"this can take a few minutes)")
-    result = upload(files)
-    counts = row_counts(path)
+    tries = max(1, tries if expect else 1)
+    for attempt in range(1, tries + 1):
+        if attempt > 1:
+            reset(path, port, force=True, log=log, backup=False)  # port checked above; the warm-up db is throwaway
+        written = cache_set(cache_dir)
+        log(f".... warm-up upload of {len(files)} files through POST /ingest (a cold cache asks the model; "
+            f"this can take a few minutes){f' - attempt {attempt} of {tries}' if tries > 1 else ''}")
+        result = upload(files)
+        counts = row_counts(path)
+        pending = counts.get("duplicate_suggestions", 0)
+        conn = sqlite3.connect(path)
+        n_ok, total = gift_totals(conn)
+        conn.close()
+        other = counts.get("gifts", 0) - n_ok                 # declined/failed charges: on record, never counted
+        log(f"PASS warm-up upload of {len(files)} files: {counts.get('donors', 0)} people, {n_ok} gifts / "
+            f"${total:,.0f}{f' (+{other} declined/failed charge kept on record, not counted)' if other else ''}, "
+            f"{pending} duplicate suggestions (this is the count staff will see on stage)")
+        got = {"people": counts.get("donors", 0), "pairs": pending}
+        matched = expect is None or got == {k: expect[k] for k in ("people", "pairs")}
+        if matched or attempt == tries:
+            break
+        log(f"RETRY the upload gave {got['people']} people / {got['pairs']} pairs, not the expected "
+            f"{expect['people']} / {expect['pairs']} (the model read a file differently): asking again")
+        forget_attempt(cache_dir, written, log)
+    if expect is not None:
+        log(f"{'PASS' if matched else 'FAIL'} stage numbers: {got['people']} people / {got['pairs']} duplicate "
+            f"suggestions (expected {expect['people']} / {expect['pairs']}, {attempt} upload{'s' if attempt > 1 else ''})"
+            f"{'' if matched else ': the stage will show these; run --warm again before going on'}")
     after = cache_files(cache_dir) if cache_dir else 0
-    pending = counts.get("duplicate_suggestions", 0)
-    conn = sqlite3.connect(path)
-    n_ok, total = gift_totals(conn)
-    conn.close()
-    other = counts.get("gifts", 0) - n_ok                 # declined/failed charges: on record, never counted
-    log(f"PASS warm-up upload of {len(files)} files: {counts.get('donors', 0)} people, {n_ok} gifts / ${total:,.0f}"
-        f"{f' (+{other} declined/failed charge kept on record, not counted)' if other else ''}, "
-        f"{pending} duplicate suggestions (this is the count staff will see on stage)")
     if cache_dir is None:
         log("FAIL the ingest cache is off (INGEST_CACHE=off): the stage upload will call the model live")
     else:
         log(f"PASS ingest cache {cache_dir}: {before} -> {after} cached answers")
     reset(path, port, force=True, log=log, backup=False)  # port checked above; the warm-up db is throwaway
     return {"result": result, "counts": counts, "cache_before": before, "cache_after": after,
-            "cache_on": cache_dir is not None}
+            "cache_on": cache_dir is not None, "matched": matched, "attempts": attempt}
 
 
 # ---- check ----------------------------------------------------------------------------------------
@@ -309,6 +360,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=8000, help="service port that must be free for a reset")
     parser.add_argument("--force", action="store_true", help="reset even if the service answers on --port")
     parser.add_argument("--inputs", default=str(INPUTS_DIR), help="folder of files to upload (--warm)")
+    parser.add_argument("--expect-people", type=int, default=EXPECTED_WARM["people"],
+                        help="people the warm-up upload must give (--warm)")
+    parser.add_argument("--expect-pairs", type=int, default=EXPECTED_WARM["pairs"],
+                        help="duplicate suggestions the warm-up upload must give (--warm)")
+    parser.add_argument("--tries", type=int, default=WARM_TRIES,
+                        help="uploads --warm makes at most before it reports what it got")
     args = parser.parse_args(argv)
 
     if args.warm:
@@ -326,8 +383,9 @@ def main(argv: list[str] | None = None) -> int:
                   f"the answer key")
             return 0 if ok else FAILED
         if args.warm:
-            info = warm(path, args.port, Path(args.inputs), args.force)
-            ok = info["cache_on"]
+            info = warm(path, args.port, Path(args.inputs), args.force,
+                        expect={"people": args.expect_people, "pairs": args.expect_pairs}, tries=args.tries)
+            ok = info["cache_on"] and info["matched"]
         else:
             reset(path, args.port, args.force)
             ok = True
