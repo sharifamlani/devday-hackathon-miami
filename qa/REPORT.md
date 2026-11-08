@@ -328,3 +328,4 @@ Follow-up: blocker (3) withdrawn: the 12th flagged giver is on Givers page 2 (th
 | #160 / #163 / #171 / #161 | — | #163, #171, #161 moved to other reviewers (my reviewers stopped, worktrees reset; one leftover tsc PID stopped) | — |
 
 Possible main bugs: (a) with two approval cards pending, approving one auto-declines the other (owner 90). (b) Blocker 1 baseline on main 8cdff72: after approve-all, 9 "Review possible duplicate" tasks stay open (#180 pending merge).
+| main post-#180 (API) | 982f58f | approve all 9 → 0 open reviews; open = 5 alert calls + 1 welcome email; givers 33; 5 alerts (baseline on 8cdff72 had 9 stale reviews) | blocker 1 FIXED |
