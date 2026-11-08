@@ -1,5 +1,5 @@
 import type { ApiSnapshot } from "./apiTypes";
-import { crmHttpMethods } from "./crmHttp";
+import { crmHttpMethods, refreshTiming } from "./crmHttp";
 import { SOCIAL_POSTING } from "./config";
 import {
   NOT_RECORDED,
@@ -177,7 +177,10 @@ describe("crmParse", () => {
 });
 
 describe("crmHttpMethods", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    refreshTiming.pollMs = 2000;
+  });
 
   it("asks for one tab's people", async () => {
     const fetchMock = respond(200, []);
@@ -451,7 +454,10 @@ describe("context status (plan.md §17 amendment)", () => {
     );
   });
 
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    refreshTiming.pollMs = 2000;
+  });
 
   it("refresh reads the status afterwards when the POST doesn't return it", async () => {
     const fetchMock = vi
@@ -467,6 +473,53 @@ describe("context status (plan.md §17 amendment)", () => {
       ["/context/status", "GET"],
     ]);
     expect(status.new_events).toBe(2);
+  });
+
+  const paths = (fetchMock: ReturnType<typeof vi.fn>) =>
+    fetchMock.mock.calls.map((c) => [String(c[0]).replace(/^.*:\d+/, ""), c[1]?.method ?? "GET"]);
+
+  it("refresh waits for the background pass before reading the status", async () => {
+    refreshTiming.pollMs = 0;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "refreshing" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "refreshing" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "done" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ last_refreshed_at: at(7, 7) })));
+    vi.stubGlobal("fetch", fetchMock);
+    const status = await crmHttpMethods.refreshContext();
+    expect(paths(fetchMock)).toEqual([
+      ["/context/refresh", "POST"],
+      ["/context/refresh", "GET"],
+      ["/context/refresh", "GET"],
+      ["/context/status", "GET"],
+    ]);
+    expect(status.last_refreshed_at).toBe(at(7, 7));
+  });
+
+  it("refresh names the sources a finished pass couldn't read", async () => {
+    refreshTiming.pollMs = 0;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "refreshing" })))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "done", changes: { facts: { failed_sources: ["website", "news"] } } })),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ last_refreshed_at: at(7, 7) })));
+    vi.stubGlobal("fetch", fetchMock);
+    const status = await crmHttpMethods.refreshContext();
+    expect(status.unread_sources).toEqual(["website", "news"]);
+  });
+
+  it("refresh reports a failed pass with the service's detail, and stops polling", async () => {
+    refreshTiming.pollMs = 0;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "refreshing" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "failed", detail: "site unreachable" })));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(crmHttpMethods.refreshContext()).rejects.toThrow("The refresh failed: site unreachable.");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("explains a status route that hasn't landed", async () => {

@@ -31,7 +31,15 @@
 }
 .home-overview > .home-tile {
   padding: 12px;
-  flex-shrink: 0;
+  /* Natural height, never shrunk: the column scrolls instead. The CRM tile's
+     Tailwind flex-1 (basis 0) otherwise collapses it to a sliver under the tiles
+     below. */
+  flex: 0 0 auto;
+  min-height: auto;
+}
+.home-overview > .home-tile[data-tour="crm"] {
+  /* Still takes spare room on a tall window, never less than its content. */
+  flex: 1 0 auto;
 }
 .home-overview > .home-tile > div:first-child {
   margin-bottom: 10px;

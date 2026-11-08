@@ -41,3 +41,6 @@ data/event_drafts.json
 
 # Ingest model-answer cache (service/ingest_adapter.py): replays the same people for the same files
 data/ingest_cache/
+
+# vitest browser-mode failure screenshots (never commit)
+web/.vitest/

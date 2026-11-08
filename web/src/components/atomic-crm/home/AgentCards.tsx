@@ -88,7 +88,9 @@ export const ApprovalCard = ({
     )}
   >
     <p className="font-semibold">
-      {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}: {toolLabel(approval.tool)}
+      {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}
+      {/* the summary already says what ("Send thank-you email to …"); the bare tool name only without one */}
+      {!approval.summary && `: ${toolLabel(approval.tool)}`}
     </p>
     {(approval.summary || argLine(approval.args)) && (
       <p className="mt-0.5 text-muted-foreground">{approval.summary || argLine(approval.args)}</p>
@@ -116,5 +118,28 @@ export const ApprovalCard = ({
       </div>
     )}
   </div>
+  );
+};
+
+/** Which of a reply's changes were taken back with Undo, so the agent's prose can't read as still true. */
+export const undoneSummary = (steps: AgentStep[]) => {
+  const undoable = steps.filter((s) => s.undo_token);
+  const undone = undoable.filter((s) => s.undone);
+  return {
+    any: undone.length > 0,
+    all: undoable.length > 0 && undone.length === undoable.length,
+    labels: undone.map((s) => (s.summary ? `${toolLabel(s.tool)} (${s.summary})` : toolLabel(s.tool))),
+  };
+};
+
+/** Shown under the agent's reply once any of its changes is undone. */
+export const UndoneNote = ({ steps }: { steps: AgentStep[] }) => {
+  const u = undoneSummary(steps);
+  if (!u.any) return null;
+  return (
+    <p data-testid="agent-undone-note" className="text-xs font-medium text-muted-foreground">
+      {u.all ? "Undone: " : "Partly undone: "}
+      {u.labels.join("; ")}
+    </p>
   );
 };

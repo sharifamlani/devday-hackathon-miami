@@ -117,7 +117,8 @@ def test_is_sample_on_list_detail_and_snapshot(db_file, tmp_path):
     assert c.get(f"/donors/{real_id}").json()["is_sample"] is False
     snap = build_snapshot(conn, rescore=False)
     conn.close()
-    assert snap["donors"] == donors
+    # the snapshot runs the (idempotent) task generator, so compare with /donors as of the export (next_step)
+    assert snap["donors"] == c.get("/donors").json()
     assert snap["donor_details"][str(real_id)]["is_sample"] is False
 
 
