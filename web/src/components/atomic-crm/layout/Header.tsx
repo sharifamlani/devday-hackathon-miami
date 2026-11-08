@@ -2,6 +2,7 @@ import { RefreshButton } from "@/components/admin/refresh-button";
 import { ThemeModeToggle } from "@/components/admin/theme-mode-toggle";
 import { UserMenu } from "@/components/admin/user-menu";
 
+import { AskSidebarTrigger } from "../ask/AskSidebar";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { API_URL, DATA_MODE } from "../providers/local/config";
 import { useSourceLabel } from "../providers/local/hooks";
@@ -33,6 +34,7 @@ const Header = () => {
           <GlobalSearchButton />
           <ThemeModeToggle />
           <RefreshButton />
+          <AskSidebarTrigger />
           <UserMenu />
         </div>
       </div>

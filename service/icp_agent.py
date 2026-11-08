@@ -164,10 +164,26 @@ def priority_hits(text: str) -> list[str]:
 
 # --- 1. Stats (deterministic) ---------------------------------------------------------------------
 
+def has_column(conn, table: str, column: str) -> bool:
+    return any(c[1] == column for c in conn.execute(f"PRAGMA table_info({table})"))
+
+
+def giver_orgs_where(conn, alias: str = "") -> str:
+    """Organization Givers only: Community or Neighbor organizations (contact_type) aren't donors."""
+    a = f"{alias}." if alias else ""
+    where = f"{a}donor_type = 'organization'"
+    return where + (f" AND {a}contact_type = 'giver'" if has_column(conn, "donors", "contact_type") else "")
+
+
+def ok_gifts_where(conn) -> str:
+    """A declined or failed charge (gifts.status) isn't a gift and never counts toward giving."""
+    return " AND status = 'ok'" if has_column(conn, "gifts", "status") else ""
+
+
 def org_facts(conn) -> list[dict]:
     """Research facts for organization donors: research_facts rows, else the enrich cache by name."""
     orgs = [dict(r) for r in conn.execute(
-        "SELECT id, full_name, org_name FROM donors WHERE donor_type = 'organization' ORDER BY id")]
+        f"SELECT id, full_name, org_name FROM donors WHERE {giver_orgs_where(conn)} ORDER BY id")]
     research_cache = read_research_cache()
     facts = []
     for org in orgs:
@@ -182,16 +198,17 @@ def org_facts(conn) -> list[dict]:
 
 def icp_stats(conn) -> dict:
     """Giving band, cadence, tiers and priority ties of the organization donors. Pure Python, no LLM."""
-    orgs = [dict(r) for r in conn.execute("""
+    orgs = [dict(r) for r in conn.execute(f"""
         SELECT d.id, COALESCE(d.org_name, d.full_name) AS name, d.city, d.fund_type,
                s.score, s.tier, s.is_star, s.status
         FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id
-        WHERE d.donor_type = 'organization' ORDER BY d.id""")]
+        WHERE {giver_orgs_where(conn, "d")} ORDER BY d.id""")]
+    ok = ok_gifts_where(conn)
     facts = org_facts(conn)
     donors = []
     for org in orgs:
         gifts = [dict(r) for r in conn.execute(
-            "SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? ORDER BY gift_date", (org["id"],))]
+            f"SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ?{ok} ORDER BY gift_date", (org["id"],))]
         dates = [datetime.fromisoformat(g["gift_date"]) for g in gifts]
         gaps = [(b - a).days for a, b in zip(dates, dates[1:])]
         text = " ".join(f["fact"] for f in facts if f["donor"] == org["name"])
