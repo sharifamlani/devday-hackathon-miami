@@ -79,6 +79,9 @@ app.include_router(importlib.import_module("service.routes_interests").router)  
 from service.routes_voice import router as voice_router  # noqa: E402  (B3: /transcribe/live, /transcribe/file)
 app.include_router(voice_router)
 
+from service.routes_after_call import router as after_call_router  # noqa: E402  (§21 B6: /call-notes/{id}/actions, /apply)
+app.include_router(after_call_router)
+
 def module_present(name: str) -> bool:
     try:
         return importlib.util.find_spec(name) is not None
