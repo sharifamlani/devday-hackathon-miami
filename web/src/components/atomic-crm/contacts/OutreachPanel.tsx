@@ -43,7 +43,7 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
         title="Draft"
         caption="Outreach agent · written in the Foundation's voice"
       >
-        {!draft && (
+        {!draft && !PUBLIC_READ_ONLY && (
           <Button
             size="sm"
             className="rounded-full bg-brand px-4 font-semibold text-brand-foreground hover:bg-brand/85 focus-visible:outline-2 focus-visible:outline-ring"
