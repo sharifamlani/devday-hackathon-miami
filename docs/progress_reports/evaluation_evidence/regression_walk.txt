@@ -1,0 +1,8 @@
+0. onboarding shown over a populated db in a new browser: True
+1. created on donor page -> GET /tasks?due=today: [(22, 3, False)]
+2. home shows the task: True
+   task details: Task details |  | Review the task and choose your next action. |  | TASK 8 OF 21 · CALL |  | Thank Priya for the November gift c9 | Call and transcribe | Draft email | Mark done
+3. completed on home -> GET /tasks?due=today: [(22, True)]
+4. donor page Tasks tab shows it done: true
+console errors: []
+4xx/5xx: []
