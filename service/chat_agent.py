@@ -965,7 +965,8 @@ def send_summary(batch_id: int, message_ids: list[int] | None = None) -> str | N
     camp = query("SELECT name, intent, channel FROM campaigns WHERE id = ?", (batch_id,))
     if not camp:
         return None
-    rows = query("SELECT m.id, m.channel, d.full_name FROM campaign_messages m JOIN donors d ON d.id = m.donor_id "
+    rows = query("SELECT m.id, m.channel, m.flags, m.needs_individual_approval, d.full_name, d.email, d.phone "
+                 "FROM campaign_messages m JOIN donors d ON d.id = m.donor_id "
                  "WHERE m.campaign_id = ? AND m.status IN ('draft', 'approved') ORDER BY m.id", (batch_id,))
     if message_ids:
         chosen = {int(i) for i in message_ids}
@@ -976,7 +977,28 @@ def send_summary(batch_id: int, message_ids: list[int] | None = None) -> str | N
     kind = "email" if channels == {"email"} else "text" if channels == {"text"} else "message"
     what = f"{INTENT_WORDS.get(camp[0]['intent'], '')} {kind}{'s' if len(rows) > 1 else ''}".strip()
     who = rows[0]["full_name"] + (f" +{len(rows) - 1} more" if len(rows) > 1 else "")
-    return f"Send {what} to {who}"
+    notes = send_notes(rows)
+    return f"Send {what} to {who}" + (f" ({' · '.join(notes)})" if notes else "")
+
+
+def send_notes(rows: list[dict]) -> list[str]:
+    """What will hold some messages back, said before Send instead of after (the send rules in routes_campaigns):
+    star / big / organization messages need individual approval, a missing address can't be sent, flagged ones
+    wait for an edit."""
+    individual = sum(1 for r in rows if r["needs_individual_approval"])
+    no_email = sum(1 for r in rows if r["channel"] == "email" and not (r["email"] or "").strip())
+    no_phone = sum(1 for r in rows if r["channel"] == "text" and not (r["phone"] or "").strip())
+    flagged = sum(1 for r in rows if (r["flags"] or "[]") != "[]")
+    notes = []
+    if individual:
+        notes.append(f"{individual} need{'s' if individual == 1 else ''} individual approval")
+    if no_email:
+        notes.append(f"{no_email} {'has' if no_email == 1 else 'have'} no email")
+    if no_phone:
+        notes.append(f"{no_phone} {'has' if no_phone == 1 else 'have'} no phone")
+    if flagged:
+        notes.append(f"{flagged} flagged")
+    return notes
 
 
 def approval_items(interruptions) -> list[dict]:
