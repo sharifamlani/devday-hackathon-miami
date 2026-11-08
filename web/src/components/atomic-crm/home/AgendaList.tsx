@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from "react";
 import { ArrowUpRight, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Link } from "react-router";
+import { zoomClick } from "./workspaceView";
 import {
   useCalendarFeed,
   type CalendarItem,
@@ -197,6 +198,7 @@ export const AgendaList = ({
           <h2 id={headingId}>
             <Link
               to="/calendar"
+              onClick={zoomClick("calendar")}
               className={focusRing}
               title="Open full calendar"
             >
@@ -210,6 +212,7 @@ export const AgendaList = ({
         <div className="home-calendar-tools">
           <Link
             to="/calendar"
+            onClick={zoomClick("calendar")}
             aria-label="Open full calendar"
             title="Open full calendar"
             className={cn("grid place-items-center", focusRing)}
