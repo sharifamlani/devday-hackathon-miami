@@ -39,6 +39,7 @@ From our call with a Miami Foundation staff member, plus the challenge brief.
 | Agents (chat, outreach, campaigns, context, events, enrichment, after-call, Ask, ICP) | **OpenAI** via the **OpenAI Agents SDK** (`openai-agents`): `OPENAI_MODEL_DEFAULT = gpt-6.1-sol`. Tiers in `.env.example`: `gpt-6-astra` (flagship), `gpt-6.1-sol` (default), `gpt-6.1-terra` (efficient), `gpt-6-luna` (fast) | `service/*_agent.py` |
 | Web research for context and events | Agents SDK hosted `WebSearchTool`; a fact is kept only if its URL is among the search's own results | `service/org_context.py`, `events_agent.py` |
 | Context search | **OpenAI `text-embedding-3-small`** embeddings, ranked by cosine similarity × recency (90-day half-life) | `GET /context/search` |
+| Reading uploaded files (ingest) | OpenAI via the Agents SDK: `OPENAI_MODEL_FAST`, else `OPENAI_MODEL_DEFAULT`, else `gpt-4.1-mini` when no tier is set | `service/ingest_adapter.py` |
 | Call transcription | **Google `gemini-3.5-transcribe-live`** (live, while speaking) and **`gemini-3.5-transcribe`** (recorded file, with speaker labels) | `service/transcribe.py`, `routes_voice.py` |
 
 Numbers are never computed by a model: scores, totals, quarters, duplicate matching and merge/undo are plain Python.
@@ -77,10 +78,13 @@ npm install
 VITE_DATA_MODE=local VITE_API_URL=http://localhost:8000 npm run dev    # http://localhost:5173 (or 5174)
 ```
 
-3. Open the app and **drag in the files from `data/sample_inputs/`**. Upload is the only source of data: pick a tab
-   or let the agent sort. The expected result (68 people: 33 givers, 20 neighbors, 15 community; 6 duplicate
-   groups; 131 gifts) is in `data/sample_inputs/answer_key.json`.
-4. Enter the organization's website (`https://miamifoundation.org`) in onboarding to build the context store.
+3. Open the app. First run is a three-step onboarding. **Step 1, "Drag in your files.":** drag in the 8 input files
+   from `data/sample_inputs/` (`give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`; not `answer_key.json` or `_README.md`) and choose **Let the agent sort** (or
+   a tab). Upload is the only source of data.
+4. **Step 2, "Tell us about your organization.":** enter the website (`https://miamifoundation.org`). **Step 3,
+   "Building your context.":** the context store fills.
+5. Review the duplicate suggestions (9–10 right after upload). Once they're approved, the counts match
+   `data/sample_inputs/answer_key.json`: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts.
 
 Tests: `python -m pytest service/tests` (backend) and `cd web && npm run test:unit:app` (frontend).
 

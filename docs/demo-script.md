@@ -14,12 +14,15 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 ## The flow
 
 1. **Empty start.** The app opens with nothing in it: no people, gifts, tasks or context. "Nothing is preloaded."
-2. **Upload.** Drag in the files from `data/sample_inputs/` (spreadsheets, Word tables, meeting notes). Choose "Let the
-   agent sort": people land in Givers, Neighbors and Community; anyone unclear is flagged for review, never guessed.
-3. **Organization website.** Onboarding asks for the website: enter `https://miamifoundation.org`. Social URLs are
-   saved, not fetched.
-4. **Context building.** Watch the per-source status. "It reads the site and news and keeps dated, sourced facts:
-   success stories, where the money goes, how the Foundation is doing. Newest first."
+   First run opens the three-step onboarding.
+2. **Onboarding step 1: "Drag in your files."** Drag in the **8 input files** from `data/sample_inputs/`: `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`.
+   Not `answer_key.json` or `_README.md`. Choose where they go: **Let the agent sort** (or Givers / Neighbors /
+   Community), then **Continue**. "Spreadsheets, Word tables and meeting notes; anyone unclear is flagged for review,
+   never guessed." The landing page's **Import donor data** dialog is the same upload outside onboarding.
+3. **Onboarding step 2: "Tell us about your organization."** Enter the website (required):
+   `https://miamifoundation.org`. Social URLs are saved, not fetched.
+4. **Onboarding step 3: "Building your context."** Watch the per-source status. "It reads the site and news and keeps
+   dated, sourced facts: success stories, where the money goes, how the Foundation is doing. Newest first."
 5. **Dashboard.** Home: money raised by quarter, gift alerts (a declined monthly card, late recurring gifts), tasks
    for today, the next event, who to call first and why.
 6. **Agent chat edits.** Ask the assistant to change something (add a task, move a calendar item); point at the tool
@@ -27,16 +30,20 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 7. **Story-first campaign.** Say "Draft a thank-you to Give Miami Day donors." Open a draft: it cites a success
    story, a use-of-funds line and an org-health line, each with its source; the review screen lists the sources. Big
    donors and organizations need individual approval.
-8. **Enrich (on a real organization).** The sample data is fictional, so add a real one on stage: tell the agent
-   *"add the Knight Foundation as a contact"* (or add **John S. and James L. Knight Foundation** in the Neighbors tab),
-   a new contact with no gifts. Open it and click **Enrich**: sourced interest tags (civic engagement / local news,
-   each traced to a named gift) appear from cache in seconds. Click **Save to profile**. "Nothing is saved until staff
-   accept, and every tag shows where it came from."
+8. **Enrich (on a real organization)** — _requires PR #111 (the agent's add-contact tool) and 42's Enrich UI with
+   "Save to profile"; button labels to be updated to the exact ones when they land. Today's button reads
+   **Enrich profile**._ The sample data is fictional, so add a real one on stage: tell the agent *"add the Knight
+   Foundation as a contact"* (or add **John S. and James L. Knight Foundation** in the Neighbors tab), a new contact
+   with no gifts. Open it and click Enrich: sourced interest tags (**civic engagement & local news, arts & culture,
+   community development, economic mobility**, each traced to a source) appear from cache in seconds. Save to the
+   profile. "Nothing is saved until staff accept, and every tag shows where it came from."
 9. **Call + transcript + after-call Apply.** Start a call from the voice panel; the transcript appears live. At the
    end, the agent proposes follow-ups (a task to send the card-update link, a $50/month pledge, an RSVP to the event
    on the 21st, notes), each quoting the call. Click Apply; show the task on the list, then Undo it.
-10. **Duplicates review.** Givers → Review duplicates: the same person written three ways. "Merge only after a person
-    approves; the gift history moves to the kept record; Undo puts both back."
+10. **Duplicates review.** Givers → Review duplicates (9–10 suggestions right after upload): the same person written
+    three ways. "Merge only after a person approves; the gift history moves to the kept record; Undo puts both back."
+    After the suggestions are approved the counts match the answer key: 68 people (33 givers, 20 neighbors,
+    15 community) and 131 gifts.
 
 ### The call (Sharif writes)
 
