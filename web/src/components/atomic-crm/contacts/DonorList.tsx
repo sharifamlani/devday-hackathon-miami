@@ -46,6 +46,8 @@ import {
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { DuplicateBanner } from "./DuplicateMerge";
+import { PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
+import { usePeopleTab } from "./usePeopleTab";
 
 const SORTS = [
   { value: "score:DESC", label: "Priority score" },
@@ -73,6 +75,7 @@ const DonorListLayout = () => {
     useListContext<DonorContact>();
   const [importOpen, setImportOpen] = useState(false);
   const facets = useFacets();
+  const [tab] = usePeopleTab();
 
   // Imports and merges refetch the donor-desk queries; follow them.
   const donorsUpdatedAt = useDonors().dataUpdatedAt;
@@ -103,9 +106,16 @@ const DonorListLayout = () => {
         </div>
       </div>
       <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
-      <DuplicateBanner />
+      <PeopleTabBar />
+      {tab !== "giver" && <PeopleTabPanel tab={tab} />}
+      {tab === "giver" && <DuplicateBanner />}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2",
+          tab !== "giver" && "hidden",
+        )}
+      >
         <SearchBox />
         <SortSelect />
         {isMobile && (
@@ -146,7 +156,7 @@ const DonorListLayout = () => {
         )}
       </div>
 
-      <div className="flex gap-4">
+      <div className={cn("flex gap-4", tab !== "giver" && "hidden")}>
         {!isMobile && (
           <aside aria-label="Filters" className="w-56 shrink-0">
             <DonorFilters facets={facets} />
@@ -185,7 +195,7 @@ const DonorListLayout = () => {
           )}
         </div>
       </div>
-      <BulkBar />
+      {tab === "giver" && <BulkBar />}
     </div>
   );
 };
