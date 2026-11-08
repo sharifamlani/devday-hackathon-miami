@@ -497,6 +497,20 @@ describe("context status (plan.md §17 amendment)", () => {
     expect(status.last_refreshed_at).toBe(at(7, 7));
   });
 
+  it("refresh names the sources a finished pass couldn't read", async () => {
+    refreshTiming.pollMs = 0;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "refreshing" })))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "done", changes: { facts: { failed_sources: ["website", "news"] } } })),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ last_refreshed_at: at(7, 7) })));
+    vi.stubGlobal("fetch", fetchMock);
+    const status = await crmHttpMethods.refreshContext();
+    expect(status.unread_sources).toEqual(["website", "news"]);
+  });
+
   it("refresh reports a failed pass with the service's detail, and stops polling", async () => {
     refreshTiming.pollMs = 0;
     const fetchMock = vi

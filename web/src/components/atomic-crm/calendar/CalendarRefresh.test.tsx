@@ -3,12 +3,13 @@ import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CoreAdminContext } from "ra-core";
 
+import type * as Config from "../providers/local/config";
 import type { CrmEvent } from "../providers/local/crmTypes";
 import { CalendarPage } from "./CalendarPage";
 
 // "Refresh now" only shows against the live service.
 vi.mock("../providers/local/config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../providers/local/config")>()),
+  ...(await importOriginal<typeof Config>()),
   DATA_MODE: "local",
 }));
 
@@ -41,11 +42,11 @@ const mount = (refreshContext: () => Promise<unknown>) => {
   const dataProvider = {
     getEvents: vi.fn(async () => events),
     getContextStatus: async () => ({ refreshing: false, label: "Context updated today 5:30 AM" }),
-    refreshContext: async () => {
+    refreshContext: vi.fn(async () => {
       const status = await refreshContext();
       events = [EARLY, DAY]; // the pass found a new event
       return status;
-    },
+    }),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const screen = render(
@@ -73,6 +74,31 @@ describe("CalendarPage Refresh now", () => {
     await expect.element(ui.getByRole("button", { name: "Refresh now" })).toBeEnabled();
     await expect.element(ui.getByText("Give Miami Day", { exact: true }).first()).toBeVisible();
     expect(dataProvider.getEvents.mock.calls.length).toBeGreaterThan(loads);
+  });
+
+  it("starts one pass on a fast double-click", async () => {
+    let finish: (v: unknown) => void = () => {};
+    const { screen, dataProvider } = mount(() => new Promise((resolve) => (finish = resolve)));
+    const ui = await screen;
+
+    await expect.element(ui.getByText("Give Miami Day — Early Giving opens").first()).toBeVisible();
+    const button = ui.getByRole("button", { name: "Refresh now" }).element() as HTMLButtonElement;
+    button.click();
+    button.click(); // same tick: React hasn't disabled it yet
+    await expect.element(ui.getByRole("button", { name: "Refreshing…" })).toBeDisabled();
+    expect(dataProvider.refreshContext).toHaveBeenCalledTimes(1);
+    finish({ refreshing: false, label: "Context updated today 5:45 AM" });
+    await expect.element(ui.getByRole("button", { name: "Refresh now" })).toBeEnabled();
+  });
+
+  it("says which sources a finished pass couldn't read, instead of plain success", async () => {
+    const { screen } = mount(async () => ({ refreshing: false, label: "x", unread_sources: ["website", "news"] }));
+    const ui = await screen;
+
+    await ui.getByRole("button", { name: "Refresh now" }).click();
+    await expect
+      .element(ui.getByText("Some sources couldn’t be read: website, news."))
+      .toBeVisible();
   });
 
   it("says why a failed pass failed, and keeps the events on screen", async () => {

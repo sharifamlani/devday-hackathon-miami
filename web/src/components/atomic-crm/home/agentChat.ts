@@ -150,6 +150,12 @@ export const undoStep = async (msgIndex: number, stepIndex: number, refetch: Ref
 };
 
 /** A person decided the paused calls of one reply (call_id → approve). Unlisted calls are declined. */
+/**
+ * The service's stand-in reply while a run waits on cards (service/chat_agent.py: "Waiting for you: …").
+ * Once the person decides, the cards say Approved/Declined, so the stale line is dropped.
+ */
+export const WAITING_PREFIX = "Waiting for you: ";
+
 export const decide = async (msgIndex: number, decisions: Record<string, boolean>, refetch: Refetch) => {
   const m = state.messages[msgIndex];
   if (m?.role !== "assistant" || !m.runId || m.decided || state.pending) return;
@@ -158,6 +164,7 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
       i === msgIndex
         ? {
             ...m,
+            text: m.text.startsWith(WAITING_PREFIX) ? "" : m.text,
             decided: true,
             decisions: Object.fromEntries(m.approvals.map((a) => [a.call_id, Boolean(decisions[a.call_id])])),
           }
@@ -178,7 +185,9 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
   } catch (e) {
     set({
       messages: state.messages.map((x, i) =>
-        i === msgIndex ? { ...m, decided: true, decisions: undefined, handled: "Already handled" } : x,
+        i === msgIndex
+          ? { ...m, text: m.text.startsWith(WAITING_PREFIX) ? "" : m.text, decided: true, decisions: undefined, handled: "Already handled" }
+          : x,
       ),
       pending: false,
       error: e instanceof Error ? e.message : String(e),
@@ -188,3 +197,6 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
 
 /** For tests. */
 export const resetAgentChat = () => set({ messages: [], pending: false, error: null });
+
+/** For tests: the thread as it stands. */
+export const agentChatMessages = () => state.messages;
