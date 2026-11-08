@@ -94,6 +94,22 @@ export const ingestSummary = (
   };
 };
 
+/**
+ * What step 1's main button does. A saved import (persisted, so it survives
+ * "Finish later" and reloads) or people already in Donor Desk let you
+ * continue without uploading again; chosen files are imported first.
+ */
+export const filesStepAction = ({
+  pending,
+  imported,
+  existing,
+}: {
+  pending: number;
+  imported: FilesSummary | null;
+  existing: number;
+}): "import" | "continue" | "need_files" =>
+  pending > 0 ? "import" : imported || existing > 0 ? "continue" : "need_files";
+
 /** "68 people · 113 gifts · 6 possible duplicates found" */
 export const filesLine = (summary: FilesSummary) => {
   const parts = [

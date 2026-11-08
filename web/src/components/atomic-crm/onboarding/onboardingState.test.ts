@@ -296,6 +296,22 @@ describe("onboardingStore persistence", () => {
     });
   });
 
+  it("a successful import is saved at once, so Finish later and a reload keep it", () => {
+    const summary = { people: 68, gifts: 113, duplicates: 6, files: 7 };
+    onboardingStore.dispatch({ type: "start" }, { open: true });
+    onboardingStore.dispatch({ type: "update", patch: { files: summary } });
+    onboardingStore.dispatch({ type: "finishLater" }, { open: false });
+    onboardingStore.forget(); // a page reload
+    expect(onboardingStore.get().data).toMatchObject({
+      status: "paused",
+      step: 0,
+      files: summary,
+    });
+    // Reopening resumes at step 1 with the import still recorded.
+    onboardingStore.dispatch({ type: "start", step: 0 }, { open: true });
+    expect(onboardingStore.get().data.files).toEqual(summary);
+  });
+
   it("starting the tour closes setup and answers the offer", () => {
     onboardingStore.dispatch({ type: "finish" }, { open: true });
     onboardingStore.setTour(true);

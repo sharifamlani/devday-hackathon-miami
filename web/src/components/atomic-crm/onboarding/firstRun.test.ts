@@ -10,6 +10,7 @@ import {
   contextSummary,
   doneLine,
   filesLine,
+  filesStepAction,
   ingestSummary,
   plainError,
   skipReason,
@@ -94,6 +95,35 @@ describe("what ingest found", () => {
     expect(
       filesLine({ people: null, gifts: null, duplicates: null, files: 2 }),
     ).toBe("2 files imported");
+  });
+});
+
+describe("step 1's main button", () => {
+  const saved = { people: 68, gifts: 113, duplicates: 6, files: 7 };
+
+  it("imports chosen files first", () => {
+    expect(filesStepAction({ pending: 2, imported: null, existing: 0 })).toBe(
+      "import",
+    );
+    expect(filesStepAction({ pending: 1, imported: saved, existing: 68 })).toBe(
+      "import",
+    );
+  });
+
+  it("a saved import lets you continue without uploading again", () => {
+    // Coming back after "Finish later" or a reload, before the people list loads.
+    expect(filesStepAction({ pending: 0, imported: saved, existing: 0 })).toBe(
+      "continue",
+    );
+    expect(filesStepAction({ pending: 0, imported: null, existing: 12 })).toBe(
+      "continue",
+    );
+  });
+
+  it("asks for files when there is nothing yet", () => {
+    expect(filesStepAction({ pending: 0, imported: null, existing: 0 })).toBe(
+      "need_files",
+    );
   });
 });
 

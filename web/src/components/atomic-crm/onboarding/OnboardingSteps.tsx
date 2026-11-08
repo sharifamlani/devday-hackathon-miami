@@ -42,6 +42,7 @@ import {
   contextSummary,
   doneLine,
   filesLine,
+  filesStepAction,
   ingestSummary,
   plainError,
   sourceRows,
@@ -188,17 +189,19 @@ export const FilesStep = ({
 }: StepFrameProps & {
   onContinue: (files: FilesSummary | null) => void;
 }) => {
-  const { data } = useOnboarding();
+  const { data, update } = useOnboarding();
   const { data: people } = useDonors();
   const upload = useUploadFiles();
   const [files, setFiles] = useState<File[]>([]);
   const [skipped, setSkipped] = useState<SkippedFile[]>([]);
   const [target, setTarget] = useState<UploadTarget>("auto");
-  const [imported, setImported] = useState<FilesSummary | null>(null);
   const [status, setStatus] = useState<Status>(null);
   const id = useId();
   const existing = people?.length ?? 0;
   const busy = upload.isPending;
+  // Saved in onboarding state right after ingest succeeds, so leaving or
+  // reloading before Continue never asks for the same files again.
+  const imported = data.files;
 
   const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
     multiple: true,
@@ -219,8 +222,13 @@ export const FilesStep = ({
   const submit = async () => {
     if (busy) return;
     if (!LIVE) return onContinue(data.files);
-    if (!files.length) {
-      if (imported || existing) return onContinue(imported ?? data.files);
+    const action = filesStepAction({
+      pending: files.length,
+      imported,
+      existing,
+    });
+    if (action === "continue") return onContinue(imported);
+    if (action === "need_files") {
       setStatus({
         tone: "error",
         text: "Drag in at least one file, or choose Skip for now.",
@@ -231,7 +239,7 @@ export const FilesStep = ({
     try {
       const result = await upload.mutateAsync({ files, target });
       const summary = ingestSummary(result, files.length);
-      setImported(summary);
+      update({ files: summary });
       setFiles([]);
       setSkipped([]);
       setStatus({ tone: "good", text: `${filesLine(summary)}.` });
@@ -276,7 +284,7 @@ export const FilesStep = ({
               type="button"
               className="onb-btn text"
               disabled={busy}
-              onClick={() => onContinue(data.files)}
+              onClick={() => onContinue(null)}
             >
               Skip for now
             </button>
@@ -373,7 +381,12 @@ export const FilesStep = ({
               <p className="onb-status" data-tone={status.tone}>
                 {status.text}
               </p>
-            ) : !imported && existing > 0 && !files.length ? (
+            ) : imported && !files.length ? (
+              <p className="onb-status" data-tone="good">
+                Already imported: {filesLine(imported)}. Continue, or add more
+                files.
+              </p>
+            ) : existing > 0 && !files.length ? (
               <p className="onb-note">
                 You already have {plural(existing, "person", "people")} in Donor
                 Desk. Add more files or continue.
