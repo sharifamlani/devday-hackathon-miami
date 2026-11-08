@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDonorDesk } from "./index";
+import type { AskFilter, AskIntent } from "./ask";
+import type { UploadTarget } from "./crmTypes";
 import type { ContextRunInput, ImportInput, TargetPeriod } from "./types";
 
 const ROOT = "donor-desk";
@@ -178,7 +180,9 @@ export const useUploadFiles = () => {
   const dataProvider = useDonorDesk();
   const invalidateAll = useInvalidateAll();
   return useMutation({
-    mutationFn: (files: File[]) => dataProvider.uploadFiles(files),
+    // target: "giver" | "neighbor" | "community" | "auto" (the agent sorts)
+    mutationFn: ({ files, target = "auto" }: { files: File[]; target?: UploadTarget }) =>
+      dataProvider.uploadFiles(files, target),
     onSuccess: invalidateAll,
   });
 };
@@ -233,5 +237,29 @@ export const useTargets = (period?: TargetPeriod) => {
   return useQuery({
     queryKey: donorDeskKeys.targets(period),
     queryFn: () => dataProvider.getTargets(period),
+  });
+};
+
+/* ---------- Campaigns (#38): simulated outbox ---------- */
+export * from "./campaignHooks";
+
+/* ---------- Ask Donor Desk (issue #36) ---------- */
+
+/**
+ * Read-only: nothing refetches after it. `filter` re-runs a chip-edited
+ * filter without the model (live) or in the browser (snapshot).
+ */
+export const useAsk = () => {
+  const dataProvider = useDonorDesk();
+  return useMutation({
+    mutationFn: ({
+      question,
+      filter,
+      intent,
+    }: {
+      question: string;
+      filter?: AskFilter | null;
+      intent?: AskIntent | null;
+    }) => dataProvider.ask(question, filter, intent),
   });
 };

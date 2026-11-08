@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 from uuid import uuid4
 
@@ -13,17 +15,17 @@ from starlette.responses import JSONResponse
 from stat_mcp.analysis import aggregate_assessments, duplicate_candidates, summarize_giving
 from stat_mcp.agent import (
     evaluate_donor_criteria as run_donor_evaluation,
-    extract_unstructured_donors,
 )
 from stat_mcp.criteria import SUGGESTED_CRITERIA, SUGGESTED_FIELDS
-from stat_mcp.ingest import (
-    MAX_UNSTRUCTURED_TEXT_CHARS,
-    MAX_UPLOAD_BYTES,
-    canonicalize_extracted_rows,
-    detect_format,
-    parse_donor_records,
+from stat_mcp.file_ingest import MAX_FILE_BYTES, detect_format, extract_file_transactions
+from stat_mcp.schemas import (
+    CriterionDefinition,
+    DonorAssessment,
+    ImportedTransaction,
+    UploadedDataset,
+    safe_profile,
 )
-from stat_mcp.schemas import CriterionDefinition, DonorAssessment, UploadedDataset, safe_profile
+from stat_mcp.transactions import project_people
 
 load_dotenv()
 
@@ -57,37 +59,95 @@ async def tools_overview(_request: Request) -> JSONResponse:
 
 @mcp.tool
 async def import_donor_data(
-    content: str,
+    content: str = "",
     file_format: str = "auto",
     source_name: str = "upload",
+    content_base64: str | None = None,
 ) -> dict[str, object]:
-    """Extract or parse donor data, normalize required fields, and save a temporary dataset."""
+    """Import one file as source events; donor/person records are derived from those events.
 
-    if not content.strip():
-        raise ValueError("The uploaded file is empty.")
-    if len(content.encode("utf-8")) > MAX_UPLOAD_BYTES:
-        raise ValueError("The starter accepts uploads up to 2 MB. Split larger exports into smaller files.")
-    requested_format = file_format.lower().strip()
-    resolved_format = detect_format(content) if requested_format == "auto" else requested_format
-    if resolved_format in {"txt", "plain_text"}:
-        resolved_format = "text"
-    if resolved_format == "text":
-        if len(content) > MAX_UNSTRUCTURED_TEXT_CHARS:
-            raise ValueError("Unstructured text is limited to 50,000 characters per extraction.")
-        extraction = await extract_unstructured_donors(content)
-        records, warnings = canonicalize_extracted_rows(
-            [donor.model_dump(exclude_none=False) for donor in extraction.donors]
-        )
-    elif resolved_format in {"csv", "json"}:
-        records, warnings = parse_donor_records(content, resolved_format)
+    Binary files must be base64-encoded in ``content_base64``. Plain-text callers remain supported.
+    """
+
+    if content_base64 is not None:
+        try:
+            payload = base64.b64decode(content_base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError("content_base64 must be valid base64.") from exc
+        if len(payload) > MAX_FILE_BYTES:
+            raise ValueError("Files are limited to 20 MB each.")
+        filename = source_name
     else:
-        raise ValueError("file_format must be auto, csv, json, or text.")
+        if not content.strip():
+            raise ValueError("The uploaded file is empty.")
+        requested_format = file_format.lower().strip()
+        resolved_format = detect_format(content) if requested_format == "auto" else requested_format
+        extension = {
+            "txt": ".txt", "text": ".txt", "plain_text": ".txt", "markdown": ".md",
+            "md": ".md", "csv": ".csv", "json": ".json", "xlsx": ".xlsx", "docx": ".docx",
+        }.get(resolved_format)
+        if extension is None:
+            raise ValueError("Supported formats are CSV, JSON, XLSX, DOCX, Markdown, and text.")
+        filename = source_name if "." in source_name.rsplit("/", 1)[-1] else f"{source_name}{extension}"
+        payload = content.encode("utf-8")
+    resolved_format, transactions, warnings = await extract_file_transactions(filename, payload)
+    return _store_transaction_dataset(source_name, resolved_format, transactions, warnings)
+
+
+@mcp.tool
+async def import_donor_files(files: list[dict[str, str]]) -> dict[str, object]:
+    """Import a batch of files; each file item has ``name`` and base64-encoded ``content``."""
+
+    if not files or len(files) > 20:
+        raise ValueError("Provide between 1 and 20 files per import.")
+    transactions: list[ImportedTransaction] = []
+    warnings: list[str] = []
+    formats = []
+    source_names = []
+    total_bytes = 0
+    for item in files:
+        name = item.get("name", "")
+        encoded = item.get("content", "")
+        if not name or not encoded:
+            raise ValueError("Each file requires a name and base64 content.")
+        try:
+            payload = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(f"{name}: content must be valid base64.") from exc
+        if len(payload) > MAX_FILE_BYTES:
+            raise ValueError(f"{name}: files are limited to 20 MB each.")
+        total_bytes += len(payload)
+        if total_bytes > 50_000_000:
+            raise ValueError("Combined file size is limited to 50 MB per batch.")
+        file_format, file_transactions, file_warnings = await extract_file_transactions(name, payload)
+        formats.append(file_format)
+        source_names.append(name)
+        transactions.extend(file_transactions)
+        warnings.extend(f"{name}: {warning}" for warning in file_warnings)
+    return _store_transaction_dataset(
+        source_name=", ".join(source_names),
+        source_format=formats[0] if len(set(formats)) == 1 else "mixed",
+        transactions=transactions,
+        warnings=warnings,
+    )
+
+
+def _store_transaction_dataset(
+    source_name: str,
+    source_format: str,
+    transactions: list[ImportedTransaction],
+    warnings: list[str],
+) -> dict[str, object]:
+    if not transactions:
+        raise ValueError("No people or transaction events were found in the uploaded files.")
+    records = project_people(transactions)
     dataset_id = str(uuid4())
     dataset = UploadedDataset(
         dataset_id=dataset_id,
         source_name=source_name[:200],
-        source_format=resolved_format,
+        source_format=source_format,
         records=records,
+        transactions=transactions,
         warnings=warnings,
     )
     DATASETS[dataset_id] = dataset
@@ -95,7 +155,10 @@ async def import_donor_data(
         "dataset_id": dataset_id,
         "source_name": dataset.source_name,
         "source_format": dataset.source_format,
-        "valid_rows": len(records),
+        "valid_rows": len(transactions),
+        "transaction_count": len(transactions),
+        "gift_count": sum(1 for row in transactions if row.transaction_type == "gift"),
+        "person_count": len(records),
         "warnings": warnings,
         "available_fields": sorted(
             {
@@ -105,17 +168,33 @@ async def import_donor_data(
                 if value is not None and value != ""
             }
         ),
-        "required_fields": [
-            "first_name",
-            "last_name",
-            "email_address",
-            "donation_amount",
-            "phone_number",
-            "date_of_last_donation",
-            "id",
+        "event_fields": [
+            "transaction_id", "source_transaction_id", "person_source_id", "person_group_key",
+            "contact_type", "transaction_type",
+            "amount", "transaction_date", "source_name", "source_location",
         ],
-        "missing_value_policy": "empty strings for text; null for donation_amount; UUID generated for missing id",
+        "missing_value_policy": "unknown amounts and dates remain null; no gift is inferred",
+        "person_projection": "people are grouped from source identity; amounts sum explicit gift events",
         "storage": "in_memory_until_server_restart",
+    }
+
+
+@mcp.tool
+def get_donor_transactions(dataset_id: str, offset: int = 0, limit: int = 50) -> dict[str, object]:
+    """Return source events, one row per explicit gift or non-gift profile event."""
+
+    dataset = _get_dataset(dataset_id)
+    if offset < 0:
+        raise ValueError("offset must be zero or greater.")
+    if not 1 <= limit <= 200:
+        raise ValueError("limit must be between 1 and 200.")
+    page = dataset.transactions[offset : offset + limit]
+    return {
+        "dataset_id": dataset_id,
+        "offset": offset,
+        "limit": limit,
+        "total": len(dataset.transactions),
+        "transactions": [item.model_dump(mode="json") for item in page],
     }
 
 
@@ -124,10 +203,11 @@ def summarize_donor_dataset(dataset_id: str) -> dict[str, object]:
     """Summarize imported rows and reported gifts without exposing full records."""
 
     dataset = _get_dataset(dataset_id)
-    gift_summary = summarize_giving(dataset.records)
+    gift_summary = summarize_giving(dataset.transactions)
     return {
         "dataset_id": dataset_id,
         "source_name": dataset.source_name,
+        "transaction_count": len(dataset.transactions),
         "record_count": len(dataset.records),
         "fields": sorted(
             {
@@ -315,10 +395,10 @@ def aggregate_donor_criterion_scores(
 
 
 def main() -> None:
-    """Run the MCP service using Streamable HTTP (default local endpoint /mcp)."""
+    """Run the MCP service using Streamable HTTP on port 8010 by default."""
 
     host = os.getenv("STAT_MCP_HOST", "127.0.0.1")
-    port = int(os.getenv("STAT_MCP_PORT", "8000"))
+    port = int(os.getenv("STAT_MCP_PORT", "8010"))
     mcp.run(transport="http", host=host, port=port)
 
 

@@ -1,3 +1,8 @@
+import type { CampaignMethods } from "./campaignTypes";
+
+export type * from "./campaignTypes";
+import type { AskAnswer, AskFilter, AskIntent } from "./ask";
+
 /**
  * The view model the Donor Desk screens render. parse.ts builds it from the
  * API shapes in apiTypes.ts. Every number here comes from score.py; the UI
@@ -344,6 +349,8 @@ export interface DonationTarget {
   donor_ids: number[]; // everyone who gave in the period, biggest first
 }
 
+import type { CrmMethods, UploadTarget } from "./crmTypes";
+
 /** GET /targets: one entry per period the service returned. */
 export type TargetsByPeriod = Partial<Record<TargetPeriod, DonationTarget>>;
 
@@ -352,7 +359,7 @@ export type TargetsByPeriod = Partial<Record<TargetPeriod, DonationTarget>>;
  * Writes resolve when the server is done; screens then refetch GET
  * /donors/{id}, so they never depend on a POST's response body.
  */
-export interface DonorDeskMethods {
+export interface DonorDeskMethods extends CampaignMethods, CrmMethods {
   getDonors(): Promise<DonorSummary[]>;
   getDonor(id: number): Promise<DonorDetail>;
   getDuplicates(): Promise<DuplicatePair[]>;
@@ -369,8 +376,9 @@ export interface DonorDeskMethods {
   getProspect(id: number): Promise<ProspectDetail>;
   draftProspectOutreach(id: number): Promise<void>;
   dismissProspect(id: number): Promise<void>;
-  /** Screen 1: multipart POST /ingest with every file under "files". */
-  uploadFiles(files: File[]): Promise<IngestResult>;
+  /** Screen 1: multipart POST /ingest with every file under "files" and the
+   *  tab under "target" (default "auto": the agent sorts, plan.md §17). */
+  uploadFiles(files: File[], target?: UploadTarget): Promise<IngestResult>;
   /** Import dialog. Live: uploadFiles(files) to Carlos's /ingest, which maps
    *  columns itself. Snapshot: adds the parsed rows to this tab's data and
    *  flags duplicates by email or phone. */
@@ -388,4 +396,15 @@ export interface DonorDeskMethods {
   /** Raised vs. SAMPLE goal; both periods when period is omitted. Empty
    *  ({}) for a snapshot exported before targets existed. */
   getTargets(period?: TargetPeriod): Promise<TargetsByPeriod>;
+
+  /** Ask Donor Desk (ask.ts): question → read-only filter → matching donors.
+   *  Pass `filter` (chip-edited) to skip the model and re-run it as given. */
+  ask(
+    question: string,
+    filter?: AskFilter | null,
+    intent?: AskIntent | null,
+  ): Promise<AskAnswer>;
 }
+
+/** What httpClient/snapshotClient implement; the CRM methods live in crm*.ts. */
+export type BaseDonorDeskMethods = Omit<DonorDeskMethods, keyof CrmMethods>;
