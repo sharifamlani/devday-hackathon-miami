@@ -514,7 +514,7 @@ export const Composer = ({
           <ArrowRight className="size-5" aria-hidden="true" />
         </button>
       </form>
-      <DictationHint error={dictation.error} className="px-2" />
+      <DictationHint error={dictation.error} listening={dictation.state === "listening"} interim={dictation.interim} className="px-2" />
     </div>
   );
 };
