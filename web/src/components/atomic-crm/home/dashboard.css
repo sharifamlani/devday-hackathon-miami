@@ -66,38 +66,7 @@
 .home-glance-grid > li > * {
   min-height: 64px;
 }
-.home-quarter-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-.home-quarter-gauge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  width: 74px;
-  flex: none;
-}
-.home-quarter-arc {
-  display: block;
-  width: 74px;
-  height: 42px;
-}
-.home-quarter-percent {
-  position: static;
-  font-size: 16px;
-  line-height: 20px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.home-quarter-summary dl {
-  margin-right: 12px;
-}
-.home-quarter-summary dd {
-  font-size: 18px;
-}
+
 .home-conversation {
   display: flex;
   flex-direction: column;
@@ -245,16 +214,7 @@
 .home-project-thread[aria-pressed="true"] {
   background: var(--surface);
 }
-.home-workspace-controls {
-  width: 52px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 6px;
-}
+
 .home-workspace-controls > span {
   display: inline-flex;
 }
@@ -329,4 +289,277 @@
   background:
     radial-gradient(ellipse at 50% 50%, rgb(244 217 88 / 9%), transparent 74%),
     rgb(34 36 37 / 92%);
+}
+
+/* The complete overview collapses together; Projects belongs to this stack. */
+.home-board.home-overview-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+.home-overview[hidden] {
+  display: none;
+}
+.home-workspace-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+  width: 40px;
+  padding: 0;
+  justify-content: flex-start;
+}
+.home-overview-toggle {
+  width: 40px;
+  height: 40px;
+  margin-top: 58px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--foreground);
+}
+.home-overview-toggle:hover {
+  background: var(--surface);
+}
+.home-overview-toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.home-utility-buttons {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+.home-utility-buttons > span {
+  display: inline-flex;
+}
+.home-quarter-summary {
+  display: grid;
+  grid-template-columns: 88px minmax(0, max-content);
+  justify-content: center;
+  gap: 24px;
+}
+.home-quarter-gauge {
+  display: block;
+  width: 88px;
+}
+.home-quarter-arc {
+  width: 88px;
+  height: 58px;
+}
+.home-quarter-percent {
+  fill: var(--foreground);
+  stroke: none;
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 600;
+}
+.home-quarter-summary dl {
+  margin: 0;
+}
+.home-quarter-summary dd {
+  font-size: 20px;
+}
+.home-shortcuts h2 {
+  margin-bottom: 10px;
+}
+.home-shortcut-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: var(--background);
+  color: var(--muted-foreground);
+}
+.home-shortcut-search input {
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  outline: none;
+}
+.home-shortcut-search:focus-within {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.home-shortcut-group {
+  margin-top: 10px;
+}
+.home-calendar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.home-calendar-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.home-calendar-tools button {
+  width: 24px;
+  height: 28px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: var(--muted-foreground);
+}
+.home-calendar-tools button:hover {
+  background: var(--surface);
+}
+.home-calendar-tools .home-calendar-add {
+  width: 28px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.home-week-days {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 24px repeat(7, minmax(0, 1fr));
+  text-align: center;
+}
+.home-week-days > div > span {
+  font-size: 9px;
+  color: var(--muted-foreground);
+}
+.home-week-days button {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  margin: 2px auto 7px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 50%;
+}
+.home-week-days button[aria-current="date"] {
+  background: #e95b55;
+  color: white;
+}
+.home-week-days button:focus-visible {
+  outline: 2px solid var(--ring);
+}
+.home-week-hours {
+  position: relative;
+  height: 136px;
+  margin-left: 24px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 33px,
+    rgb(36 39 40 / 5.5%) 33px,
+    rgb(36 39 40 / 5.5%) 34px
+  );
+}
+.home-week-hour {
+  position: absolute;
+  left: -24px;
+  width: 21px;
+  font-size: 8px;
+  color: var(--muted-foreground);
+  transform: translateY(-5px);
+}
+.home-week-column {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid rgb(36 39 40 / 3.5%);
+}
+.home-calendar-event {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  overflow: hidden;
+  border: 0;
+  border-left: 2px solid var(--event-ink);
+  border-radius: 4px;
+  background: var(--event-bg);
+  color: var(--event-ink);
+  padding: 3px 2px;
+  text-align: left;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.home-calendar-event > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-calendar-event time {
+  display: block;
+  font-size: 8px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+.home-calendar-event:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  z-index: 1;
+}
+.home-calendar-event:hover {
+  filter: brightness(0.97);
+  z-index: 1;
+}
+.home-calendar-event.call {
+  --event-bg: #cbdfff;
+  --event-ink: #285a9a;
+}
+.home-calendar-event.meeting {
+  --event-bg: #e4d0f5;
+  --event-ink: #80519d;
+}
+.home-calendar-event.campaign {
+  --event-bg: #d3e8bc;
+  --event-ink: #50763a;
+}
+.home-week-all-day {
+  max-height: 72px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  display: grid;
+  grid-template-columns: 24px repeat(7, minmax(0, 1fr));
+  margin-bottom: 8px;
+  gap: 1px;
+}
+.home-week-all-day > span {
+  align-self: center;
+  font-size: 7px;
+  color: var(--muted-foreground);
+}
+.home-week-all-day > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-week-all-day .home-calendar-event {
+  position: static;
+  min-height: 30px;
+}
+.home-calendar-status {
+  height: 136px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  padding: 20px 0;
+}
+@media (max-width: 767px) {
+  .home-mobile-shell {
+    padding-left: 64px;
+  }
+  .home-mobile-shell .home-workspace-controls {
+    top: 12px;
+    bottom: 12px;
+    height: calc(100dvh - 24px);
+  }
 }
