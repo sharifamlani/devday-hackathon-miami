@@ -117,7 +117,7 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
     donor["merges"] = dedupe.merges_for(conn, donor_id)
     donor["call_notes"] = db.list_call_notes(conn, donor_id=donor_id, limit=DONOR_CALL_NOTES)   # routes_calls.py
     donor.update(donor_summary.get(conn, donor_id))      # "About <donor>": summary, summary_updated_at, summary_sources
-    if public_mode.enabled():       # like the public snapshot: what was said on a call and staff notes stay private
+    if public_mode.redacting():     # like the public snapshot: what was said on a call and staff notes stay private
         donor["call_notes"] = []
         donor["notes"] = None
         donor.update(donor_summary.BLANK)                # the summary is written from calls and chats: private too

@@ -191,6 +191,14 @@ def rsvp_event(conn: sqlite3.Connection, event_id: int, person_id: int, rsvp: st
 
 # ---------- undo ----------
 
+def event_deleted_since(conn: sqlite3.Connection, action: sqlite3.Row) -> bool:
+    """A later delete_event on the same event, not undone, and the event is gone."""
+    later = conn.execute("SELECT 1 FROM agent_actions WHERE target = ? AND id > ? AND action = 'delete_event' "
+                         "AND undone_at IS NULL", (action["target"], action["id"])).fetchone()
+    event_id = int(action["target"].split(":", 1)[1])
+    return bool(later) and conn.execute("SELECT 1 FROM events WHERE id = ?", (event_id,)).fetchone() is None
+
+
 def undo(conn: sqlite3.Connection, token: str) -> dict:
     """Revert one logged write, whichever kind it was."""
     if token.startswith("int_"):                     # 42's interest writes keep their own undo record
@@ -208,6 +216,10 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
         return tasks.undo(conn, token)
     if action["undone_at"]:
         raise tasks.UndoConflict("already undone")
+    if kind == "event" and action["action"] != "delete_event" and event_deleted_since(conn, action):
+        # The add/move Undo on a card whose event was deleted afterwards: nothing to undo, and not an error.
+        return {"undone": False, "target": action["target"], "action": action["action"],
+                "reason": "the event was deleted afterwards; undo the delete to bring it back"}
     newer = conn.execute("SELECT 1 FROM agent_actions WHERE target = ? AND id > ? AND undone_at IS NULL",
                          (action["target"], action["id"])).fetchone()
     if newer:
