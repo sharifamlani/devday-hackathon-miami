@@ -79,14 +79,15 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    unless someone clicks **Send approved messages**. (Use *"Give Miami Day donors"* again once the fix for uploaded
    Give Miami Day gifts merges: today that wording finds 0 donors.)
 9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
-   *"Add the Knight Foundation as a contact."* (about 5 s): **added organization John S. and James L. Knight Foundation**,
-   with **Undo**. In the **CRM** tile click **Find a donor**, search *Knight* (placeholder **Name, email or
-   organization**), open **John S. and James L. Knight Foundation** (Giver · No gifts yet) and click **Enrich profile**
-   (it reads **Enriching…**): a dry run (nothing written) shows **Enrichment agent found (public web, review before
-   saving):** with **Interest areas** (**Civic Engagement & Local News, Arts & Culture, Community Development,
-   Economic Mobility**) and **Facts**, each with its **[src]** link, plus a public contact that's shown, not saved.
-   Click **Save to profile** (or **Close**). "Nothing is saved until staff accept, and every tag shows where it came
-   from."
+   *"Add the Knight Foundation as a contact."* (about 5 s): **Add contact** · added organization John S. and James L.
+   Knight Foundation, with **Undo**. Then type *"Enrich John S. and James L. Knight Foundation"*: the steps **Find
+   people** and **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)"), then a reply
+   listing each fact with a **Source** link (e.g. its local-journalism and arts funding in the 26 communities where the
+   Knight brothers published newspapers) and the interest tags, asking whether to save them. Type *"Yes, save all of
+   them"*: **Accept enrichment** ("saved 4 facts and 4 interest tags") with **Undo**. "Nothing is saved until staff say
+   so, and every fact shows where it came from." (Never enrich a sample donor on stage: they're fictional, so it
+   correctly finds no public profile. The same research is on the **CRM** tile: expand the Knight row → **Enhance** →
+   **Save to profile**.)
 10. **Calendar.** In the briefing click **Open calendar** (or the calendar tile's heading). The panel reads
     **Calendar · Events** with **Add event**, **November 2026**, **Today** and the week (**‹ Nov 8 – 14 ›**), a day
     strip, and **THIS WEEK'S EVENTS** by day ("Nothing scheduled" on empty days): Sat 14 **♥ Give Miami Day — Early
@@ -99,24 +100,27 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     Nov 15 · 12 people**) with **Approve all small-donor drafts** and **Send approved messages**; nothing is sent until
     someone approves it.
 11. **A call, transcribed.**
-    **Live call (the run's choice).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate added as a
-    donor for the demo, off-screen, after setup). The agent answers with his call sheet. Click the sheet's **Call**:
-    the panel **Call Christian Gonzalez** opens in the card ("Your phone (…) rings first. When you pick up, Christian
-    Gonzalez (…) is called and sees your number.", and "Christian Gonzalez hears “Hello. This call is recorded for our
-    notes.” before the call connects."), with **Cancel** / **Call**. Click the panel's **Call** to dial. The staff
-    phone rings first (**Ringing your phone…**): answer it; Twilio's trial message plays ("You have a trial account…
-    press any key to execute your code"), so **press any key**; then you hear "Calling Christian Gonzalez. Please
-    hold." **Calling Christian Gonzalez…**: his phone rings once you've pressed the key (it may also start ringing
-    while you're still hearing the message: expected, just press promptly). He answers, hears the same trial
-    message, **presses any key** (brief him beforehand), then hears "Hello. This call is recorded for our notes.";
-    **Connected · recording**. Without a key press Twilio hangs up that phone and the transcript comes back empty.
-    Say it as a known limit: "it's a trial account, so Twilio reads a notice first." If the call drops: "That's a
-    trial-account limit," and do the demo call below. Keep it under 30 s (the trial balance is low), then
-    **Hang up**. The card works through **Getting the recording…**, **Transcribing…**, **Summarizing…** and
-    **Suggesting follow-ups…**, then shows **Saved to the call notes**, the **Summary** and **Suggested follow-ups**,
-    each with its own **Apply**. If it doesn't connect or Twilio errors: "Calls go through Twilio; here's the sheet and
-    the demo call instead," and do the demo call below.
-    **Demo call.** Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
+    **The live call (the only call on stage).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate
+    added as a donor for the demo, off-screen, after setup). About 10–13 s later the agent shows **Get context · Get
+    events · Find people** ("1 people: Christian Gonzalez") and the card **Call sheet: Christian Gonzalez** (Phone
+    ***-***-(…), a **Call** button, GIVING "No gifts on record.", TALKING POINTS). Click the card's **Call**: the panel
+    **Call Christian Gonzalez** opens in the card ("Your phone (…) rings first. When you pick up, Christian Gonzalez (…)
+    is called and sees your number.", "Christian Gonzalez hears “Hello. This call is recorded for our notes.” before the
+    call connects."), with **Cancel** / **Call**. Click the panel's **Call**: **Ringing your phone…**. Answer; Twilio's
+    trial message plays ("You have a trial account… press any key to execute your code"), so **press any key**; then
+    "Calling Christian Gonzalez. Please hold." **Calling Christian Gonzalez…**: his phone rings once you've pressed the
+    key (it may also start ringing while you're still hearing the message: expected, just press promptly). He answers,
+    hears the same trial message, **presses any key** (brief him beforehand), then hears "Hello. This call is recorded for
+    our notes."; **Connected · recording · 0:03** (about 15 s of preamble before anyone can talk). Say it as a known
+    limit: "it's a trial account, so Twilio reads a notice first." Then both talk clearly for about 20 s; Christian says
+    something actionable (e.g. "send me the Give Miami Day link") so there are follow-ups to show. **Hang up** from the
+    panel at about 0:20–0:25 on the timer. The card works through **Getting the recording…**, **Transcribing…** and
+    **Summarizing…**, then about 25 s later **✓ Saved to the call notes** with the **Summary** (1–3 short bullets) and,
+    when something actionable was said, **Suggested follow-ups**, each with its own **Apply**. Don't click **Call** twice,
+    and don't close the card or reload while it says **Connected**. If the call drops, the transcript is empty, or Twilio
+    errors: "Calls go through Twilio; here's the sheet and the demo call instead," and do the fallback demo call below.
+    **Fallback only, if Twilio fails: the demo call** (not in the run otherwise; Sharif: "We're not calling Hye-jin").
+    Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
     **Live transcript** in the rail: the panel
     opens on **Listening** with **Demo call**, **Generate summary** and **Pause**. **Demo call** plays a scripted call
     with **Hye-jin Park**, a donor from the sample data (about 10 s): Denise from The Miami Foundation calls about her $40
