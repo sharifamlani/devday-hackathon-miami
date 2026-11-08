@@ -223,8 +223,12 @@ def test_generate_on_the_sample_upload_is_exact_and_idempotent(conn):
     assert len(reviews) == len(key["duplicate_groups"]) == 6
     assert all(t["source"] == "generator" and t["due"] == AS_OF.isoformat() for t in calls + reviews)
     park = next(t for t in calls if by_id[t["person_id"]] == "D18")
-    assert park["title"] == "Call Hye-jin Park" and "failed" in park["why"]
-    assert park["chips"][0].startswith("Lifetime $") and park["chips"][1].startswith("Last gift $")
+    assert park["title"] == "Call Hye-jin Park"
+    assert park["why"] == "Monthly gift on Oct 10 failed, with no gift since."            # dates read "Oct 10"
+    assert park["chips"][0].startswith("Lifetime $") and park["chips"][1] == "Last gift $40 · Sep 10"
+    brandt = next(t for t in calls if by_id[t["person_id"]] == "D09")
+    assert brandt["why"] == "Yearly giver; the gift due Mar 18 is 235 days late."
+    assert "Last gift $400 · Mar 18, 2025" in brandt["chips"]                              # the year when it differs
     nguyen = next(t for t in reviews if "Robert Nguyen" in t["title"])
     assert nguyen["chips"][0] == "3 records"   # two aliases, one group
     assert result["created"] == len(made)
@@ -358,6 +362,7 @@ def test_generate_welcome_and_event_prep(conn):
                                                         ("prep", "Prep list: Give Miami Day")]
     prep = made[1]
     assert prep["due"] == "2026-11-12" and prep["chips"] == ["In 11 days", "Online"]
+    assert made[0]["why"] == "First gift of $250 on Oct 20." and prep["why"] == "Give Miami Day is on Nov 19."
     cal = [(i["date"], i["title"]) for i in tasks.calendar(conn, as_of=AS_OF)]
     assert cal == [("2026-11-08", "Welcome Nadia New"), ("2026-11-12", "Prep list: Give Miami Day"),
                    ("2026-11-19", "Give Miami Day"), ("2026-12-15", "Spring Gala")]
@@ -789,3 +794,11 @@ def test_a_generator_failure_never_fails_a_merge(merge_env, monkeypatch):
     monkeypatch.setattr(tasks, "generate", boom)
     s = conn.execute("SELECT id FROM duplicate_suggestions WHERE donor_a_id = ?", (ids["D11"],)).fetchone()
     assert client.post(f"/duplicates/{s['id']}/merge", json={"keep_id": ids["D11"]}).status_code == 200
+
+
+def test_nice_date_reads_like_the_rest_of_the_app():
+    assert tasks.nice_date("2026-03-11", AS_OF) == "Mar 11"
+    assert tasks.nice_date(date(2025, 3, 11), AS_OF) == "Mar 11, 2025"
+    assert tasks.nice_date("2026-11-08T10:00:00", AS_OF) == "Nov 8"                     # no leading zero
+    assert tasks.nice_date(None, AS_OF) == ""
+    assert tasks.nice_date("2027-01-02", AS_OF) == "Jan 2, 2027"
