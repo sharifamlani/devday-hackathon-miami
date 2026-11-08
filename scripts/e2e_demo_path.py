@@ -219,6 +219,12 @@ def s3_donors(page: Page, api: Api, shots: Path):
            ok(bool(m) and int(m.group(1)) == c["giver"]))
     # PeopleTabs (#126): a tablist "People by tab", each tab carrying its GET /people count
     tablist = page.get_by_role("tablist", name="People by tab")
+    if not tablist.count():   # #200: the CRM is givers only, with no Neighbors/Community tabs
+        stray = page.get_by_role("tab", name=re.compile("Neighbors|Community")).count()
+        record("3b givers only", "no Neighbors/Community tabs (#200)", f"tabs {stray}", ok(stray == 0))
+        record("3c other people", "Neighbors / Community live off the CRM (API only)",
+               f"API neighbor {c['neighbor']} community {c['community']}", "INFO")
+        return
     shown = {}
     for label, key in (("Givers", "giver"), ("Neighbors", "neighbor"), ("Community", "community")):
         tab = tablist.get_by_role("tab", name=re.compile(label))
@@ -416,7 +422,11 @@ def s9_calendar(page: Page, api: Api, web: str, shots: Path):
 def s10_dictation(page: Page, web: str, shots: Path):
     page.goto(web)
     page.wait_for_timeout(2500)
-    mic = page.get_by_role("button", name="Start live transcript").last
+    # #123: the composer's mic is "Dictate" (dictation into the box); before it, the mic opened the live transcript
+    mic = page.get_by_role("button", name="Dictate", exact=True)
+    if not mic.count():
+        mic = page.get_by_role("button", name="Start live transcript")
+    mic = mic.last
     present = mic.count() > 0
     mic.click()
     page.wait_for_timeout(3000)
@@ -429,15 +439,16 @@ def s10_dictation(page: Page, web: str, shots: Path):
 
 
 @step("11 phone width")
-def s11_phone(page: Page, web: str, shots: Path):
+def s11_phone(page: Page, api: Api, web: str, shots: Path):
     page.set_viewport_size({"width": 390, "height": 844})
     seen = {}
-    for name, path in (("home", ""), ("donors", "#/?workspace=donors"), ("inbox", "#/inbox")):
+    giver = api.get("/people?type=giver")["people"][0]["id"]
+    for name, path in (("home", ""), ("donors", "#/?workspace=donors"), ("inbox", "#/inbox"), ("profile", f"#/contacts/{giver}/show")):
         page.goto(web + path)
         page.wait_for_timeout(2500)
         seen[name] = overflow(page)
         page.screenshot(path=str(shots / f"11_390_{name}.png"))
-    record("11 phone width", "no horizontal overflow at 390 (home, donors, inbox)", f"overflow {seen}", ok(not any(seen.values())))
+    record("11 phone width", "no horizontal overflow at 390 (home, donors, inbox, a donor profile)", f"overflow {seen}", ok(not any(seen.values())))
 
 
 def main() -> int:
@@ -502,7 +513,7 @@ def main() -> int:
             8: lambda: s8_enrich(page, api, shots),
             9: lambda: s9_calendar(page, api, web, shots),
             10: lambda: s10_dictation(page, web, shots),
-            11: lambda: s11_phone(page, web, shots),
+            11: lambda: s11_phone(page, api, web, shots),
         }
         for n in (sorted(int(x) for x in args.only.split(",")) if args.only else steps):
             steps[n]()
