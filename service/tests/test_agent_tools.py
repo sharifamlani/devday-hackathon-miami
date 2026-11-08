@@ -274,3 +274,39 @@ def test_rsvp_event_and_undo(db_file):
     assert one(db_file, "SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = 1", event)["rsvp"] == "yes"
     undo(out["undo_token"])
     assert one(db_file, "SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = 1", event)["rsvp"] is None
+
+
+def test_add_contact_appears_in_people_and_undo_removes_it(db_file):
+    from fastapi.testclient import TestClient
+    from service.main import app
+    c = TestClient(app)
+    out = invoke("add_contact", full_name="Rosa Example", email="rosa@example.org")
+
+    pid = out["person_id"]
+    row = one(db_file, "SELECT donor_type, contact_type, source_row FROM donors WHERE id = ?", pid)
+    assert (row["donor_type"], row["contact_type"], row["source_row"]) == ("individual", "neighbor", "AGENT")
+    assert one(db_file, "SELECT COUNT(*) AS n FROM gifts WHERE donor_id = ?", pid)["n"] == 0
+    assert pid in {p["id"] for p in c.get("/people", params={"type": "neighbor"}).json()["people"]}
+
+    assert c.post(f"/undo/{out['undo_token']}").json()["undone"] is True
+    assert one(db_file, "SELECT id FROM donors WHERE id = ?", pid) is None
+
+
+def test_add_contact_organization_is_an_org_for_enrich(db_file):
+    from service.enrich_agent import skip_reason
+    out = invoke("add_contact", full_name="John S. and James L. Knight Foundation", donor_type="organization")
+    row = one(db_file, "SELECT donor_type, org_name, first_name FROM donors WHERE id = ?", out["person_id"])
+    assert (row["donor_type"], row["org_name"], row["first_name"]) == \
+        ("organization", "John S. and James L. Knight Foundation", None)
+    assert skip_reason(row["org_name"], row["donor_type"]) is None                  # Enrich may research it
+
+
+def test_add_contact_undo_refused_once_something_uses_it(db_file):
+    out = invoke("add_contact", full_name="Busy Example", contact_type="giver")
+    invoke("create_task", kind="call", title="Call Busy Example", person_id=out["person_id"])
+    assert "already used" in undo(out["undo_token"])["error"]
+    assert one(db_file, "SELECT id FROM donors WHERE id = ?", out["person_id"]) is not None
+
+
+def test_add_contact_refuses_a_blank_name(db_file):
+    assert invoke("add_contact", full_name="  ")["error"] == "a contact needs a name"
