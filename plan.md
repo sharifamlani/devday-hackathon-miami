@@ -1967,6 +1967,7 @@ Live-call notes (19, from the real test call):
       4. Start LIVE's service: `scripts\live_stack.ps1 start -Stack live -Only service`.
       5. Smokes 3–4 (22.4) on :8001 / :5173.
       6. Restart :8401 (the IT lane), then the T-15 checks.
+      7. Clear site data for localhost:5173 in the demo browser (or open a fresh incognito window), then check that the bare URL shows **Step 1 of 2**: the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL shows the landing instead of setup.
 - [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
       key, and a busy key slows invites and agent replies (Nov 8: 429s).
 - [ ] **T-20:** smokes 1–4 (22.4), in order.
