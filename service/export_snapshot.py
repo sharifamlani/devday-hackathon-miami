@@ -68,6 +68,8 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         dedupe.run(conn)
     donors = list_donors(conn)
     as_of_values = sorted({d["score_as_of"] for d in donors if d.get("score_as_of")})
+    # Tasks first (idempotent; home_snapshot runs it too): people rows' next_step reads them.
+    tasks.generate(conn, as_of or score.default_as_of())
     return {
         "meta": {
             "as_of": as_of_values[-1] if as_of_values else None,
