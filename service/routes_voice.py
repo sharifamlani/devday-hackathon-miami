@@ -5,6 +5,10 @@
     POST /transcribe/file                          multipart: audio, first_speaker? (you|them), you_name?, them_name?
                                                    -> {"segments": [{speaker: you|them, name, text, at}]}
 
+Browsers don't apply CORS to WebSockets, so the live route checks Origin itself: a handshake from a page
+not in config.CORS_ORIGINS is refused (close code 1008, an HTTP 403 to the browser) before it can stream
+audio and spend GEMINI_API_KEY. No Origin header (scripts, the smoke tests) is allowed.
+
 Nothing here writes. Call notes persist through routes_calls.py (POST /calls), which takes these segments
 as its transcript lines unchanged.
 """
@@ -16,7 +20,7 @@ from typing import Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, WebSocket
 
-from service import transcribe
+from service import config, transcribe
 
 log = logging.getLogger("service.routes_voice")
 router = APIRouter(tags=["voice"])
@@ -24,8 +28,17 @@ router = APIRouter(tags=["voice"])
 MAX_AUDIO_BYTES = 20 * 1024 * 1024   # inline audio limit for one request; ~20 min of opus
 
 
+def origin_allowed(origin: str | None) -> bool:
+    return origin is None or origin.rstrip("/") in config.CORS_ORIGINS
+
+
 @router.websocket("/transcribe/live")
 async def transcribe_live(ws: WebSocket, purpose: str = "call") -> None:
+    origin = ws.headers.get("origin")
+    if not origin_allowed(origin):
+        log.warning("refused live transcription from origin %s", origin)
+        await ws.close(code=1008)   # before accept: the handshake is refused
+        return
     await transcribe.relay(ws, purpose)
 
 

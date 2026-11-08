@@ -175,3 +175,24 @@ def test_live_relay_reports_gemini_failure(client, monkeypatch):
     with client.websocket_connect("/transcribe/live?purpose=call") as ws:
         e = ws.receive_json()
     assert e["type"] == "error" and "handshake 404" in e["detail"]
+
+
+@pytest.mark.parametrize("origin", ["https://evil.example", "http://localhost:9999", "null"])
+def test_live_relay_refuses_foreign_origins(client, monkeypatch, origin):
+    sessions = []
+    monkeypatch.setattr(transcribe, "live_connect", fake_connect(sessions))
+    with pytest.raises(WebSocketDisconnect) as refused:
+        with client.websocket_connect("/transcribe/live?purpose=call", headers={"origin": origin}) as ws:
+            ws.receive_json()
+    assert refused.value.code == 1008
+    assert sessions == []   # Gemini was never opened, so the key was never spent
+
+
+@pytest.mark.parametrize("headers", [{"origin": "http://localhost:5173"}, {"origin": "http://127.0.0.1:5174/"}, {}])
+def test_live_relay_allows_the_app_and_scripts(client, monkeypatch, headers):
+    monkeypatch.setattr(transcribe, "live_connect", fake_connect([]))
+    with client.websocket_connect("/transcribe/live?purpose=dictation", headers=headers) as ws:
+        ws.send_json({"type": "end"})
+        events = drain(ws)
+    assert events[-1]["type"] == "final"
+

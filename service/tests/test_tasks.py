@@ -91,6 +91,18 @@ def test_undo_refuses_out_of_order_and_twice(conn):
         tasks.undo(conn, "nope")
 
 
+def test_undo_refuses_other_agent_writes_and_never_touches_a_task(conn):
+    """agent_actions is shared (90's person/duplicate/merge/RSVP writes); tasks.undo must not read 'donor:5' as task 5."""
+    task, _ = tasks.create_task(conn, kind="call", title="Keep me")
+    conn.execute("INSERT INTO agent_actions (token, actor, action, target, before, after) "
+                 "VALUES ('other', 'agent', 'update_person', ?, NULL, '{}')", (f"donor:{task['id']}",))
+    conn.commit()
+    with pytest.raises(tasks.TaskError):
+        tasks.undo(conn, "other")
+    assert tasks.get_task(conn, task["id"])["title"] == "Keep me"
+    assert conn.execute("SELECT undone_at FROM agent_actions WHERE token = 'other'").fetchone()[0] is None
+
+
 def test_validation(conn):
     with pytest.raises(tasks.TaskError):
         tasks.create_task(conn, kind="lunch", title="x")

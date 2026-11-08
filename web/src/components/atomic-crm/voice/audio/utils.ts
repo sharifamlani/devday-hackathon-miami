@@ -14,53 +14,33 @@
  * limitations under the License.
  */
 
+/* eslint-disable -- lifted from google-gemini/live-api-web-console as-is (see NOTICE) */
+
 export type GetAudioContextOptions = AudioContextOptions & {
   id?: string;
 };
 
 const map: Map<string, AudioContext> = new Map();
 
+// Modified (see NOTICE): the original first played a silent clip to probe the
+// autoplay policy and waited for a pointer/key event if that failed. Donor Desk
+// always starts recording from a click, so the context is created directly
+// (the probe cost ~40 ms at the start of every recording).
 export const audioContext: (
   options?: GetAudioContextOptions
-) => Promise<AudioContext> = (() => {
-  const didInteract = new Promise((res) => {
-    window.addEventListener("pointerdown", res, { once: true });
-    window.addEventListener("keydown", res, { once: true });
-  });
-
-  return async (options?: GetAudioContextOptions) => {
-    try {
-      const a = new Audio();
-      a.src =
-        "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-      await a.play();
-      if (options?.id && map.has(options.id)) {
-        const ctx = map.get(options.id);
-        if (ctx) {
-          return ctx;
-        }
-      }
-      const ctx = new AudioContext(options);
-      if (options?.id) {
-        map.set(options.id, ctx);
-      }
-      return ctx;
-    } catch (e) {
-      await didInteract;
-      if (options?.id && map.has(options.id)) {
-        const ctx = map.get(options.id);
-        if (ctx) {
-          return ctx;
-        }
-      }
-      const ctx = new AudioContext(options);
-      if (options?.id) {
-        map.set(options.id, ctx);
-      }
+) => Promise<AudioContext> = async (options?: GetAudioContextOptions) => {
+  if (options?.id && map.has(options.id)) {
+    const ctx = map.get(options.id);
+    if (ctx) {
       return ctx;
     }
-  };
-})();
+  }
+  const ctx = new AudioContext(options);
+  if (options?.id) {
+    map.set(options.id, ctx);
+  }
+  return ctx;
+};
 
 export function base64ToArrayBuffer(base64: string) {
   var binaryString = atob(base64);

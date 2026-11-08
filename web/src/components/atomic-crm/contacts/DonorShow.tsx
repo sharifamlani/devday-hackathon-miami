@@ -123,7 +123,7 @@ const DonorShowContent = () => {
             <TabsContent value="notes" className="mt-1">
               <ProfileSection
                 title="Notes"
-                caption="Kept in this browser tab until the service stores notes"
+                caption="Your team's private notes"
               >
                 <InfiniteListBase
                   resource="contact_notes"

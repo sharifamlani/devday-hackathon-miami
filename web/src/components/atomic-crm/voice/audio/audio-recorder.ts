@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+/* eslint-disable -- lifted from google-gemini/live-api-web-console as-is (see NOTICE) */
+
 import { audioContext } from "./utils";
 import AudioRecordingWorklet from "./worklets/audio-processing";
 import VolMeterWorket from "./worklets/vol-meter";

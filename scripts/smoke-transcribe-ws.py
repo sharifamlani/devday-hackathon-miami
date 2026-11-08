@@ -82,6 +82,8 @@ def main() -> int:
     ap.add_argument("dialog", nargs="?")
     ap.add_argument("--donor", type=int, default=1)
     ap.add_argument("--expect", nargs="*", default=[])
+    ap.add_argument("--you-name", default="Staff", help="name for the first voice in the file pass")
+    ap.add_argument("--them-name", default="Caller", help="name for the other voice")
     ap.add_argument("--check", help="a call note id saved by an earlier run (after a restart)")
     a = ap.parse_args()
     http = httpx.Client(base_url=a.base, timeout=120)
@@ -113,7 +115,7 @@ def main() -> int:
     t = time.monotonic()
     with open(a.dialog, "rb") as f:
         r = http.post("/transcribe/file", files={"audio": ("call.wav", f, "audio/wav")},
-                      data={"you_name": "Denise", "them_name": "Rosa"})
+                      data={"you_name": a.you_name, "them_name": a.them_name})
     segs = r.json().get("segments", []) if r.status_code == 200 else []
     speakers = sorted({s["speaker"] for s in segs})
     check("file pass: >= 2 speakers", speakers == ["them", "you"],
