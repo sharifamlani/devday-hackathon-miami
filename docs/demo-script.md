@@ -35,7 +35,7 @@ Button and heading text below is what's on screen on main today, in **bold**.
    becomes **Your desk is set up.** Click **Go to the dashboard** (if the site was slow or unreachable it says so and
    the button reads **Continue to the dashboard**).
 5. **Dashboard (Overview).** Point at the glance links (**N gifts at risk**, **N possible duplicates**), **Plan
-   today**, **Coming up** (the next events) and today's tasks in the sidebar. _Events right after onboarding need #144; until it merges, skip **Coming up** and step 10._ The rail: **Overview**, **Calendar**,
+   today**, **Coming up** (the next events) and today's tasks in the sidebar. The rail: **Overview**, **Calendar**,
    **Tasks**, **CRM**, **Projects**, **Files & drafts**, **Live transcript**, **Open Ask sidebar**.
 6. **Home chat agent.** In **Ask the agent…** type a request and click **Send**, or use a suggestion chip
    (**Who should I thank this week?**, **Plan next week**). The conversation shows the agent's tool steps. A step
@@ -54,7 +54,7 @@ Button and heading text below is what's on screen on main today, in **bold**.
    areas** (**civic engagement & local news, arts & culture, community development, economic mobility**) and
    **Facts**, each with its source link. Tick the ones to keep and click **Save to profile** (or **Discard**). The
    same panel is on the donor's profile under **ENRICHMENT**. "Nothing is saved until staff accept, and every tag shows where it came from."
-10. **Calendar** _(events need #144, as in step 5)_. Rail → **Calendar**: the Foundation's upcoming events (Give Miami Day early giving Nov 14, the
+10. **Calendar.** Rail → **Calendar**: the Foundation's upcoming events (Give Miami Day early giving Nov 14, the
     Give Miami 5K Nov 15, Give Miami Day Nov 19), each with **N drafts ready** for its audience. Click **Review** to
     open that event's drafts (pending approval; nothing sent).
 11. **A call, transcribed.** On a task click **Call and transcribe**, or click the mic **Start live transcript**.
