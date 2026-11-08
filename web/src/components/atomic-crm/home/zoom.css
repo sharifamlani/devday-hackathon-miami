@@ -111,8 +111,9 @@ html[data-zoom] .home-tile {
   contain: layout paint;
 }
 :root {
-  --zoom-ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --zoom-dur: 340ms;
+  /* Set per transition by zoomTransition.ts from the motion variables (src/index.css). */
+  --zoom-ease: var(--ease-enter);
+  --zoom-dur: var(--motion-slow);
 }
 ::view-transition-group(zoom-frame),
 ::view-transition-group(zoom-content),
@@ -166,22 +167,26 @@ html[data-zoom] .home-tile {
 
 /* Small-tile content fades out over the first 120ms; panel content fades in 140ms to end. */
 html[data-zoom="open"]::view-transition-old(zoom-frame) {
-  animation: zoom-fade-out 120ms linear both;
+  animation: zoom-fade-out calc(120ms * var(--motion-scale)) linear both;
 }
 html[data-zoom="open"]::view-transition-new(zoom-frame) {
-  animation: zoom-fade-in 120ms linear both;
+  animation: zoom-fade-in calc(120ms * var(--motion-scale)) linear both;
 }
 html[data-zoom="close"]::view-transition-old(zoom-frame) {
-  animation: zoom-fade-out 120ms linear 160ms both;
+  animation: zoom-fade-out calc(120ms * var(--motion-scale)) linear
+    calc(160ms * var(--motion-scale)) both;
 }
 html[data-zoom="close"]::view-transition-new(zoom-frame) {
-  animation: zoom-fade-in 120ms linear 160ms both;
+  animation: zoom-fade-in calc(120ms * var(--motion-scale)) linear
+    calc(160ms * var(--motion-scale)) both;
 }
 html[data-zoom="open"]::view-transition-new(zoom-content) {
-  animation: zoom-fade-in calc(var(--zoom-dur) - 140ms) linear 140ms both;
+  animation: zoom-fade-in
+    calc(var(--zoom-dur) - calc(140ms * var(--motion-scale))) linear
+    calc(140ms * var(--motion-scale)) both;
 }
 html[data-zoom="close"]::view-transition-old(zoom-content) {
-  animation: zoom-fade-out 120ms linear both;
+  animation: zoom-fade-out calc(120ms * var(--motion-scale)) linear both;
 }
 html[data-zoom="switch"]::view-transition-old(zoom-content) {
   animation: zoom-fade-out var(--zoom-dur) linear both;
@@ -203,10 +208,12 @@ html[data-zoom="switch"]::view-transition-new(zoom-content) {
     animation: none;
   }
   html[data-zoom="open"]::view-transition-new(zoom-frame) {
-    animation: zoom-sheet-in 320ms var(--zoom-ease) both;
+    animation: zoom-sheet-in calc(320ms * var(--motion-scale)) var(--zoom-ease)
+      both;
   }
   html[data-zoom="close"]::view-transition-old(zoom-frame) {
-    animation: zoom-sheet-out 280ms var(--zoom-ease) both;
+    animation: zoom-sheet-out calc(280ms * var(--motion-scale)) var(--zoom-ease)
+      both;
   }
 }
 @keyframes zoom-sheet-in {
@@ -239,50 +246,113 @@ html[data-zoom="switch"]::view-transition-new(zoom-content) {
 }
 .desk-panel-body
   :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(-n + 8) {
-  animation: zoom-row 200ms var(--zoom-ease) backwards;
+  animation: zoom-row var(--motion-base) var(--zoom-ease) backwards;
 }
 .desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(1) {
-  animation-delay: 140ms;
+  animation-delay: calc(140ms * var(--motion-scale));
 }
 .desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(2) {
-  animation-delay: 160ms;
+  animation-delay: calc(160ms * var(--motion-scale));
 }
 .desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(3) {
-  animation-delay: 180ms;
+  animation-delay: calc(180ms * var(--motion-scale));
 }
 .desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(4) {
-  animation-delay: 200ms;
+  animation-delay: calc(200ms * var(--motion-scale));
 }
 .desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(5) {
-  animation-delay: 220ms;
+  animation-delay: calc(220ms * var(--motion-scale));
 }
 .desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(6) {
-  animation-delay: 240ms;
+  animation-delay: calc(240ms * var(--motion-scale));
 }
 .desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(7) {
-  animation-delay: 260ms;
+  animation-delay: calc(260ms * var(--motion-scale));
 }
 .desk-panel-body :is(tbody > tr, ul > li, [data-slot="card"]):nth-child(8) {
-  animation-delay: 280ms;
+  animation-delay: calc(280ms * var(--motion-scale));
 }
 
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*) {
-    animation: none !important;
+/* Reduced motion (the "Reduce motion" choice or the OS setting): zoomTransition.ts sets
+   data-zoom="fade", a short crossfade with no movement. */
+html[data-zoom="fade"]::view-transition-group(*) {
+  animation: none !important;
+}
+html[data-zoom="fade"]::view-transition-old(*),
+html[data-zoom="fade"]::view-transition-new(*) {
+  animation-duration: 120ms !important;
+  animation-delay: 0s !important;
+  animation-timing-function: linear !important;
+}
+html[data-zoom="fade"]::view-transition-old(*) {
+  animation-name: zoom-fade-out !important;
+}
+html[data-zoom="fade"]::view-transition-new(*) {
+  animation-name: zoom-fade-in !important;
+}
+
+/* ---- Left overview and right pane: slide in and out, the rest of the board moves with them ---- */
+html[data-zoom="overview"] .home-overview {
+  view-transition-name: home-overview;
+}
+html[data-zoom="pane"] #ask-sidebar {
+  view-transition-name: side-pane;
+}
+html[data-zoom="pane"] #main-content {
+  view-transition-name: app-main;
+}
+html[data-zoom="pane"] [data-pane-scrim] {
+  view-transition-name: side-scrim;
+}
+::view-transition-group(home-overview),
+::view-transition-group(side-pane),
+::view-transition-group(side-scrim),
+::view-transition-group(app-main) {
+  animation-duration: var(--zoom-dur);
+  animation-timing-function: var(--zoom-ease);
+}
+/* The page beside the pane resizes: crop it, never stretch it. */
+::view-transition-old(app-main),
+::view-transition-new(app-main) {
+  width: auto;
+  height: auto;
+  object-fit: none;
+  object-position: top left;
+}
+/* Only one snapshot when it appears or goes away: slide it from (or to) its own edge. */
+html[data-zoom="overview"]::view-transition-new(home-overview):only-child {
+  animation: slide-in-left var(--zoom-dur) var(--ease-enter) both;
+}
+html[data-zoom="overview"]::view-transition-old(home-overview):only-child {
+  animation: slide-out-left var(--zoom-dur) var(--ease-exit) both;
+}
+html[data-zoom="pane"]::view-transition-new(side-pane):only-child {
+  animation: slide-in-right var(--zoom-dur) var(--ease-enter) both;
+}
+html[data-zoom="pane"]::view-transition-old(side-pane):only-child {
+  animation: slide-out-right var(--zoom-dur) var(--ease-exit) both;
+}
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
   }
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation-duration: 120ms !important;
-    animation-delay: 0s !important;
-    animation-timing-function: linear !important;
+}
+@keyframes slide-out-left {
+  to {
+    opacity: 0;
+    transform: translateX(-24px);
   }
-  ::view-transition-old(*) {
-    animation-name: zoom-fade-out !important;
+}
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
   }
-  ::view-transition-new(*) {
-    animation-name: zoom-fade-in !important;
-  }
-  .desk-panel-body * {
-    animation: none !important;
+}
+@keyframes slide-out-right {
+  to {
+    opacity: 0;
+    transform: translateX(32px);
   }
 }

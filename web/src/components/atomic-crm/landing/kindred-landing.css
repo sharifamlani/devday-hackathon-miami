@@ -408,19 +408,30 @@ button.kindred-sample {
   }
 }
 
+/* Reduced motion: the OS setting unless "Full motion" is chosen, or "Reduce motion". */
 @media (prefers-reduced-motion: reduce) {
-  .kindred-landing::before {
+  :root:not([data-motion="full"]) .kindred-landing::before {
     animation: none;
     transform: none;
     will-change: auto;
   }
-
-  .kindred-motion-toggle {
+  :root:not([data-motion="full"]) .kindred-motion-toggle {
     display: none;
   }
-
-  .kindred-upload,
-  .kindred-dropzone {
+  :root:not([data-motion="full"]) .kindred-upload,
+  :root:not([data-motion="full"]) .kindred-dropzone {
     transition: none;
   }
+}
+:root[data-motion="reduce"] .kindred-landing::before {
+  animation: none;
+  transform: none;
+  will-change: auto;
+}
+:root[data-motion="reduce"] .kindred-motion-toggle {
+  display: none;
+}
+:root[data-motion="reduce"] .kindred-upload,
+:root[data-motion="reduce"] .kindred-dropzone {
+  transition: none;
 }

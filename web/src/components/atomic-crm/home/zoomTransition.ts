@@ -3,7 +3,10 @@
  * react-router's own `viewTransition` option is not used: the app runs on react-admin's
  * HashRouter (a declarative router), where that option is not honored.
  */
-export type ZoomKind = "open" | "close" | "switch";
+import { motionMs, prefersReducedMotion as reducedMotion } from "@/lib/motion";
+
+/** open/close/switch: workspace panels. overview: the left column. pane: the right Ask/transcript pane. */
+export type ZoomKind = "open" | "close" | "switch" | "overview" | "pane";
 
 type VT = {
   skipTransition: () => void;
@@ -17,11 +20,15 @@ type VTDoc = {
 };
 
 export const FRAME_NAME = "zoom-frame";
-const DURATION: Record<ZoomKind, number> = {
-  open: 340,
-  close: 280,
-  switch: 180,
+/** Read from the motion variables (src/index.css) at each transition, so one edit retimes them all. */
+const duration = (kind: ZoomKind): number => {
+  const slow = motionMs("slow");
+  if (kind === "close") return Math.round(slow * 0.875);
+  if (kind === "switch") return Math.round(motionMs("base") * 0.9);
+  return slow;
 };
+/** Reduced motion: a short crossfade instead of movement. */
+const REDUCED_FADE_MS = 120;
 
 let active: VT | null = null;
 let lastSource: HTMLElement | null = null;
@@ -50,8 +57,9 @@ export function notifyCommitted() {
   waiters.forEach((w) => w());
 }
 
+/** The "Reduce motion" choice, falling back to the OS setting (src/lib/motion.ts). */
 export function prefersReducedMotion(win: Window = window) {
-  return !!win.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  return reducedMotion(win);
 }
 
 export function runZoomTransition(opts: {
@@ -79,7 +87,10 @@ export function runZoomTransition(opts: {
   const reduced = prefersReducedMotion(win);
   const root = doc.documentElement;
   root.dataset.zoom = reduced ? "fade" : kind;
-  root.style.setProperty("--zoom-dur", `${reduced ? 120 : DURATION[kind]}ms`);
+  root.style.setProperty(
+    "--zoom-dur",
+    `${reduced ? REDUCED_FADE_MS : duration(kind)}ms`,
+  );
 
   const morph = !reduced && kind !== "switch";
   if (opts.sourceEl) lastSource = opts.sourceEl;

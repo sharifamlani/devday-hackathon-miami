@@ -61,6 +61,7 @@ import {
   getSpeechRecognition,
   type TranscriptSource,
 } from "./transcriptSource";
+import { prefersReducedMotion } from "@/lib/motion";
 
 export interface LiveTranscriptPaneProps {
   /** Close the right pane (the shell's header has the close button too). */
@@ -148,8 +149,10 @@ const WAVE_CSS = `
 @keyframes vt-wave { 0%, 100% { transform: scaleY(0.18); } 50% { transform: scaleY(1); } }
 .vt-wave-bar { transform: scaleY(var(--vt-rest)); transform-origin: center; }
 .vt-wave[data-live="false"] .vt-wave-bar { transform: scaleY(0.18); }
-@media (prefers-reduced-motion: no-preference) {
-  .vt-wave[data-live="true"] .vt-wave-bar { animation: vt-wave 1s ease-in-out infinite; }
+.vt-wave[data-live="true"] .vt-wave-bar { animation: vt-wave 1s ease-in-out infinite; }
+:root[data-motion="reduce"] .vt-wave-bar { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .vt-wave-bar { animation: none !important; }
 }
 `;
 
@@ -353,9 +356,7 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
   useEffect(() => {
     const mic = micRef.current;
     if (!micOn || status !== "live" || !mic) return;
-    const reduced =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const reduced = typeof window !== "undefined" && prefersReducedMotion();
     const levels = new Array<number>(WAVE_BARS.length).fill(0);
     let frame = 0;
     let last = 0;
@@ -772,7 +773,7 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
                 className={cn(
                   "size-2.5 shrink-0 rounded-full",
                   live
-                    ? "bg-[#e5534b] motion-safe:animate-pulse"
+                    ? "bg-[#e5534b] animate-pulse"
                     : "bg-muted-foreground",
                 )}
               />
