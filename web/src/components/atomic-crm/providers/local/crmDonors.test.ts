@@ -504,6 +504,18 @@ describe("filterDonors and sortDonors", () => {
     ).toEqual([1]);
   });
 
+  it("source_file matches donors whose source mentions the file", () => {
+    const multi = (source: string) => ({ ...contacts[0], source });
+    const rows = [
+      multi("a.md: line:1; give.xlsx: sheet:Online:row:2"),
+      multi("give.xlsx: row:9"),
+      multi("a.md: line:4"),
+    ];
+    expect(filterDonors(rows, { source_file: "give.xlsx" })).toHaveLength(2);
+    expect(filterDonors(rows, { source_file: "a.md" })).toHaveLength(2);
+    expect(filterDonors(rows, { source_file: "none.csv" })).toHaveLength(0);
+  });
+
   it("searches names and cities without accents", () => {
     expect(filterDonors(contacts, { q: "maria" }).map((c) => c.id)).toEqual([
       2,
