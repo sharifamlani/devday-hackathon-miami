@@ -482,7 +482,8 @@ def test_an_allowed_call_still_waits_on_the_card_and_never_dials_unapproved(db_f
     assert context.refused_calls == {} and dialed == []                     # a card, and no call without it
 
 
-def test_live_approving_one_of_two_cards_leaves_the_other_pending(db_file):
+@pytest.mark.parametrize("approve_b", [True, False])
+def test_live_approving_one_of_two_cards_leaves_the_other_pending(db_file, approve_b):
     """Two delete cards: deciding the first must not decide the second. It comes back under a new run id
     (same call id) and still works."""
     a = invoke("create_task", kind="other", title="Old flyer reprint")
@@ -499,5 +500,5 @@ def test_live_approving_one_of_two_cards_leaves_the_other_pending(db_file):
     assert [c["call_id"] for c in first["approvals"]] == [by_task[b["id"]]]  # ...it's still pending
     assert first["run_id"] and first["run_id"] != paused["run_id"]
 
-    done = ca.resume_chat(first["run_id"], {by_task[b["id"]]: True}, "Test approver")
-    assert gone(b) and not done["approvals"]
+    done = ca.resume_chat(first["run_id"], {by_task[b["id"]]: approve_b}, "Test approver")
+    assert gone(b) is approve_b and not done["approvals"]                  # approve deletes B; decline leaves it

@@ -42,6 +42,8 @@ export type AgentMessage =
       handled?: string;
     };
 
+type AssistantMessage = Extract<AgentMessage, { role: "assistant" }>;
+
 type ChatResponse = {
   reply: string | null;
   steps: AgentStep[];
@@ -98,7 +100,7 @@ const post = async <T,>(path: string, body: unknown): Promise<T> => {
   return res.json() as Promise<T>;
 };
 
-const toAssistant = (r: ChatResponse): AgentMessage => ({
+const toAssistant = (r: ChatResponse): AssistantMessage => ({
   role: "assistant",
   text: r.reply ?? "",
   steps: r.steps ?? [],
@@ -157,7 +159,7 @@ export const undoStep = async (msgIndex: number, stepIndex: number, refetch: Ref
 export const WAITING_PREFIX = "Waiting for you: ";
 
 /** True once every card in this message has an answer (or the run was already handled). */
-export const allDecided = (m: Extract<AgentMessage, { role: "assistant" }>) =>
+export const allDecided = (m: AssistantMessage) =>
   Boolean(m.handled) || m.approvals.every((a) => m.decisions?.[a.call_id] !== undefined);
 
 /**
