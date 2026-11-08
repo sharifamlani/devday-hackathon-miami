@@ -172,7 +172,7 @@ const ProfileHeader = ({
 }) => (
   <header className={cn(tileClass, "p-4 sm:p-5")}>
     <div className="flex flex-wrap items-start gap-4">
-      <InitialsAvatar name={record.full_name} size="lg" />
+      <InitialsAvatar name={record.full_name ?? [record.first_name, record.last_name].filter(Boolean).join(" ")} size="lg" />
       <div className="min-w-0 flex-1">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {record.is_star && (
@@ -196,7 +196,7 @@ const ProfileHeader = ({
             .join(" · ")}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <DonorTagList tags={record.status_tags} />
+          <DonorTagList tags={record.status_tags ?? []} />
           {record.is_sample && <SampleHistoryBadge />}
         </div>
       </div>
@@ -258,9 +258,9 @@ const Overview = ({
         hideGifts
         className={cn(tileClass, "space-y-3 p-4 sm:p-5")}
       >
-        {record.reasons.length > 0 && (
+        {(record.reasons ?? []).length > 0 && (
           <ul className="flex flex-wrap gap-1.5" aria-label="Score reasons">
-            {record.reasons.map((reason) => (
+            {(record.reasons ?? []).map((reason) => (
               <li
                 key={reason}
                 className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
@@ -341,9 +341,9 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
       caption="What they support, with the source for each"
     >
       <InterestAreasEditor personId={record.id} />
-      {record.interests.length > 0 && (
+      {(record.interests ?? []).length > 0 && (
         <p className="text-xs text-muted-foreground">
-          From the uploaded list: {record.interests.join(", ")}
+          From the uploaded list: {(record.interests ?? []).join(", ")}
         </p>
       )}
     </ProfileSection>

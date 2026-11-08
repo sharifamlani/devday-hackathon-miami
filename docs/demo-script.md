@@ -3,9 +3,9 @@
 Challenge #2: duplicate donor records, and donors who quietly stop giving.
 Judges score fit to "what solved looks like", originality, use of Codex and OpenAI, feasibility, and presentation (each /10).
 
-**Run order:** the live app on the demo laptop is primary (service on :8000, web with `VITE_DATA_MODE=local`). The
-Vercel snapshot (https://devday-donor-desk.vercel.app, sample data, read-only) is the backup if the laptop or network
-fails. Org: **The Miami Foundation**.
+**Run order:** the laptop is the demo surface (http://localhost:5173: service on :8000, web with
+`VITE_DATA_MODE=local`). The Vercel link (https://devday-donor-desk.vercel.app) is a read-only preview of sample data,
+and the backup if the laptop or network fails. Org: **The Miami Foundation**. Scope: **Givers only**.
 
 This is a skeleton: each step names the screen and the one point to land. Timings get set at the rehearsal.
 
@@ -13,37 +13,60 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 
 ## The flow
 
-1. **Empty start.** The app opens with nothing in it: no people, gifts, tasks or context. "Nothing is preloaded."
-   First run opens the three-step onboarding.
-2. **Onboarding step 1: "Drag in your files."** Drag in the **8 input files** from `data/sample_inputs/`: `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`.
-   Not `answer_key.json` or `_README.md`. Choose where they go: **Let the agent sort** (or Givers / Neighbors /
-   Community), then **Continue**. "Spreadsheets, Word tables and meeting notes; anyone unclear is flagged for review,
-   never guessed." The landing page's **Import donor data** dialog is the same upload outside onboarding.
-3. **Onboarding step 2: "Tell us about your organization."** Enter the website (required):
-   `https://miamifoundation.org`. Social URLs are saved, not fetched.
-4. **Onboarding step 3: "Building your context."** Watch the per-source status. "It reads the site and news and keeps
-   dated, sourced facts: success stories, where the money goes, how the Foundation is doing. Newest first."
-5. **Dashboard.** Home: money raised by quarter, gift alerts (a declined monthly card, late recurring gifts), tasks
-   for today, the next event, who to call first and why.
-6. **Agent chat edits.** Ask the assistant to change something (add a task, move a calendar item); point at the tool
-   steps it shows and the Undo. Anything that sends, merges or deletes waits for a click.
-7. **Story-first campaign.** Say "Draft a thank-you to Give Miami Day donors." Open a draft: it cites a success
-   story, a use-of-funds line and an org-health line, each with its source; the review screen lists the sources. Big
-   donors and organizations need individual approval.
-8. **Enrich (on a real organization).** The sample data is fictional, so add a real one on stage: tell the agent
-   *"add the Knight Foundation as a contact"*. **John S. and James L. Knight Foundation** lands in **Givers** as a new
-   contact with no gifts. Open it and click **Enrich profile**: a dry run (nothing is written) proposes sourced
-   interest tags (**civic engagement & local news, arts & culture, community development, economic mobility**, each
-   traced to a source), from cache in seconds. Tick the ones to keep and click **Save to profile**, which writes only
-   the ticked items. "Nothing is saved until staff accept, and every tag shows where it came from."
-9. **Call + transcript + after-call Apply.** Start a call from the voice panel; the transcript appears live. At the
-   end, the agent proposes follow-ups (a task to send the card-update link, a $50/month pledge, an RSVP to the event
-   on the 21st, notes), each quoting the call. Click Apply; show the task on the list, then Undo it.
-10. **Duplicates review.** Exact matches (the same email, or the same name with nothing contradicting it) were
-    already merged automatically on upload. Givers → Review duplicates (9–10 suggestions right after upload) holds
-    the fuzzy ones: the same person written three ways. "Merge only after a person approves; the gift history moves to the kept record; Undo puts both back."
-    After the suggestions are approved the counts match the answer key: 68 people (33 givers, 20 neighbors,
-    15 community) and 131 gifts.
+Demo surface: **the laptop**, http://localhost:5173 (service on :8000, web with `VITE_DATA_MODE=local`). The Vercel
+link is a read-only **preview** of sample data, not the demo. Scope: **Givers only**. Upload still sorts everyone into
+Givers / Neighbors / Community, but the demo stays in Givers; Neighbors and Community aren't shown.
+
+Button and heading text below is what's on screen on main today, in **bold**.
+
+1. **Empty start.** The app opens on the **Set up Donor Desk** dialog (**Step 1 of 3**) with nothing behind it: no
+   people, gifts, tasks or context. "Nothing is preloaded."
+2. **Step 1, "Drag in your files."** Drop the **8 input files** from `data/sample_inputs/` on **Drop your files here**
+   (or click **Choose files**): `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`,
+   `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`,
+   `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`. Not
+   `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**
+   (it reads **Importing…**), then **Continue**. (**Use the example files** loads the same eight with one click.)
+3. **Step 2, "Tell us about your organization."** Type `miamifoundation.org` in the **Website** field (placeholder
+   **yourorg.org**) and click **Continue**. Social URLs are saved, not fetched.
+4. **Step 3, "Building your context."** It shows **Reading your website · m:ss**. "It reads the site and news and
+   keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing." The heading
+   becomes **Your desk is set up.** Click **Go to the dashboard** (if the site was slow or unreachable it says so and
+   the button reads **Continue to the dashboard**).
+5. **Dashboard (Overview).** Point at the glance links (**N gifts at risk**, **N possible duplicates**), **Plan
+   today**, **Coming up** (the next events) and today's tasks in the sidebar. _Events right after onboarding need #144; until it merges, skip **Coming up** and step 10._ The rail: **Overview**, **Calendar**,
+   **Tasks**, **CRM**, **Projects**, **Files & drafts**, **Live transcript**, **Open Ask sidebar**.
+6. **Home chat agent.** In **Ask the agent…** type a request and click **Send**, or use a suggestion chip
+   (**Who should I thank this week?**, **Plan next week**). The conversation shows the agent's tool steps. A step
+   that changes something can be undone (**Undone**). Anything that sends, merges or deletes waits for a click.
+7. **A task, worked by the agent.** Click a task in the sidebar. The dialog reads e.g. **TASK 1 OF 15 · CALL** with
+   **Work on it with the agent**, **Call and transcribe**, **Draft email** and **Mark done**. Click **Work on it
+   with the agent**: the chat shows e.g. **Work on this task: Call Hye-jin Park…**, then its steps (**Get task**, **Get
+   person**, **Draft email**), and ends by asking **Mark done?**
+8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to Give Miami Day donors."* Open a
+   draft: it cites a success story, a use-of-funds line and an org-health line, each with its source. Big donors
+   and organizations need individual approval; nothing is sent from here.
+9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
+   *"Add the Knight Foundation as a contact."* It lands in **Givers**. Open **CRM** → **Find a donor**, search
+   *Knight*, and click **Enrich profile**: a dry run (nothing written) proposes sourced interest tags (**civic
+   engagement & local news, arts & culture, community development, economic mobility**). Tick the ones to keep and
+   click **Save to profile**. "Nothing is saved until staff accept, and every tag shows where it came from."
+10. **Calendar** _(events need #144, as in step 5)_. Rail → **Calendar**: the Foundation's upcoming events (Give Miami Day early giving Nov 14, the
+    Give Miami 5K Nov 15, Give Miami Day Nov 19), each with **N drafts ready** for its audience. Click **Review** to
+    open that event's drafts (pending approval; nothing sent).
+11. **A call, transcribed.** On a task click **Call and transcribe**, or click the mic **Start live transcript**.
+    The panel shows **Listening** and the words as they're spoken (**Pause** / **Resume**); **Try the demo call**
+    plays a scripted call. Click **Generate summary**, or ask a question in **Ask about this call…**.
+12. **Dictation.** **Open Ask sidebar** and use **Dictate** to speak a question instead of typing it (**Stop
+    dictation** to finish; it needs the live service).
+13. **Duplicates review.** Click **N possible duplicates** (or the banner's **Review merges →**). Exact matches were
+    already merged on upload; these are the close calls. For each, **Merge ✓** or **Keep separate**. "Merge only
+    after a person approves; the gift history moves to the kept record." On the donor, **Merge history** → **Undo
+    merge** → **Confirm undo** puts both back. After the suggestions are approved the counts match the answer key:
+    68 people (33 givers, 20 neighbors, 15 community) and 131 gifts.
+
+> Not on screen yet (don't demo): the after-call **Apply** card (the backend proposes follow-ups from a call and
+> writes them on Apply, but no screen shows it yet), and the Neighbors / Community tabs (out of scope).
 
 ### The call (Sharif writes)
 
@@ -82,19 +105,20 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 
 ## Demo checklist (30 minutes before)
 
-- [ ] **One warm-up upload first,** then reset and upload again for the demo: the duplicate cards read 9 on a cold
-      first run and 10 after a warm-up.
+- [ ] **Reset and warm up:** `python scripts/demo_reset.py --warm` (service stopped). It empties the db, uploads the 8
+      files once to warm the cache, and empties the db again; the on-stage upload then replays fast and shows
+      **10 possible duplicates**.
 - [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
 - [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
 - [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8000`; service
       `.env` has `OPENAI_API_KEY`, the `OPENAI_MODEL_*` tiers, `GEMINI_API_KEY` (voice), `SCORE_AS_OF=2026-11-08`.
       Leave `EMAIL_SEND` off and `SMS_PROVIDER` unset unless a send is part of the demo; `SEND_ALLOWLIST` only
       team numbers.
-- [ ] Reset: `python -m service.db --rebuild` (empty), then the warm-up upload, then rebuild again.
 - [ ] **Enrich only on the hand-added real org** (Knight Foundation). Fictional orgs correctly show "No public
-      information found" (the profile panel may word it "No public facts found for this donor").
+      information found: this looks like a private or fictional organization."
+- [ ] **Stay in Givers** (scope); don't open Neighbors or Community.
 - [ ] Mic permission granted in the browser; test the voice panel once.
-- [ ] Vercel backup open in a second tab.
+- [ ] The Vercel preview open in a second tab (read-only sample data; the backup only).
 - [ ] Browser zoom 110%, notifications off, a hotspot as Wi-Fi backup.
 
 ## Backup video

@@ -49,6 +49,8 @@ export interface ApiPerson {
   needs_review?: boolean | number | null; // proposed; PR #60 sends tab_review
   review_reason?: string | null;
   tab_review?: string | null; // PR #60: null, or why the sort needs a person
+  notes?: string | null; // what the source file said about them
+  source_row?: string | null; // "event_signin_sheet_nov1.xlsx: sheet:Nov 1 ..."
 }
 
 /** GET /people?type=X: a list, or {items|people, counts}. */
@@ -223,6 +225,10 @@ export interface Person {
   next_step: string | null;
   needs_review: boolean;
   review_reason: string | null;
+  /** What the source file said about them (Neighbors: how we met). */
+  notes: string | null;
+  /** The file they came from ("event_signin_sheet_nov1.xlsx"), or null. */
+  source: string | null;
 }
 
 export interface PeoplePage {
