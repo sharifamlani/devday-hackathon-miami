@@ -494,6 +494,26 @@ def is_prompt(text: str, prompt: str) -> bool:
     return bool(words) and sum(w in prompt_words for w in words) / len(words) >= 0.6
 
 
+# What the phones hear that nobody on the call said: our prompts, and Twilio's trial-account message (a live call,
+# Sun Nov 8, transcribed all of it as one "them" line with the hold prompt).
+TRIAL_PHRASES = ("You have a trial account", "You can remove this message at any time by upgrading to a full account",
+                 "Press any key to execute your code")
+
+
+def has_phrase(text: str, phrase: str) -> bool:
+    words = _words(phrase)
+    return bool(words) and re.search(r"\W*".join(re.escape(w) for w in words), text, flags=re.IGNORECASE) is not None
+
+
+def strip_phrases(text: str, phrases: list[str]) -> str:
+    """Remove each phrase wherever it appears (case and punctuation ignored); collapse what's left."""
+    for phrase in phrases:
+        words = _words(phrase)
+        if words:
+            text = re.sub(r"\W*".join(re.escape(w) for w in words) + r"\W*", " ", text, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", text).strip().lstrip(".,;: ")   # a removed phrase can leave leading punctuation
+
+
 # Each transcription request is retried after these pauses (seconds): a live call (Sun Nov 8) lost its transcript to
 # one dropped connection ("[WinError 10054] ... forcibly closed by the remote host") from the speech service.
 RETRY_PAUSES = (2.0, 5.0)
@@ -519,12 +539,17 @@ def transcript_from_recording(wav_bytes: bytes, donor_name: str, transcriber: Ca
     with ThreadPoolExecutor(max_workers=len(tracks)) as pool:
         segments = list(pool.map(lambda audio: with_retries(transcriber, audio, "audio/wav"), tracks))
     prompt = HOLD_PROMPT.format(name=donor_name)
+    # The donor's side is the channel that carried the prompt played to the staff phone (found before it's stripped)
+    has_prompt = [any(has_phrase(seg["text"], prompt) for seg in segs) for segs in segments]
+    noise = [prompt, NOTICE, *TRIAL_PHRASES]
+    for segs in segments:
+        for seg in segs:
+            seg["text"] = strip_phrases(seg["text"], noise)
+    segments = [[seg for seg in segs if len(_words(seg["text"])) >= 1] for segs in segments]
     if len(tracks) == 1:   # a mono file: fall back to the model's speaker labels
         lines = transcribe.to_transcript_lines(segments[0], "you", "You", donor_name)
         return [l for l in lines if not is_prompt(l["text"], prompt)]
 
-    # The donor's side is the channel that carried the prompt played to the staff phone
-    has_prompt = [any(is_prompt(s["text"], prompt) for s in segs) for segs in segments]
     override = os.getenv("PHONE_STAFF_CHANNEL", "").strip()
     if override in ("1", "2"):
         staff_track = int(override) - 1

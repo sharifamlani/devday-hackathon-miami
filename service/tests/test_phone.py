@@ -361,3 +361,26 @@ def test_try_again_is_refused_unless_a_recorded_transcript_failed(setup, db_file
     client = TestClient(app)
     assert client.post("/phone/calls/nope/retry").status_code == 404
     assert client.post(f"/phone/calls/{call['id']}/retry").status_code == 409
+
+
+def test_trial_message_and_prompts_never_reach_the_transcript():
+    """The live call's 'them' channel opened with the trial message and the hold prompt as ONE line, and the
+    staff phone's mic caught the donor's notice; none of it was said by anyone on the call."""
+    def live_shaped(audio, mime):
+        with wave.open(io.BytesIO(audio)) as w:
+            first = np.frombuffer(w.readframes(1), dtype=np.int16)[0]
+        if first == 1000:   # the staff phone's channel
+            return [{"speaker": "spk:0", "text": "Hi, I'm calling to Hello, this call is recorded for our notes.", "start": 32.8},
+                    {"speaker": "spk:0", "text": "Hey, how's it going?", "start": 42.8}]
+        return [{"speaker": "spk:0", "start": 0.0, "text": "you have a trial account. You can remove this message at any "
+                 "time by upgrading to a full account. Press any key to execute your code. Calling James Carter. Please hold."},
+                {"speaker": "spk:0", "text": "Oh, awesome. Thanks.", "start": 43.5}]
+    lines = phone.transcript_from_recording(wav([HEARD_SIDE, STAFF_SIDE]), "James Carter", live_shaped)
+    assert [(l["speaker"], l["text"]) for l in lines] == [
+        ("you", "Hi, I'm calling to"), ("you", "Hey, how's it going?"), ("them", "Oh, awesome. Thanks.")]
+
+
+def test_strip_phrases():
+    assert phone.strip_phrases("you have a trial account. Hi there!", list(phone.TRIAL_PHRASES)) == "Hi there!"
+    assert phone.strip_phrases("CALLING james carter, please hold", ["Calling James Carter. Please hold."]) == ""
+    assert phone.has_phrase("... Calling James Carter. Please hold.", "Calling James Carter. Please hold.")
