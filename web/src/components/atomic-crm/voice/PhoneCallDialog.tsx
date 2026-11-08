@@ -18,6 +18,7 @@ import {
   isActive,
   phoneKeys,
   previewPhoneCall,
+  retryPhoneCall,
   startPhoneCall,
   statusLabel,
   usePhoneCall,
@@ -83,6 +84,11 @@ export const PhoneCallDialog = ({
     onSuccess: (started) => setCallId(started.id),
   });
   const hangUp = useMutation({ mutationFn: () => hangUpPhoneCall(callId as string) });
+  // Try again: the call was recorded but its transcript failed; the service resumes from the kept recording
+  const retry = useMutation({
+    mutationFn: () => retryPhoneCall(callId as string),
+    onSuccess: (row) => queryClient.setQueryData(phoneKeys.call(row.id), row),
+  });
   const apply = useMutation({
     mutationFn: (actionId: string) => applyCallActions(call?.note_id as string, [actionId]),
     onSuccess: (_, actionId) => {
@@ -160,6 +166,7 @@ export const PhoneCallDialog = ({
               {statusLabel(call)}
               {call.status === "connected" && <span className="tabular-nums"> · {clock(elapsed)}</span>}
             </p>
+            {retry.error && <p role="alert" className="text-destructive">{errorText(retry.error)}</p>}
           </div>
         )}
 
@@ -231,6 +238,11 @@ export const PhoneCallDialog = ({
           {call && !isActive(call.status) && (
             <Button variant="outline" onClick={() => close(false)}>
               Close
+            </Button>
+          )}
+          {call?.status === "failed" && call.result.retryable && (
+            <Button disabled={retry.isPending} onClick={() => retry.mutate()}>
+              {retry.isPending ? "Starting…" : "Try again"}
             </Button>
           )}
         </DialogFooter>
