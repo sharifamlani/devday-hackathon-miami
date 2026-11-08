@@ -290,7 +290,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
         ) : (
           <div
             key={i}
-            className="flex max-w-[78%] flex-col gap-2 self-start rounded-2xl rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm"
+            className="flex min-w-0 max-w-full flex-col gap-2 self-start rounded-2xl sm:max-w-[78%] rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm"
           >
             <span className="block text-[11px] font-bold text-muted-foreground">Agent</span>
             {m.steps.length > 0 && (
@@ -314,7 +314,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
             {m.text && (
               // every change in this reply undone: grey the prose so "Added …" can't read as still true
               <div className={cn(undoneSummary(m.steps).all && "opacity-55")} data-undone={undoneSummary(m.steps).all || undefined}>
-                <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>
+                <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>
               </div>
             )}
             <UndoneNote steps={m.steps} />
