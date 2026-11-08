@@ -19,7 +19,7 @@ and a live read of miamifoundation.org. Logs and scripts are in
 | 4 | Context store sourced, recent-first | 100% rows with source_url; newest-first holds | Live miamifoundation.org run (25 s, served_from live): 18/18 rows have a URL, all on miamifoundation.org; kinds 5 success_story / 6 use_of_funds / 4 org_health / 3 program_update; GET /context newest-first holds over 18/18 dated rows | `4_context_store.txt` | **PASS** |
 | 5 | Campaigns tell the story | 100% of 5 drafts cite ≥1 success story, 1 use of funds, 1 org health; 0 invented facts | **Re-graded on `4c01f01` (#118).** New live campaign for the same 5 givers: 5/5 cite all three kinds; every figure in a cited fact or a good gift. Hye-jin Park is thanked for "June, July, August and September" (the declined Oct 10 charge is gone). Every other claim checked against SQL (Robert $75 Nov 5; Rafael $50 Nov 3; Teodoro six $300 gifts 2025–26; Priya $500 Nov 2 "by check" = channel check). (Earlier FAIL: declined charge thanked) | `5_campaigns_regrade.txt` | **PASS** |
 | 6 | Money is exact | equals the updated answer key; pledges never count | `test_targets_quarters.py` 7 passed (includes declined charges + pledges excluded). Live ingest totals equal the key (131 gifts, $1,367,535) | `6_money.txt`, `2_7_ingest_check.txt` | **PASS** |
-| 7 | Challenge #2 (**2a wording changed by Sharif**, relayed by the lead: fuzzy duplicates stay pending; exact matches may auto-merge but show a "!" with Keep/Split; Split leaves gifts + totals unchanged) | as left; 5/5 alerts shown as tasks | **Re-graded on `d555d39` (#125/#134).** DG1, DG3, DG6 auto-merged, each with an open auto-merge; DG2 and DG5 merged their exact pair, the fuzzy rest pending; DG4 pending. UI: "Merged automatically, review" ("!") on the person, listing source files/emails/gifts, with **Keep merged / Split back**; 11 flags on the People list. Split #8 → totals **131 / $1,367,535, 0 orphans** unchanged, survivor's gifts move to the restored person; Keep #15 clears the flag. Alerts as tasks: 5/5 before and **5/5 after approving all** duplicates, 0 stale (3a's fix) | `7_dup2a.txt`, `7_alerts_regrade.txt` | **PASS** |
+| 7 | Challenge #2 (**2a wording changed by Sharif**, recorded in plan.md §21.10 by #122: fuzzy duplicates stay pending; exact matches may auto-merge but show a "!" with Keep/Split; Split leaves gifts + totals unchanged) | as left; 5/5 alerts shown as tasks | **Re-graded on `d555d39` (#125/#134).** DG1, DG3, DG6 auto-merged, each with an open auto-merge; DG2 and DG5 merged their exact pair, the fuzzy rest pending; DG4 pending. UI: "Merged automatically, review" ("!") on the person, listing source files/emails/gifts, with **Keep merged / Split back**; 11 flags on the People list. Split #8 → totals **131 / $1,367,535, 0 orphans** unchanged, survivor's gifts move to the restored person; Keep #15 clears the flag. Alerts as tasks: 5/5 before and **5/5 after approving all** duplicates, 0 stale (3a's fix) | `7_dup2a.txt`, `7_alerts_regrade.txt` | **PASS** |
 | 8 | Enrich tags | ≥2 of 3 sample orgs get ≥1 sourced tag; 0 outside the 17; 0 for a made-up person | **Re-graded on `d555d39`.** 3/3 real orgs tagged with sources (Knight 4, DeLuca 5, McDermott 3); 0 outside the 17; made-up person 0; 0 writes. **The wrong-entity finding is fixed:** fictional "Whitaker Family Charitable Fund" now gets 0 tags (before: youth_family from a South Carolina org) | `8_enrich_regrade.txt` | **PASS** |
 | 9 | Transcription | first words < 2 s; ≥90% word match on a scripted 20 s read | First interim 1.0 s and 0.89 s (2 live runs). Word match 90.3% (7 edits / 72 words; 4 are number formatting). Real misses: "volunteers", "helped"→"help", "December", lost where one final segment ends | `9_transcription.txt` | **PASS** |
 | 10 | Call notes | note + summary survive restart; dictation stores 0 rows | Dictation: 0 notes before and after. Summarized note saved, service restarted, note + summary + next steps returned unchanged; SQL call_notes = 2 (the 2 saved calls) | `10_call_notes.txt` | **PASS** |
@@ -48,14 +48,15 @@ should also be recorded in `plan.md` §21.10.
 1. **Ingest double-counts the double-recorded $500 check in some runs.** One of my two live UI first runs on
    `d555d39` counted 132 ok gifts = $1,368,035 (the key's planted double-recorded check counted twice); the other
    counted 131 = $1,367,535, as did the QA checker's 2 runs on `5ecf010`. The money test (row 6) passes because
-   it builds from the key; a live upload can still be off by $500. Owner: ingest (a4/Carlos). Re-measure: 3
-   back-to-back live uploads, all 131 / $1,367,535.
+   it builds from the key; a live upload can still be off by $500. Owner: a4, in its data sweep (3 cold uploads +
+   1 warm). Re-measure: 3 back-to-back live uploads, all 131 / $1,367,535.
 2. **The public `snapshot.json` carries every contact unmasked** (141 email and 64 phone values). The public
    build masks them on screen only, so anyone can read them from `/snapshot.json`. The data is fictional today;
-   if real data is ever exported, mask in `export_snapshot.py`. Decision: Sharif.
+   if real data is ever exported, mask in `export_snapshot.py`. The lead ruled it acceptable for the fictional
+   demo data; Sharif to confirm.
 3. **Test artifacts committed to `main`:** `fac5a71` added 68 Vitest failure screenshots under
-   `web/.vitest/`, with no ignore rule; their long names break `git worktree add` in deep folders. The lead is
-   doing the hygiene PR.
+   `web/.vitest/`, with no ignore rule; their long names break `git worktree add` in deep folders. Fix: #166 (in
+   review).
 4. **#137 (public tunnel) is not merged** and is graded outside this table: the transcript leak is fixed; a
    private Donors-tab task title still leaks through `/people` (next_step), `/calendar` and `/tasks` under
    public mode; the branch needs a rebase. The tunnel stays off until it passes.
