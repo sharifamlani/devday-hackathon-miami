@@ -57,7 +57,6 @@ import { focusRing } from "./tile";
 import {
   AgentReply,
   UserMessage,
-  ConversationSuggestions,
 } from "./Conversation";
 
 const pill = cn(
@@ -467,13 +466,7 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
 
   return (
     <div data-tour="composer" className="home-composer">
-      <ConversationSuggestions
-        disabled={busy}
-        onSelect={(question) => {
-          setText(question);
-          inputRef.current?.focus();
-        }}
-      />
+      {/* No suggestion chips above the chat bar (Sharif, #222). */}
       <form onSubmit={onSubmit} className="home-composer-input">
         <span
           key={bloomId}
