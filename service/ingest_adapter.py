@@ -1006,6 +1006,9 @@ async def _prepare(files: list[tuple[str, bytes]], target: str, warnings: list[s
             known = {name_key(n) for p in people for n in p["names"]}
             known_names = [n for p in people for n in p["names"]]
             for x in await _find_missing_people(people, prose, warnings):
+                x.name = re.sub(r"\s*[(\[].*?[)\]]", "", x.name).strip()  # "Dwayne (from the hardware place)" -> "Dwayne"
+                if not x.name:
+                    continue
                 if name_key(x.name) in known or is_fragment(x.name) or any(same_name(x.name, n) for n in known_names):
                     continue
                 known.add(name_key(x.name))

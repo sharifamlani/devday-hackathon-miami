@@ -496,3 +496,32 @@ def test_five_file_upload_keeps_every_gift(tmp_path, monkeypatch):
     conn.close()
     want = sorted((float(g["amount"]), g["gift_date"]) for g in KEY["gifts"] if g["source"]["file"] in five)
     assert got == want
+
+
+def test_missing_people_from_prose_skip_fragments_and_variants_of_listed_people(monkeypatch):
+    import asyncio
+
+    ev = {"a.md": [_ev("Mildred", "Hayes", "", None, None, "r:1"), _ev("Ann", "Lee", "ann@example.com", 5, "2024-01-01", "r:2")]}
+
+    async def read_all(files, warnings):
+        return ev
+
+    async def nothing(*a, **k):
+        return None
+
+    async def judge_all(people, prose, warnings):
+        return {}
+
+    def extra(name):
+        return ia.ExtraPerson(name=name, contact_type="neighbor", reason="r", where="line 1")
+
+    async def missing(people, prose, warnings):
+        return [extra("Dwayne (from the hardware place)"), extra("Millie Hayes"), extra("Bob N."), extra("Zed Quill")]
+
+    monkeypatch.setattr(ia, "_read_all", read_all)
+    monkeypatch.setattr(ia, "_prose_context", lambda files: "notes")
+    monkeypatch.setattr(ia, "_review_prose_gifts", nothing)
+    monkeypatch.setattr(ia, "_judge_all", judge_all)
+    monkeypatch.setattr(ia, "_find_missing_people", missing)
+    _, people, _ = asyncio.run(ia._prepare([("a.md", b"")], "auto", [], []))
+    assert sorted(p["names"][0] for p in people) == ["Ann Lee", "Mildred Hayes", "Zed Quill"]
