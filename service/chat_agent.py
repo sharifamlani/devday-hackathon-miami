@@ -120,7 +120,7 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
     if people is not None:
         people = [p for p in people if (not status or p.get("status") == status) and (not tier or p.get("tier") == tier)
                   and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)][:min(limit, 50)]
-        keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status")
+        keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status", "next_step")
         return {"people": [{k: p.get(k) for k in keep} for p in people], "count": len(people)}
     if ctx.context.tab not in ("givers", "home", "calendar"):
         return not_loaded(ctx.context)
@@ -138,6 +138,9 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
     rows = query("SELECT d.id, d.full_name, d.donor_type, s.score, s.tier, s.is_star, s.status FROM donors d "
                  "JOIN donor_scores s ON s.donor_id = d.id" + (" WHERE " + " AND ".join(where) if where else "")
                  + " ORDER BY s.score DESC LIMIT ?", (*args, min(limit, 50)))
+    t = tasks_module()                  # the same next_step GET /people shows: the giver's next open task
+    if t is not None:
+        with_conn(t.with_next_steps, rows)
     return {"people": rows, "count": len(rows)}
 
 

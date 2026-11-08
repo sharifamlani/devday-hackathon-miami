@@ -303,6 +303,8 @@ export interface DonorContact {
   contact_type?: "giver" | "neighbor" | "community" | null;
   /** Exact-match merge waiting for staff review (#125): the "!" icon. */
   auto_merged?: boolean;
+  /** The giver's next open task, from the service (tasks.with_next_steps). */
+  next_step?: string | null;
   merged_from?: number;
 }
 
@@ -475,6 +477,7 @@ export const toDonorContact = (
     give_miami_day_days_away: summary.give_miami_day_days_away,
     contact_type: summary.contact_type ?? null,
     auto_merged: summary.auto_merged ?? false,
+    next_step: summary.next_step ?? null,
     merged_from: summary.merged_from ?? 0,
     source: sourceList(row.source_row),
     interests: stringList(row.interests),

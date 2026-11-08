@@ -214,6 +214,11 @@ const ProfileHeader = ({
           <DonorTagList tags={record.status_tags ?? []} />
           {record.is_sample && <SampleHistoryBadge />}
         </div>
+        {!isNonGiver(record.contact_type) && record.next_step && (
+          <p className="mt-2 text-sm" data-testid="donor-next-step">
+            <span className="font-medium">Next step:</span> {record.next_step}
+          </p>
+        )}
       </div>
       <div className="text-right">
         <div className="text-xs font-medium text-muted-foreground">
