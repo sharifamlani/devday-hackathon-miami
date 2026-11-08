@@ -43,7 +43,7 @@ def undo(token: str) -> dict:
 
 
 def test_sends_merges_and_deletes_are_approval_gated_and_nothing_else():
-    assert ca.APPROVAL_TOOLS == {"send", "merge_duplicate", "delete_task", "delete_calendar_item"}
+    assert ca.APPROVAL_TOOLS == {"send", "merge_duplicate", "delete_task", "delete_calendar_item", "call_person"}
     reads = {"find_people", "get_person", "get_alerts", "get_events", "get_calendar", "get_tasks",
              "get_call_notes", "search_context"}
     writes = {"update_person", "add_interest", "remove_interest", "accept_enrichment", "merge_duplicate",

@@ -46,6 +46,8 @@ Rules:
 - You can change records directly (people, tasks, calendar, interests, RSVPs, duplicates). Each change applies at
   once and the user sees an Undo button; say what you changed. Sends, merges and deletes wait for the user's
   approval: call the tool, and the user approves or declines on a card.
+- To phone someone, call call_person (it waits for the approval card). The user's own phone rings first,
+  then the person's; the call is recorded with a spoken notice and saved as a call note afterwards.
 - For event outreach use plan_event_outreach: it makes one batch per event; report each event's drafts and
   who needs individual approval.
 {first_turn}{selection}"""
@@ -613,6 +615,18 @@ def send(ctx: RunContextWrapper[ChatContext], batch_id: int, message_ids: list[i
         return {"error": str(e.detail)}
 
 
+@function_tool(needs_approval=True)
+def call_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
+    """Phone a person from the staff member's own number. Needs the user's approval. The staff member's phone
+    rings first; once they answer, this person's phone rings. The call is recorded after a spoken notice, then
+    transcribed, summarized and saved as a call note with suggested follow-ups."""
+    from service import phone
+    try:
+        return with_conn(phone.start_call, person_id)
+    except (phone.PhoneError, LookupError) as e:
+        return {"error": str(e)}
+
+
 @function_tool
 def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
     """Undo one earlier change by its undo_token."""
@@ -633,7 +647,7 @@ TOOLS = [
     apply_after_call_actions,
     draft_email, draft_sms, plan_event_outreach, undo,
     # approval-gated: the run pauses on an approval card
-    merge_duplicate, delete_task, delete_calendar_item, send,
+    merge_duplicate, delete_task, delete_calendar_item, send, call_person,
 ]
 APPROVAL_TOOLS = {t.name for t in TOOLS if getattr(t, "needs_approval", False)}
 
