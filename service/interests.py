@@ -8,7 +8,8 @@ confidence, evidence, source_url and source_type. Rules enforced here, in Python
     - removing a tag keeps the row (status 'removed')
 
 Service functions (add_interest, remove_interest, accept_enrichment) return an undo token; undo(conn, token)
-reverses the change. The token carries the rows as they were, so it works before 3a's agent_actions lands.
+reverses the change (POST /undo/{token} routes "int_..." tokens here). The token carries the rows as they
+were; each write is also logged in 3a's agent_actions, so a token can be used once and an unknown one fails.
 """
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ import base64
 import hashlib
 import json
 import sqlite3
+import uuid
 from typing import Literal
 
 # slug, label, definition, sub-tags, NTEE groups, Miami Foundation / Give Miami Day mapping
@@ -151,35 +153,61 @@ def _snapshot(conn: sqlite3.Connection, donor_id: int, tags: list[str]) -> list[
         (donor_id, *tags))]
 
 
-def _token(op: str, donor_id: int, tags: list[str], before: list[dict], fact_ids: list[int] | None = None) -> str:
-    payload = {"op": op, "donor_id": donor_id, "tags": tags, "before": before, "fact_ids": fact_ids or []}
-    return "int_" + base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode().rstrip("=")
+def _has_actions_log(conn: sqlite3.Connection) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'agent_actions'").fetchone() is not None
+
+
+def _token(conn: sqlite3.Connection, op: str, donor_id: int, tags: list[str], before: list[dict],
+           fact_ids: list[int] | None = None, actor: str = "staff") -> str:
+    payload = {"op": op, "donor_id": donor_id, "tags": tags, "before": before, "fact_ids": fact_ids or [],
+               "nonce": uuid.uuid4().hex[:8]}       # two identical changes still get distinct tokens
+    token = "int_" + base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode().rstrip("=")
+    if _has_actions_log(conn):
+        with conn:
+            conn.execute("INSERT INTO agent_actions (token, actor, action, target, before, after) "
+                         "VALUES (?, ?, ?, ?, ?, NULL)", (token, actor, op, f"person:{donor_id}", json.dumps(before)))
+    return token
 
 
 def undo(conn: sqlite3.Connection, token: str) -> dict:
-    """Put the person's tags (and any research facts the change saved) back as they were."""
+    """Put the person's tags (and any research facts the change saved) back as they were.
+
+    Raises ValueError for a malformed, unknown or already-used token (POST /undo turns it into a 4xx).
+    """
     if not token.startswith("int_"):
         raise ValueError("not an interest undo token")
     raw = token[4:]
-    payload = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
-    donor_id, tags = payload["donor_id"], payload["tags"]
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
+        donor_id, tags, before, fact_ids = payload["donor_id"], payload["tags"], payload["before"], payload["fact_ids"]
+    except (ValueError, KeyError, TypeError) as exc:      # bad base64 / JSON / shape
+        raise ValueError(f"malformed interest undo token ({type(exc).__name__})") from None
+    logged = _has_actions_log(conn)
+    if logged:
+        action = conn.execute("SELECT id, undone_at FROM agent_actions WHERE token = ?", (token,)).fetchone()
+        if action is None:
+            raise ValueError("unknown interest undo token")
+        if action["undone_at"] is not None:
+            raise ValueError("this change was already undone")
     with conn:
         if tags:
             marks = ",".join("?" * len(tags))
             conn.execute(f"DELETE FROM donor_interests WHERE donor_id = ? AND tag IN ({marks})", (donor_id, *tags))
-        for row in payload["before"]:
+        for row in before:
             conn.execute(f"INSERT INTO donor_interests ({', '.join(ROW_FIELDS)}) VALUES ({', '.join('?' * len(ROW_FIELDS))})",
                          [row[f] for f in ROW_FIELDS])
-        if payload["fact_ids"]:
-            marks = ",".join("?" * len(payload["fact_ids"]))
-            conn.execute(f"DELETE FROM research_facts WHERE id IN ({marks})", payload["fact_ids"])
-    return {"undone": True, "op": payload["op"], "donor_id": donor_id}
+        if fact_ids:
+            marks = ",".join("?" * len(fact_ids))
+            conn.execute(f"DELETE FROM research_facts WHERE id IN ({marks})", fact_ids)
+        if logged:
+            conn.execute("UPDATE agent_actions SET undone_at = datetime('now') WHERE token = ?", (token,))
+    return {"undone": True, "op": payload.get("op"), "donor_id": donor_id}
 
 
 # --- Staff writes ----------------------------------------------------------------------------------
 
 def add_interest(conn: sqlite3.Connection, donor_id: int, tag: str, sub_tag: str | None = None,
-                 staff: str = "staff", evidence: str | None = None) -> dict:
+                 staff: str = "staff", evidence: str | None = None, actor: str = "staff") -> dict:
     """Staff adds a tag: set_by 'staff', confidence 'high', no URL needed. Returns {interests, undo}."""
     check_tag(tag, sub_tag)
     ensure_seeded(conn)
@@ -195,10 +223,12 @@ def add_interest(conn: sqlite3.Connection, donor_id: int, tag: str, sub_tag: str
         else:
             conn.execute("INSERT INTO donor_interests (donor_id, tag, sub_tag, confidence, evidence, source_type, set_by) "
                          "VALUES (?, ?, ?, 'high', ?, 'staff_note', 'staff')", (donor_id, tag, sub_tag, note))
-    return {"interests": list_interests(conn, donor_id), "undo": _token("add_interest", donor_id, [tag], before)}
+    return {"interests": list_interests(conn, donor_id),
+            "undo": _token(conn, "add_interest", donor_id, [tag], before, actor=actor)}
 
 
-def remove_interest(conn: sqlite3.Connection, donor_id: int, tag: str, staff: str = "staff") -> dict:
+def remove_interest(conn: sqlite3.Connection, donor_id: int, tag: str, staff: str = "staff",
+                    actor: str = "staff") -> dict:
     """Staff removes a tag: every row for it goes to status 'removed' (kept, so the agent won't re-add it)."""
     check_tag(tag)
     ensure_seeded(conn)
@@ -212,7 +242,7 @@ def remove_interest(conn: sqlite3.Connection, donor_id: int, tag: str, staff: st
                          "status, removed_by) VALUES (?, ?, 'high', ?, 'staff_note', 'staff', 'removed', ?)",
                          (donor_id, tag, f"Removed by {staff}", staff))
             changed = 0
-    return {"removed": changed > 0, "undo": _token("remove_interest", donor_id, [tag], before)}
+    return {"removed": changed > 0, "undo": _token(conn, "remove_interest", donor_id, [tag], before, actor=actor)}
 
 
 # --- Agent proposals → Save to profile -------------------------------------------------------------
@@ -246,7 +276,7 @@ def upsert_agent_interest(conn: sqlite3.Connection, donor_id: int, i: dict) -> b
 
 
 def accept_enrichment(conn: sqlite3.Connection, donor_id: int, proposal: dict, fact_ids: list[str],
-                      tags: list[str], agent_run_id: str) -> dict:
+                      tags: list[str], agent_run_id: str, actor: str = "staff") -> dict:
     """Save the facts and tags staff picked from a proposal ({facts, interests}). Staff-owned tags are skipped.
 
     Returns {saved: {facts, interests, contact, skipped_staff_tags}, undo}. contact echoes the proposal's
@@ -276,4 +306,4 @@ def accept_enrichment(conn: sqlite3.Connection, donor_id: int, proposal: dict, f
                 skipped.append(i["tag"])
     return {"saved": {"facts": len(new_fact_ids), "interests": written, "contact": proposal.get("contact") or {},
                       "contact_persisted": False, "skipped_staff_tags": sorted(set(skipped))},
-            "undo": _token("accept_enrichment", donor_id, touched, before, new_fact_ids)}
+            "undo": _token(conn, "accept_enrichment", donor_id, touched, before, new_fact_ids, actor=actor)}

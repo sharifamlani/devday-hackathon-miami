@@ -193,3 +193,33 @@ def test_schema_stays_write_free_and_seeding_is_once(tmp_path):
     assert conn.total_changes == changes                               # no writes on the second pass
     assert len(interests.list_tags(conn)) == 17
     conn.close()
+
+
+def test_post_undo_reverts_once_then_refuses(client):
+    """3a's POST /undo/{token} routes int_ tokens here: 200 and reverted, then 4xx (never 500) on reuse."""
+    pid = org_id()
+    token = client.post(f"/people/{pid}/interests", json={"tag": "animals"}).headers["X-Undo-Token"]
+    assert [t["tag"] for t in client.get(f"/people/{pid}/interests").json()] == ["animals"]
+    first = client.post(f"/undo/{token}")
+    assert first.status_code == 200 and first.json()["undone"] is True
+    assert client.get(f"/people/{pid}/interests", params={"include_removed": True}).json() == []
+    again = client.post(f"/undo/{token}")
+    assert again.status_code == 422 and "already undone" in again.json()["detail"]
+    for bad in ("int_not-base64", "int_e30", "int_eyJvcCI6IngifQ"):   # garbage, {}, {"op":"x"}
+        assert client.post(f"/undo/{bad}").status_code == 422
+
+
+def test_undo_raises_value_error_for_unknown_or_reused_tokens(db_file):
+    conn = db.connect()
+    pid = conn.execute("SELECT id FROM donors LIMIT 1").fetchone()[0]
+    token = interests.add_interest(conn, pid, "animals", actor="agent")["undo"]
+    logged = conn.execute("SELECT actor, action, target FROM agent_actions WHERE token = ?", (token,)).fetchone()
+    assert tuple(logged) == ("agent", "add_interest", f"person:{pid}")
+    interests.undo(conn, token)
+    with pytest.raises(ValueError):
+        interests.undo(conn, token)                                   # already undone
+    conn.execute("DELETE FROM agent_actions WHERE token = ?", (token,))
+    conn.commit()
+    with pytest.raises(ValueError):
+        interests.undo(conn, token)                                   # unknown
+    conn.close()
