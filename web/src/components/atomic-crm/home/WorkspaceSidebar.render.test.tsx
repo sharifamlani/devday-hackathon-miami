@@ -25,6 +25,8 @@ vi.mock("../providers/local/hooks", () => ({
 vi.mock("../providers/local/homeFeed", () => {
   const query = (data: unknown) => ({ data, isPending: false, error: null });
   return {
+    // homeData.ts imports attentionTag; the attention list here is empty, so a minimal stand-in is enough.
+    attentionTag: (badge: string) => ({ label: badge, tone: "quiet" }),
     useHomeData: () => ({
       summary: query(null),
       attention: query([]),

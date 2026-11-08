@@ -334,8 +334,9 @@ describe("defaultPersistence and storage that is turned off", () => {
     expect(defaultPersistence(TAGS, "snapshot", memoryStorage()).where).toBe(
       "browser",
     );
-    // No window in node: nothing can be stored.
-    expect(defaultPersistence(TAGS, "snapshot").where).toBe("unavailable");
+    // No usable storage (blocked, private mode, or none at all): nothing can be stored. These tests run in
+    // a real browser, whose own localStorage is usable, so "no storage" is passed explicitly.
+    expect(defaultPersistence(TAGS, "snapshot", null).where).toBe("unavailable");
   });
 
   it("finds storage unusable when reading it or writing to it throws", () => {
