@@ -365,3 +365,34 @@ def test_call_notes_and_staff_notes_never_appear_in_any_allowed_get(client):
     for method, rx in public_mode.ALLOW:
         if method == "GET":
             assert any(rx.match(p.split("?")[0]) for p in paths), rx.pattern
+
+
+def test_the_private_call_notes_note_only_shows_while_the_preview_redacts(db_file, monkeypatch):
+    """Under 22's PUBLIC_SHOW_ALL (public_mode.redacting() False) the notes are shown, so the agent mustn't be told
+    they're private; while redacting (the default) it is."""
+    import asyncio
+    import json
+
+    from agents.tool_context import ToolContext
+
+    from service import chat_agent
+
+    public_mode.set_enabled(True)
+    tool = next(t for t in chat_agent.tools_for_mode() if t.name == "get_call_notes")
+
+    def notes_output() -> dict:
+        payload = json.dumps({"person_id": 3})
+        out = asyncio.run(tool.on_invoke_tool(
+            ToolContext(context=chat_agent.ChatContext(tab="givers"), tool_name="get_call_notes",
+                        tool_call_id="t1", tool_arguments=payload), payload))
+        return out if isinstance(out, dict) else json.loads(out)
+
+    assert notes_output()["note"] == "call notes stay private in the public preview"   # default: redacting
+    monkeypatch.setattr(public_mode, "redacting", lambda: False, raising=False)
+    assert "note" not in notes_output()                                               # show-all: no such claim
+
+    # show-all re-hides nothing: the read's own output passes through untouched (no mask_json at all)
+    calls = []
+    monkeypatch.setattr(public_mode, "mask_json", lambda v, key="": calls.append(v) or v)
+    notes_output()
+    assert calls == []

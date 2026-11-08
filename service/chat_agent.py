@@ -1092,6 +1092,11 @@ def refuse_in_preview(tool):
     return dataclasses.replace(tool, on_invoke_tool=invoke, needs_approval=False)
 
 
+def redacting() -> bool:
+    """public_mode.redacting() (22: PUBLIC_MODE and not PUBLIC_SHOW_ALL); before that lands, public mode redacts."""
+    return getattr(public_mode, "redacting", lambda: True)()
+
+
 def masked_in_preview(tool):
     """A read the preview allows, with its output masked before the model sees it (public_mode.mask_json, as for
     every public JSON response): call notes and transcripts come back empty, staff notes blank, emails and phones
@@ -1100,12 +1105,15 @@ def masked_in_preview(tool):
 
     async def invoke(ctx, input):
         out = await run(ctx, input)
+        if not redacting():                         # PUBLIC_SHOW_ALL: the demo shows everything, nothing re-hidden
+            return out
         try:
             data = out if isinstance(out, (dict, list)) else json.loads(out)
         except (TypeError, ValueError):
             return out
         masked = public_mode.mask_json(data)
-        if isinstance(masked, dict) and "call_notes" in masked:     # they exist; they're just not shown here
+        # They exist, they're just not shown here (only reached while redacting; show-all returned above).
+        if isinstance(masked, dict) and "call_notes" in masked:
             masked["note"] = "call notes stay private in the public preview"
         return masked if isinstance(out, (dict, list)) else json.dumps(masked)
     return dataclasses.replace(tool, on_invoke_tool=invoke)
