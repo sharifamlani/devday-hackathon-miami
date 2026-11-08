@@ -30,6 +30,7 @@ import {
 } from "../landing/sampleFiles";
 import { DATA_MODE } from "../providers/local/config";
 import type { UploadTarget } from "../providers/local/crmTypes";
+import type { DonorSummary } from "../providers/local/types";
 import { sourceOf } from "../providers/local/endpoint";
 import {
   useDonors,
@@ -208,11 +209,13 @@ const TARGETS: { value: UploadTarget; label: string }[] = [
 export const ImportReceipt = ({
   summary,
   fresh,
+  people,
   onReviewDuplicates,
   onAddMore,
 }: {
   summary: FilesSummary;
   fresh: boolean;
+  people: DonorSummary[];
   onReviewDuplicates: () => void;
   onAddMore: () => void;
 }) => {
@@ -279,6 +282,51 @@ export const ImportReceipt = ({
           agent wasn't sure which tab they belong in.
         </p>
       )}
+      {people.length > 0 && (
+        <details className="onb-structured-preview">
+          <summary>Preview structured records ({people.length})</summary>
+          <div className="onb-structured-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Tab</th>
+                  <th scope="col">Gifts</th>
+                  <th scope="col">Last gift</th>
+                  <th scope="col">Total given</th>
+                </tr>
+              </thead>
+              <tbody>
+                {people.slice(0, 12).map((person) => (
+                  <tr key={person.id}>
+                    <th scope="row">{person.full_name}</th>
+                    <td>{person.contact_type ?? "Unclassified"}</td>
+                    <td>{person.gift_count}</td>
+                    <td>
+                      {person.last_gift_date
+                        ? new Date(`${person.last_gift_date}T00:00:00Z`).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" },
+                          )
+                        : "—"}
+                    </td>
+                    <td>
+                      {new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                        maximumFractionDigits: 0,
+                      }).format(person.total_given)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {people.length > 12 && (
+              <p>Showing 12 of {people.length} records. All are available in the workspace.</p>
+            )}
+          </div>
+        </details>
+      )}
       <p className="onb-receipt-line">
         <button
           type="button"
@@ -302,7 +350,7 @@ export const FilesStep = ({
   onReviewDuplicates: () => void;
 }) => {
   const { data, update } = useOnboarding();
-  const { data: people } = useDonors();
+  const { data: people, refetch: refetchPeople } = useDonors();
   const upload = useUploadFiles();
   const [files, setFiles] = useState<File[]>([]);
   const [skipped, setSkipped] = useState<SkippedFile[]>([]);
@@ -342,14 +390,24 @@ export const FilesStep = ({
   const remove = (name: string) =>
     setFiles((current) => current.filter((f) => f.name !== name));
 
-  const loadExamples = async () => {
+  const importExamples = async () => {
     setLoadingSample(true);
+    setStatus(null);
     try {
-      choose(await loadSampleFiles(await loadSampleManifest()));
+      const examples = await loadSampleFiles(await loadSampleManifest());
+      setFiles(examples);
+      const result = await upload.mutateAsync({ files: examples, target: "auto" });
+      update({ files: ingestSummary(result, examples.length) });
+      await refetchPeople();
+      setFiles([]);
+      setSkipped([]);
+      setListOpen(false);
+      setAdding(false);
+      setFresh(true);
     } catch (cause) {
       setStatus({
         tone: "error",
-        text: plainError(cause, "The example files couldn't be loaded."),
+        text: plainError(cause, "The demo files couldn't be imported."),
       });
     } finally {
       setLoadingSample(false);
@@ -376,6 +434,7 @@ export const FilesStep = ({
     try {
       const result = await upload.mutateAsync({ files, target });
       update({ files: ingestSummary(result, files.length) });
+      await refetchPeople();
       setFiles([]);
       setSkipped([]);
       setListOpen(false);
@@ -419,8 +478,8 @@ export const FilesStep = ({
         ) : null
       }
       primary={
-        <Primary busy={uploading}>
-          {uploading
+        <Primary busy={busy}>
+          {busy
             ? "Importing…"
             : files.length
               ? `Import ${plural(files.length, "file", "files")}`
@@ -439,6 +498,7 @@ export const FilesStep = ({
         <ImportReceipt
           summary={imported}
           fresh={fresh}
+          people={people ?? []}
           onReviewDuplicates={onReviewDuplicates}
           onAddMore={() => {
             setAdding(true);
@@ -472,10 +532,10 @@ export const FilesStep = ({
               <button
                 type="button"
                 className="onb-btn text small"
-                onClick={() => void loadExamples()}
-                disabled={busy}
+                onClick={() => void importExamples()}
+                disabled={busy || (!!imported && !adding)}
               >
-                {loadingSample ? "Loading…" : "Use the example files"}
+                {loadingSample ? "Importing demo files…" : "Import demo files"}
               </button>
             </div>
           </div>

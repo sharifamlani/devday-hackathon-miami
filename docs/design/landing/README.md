@@ -8,7 +8,7 @@ The primary React app opens on the Kindred landing page at its bare URL, regardl
 
 The layout centers all information in one screen at the checked desktop and phone sizes. It uses white, charcoal, yellow and muted olive, with a crisp primary action and a faint outlined drop area. Both app entry points use the shared `DonorDesk` component, so the normal and Vercel demo builds receive the same design.
 
-The selected upload still uses a slightly roomier, 432px-wide drop area with a 25%-opacity hairline, transparent interior, and smaller 44px-high charcoal button. It accepts one CSV through drag-and-drop or the file chooser, highlights on drag/focus, and shows the selected filename before confirmation. Invalid file types are rejected.
+The landing's direct upload remains a secondary shortcut. The primary demo action is **Get started**, which moves into the workspace hash route and starts onboarding. The onboarding file step supports multi-file upload and the bundled **Import demo files** action.
 
 The upload dialog uses the existing data-mode boundary. Snapshot builds offer a sample workspace and explain that uploads need the local service. Local builds submit a CSV through the existing `uploadFiles` method and show success/errors; no new backend or ingest behavior is introduced.
 

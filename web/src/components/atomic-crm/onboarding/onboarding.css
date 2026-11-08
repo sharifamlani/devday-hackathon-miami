@@ -504,6 +504,41 @@
   padding: 0 4px;
   min-height: 32px;
 }
+.onb-structured-preview {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 13px;
+}
+.onb-structured-preview > summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.onb-structured-scroll {
+  max-width: 100%;
+  margin-top: 10px;
+  overflow-x: auto;
+}
+.onb-structured-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.onb-structured-scroll th,
+.onb-structured-scroll td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.onb-structured-scroll thead th {
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+.onb-structured-scroll p {
+  margin: 8px 0 0;
+  color: var(--muted-foreground);
+}
 .onb-fact-list {
   margin: 0;
   padding: 0 0 0 30px;

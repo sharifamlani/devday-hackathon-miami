@@ -21,18 +21,19 @@ Community 15**), but the demo stays on **Givers**.
 Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run; the
 Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
 
-1. **Empty start.** The app opens on the setup dialog (**Donor Desk · Step 1 of 3**) with nothing behind it: no
-   people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–4): with
-   people already uploaded, a reload could skip the website and context steps (#193 should prevent it; keep the habit).
-2. **Step 1, "Drag in your files."** Drop the **8 input files** from `data/sample_inputs/` on **Drop your files here**
+1. **Landing page.** Open the bare app URL and click **Get started**. The demo starts onboarding from the landing;
+   the workspace remains at `#/` for direct access.
+2. **Step 1, "Drag in your files."** Click **Import demo files** to load and submit the bundled **8 input files** in one
+   action, or drop the files from `data/sample_inputs/` on **Drop your files here**
    (or click **Choose files**): `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`,
    `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`,
    `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`. Not
    `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**
    (it reads **Importing…**, about 10 s on a warm cache). **Import finished: 77 people · 131 gifts (+1 declined charge
    on record) from 8 files**, then **40 Givers · 22 Neighbors · 15 Community**, **9 possible duplicates to
-   review**, and e.g. **3 people to double-check: the agent wasn't sure which tab they belong in.** Click **Continue**. (**Use the example files** loads the same eight with one click.)
-3. **Step 2, "Tell us about your organization."** Type `miamifoundation.org` in the **Website** field and click
+   review**, and e.g. **3 people to double-check: the agent wasn't sure which tab they belong in.** Review the
+   collapsible preview of structured records and click **Continue**.
+3. **Step 2, "Tell us about your organization."** Confirm The Miami Foundation details and click
    **Continue**. Social links are saved, not read.
 4. **Step 3, "Building your context."** It shows **Reading your website · m:ss** (about 30 s). "It reads the site and
    news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing." The
