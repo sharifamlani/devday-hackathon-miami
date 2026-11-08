@@ -50,7 +50,7 @@ import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from service import dedupe, score, targets, tasks
+from service import dedupe, public_mode, score, targets, tasks
 from service.ask_agent import snapshot_examples
 from service.db import REPO_ROOT, connect, create_schema
 from service.routes_data import (get_donor, get_org_profile_or_none, get_prospect, latest_icp, list_context,
@@ -197,6 +197,13 @@ def campaigns_snapshot(conn) -> dict | None:
     return demo
 
 
+def public_snapshot(snapshot: dict) -> dict:
+    """What the public preview may show: build_snapshot mirrors the routes unmasked (the tests compare them), so the
+    file is masked on the way out the same way public mode masks a live response: emails and phones masked, call
+    transcripts and staff free text blanked."""
+    return public_mode.mask_json(snapshot)
+
+
 def write_snapshot(snapshot: dict, out: Path) -> int:
     text = json.dumps(snapshot, ensure_ascii=False, indent=1)
     size = len(text.encode("utf-8"))
@@ -222,7 +229,7 @@ def main() -> None:
     finally:
         conn.close()
     out = Path(args.out)
-    size = write_snapshot(snapshot, out)
+    size = write_snapshot(public_snapshot(snapshot), out)
     top = snapshot["donors"][0] if snapshot["donors"] else None
     print(f"{out}: {size:,} bytes, {snapshot['meta']['donor_count']} donors, "
           f"{len(snapshot['duplicates'])} duplicates, as_of {snapshot['meta']['as_of']}"
