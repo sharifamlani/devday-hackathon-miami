@@ -7,7 +7,7 @@ import time
 
 from fastapi.testclient import TestClient
 
-from service import config, org_context
+from service import config, db, org_context
 from service import refresh as refresh_module
 from service.main import app, run_refresh
 
@@ -45,12 +45,26 @@ def test_timeout_keeps_the_typed_urls_and_the_saved_facts(db_file, monkeypatch):
 
     assert body["served_from"] == "fallback" and body["state"] == "failed"
     assert "took longer" in body["detail"]
-    assert body["saved"]["urls_only"] is True and body["saved"]["replaced_sources"] == []
+    assert body["saved"]["cached_fallback"] is True
+    assert body["saved"]["replaced_sources"] == ["news", "website"]
     after_name, urls, after_facts = saved(c)
     assert urls == {"website": "https://example.org/about", "x_url": "https://x.com/testorg",
                     "linkedin_url": None, "instagram_url": None}
     assert (after_name, after_facts) == (name, facts) == ("Test Org", [("news", "news fact"),
                                                                        ("website", "website fact")])
+
+
+def test_explicit_name_overrides_agent_name_but_omitted_name_does_not(db_file, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: good_result("Agent Name"))
+
+    implicit = c.post("/context/run", json={"website": "https://example.org"}).json()
+    assert implicit["profile"]["name"] == "Agent Name"
+    assert saved(c)[0] == "Agent Name"
+
+    explicit = c.post("/context/run", json={"name": "Staff Name", "website": "https://example.org"}).json()
+    assert explicit["profile"]["name"] == "Staff Name"
+    assert saved(c)[0] == "Staff Name"
 
 
 def test_model_error_on_a_first_run_still_saves_the_urls(db_file, monkeypatch):
@@ -69,6 +83,29 @@ def test_model_error_on_a_first_run_still_saves_the_urls(db_file, monkeypatch):
     assert urls["website"] == "https://new-org.org"
     assert urls["instagram_url"] == "https://www.instagram.com/neworg"
     assert facts == []
+
+
+def test_file_cache_fallback_is_saved_for_the_dashboard(db_file, monkeypatch):
+    from service import main
+
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context",
+                        lambda urls, refresh=False: (_ for _ in ()).throw(RuntimeError("site unavailable")))
+    monkeypatch.setattr(main, "cached_context", lambda website: good_result("Cached Org"))
+
+    body = c.post("/context/run", json={"website": "https://example.org"}).json()
+
+    assert body["served_from"] == "fallback" and body["cached"] is True
+    assert len(body["saved"]["context_ids"]) == 2
+    profile = c.get("/org-profile").json()
+    assert profile["name"] == "Cached Org"
+    assert profile["source_status"]["website"] == "cached"
+    assert len(c.get("/context").json()) == 2
+    conn = db.connect(db_file)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM org_context WHERE cached = 1").fetchone()[0] == 2
+    finally:
+        conn.close()
 
 
 def test_missing_website_still_saves_nothing(db_file, monkeypatch):

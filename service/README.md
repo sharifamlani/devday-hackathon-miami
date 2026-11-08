@@ -9,9 +9,15 @@ From the repo root, with the repo-root `.env` in place (key + model tiers, see `
 
 ```bash
 uv pip install --python .venv/Scripts/python.exe -r service/requirements.txt
+.venv/Scripts/python.exe -m playwright install chromium
 .venv/Scripts/python.exe -m service.db --rebuild          # empty database (schema only); load data by uploading data/sample_inputs/
 .venv/Scripts/python.exe -m uvicorn service.main:app --port 8000
 ```
+
+The ICP prospect verifier renders source pages in headless Chromium. Installing the service requirements adds
+the Python Playwright package; run `python -m playwright install chromium` once per environment to install its
+browser binary. On Windows, use the same `.venv/Scripts/python.exe` interpreter shown above. CI jobs that run
+`service/tests/test_icp.py` need both steps before pytest.
 
 `SCORE_AS_OF` defaults to `2026-11-08` (set in `service/config.py`); override it in `.env`.
 CORS allows the Vite dev servers on `localhost:5173` and `localhost:5174`.
