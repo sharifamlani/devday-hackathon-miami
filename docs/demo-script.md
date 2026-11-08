@@ -1,73 +1,76 @@
-# Donor Desk: 3-minute demo script
+# Donor Desk: demo script
 
 Challenge #2: duplicate donor records, and donors who quietly stop giving.
 Judges score fit to "what solved looks like", originality, use of Codex and OpenAI, feasibility, and presentation (each /10).
 
-**Run order:** the live app on the demo laptop (`VITE_DATA_MODE=local`, Python service running) is primary. The Vercel link (devday-donor-desk.vercel.app) is the backup if the laptop or network fails.
+**Run order:** the live app on the demo laptop is primary (service on :8000, web with `VITE_DATA_MODE=local`). The
+Vercel snapshot (https://devday-donor-desk.vercel.app, sample data, read-only) is the backup if the laptop or network
+fails. Org: **The Miami Foundation**.
 
-**Persona:** read [org] as Tidepath if the made-up-data PR merges, otherwise The Miami Foundation. Change nothing else.
+This is a skeleton: each step names the screen and the one point to land. Timings get set at the rehearsal.
 
 ---
 
-## 0:00–0:20 · The problem (talking, no clicks)
-> "Denise is [org]'s part-time fundraiser. Every month she spends five hours merging four gift lists: the online page, event tickets, the gala auction and mailed checks. The same person shows up as Rosa Delgado, Rosa M. Delgado and R. Delgado, so the totals are wrong. Worse, nobody notices when a December donor skips a year or a monthly card expires. Give Miami Day is in 11 days."
+## The flow
 
-Screen: the landing page ("Less time on tasks. More time for people.").
+1. **Empty start.** The app opens with nothing in it: no people, gifts, tasks or context. "Nothing is preloaded."
+   First run opens the three-step onboarding.
+2. **Onboarding step 1: "Drag in your files."** Drag in the **8 input files** from `data/sample_inputs/`: `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`.
+   Not `answer_key.json` or `_README.md`. Choose where they go: **Let the agent sort** (or Givers / Neighbors /
+   Community), then **Continue**. "Spreadsheets, Word tables and meeting notes; anyone unclear is flagged for review,
+   never guessed." The landing page's **Import donor data** dialog is the same upload outside onboarding.
+3. **Onboarding step 2: "Tell us about your organization."** Enter the website (required):
+   `https://miamifoundation.org`. Social URLs are saved, not fetched.
+4. **Onboarding step 3: "Building your context."** Watch the per-source status. "It reads the site and news and keeps
+   dated, sourced facts: success stories, where the money goes, how the Foundation is doing. Newest first."
+5. **Dashboard.** Home: money raised by quarter, gift alerts (a declined monthly card, late recurring gifts), tasks
+   for today, the next event, who to call first and why.
+6. **Agent chat edits.** Ask the assistant to change something (add a task, move a calendar item); point at the tool
+   steps it shows and the Undo. Anything that sends, merges or deletes waits for a click.
+7. **Story-first campaign.** Say "Draft a thank-you to Give Miami Day donors." Open a draft: it cites a success
+   story, a use-of-funds line and an org-health line, each with its source; the review screen lists the sources. Big
+   donors and organizations need individual approval.
+8. **Enrich (on a real organization)** — _requires PR #111 (the agent's add-contact tool) and 42's Enrich UI with
+   "Save to profile"; button labels to be updated to the exact ones when they land. Today's button reads
+   **Enrich profile**._ The sample data is fictional, so add a real one on stage: tell the agent *"add the Knight
+   Foundation as a contact"* (or add **John S. and James L. Knight Foundation** in the Neighbors tab), a new contact
+   with no gifts. Open it and click Enrich: sourced interest tags (**civic engagement & local news, arts & culture,
+   community development, economic mobility**, each traced to a source) appear from cache in seconds. Save to the
+   profile. "Nothing is saved until staff accept, and every tag shows where it came from."
+9. **Call + transcript + after-call Apply.** Start a call from the voice panel; the transcript appears live. At the
+   end, the agent proposes follow-ups (a task to send the card-update link, a $50/month pledge, an RSVP to the event
+   on the 21st, notes), each quoting the call. Click Apply; show the task on the list, then Undo it.
+10. **Duplicates review.** Givers → Review duplicates (9–10 suggestions right after upload): the same person written
+    three ways. "Merge only after a person approves; the gift history moves to the kept record; Undo puts both back."
+    After the suggestions are approved the counts match the answer key: 68 people (33 givers, 20 neighbors,
+    15 community) and 131 gifts.
 
-## 0:20–0:50 · Messy lists in, duplicates found
-1. Click **Upload donor data** (or **Import donors** in the inbox) and drop `event_tickets_messy.csv`.
-2. **Match columns:** "It guessed every column. 'Donor Name', 'E-mail', 'Gift', 'Donation Date' and 'Source' are all mapped."
-3. **Review:** "4 donors, 3 gifts, 1 blank row skipped, 3 possible duplicates. *Nothing is merged until a person approves it.*"
+### The call (Sharif writes)
 
-## 0:50–1:20 · One person, no history lost
-1. The banner reads "possible duplicates found". Click **Review merges →**.
-2. "Same email and phone, 95% match. Keep the record with four gifts." Click **Merge ✓**.
-3. Open the donor: **5 gifts · $11,250**, so "the totals just corrected themselves."
-4. Scroll to **Merge history**: "Merged María Delgado-Ruiz, with her emails kept." Click **Undo merge → Confirm**, then "Back to two records, exactly as they were." (Optionally merge again.)
-> "That's the challenge minimum: duplicates merged only after staff approve, with no history lost."
+> _Sharif writes this section: who he calls, what is said, and the follow-ups it should produce._
 
-## 1:20–1:45 · Nobody slips through
-1. Rail → **Inbox** (`#/inbox`): "Ranked by who needs a call: recency, frequency, amount and the gap since their usual gift. Maria gave every Give Miami Day since 2022 and nothing yet this year. She's #1."
-2. Point to the **late monthly / failed card** alert (gift alerts, #48): "A monthly gift that failed on Oct 10 shows up within days, not months."
+### Close
 
-## 1:45–2:15 · Ask your data (OpenAI Agents SDK)
-1. Rail → **Ask**. Type: *"Who gave this quarter and hasn't been thanked yet?"*, using **Tab** to autocomplete an example.
-2. "The model only *reads the question*. It turns it into the filters you see here, and our own records answer it. It can't write or send anything." Remove a filter chip to widen the results.
-3. Optional: click **View trace** to show the Agents SDK run.
-4. Click **Draft messages for these N**.
+> "Messy lists in, one clean record per person, every merge approved and undoable, every late gift caught in time,
+> and every message tells the Foundation's real story, approved by a person. Built on the OpenAI Agents SDK."
 
-## 2:15–2:40 · Personal outreach, human-approved
-1. **New campaign:** choose Email or Text → **Draft**. "One personal message per donor, in our voice, citing real facts from the record."
-2. "The guardrail blocks any amount or date that isn't in the record. Big donors and organizations always need individual approval." Click **Approve all small-donor drafts**, then approve one big donor.
-3. **Send to outbox (simulated)** → **Outbox**: "Logged, addresses masked. Nothing leaves this laptop in the demo."
-
-## 2:40–2:55 · Plan the week
-1. **Home:** targets card ("Q4: $50,050 of $150,000, Give Miami Day in 11 days") and **Recommended outreach**, with who to contact on which day and why.
-2. **Calendar:** click **Plan for Tuesday** to add the donor to the day, next to events.
-
-## 2:55–3:00 · Close
-> "Four messy lists become one clean donor list, with every merge approved and undoable. Every late gift is found in time, and every message is reviewed by a person. Built with Codex and the OpenAI Agents SDK."
-
-## Landing entry in the React app
-
-Open the bare app URL to show “Less time on tasks. More time for people.” with “Your mission deserves more of your time.” underneath. “Try sample data” opens the donor workspace at `#/`, which is the home dashboard (today at a glance, outreach calendar, goal, recommended outreach). The Outreach inbox is at `#/inbox` (rail Inbox icon). Existing workspace deep links continue to open directly.
-
-The upload controls sit inside a thin outlined CSV drop area. In local mode, “Upload donor data” opens the file chooser; selecting or dropping a CSV opens the confirmation dialog with its filename. In the hosted snapshot build it explains that uploads need the local donor service and offers the sample workspace. With `VITE_DATA_MODE=local`, the CSV form uses the existing `uploadFiles` client and offers the workspace after a successful import. Live ingest remains dependent on the team's ingest service; this design change adds no backend ingestion behavior.
+---
 
 ## Questions judges may ask
 
 **"Where's the AI?"**
 - **Ask:** an OpenAI Agents SDK agent reads the question and returns a structured filter. It's read-only: no tools, and it never sees donor rows. Our own records answer the question, and the trace link shows the run.
-- **Campaigns and outreach:** the agents draft one message per donor in the org's voice, citing only facts from the record and the org context.
+- **Campaigns and outreach:** the agents draft one message per donor in the org's voice. Every draft cites a success story, a use-of-funds line and an org-health line from the context store, with sources; a missing kind becomes a note to staff, never an invention.
+- **After a call:** an agent proposes follow-ups from the transcript (task, RSVP, pledge, note), each quoting the call; nothing is written until staff click Apply.
 - **Guardrail:** blocks any amount or date that isn't in the record.
 
 **"Is that live?"**
 - **On the laptop:** yes. The Python service and the agents run live, with nothing precomputed except a cache for repeat questions.
 - **On the Vercel link:** it serves a snapshot of the same data. The example questions are precomputed; free-text Ask works once `OPENAI_API_KEY` is set in Vercel.
-- **Messages:** go to a simulated outbox, so nothing leaves the laptop.
+- **Messages:** sending is a dry run unless email/SMS are switched on, and a live send reaches only allowlisted addresses.
 
 **"How do you know it's right?"**
-- **Deterministic code** does the scoring, dedupe, merge and undo, targets, and Ask filtering, with 160+ backend tests and unit tests on the parsers and merge log.
+- **Deterministic code** does the scoring, dedupe, merge and undo, targets, and Ask filtering, with 400+ backend tests and unit tests on the parsers and merge log.
 - **Answer key:** the planted cases (three "Rosa Delgado"s, the lapsed Give Miami Day donor, the failed monthly gift) are checked against `data/sample_inputs/answer_key.json`.
 
 **"What about real donors' data?"**
@@ -77,14 +80,22 @@ The upload controls sit inside a thin outlined CSV drop area. In local mode, “
 
 ---
 
-## Pre-flight checklist (30 minutes before)
-- [ ] Laptop: `python -m service.pipeline` pre-run; the service is up; `.env` has `OPENAI_API_KEY` and the model settings.
-- [ ] Ask one free-text question live, to warm the cache and confirm the trace link works.
-- [ ] Reset demo state: rebuild the database so Maria shows 4 gifts and the duplicate banner is visible.
-- [ ] Have `event_tickets_messy.csv` on the desktop.
-- [ ] Vercel backup open in a second tab (hard refresh).
-- [ ] Browser zoom 110%, notifications off, Wi-Fi backup (hotspot).
-- [ ] Codex: have one Codex session (the feature built with Codex) open to show for the "use of Codex" criterion.
+## Demo checklist (30 minutes before)
+
+- [ ] **One warm-up upload first,** then reset and upload again for the demo: the duplicate cards read 9 on a cold
+      first run and 10 after a warm-up.
+- [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
+- [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
+- [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8000`; service
+      `.env` has `OPENAI_API_KEY`, the `OPENAI_MODEL_*` tiers, `GEMINI_API_KEY` (voice), `SCORE_AS_OF=2026-11-08`.
+      Leave `EMAIL_SEND` off and `SMS_PROVIDER` unset unless a send is part of the demo; `SEND_ALLOWLIST` only
+      team numbers.
+- [ ] Reset: `python -m service.db --rebuild` (empty), then the warm-up upload, then rebuild again.
+- [ ] **Enrich only on the hand-added real org** (Knight Foundation). Fictional orgs correctly show "No public
+      information found" (the profile panel may word it "No public facts found for this donor").
+- [ ] Mic permission granted in the browser; test the voice panel once.
+- [ ] Vercel backup open in a second tab.
+- [ ] Browser zoom 110%, notifications off, a hotspot as Wi-Fi backup.
 
 ## Backup video
 Record the same flow as a 3-minute screen capture once tonight's PRs (home, calendar, live Ask, made-up data) land, so it shows the final screens:

@@ -435,9 +435,10 @@ def write_action(conn: sqlite3.Connection, action: dict, note_id: str) -> dict:
                                                          p.get("note"), note_id))
         return {"pledge_id": cur.lastrowid}
     if kind == "add_context_note":
-        cur = conn.execute("INSERT INTO research_facts (donor_id, fact, source_url, agent_run_id) VALUES (?, ?, ?, ?)",
-                           (p["person_id"], p["fact"], p["source"], "after_call"))
-        return {"research_fact_id": cur.lastrowid}
+        from service import context_notes               # 3a: logged in agent_actions, undoable
+        row, token = context_notes.add_context_note(conn, p["person_id"], p["fact"], p["source"], actor="call",
+                                                    agent_run_id="after_call")
+        return {"research_fact_id": row["id"], "undo_token": token}
     if kind == "tag_interest":
         from service import interests                    # 42's lane; only proposed once it exists
         got = interests.add_interest(conn, p["person_id"], p["tag"], set_by="call", evidence=p.get("evidence"),
@@ -466,7 +467,12 @@ def already_written(conn: sqlite3.Connection, action: dict, note_id: str) -> dic
     if action["type"] == "add_context_note":
         row = conn.execute("SELECT id FROM research_facts WHERE donor_id = ? AND source_url = ?",
                            (p["person_id"], p["source"])).fetchone()
-        return {"research_fact_id": row[0]} if row else None
+        if row:
+            return {"research_fact_id": row[0]}
+        # deleted or undone by staff: the log keeps the note, marker and all (context_notes' tombstone)
+        from service import context_notes
+        gone = context_notes.logged_note(conn, p["person_id"], p["source"])
+        return {"research_fact_id": gone, "undone_by_staff": True} if gone is not None else None
     if action["type"] == "create_task" and (m := re.search(r"\[call .+ · [^\]]+\]$", p.get("why") or "")):
         marker = m.group(0)
         row = conn.execute("SELECT id, deleted_at FROM tasks WHERE person_id IS ? AND source = 'call' "
