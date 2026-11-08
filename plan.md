@@ -1851,7 +1851,7 @@ No UI or code changes: this section only orders what is already on main.
 ### 22.2. The stage run (flow)
 ```
  T-30  +-----------------------------------------------+
-       | python scripts/demo_reset.py --warm            |  service stopped
+       | venv python: scripts\demo_reset.py --warm      |  service stopped
        |  -> "PASS stage numbers: 77 people / 9 ..."    |--(exit 1)--> run it again
        +-----------------------+-----------------------+
                                v
@@ -1912,16 +1912,18 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
 | 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
 | 4c | Call sheet | Click the **Call Hye-jin Park** task row | steps incl. **Prep call**, a call sheet + a draft, **Mark done?** (~28 s). The call sheet's **Call** opens the call controls inside that chat card, not a pop-up (#248); **Call** stays disabled until the phone setup is ready, so don't press it unless the phone call is part of the run |
-| 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the transcript streams in (~10 s), the summary and **Suggested next steps** (~4 s); once #210 is in: the after-call card proposes the tasks and the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") → **Apply selected** writes the ticked ones |
+| 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the scripted call with Hye-jin Park streams in (~10 s); the summary and **Suggested next steps** (~4 s); the after-call card proposes a card-update task, the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") and a context note → **Apply selected** writes the ticked ones |
 | 4e | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
 | 4f | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
 | 4g | CRM + Enhance | Type *"Add the Knight Foundation as a contact."*; **CRM** heading → expand the Knight row → **Enhance** → **Save to profile** | **Enhancing…**, sourced interest tags (cached: under 1 s) |
 | 4h | Donor summary | Open a donor's profile (e.g. Hye-jin Park) | **About Hye-jin** · **written by the agent** at the top of the Overview |
 | 5 | Close | Presenter says the closing line | the dashboard |
 
-If #210 has merged, the Live transcript demo call (4d) is with Hye-jin Park: her failed $40 gift, then an RSVP to
-the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-script.md` carries the words. Before
-#210 the card still appears but isn't tied to a donor; stop at the summary.
+The Live transcript demo call (4d) is with Hye-jin Park (#210): her failed $40 gift, then an RSVP to the Give Miami
+5K, then the after-call card and **Apply selected**; `docs/demo-script.md` step 11 carries the words.
+
+**4c (pending):** a live call to Christian, details TBD. It will replace or follow the call-sheet beat (the call sheet's
+**Call** dials from inside the card, then the after-call card) once the lead sends the details.
 
 ### 22.3. T-minus checklist (laptop operator)
 - [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
@@ -1930,7 +1932,9 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
       folder it runs from, so it runs from `C:\Users\Shari\dd-live-main`, **never the Dropbox repo**.
       1. Stop :8401 (the public copy: a second service with `PUBLIC_MODE=1` over LIVE's db; the IT lane owns it).
       2. Stop LIVE's service only: `scripts\live_stack.ps1 stop -Stack live -Only service`.
-      3. `cd C:\Users\Shari\dd-live-main; python scripts\demo_reset.py --warm --port 8001`. It must end with
+      3. From `C:\Users\Shari\dd-live-main`, with the repo venv's Python (the one `live_stack.ps1` uses; plain
+         `python` may lack the deps), in PowerShell:
+         `cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" scripts\demo_reset.py --warm --port 8001`. It must end with
          **`PASS stage numbers: 77 people / 9 duplicate suggestions`**. Exit 1 means run it again.
       4. Start LIVE's service: `scripts\live_stack.ps1 start -Stack live -Only service`.
       5. Smokes 3–4 (22.4) on :8001 / :5173.
@@ -1938,7 +1942,8 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
 - [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
       key, and a busy key slows invites and agent replies (Nov 8: 429s).
 - [ ] **T-20:** smokes 1–4 (22.4), in order.
-- [ ] **T-15 (public site):** the public link (https://devday-donor-desk.vercel.app) shows the laptop's live data
+- [ ] **T-15 (public site):** the public site stays live for the whole run (Sharif: no public-link switch during the
+      demo); T-15 only checks it. The public link (https://devday-donor-desk.vercel.app) shows the laptop's live data
       through the tunnel (`docs/public-tunnel.md`). The tunnel runs on `--port 8401`: the public copy with
       `PUBLIC_MODE=1` over LIVE's db. :8001 stays the writable laptop service and is never tunnelled.
       1. `python scripts/public_tunnel.py status` must print the pid, the tunnel URL and `health: HTTP 200`, and
@@ -1970,7 +1975,7 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
    **Command:** `.venv/Scripts/python.exe scripts/smoke-openai.py` · **Expected:** `7/7`, exit 0.
    **If it fails →** check `.env` (`OPENAI_API_KEY`, `OPENAI_MODEL_*`), then rerun; don't start the demo on a failing key.
 2. **What it proves:** the upload reads the 8 files to the stage numbers, and the cache is warm.
-   **Command:** `cd C:\Users\Shari\dd-live-main; python scripts\demo_reset.py --warm --port 8001` (LIVE's service
+   **Command:** T-30 step 3 (from `dd-live-main`, the venv Python, `--warm --port 8001`; LIVE's service
    stopped; never from the Dropbox repo) · **Expected:** `PASS stage numbers: 77 people
    / 9 duplicate suggestions (expected 77 / 9, …)`, exit 0. **If it fails →** run it again (it retries the model read);
    twice FAIL means demo the counts the receipt shows and say "the agent sorted them".
@@ -1990,7 +1995,7 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
    **If it fails →** the snapshot is the fallback (see T-15); restart the tunnel only with 10+ minutes to spare, and
    only as `python scripts/public_tunnel.py on --port 8401` (never a bare `on`: it tunnels :8001).
 6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
-   **Command:** run 22.2 steps 1–5 in the browser, then `python scripts/demo_reset.py --check` (it approves the
+   **Command:** run 22.2 steps 1–5 in the browser, then `scripts\demo_reset.py --check` from `dd-live-main` with the same venv Python (it approves the
    suggested merges on a COPY of the db) · **Expected:** `PASS` lines for people / gifts / alerts against
    `answer_key.json` (68 people: 33 givers, 20 neighbors, 15 community; 131 gifts). **If it fails →** note which
    count differs, tell the lead, and demo without the merge step. Then reset (smoke 2) before T-30.
@@ -2021,7 +2026,7 @@ fallback before T-30.
 ### 22.7. Fallbacks (if X fails → say/do Y)
 | Step | If | Say / do |
 |---|---|---|
-| 1 Empty app | **Step 1 of 3** isn't showing, or the page errors | Don't start: stop the service, rerun `python scripts/demo_reset.py --warm` (it must PASS), restart, hard refresh. |
+| 1 Empty app | **Step 1 of 3** isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
 | 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: **Use the example files**, then continue. |
 | 2b Context | **Still reading your site.** | **Continue to the dashboard**: "It keeps reading in the background; the facts land in a minute." |
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
