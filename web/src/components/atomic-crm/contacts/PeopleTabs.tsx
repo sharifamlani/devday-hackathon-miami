@@ -51,7 +51,7 @@ export const PeopleTabBar = () => {
             aria-selected={selected}
             onClick={() => setTab(t)}
             className={cn(
-              "inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              "inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 sm:gap-1.5 sm:px-3.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
               selected
                 ? "bg-card text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground",
@@ -259,22 +259,21 @@ const SelfReported = ({ person }: { person: Person }) => (
 const MoveMenu = ({ person }: { person: Person }) => {
   const move = useSetTab();
   if (DATA_MODE !== "local") return null; // the snapshot build is read-only sample data
-  const moveTo = (to: Tab, from: Tab, undo = false) =>
-    move.mutate(
-      { personId: person.id, tab: to },
-      {
-        onSuccess: () => {
-          if (undo) {
-            toast.success(`${person.name} is back in ${TAB_LABELS[to]}.`);
-            return;
-          }
-          toast.success(`Moved ${person.name} to ${TAB_LABELS[to]}.`, {
-            action: { label: "Undo", onClick: () => moveTo(from, to, true) },
-          });
-        },
-        onError: (err) =>
-          toast.error(`Couldn’t move ${person.name}: ${err.message}`),
+  // mutateAsync, not mutate's callbacks: the move refetches the list and this
+  // row unmounts, which would skip per-call callbacks (and the Undo toast).
+  const moveTo = (to: Tab, from: Tab, undo = false): Promise<void> =>
+    move.mutateAsync({ personId: person.id, tab: to }).then(
+      () => {
+        if (undo) {
+          toast.success(`${person.name} is back in ${TAB_LABELS[to]}.`);
+          return;
+        }
+        toast.success(`Moved ${person.name} to ${TAB_LABELS[to]}.`, {
+          action: { label: "Undo", onClick: () => void moveTo(from, to, true) },
+        });
       },
+      (err: Error) =>
+        void toast.error(`Couldn’t move ${person.name}: ${err.message}`),
     );
   return (
     <DropdownMenu>
@@ -291,7 +290,7 @@ const MoveMenu = ({ person }: { person: Person }) => {
           <DropdownMenuItem
             key={t}
             className="min-h-10"
-            onClick={() => moveTo(t, person.tab)}
+            onClick={() => void moveTo(t, person.tab)}
           >
             Move to {TAB_LABELS[t]}
           </DropdownMenuItem>
