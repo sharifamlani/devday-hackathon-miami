@@ -802,3 +802,9 @@ Full mapping, wireframes and audit: `docs/problem-solution-mapping.md`.
   sourced facts from the website, news and public social posts; agents read it through tools; the daily refresh
   (`REFRESH_DAILY_AT`) keeps it current and logs each run. Missing: the onboarding screen (draft #70) and the
   refresh time set on the demo laptop.
+- **Enrichment's main job is interest areas (Sharif).** Clicking **Enrich** on a donor sends the agent to the web
+  to (1) tag the donor's interest areas from a fixed tag list (e.g. arts only), each tag with confidence, evidence
+  and a source URL, and (2) add any other public contact or professional details. Interest tags are a first-class
+  database field used to segment donors and match them to campaigns, events and programs; staff can add or remove
+  tags. Today `donors.interests` is a free-form JSON list the agent never fills. Tag list and data model:
+  `docs/research/interest-areas.md` (in progress). No tag is ever inferred from protected traits; untagged beats guessed.

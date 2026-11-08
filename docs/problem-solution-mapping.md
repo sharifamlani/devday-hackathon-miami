@@ -25,7 +25,7 @@
 | P1 | **Voice-first capture:** a mic button beside the chat opens a live transcript panel (Wispr Flow style). At the end, staff attach the note to a person's profile in one click. | home chat bar → transcript panel → person timeline | ⏸ new. Live in-app calls are post-demo; the demo transcribes a call on speakerphone |
 | P1 | **One shared record:** every upload, note, gift and draft lands on the person, so nothing lives in someone's head or inbox. | Givers / Neighbors / Community tabs | ✅ #60 three-tab data layer |
 | P1 | **Chat agent with visible tool steps** answers "what do we know about X?" from the record. | right sidebar, every screen | ✅ #58 |
-| P2 | **Enrichment agent:** an **Enrich** button on a profile (or ask the agent) searches the web and adds sourced facts. | Givers profile | ✅ `POST /enrich/{id}` + ResearchPanel on the contact page (organizations only) |
+| P2 | **Enrichment agent:** an **Enrich** button on a profile (or ask the agent) searches the web, **tags the donor's interest areas** (arts, health, youth…) from a fixed list with a source per tag, and adds other public contact details. | Givers profile | ✅ `POST /enrich/{id}` + ResearchPanel on the contact page (organizations only) |
 | P2 | **Gift alerts + "call today":** late and failed regular gifts surface before the donor lapses. | home money-raised card + to-do list, Givers | ~ backend merged (#48, `GET /alerts`); no screen reads it yet |
 | P2 | **Calendar the agent can edit:** events from the Foundation's site with invites pre-drafted per audience. The agent adds and changes items. | Calendar | ✅ #67. Outlook/Gmail sync is out of scope |
 | P3 | **Community tab:** the people the nonprofit serves, analyzed only from what they self-reported; outreach about programs, never a donation ask. | Community tab | ✅ data layer (#60); analysis view ⏸ |
@@ -191,7 +191,7 @@ agent's 3-line summary (interests, next step).
 | Duplicates (C2) | 6/6 groups, approve/dismiss routes, merge keeps gifts (#65) | — | done |
 | Gift alerts (C2, P2) | `GET /alerts` (#48); answer key expects 5 on sample data, not re-checked on main | **a screen that shows them** (money-raised card + to-do) | UI: Christian |
 | Chat agent (P1) | `/chat`, tool steps, approval-gated `/send`, allowlist (#58) | assistant-ui panel #69 still open; home middle column per the sketch | QA #69; Christian for home |
-| Enrichment (P2) | `/enrich/{id}`, ResearchPanel | — (individuals stay parked) | done |
+| Enrichment (P2) | `/enrich/{id}`, ResearchPanel (sourced facts) | **interest-area tags**: fixed tag list, `donor_interests` table, agent fills it, chips on the profile and as a filter | us (backend) + Christian (chips) |
 | ICP + prospects | `/icp/run`, `/prospects` (#62) | visible entry point on screen | Christian |
 | Calendar (P2) | calendar view (#67), `/events`, drafts routes | #49/#57 drafts still open: confirm what is left after main absorbed the routes | 86 + QA |
 | Context agent (P4) | `/context/run`, daily `/context/refresh` | **onboarding step 2 screen** (website + socials) is only in draft #70 | Christian adopts #70 |
