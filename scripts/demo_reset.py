@@ -6,6 +6,9 @@
     python scripts/demo_reset.py --check      # after an upload: approve every suggested duplicate on a COPY
                                               # and compare people / gifts / alerts with answer_key.json
 
+Rehearsal flow: --warm (ends with an EMPTY db) -> upload data/sample_inputs in the app -> --check.
+(--check straight after --warm fails with "no people": there is nothing uploaded to check yet.)
+
 Options: --db PATH (default $DONORS_DB or data/donors.db), --port 8000 (the service port that must be free
 before a reset), --force (reset even if the service answers on --port), --inputs DIR.
 
