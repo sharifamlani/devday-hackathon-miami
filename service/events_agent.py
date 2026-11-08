@@ -394,7 +394,11 @@ def draft_event_invite(event: dict, person: dict) -> dict:
     from org_context import load_org_facts
     from outreach_agent import long_date
     kind = event_kind(event)
-    when = long_date(date.fromisoformat(event["starts_at"][:10])) + (f" at {event['starts_at'][11:16]}" if len(event["starts_at"]) > 10 else "")
+    when = long_date(date.fromisoformat(event["starts_at"][:10]))
+    if len(event["starts_at"]) > 10:
+        when += f", {clock(event['starts_at'][11:16])}"
+        if event.get("ends_at") and len(event["ends_at"]) > 10 and event["ends_at"][:10] == event["starts_at"][:10]:
+            when += f" to {clock(event['ends_at'][11:16])}"
     value = value_fact(event, load_org_facts()) if kind != "pet" else None
     details = (f"{event['title']} | starts {event['starts_at']}"
                + (f" | ends {event['ends_at']}" if event.get("ends_at") else "")
@@ -426,11 +430,29 @@ def draft_event_invite(event: dict, person: dict) -> dict:
             "channel_email": bool(person.get("email")), "channel_sms": bool(person.get("phone"))}
 
 
+URL_RE = re.compile(r"https?://[^\s)>\]]+")
+
+
+def links_in(text: str) -> list[str]:
+    return [u.rstrip(".,;:!?'\"") for u in URL_RE.findall(text)]
+
+
+def clock(hhmm: str) -> str:
+    h, m = int(hhmm[:2]), hhmm[3:5]
+    return f"{h % 12 or 12}:{m} {'AM' if h < 12 else 'PM'}"
+
+
 def check_invite(out, facts: dict, person: dict) -> list[str]:
     from outreach_agent import MONEY_ASK_RE, RELATIONSHIP_RE, ModelDraft, check_draft
-    as_draft = ModelDraft(subject=out.subject, body=out.email_body, call_script=out.sms, fact_ids=["O1"])
-    problems = check_draft(as_draft, facts, [], lead_id="O1")
     text = " ".join((out.subject, out.email_body, out.sms))
+    # links are checked as links (only the cited sources), not as figures: an Eventbrite URL's
+    # ticket number isn't a claim
+    problems = [f"link {u} is not the event's source" for u in links_in(text)
+                if norm_url(u) not in {norm_url(f["url"]) for f in facts.values()}]
+    unlinked = lambda s: URL_RE.sub(" ", s)
+    as_draft = ModelDraft(subject=unlinked(out.subject), body=unlinked(out.email_body),
+                          call_script=unlinked(out.sms), fact_ids=["O1"])
+    problems += check_draft(as_draft, facts, [], lead_id="O1")
     if person.get("contact_type") == "community" and (m := MONEY_ASK_RE.search(text)):
         problems.append(f"'{m.group(0)}' is a donation ask; Community never gets one")
     if person.get("contact_type") in ("community", "neighbor") and (m := RELATIONSHIP_RE.search(text)):

@@ -99,3 +99,20 @@ def test_cached_foundation_events_are_real_and_sourced():
     dates = {e["starts_at"][:10] for e in events}
     assert {"2026-11-14", "2026-11-15", "2026-11-19"} <= dates
     assert all(e["source_url"].startswith("https://") and "/organization/" not in e["source_url"] for e in events)
+
+
+def test_ticket_numbers_in_the_source_link_are_not_figures_but_foreign_links_are_rejected():
+    src = "https://www.eventbrite.com/e/the-give-miami-5k-post-race-festival-tickets-2003307355227/"
+    facts = {"O1": {"fact": "Give Miami 5K Post-Race Festival 2026-11-15T08:30 Maurice A. Ferré Park, 1075 Biscayne Boulevard",
+                    "url": src, "date": "2026-11-15"}}
+    neighbor = {"id": 4, "contact_type": "neighbor"}
+    ok = NS(subject="Join the festival", email_body=f"Sunday, November 15, 8:30 AM to 12:00 PM at 1075 Biscayne Boulevard. {src}",
+            sms=f"Festival Nov 15, 8:30 AM! {src}")
+    assert check_invite(ok, facts, neighbor) == []
+    bad = NS(subject=ok.subject, email_body=ok.email_body + " See https://example.com/other-2003307355227", sms=ok.sms)
+    assert any("not the event's source" in p for p in check_invite(bad, facts, neighbor))
+
+
+def test_clock_formats_times():
+    from events_agent import clock
+    assert clock("08:30") == "8:30 AM" and clock("12:00") == "12:00 PM" and clock("00:15") == "12:15 AM"
