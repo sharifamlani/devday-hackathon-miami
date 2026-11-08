@@ -382,40 +382,61 @@ def update_person(ctx: RunContextWrapper[ChatContext], person_id: int, email: st
     return write(agent_writes.update_person, person_id, fields, actor="agent")
 
 
-def interests_api(name: str):
+def interests_module():
     try:
         from service import interests
     except ImportError:
         return None
-    return getattr(interests, name, None)
+    return interests
+
+
+def interest_write(fn, *args, **kwargs) -> dict:
+    """42's interest writes return {..., undo: "int_..."}; surface it as undo_token like every other write."""
+    try:
+        out = with_conn(fn, *args, **kwargs)
+    except (ValueError, LookupError) as e:
+        return {"error": str(e)}
+    return {**out, "undo_token": out.get("undo")}
 
 
 @function_tool
 def add_interest(ctx: RunContextWrapper[ChatContext], person_id: int, tag: str, sub_tag: str | None = None) -> dict:
-    """Tag a person with an interest area (e.g. arts, environment)."""
-    fn = interests_api("add_interest")
-    if fn is None:
+    """Tag a person with an interest area (slug from the interest list, e.g. arts, environment)."""
+    i = interests_module()
+    if i is None:
         return {"error": "interest tags are not available yet"}
-    return write(fn, person_id, tag, sub_tag, actor="agent")
+    return interest_write(i.add_interest, person_id, tag, sub_tag, staff="agent")
 
 
 @function_tool
 def remove_interest(ctx: RunContextWrapper[ChatContext], person_id: int, tag: str) -> dict:
-    """Remove an interest area from a person (the row is kept; Undo restores it)."""
-    fn = interests_api("remove_interest")
-    if fn is None:
+    """Remove an interest area from a person (the row is kept, so it isn't re-added; Undo restores it)."""
+    i = interests_module()
+    if i is None:
         return {"error": "interest tags are not available yet"}
-    return write(fn, person_id, tag, actor="agent")
+    return interest_write(i.remove_interest, person_id, tag, staff="agent")
 
 
 @function_tool
-def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_ids: list[int],
+def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_ids: list[str],
                       tags: list[str]) -> dict:
-    """Save researched facts and interest tags the user accepted for a person."""
-    fn = interests_api("accept_enrichment")
-    if fn is None:
+    """Save researched facts and interest tags from the person's latest enrichment proposal."""
+    i = interests_module()
+    if i is None:
         return {"error": "enrichment review is not available yet"}
-    return write(fn, person_id, fact_ids, tags, actor="agent")
+
+    def accept(conn):
+        from service import routes_interests
+        from service.enrich_agent import read_interest_cache
+        row = conn.execute("SELECT full_name FROM donors WHERE id = ?", (person_id,)).fetchone()
+        if row is None:
+            raise LookupError(f"person {person_id} not found")
+        proposal = routes_interests.PROPOSALS.get(person_id) or read_interest_cache().get(row["full_name"])
+        if proposal is None:
+            raise LookupError("no enrichment proposal for this person yet; research them first")
+        return i.accept_enrichment(conn, person_id, proposal, fact_ids, tags,
+                                   agent_run_id=f"chat-accept-{uuid.uuid4().hex[:12]}")
+    return interest_write(accept)
 
 
 @function_tool(needs_approval=True)

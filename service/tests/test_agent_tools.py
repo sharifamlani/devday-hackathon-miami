@@ -176,3 +176,19 @@ def test_live_delete_pauses_for_approval_and_only_runs_when_approved(db_file, ap
     done = ca.resume_chat(paused["run_id"], {call_id: approve}, "Test approver")
     deleted = one(db_file, "SELECT deleted_at FROM tasks WHERE id = ?", task["id"])["deleted_at"]
     assert bool(deleted) is approve and not done["approvals"]
+
+
+def test_add_and_remove_interest_with_undo(db_file):
+    interests = pytest.importorskip("service.interests")        # 42's PR #88
+    added = invoke("add_interest", person_id=1, tag="arts")
+    assert added["undo_token"].startswith("int_")
+    tags = lambda: {i["tag"] for i in interests.list_interests(db.connect(db_file), 1)}
+    assert "arts" in tags()
+    undo(added["undo_token"])
+    assert "arts" not in tags()
+
+    invoke("add_interest", person_id=1, tag="arts")
+    removed = invoke("remove_interest", person_id=1, tag="arts")
+    assert "arts" not in tags()
+    undo(removed["undo_token"])
+    assert "arts" in tags()

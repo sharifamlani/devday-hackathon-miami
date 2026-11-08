@@ -4,6 +4,7 @@ Tasks and calendar items are written by service.tasks (3a), which logs them in `
 Everything here logs into the same table with its own target prefix, and undo(token) reverts any of them:
 
     task:12              -> service.tasks.undo
+    int_...              -> service.interests.undo (42's interest writes)
     donor:5              update_person: restores the changed fields
     duplicate:7          dismiss_duplicate: back to 'pending'
     merge:3              merge_duplicate: dedupe.undo_merge (the merge log keeps both rows)
@@ -119,6 +120,12 @@ def rsvp_event(conn: sqlite3.Connection, event_id: int, person_id: int, rsvp: st
 
 def undo(conn: sqlite3.Connection, token: str) -> dict:
     """Revert one logged write, whichever kind it was."""
+    if token.startswith("int_"):                     # 42's interest writes keep their own undo record
+        from service import interests
+        try:
+            return interests.undo(conn, token)
+        except (ValueError, LookupError) as e:
+            raise WriteError(str(e))
     action = conn.execute("SELECT * FROM agent_actions WHERE token = ?", (token,)).fetchone()
     if action is None:
         raise WriteError("unknown undo token")
