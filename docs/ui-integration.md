@@ -61,13 +61,29 @@ The center column only, a bottom tab bar replacing the rail. Same hooks. Christi
 | `GET /people/attention?limit=` | `[{id, name, initials, line, badge}]` | 48 |
 | `GET /targets` (existing) | + `reached_today` | 48 |
 | `POST /enrich/{id}?dry_run=1` | `{facts[], interests[], contact{}}` (nothing written) | 42 |
-| `POST /people/{id}/enrichment/accept` | `{saved: {facts, interests, contact}}` | 42 |
-| `GET /tasks?due=today` · `POST /tasks` · `PATCH /tasks/{id}` | `[{id, kind, title, why, person_id, chips[], due, time, done, source}]` | 86 |
-| `POST /tasks/generate` (also runs after upload and daily refresh) | `{created: n}` | 86 |
-| `GET /calendar?from&to` | `[{date, time, title, kind: event\|task, source}]` | 86 |
+| `POST /people/{id}/enrichment/accept` | `{saved: {facts, interests, contact}}` (plan §21.5 `{saved}` means this object) | 42 |
+| `GET /tasks?due=today` · `POST /tasks` · `PATCH /tasks/{id}` · `DELETE /tasks/{id}` | `[{id, kind, title, why, person_id, chips[], due, time, done, source}]` | 3a |
+| `POST /tasks/generate` (also runs after upload and daily refresh) | `{created, tasks, updated}` | 3a |
+| `GET /calendar?from&to` | `[{date, time, title, kind: event\|task, source, ref}]` (ref `task:N` / `event:N`) | 3a |
 | `GET /artifacts` | `[{kind, title, date, ref}]` | 86 |
 | `POST /transcribe/file` | `{segments: [{speaker, text, start, end}]}` (speaker labels) | Agent Phone |
 | `POST /people/{id}/call-notes` (changed) | + `title`, `folder` | Agent Phone |
+
+
+### 2.1 Also in the contract (plan.md §21.5), listed here so builders and graders use one list
+
+| Endpoint | Response | Owner |
+|---|---|---|
+| `GET /interest-tags` | `[{slug, label, definition}]` (17) | 42 |
+| `GET/POST /people/{id}/interests`, `DELETE /people/{id}/interests/{tag}` | `[{tag, sub_tag, confidence, evidence, source_url, set_by}]` / `{removed: true}` | 42 |
+| `GET /targets/quarters?as_of=` | `{quarters: [{label, start, end, raised}], ytd: {year, raised}}` | 48 lane (in-session builder) |
+| `WS /transcribe/live?purpose=call\|dictation` | `{"type":"interim"\|"final","text"}`, `{"type":"error","detail"}` | Agent Phone |
+| `POST /transcribe/file` | `[{speaker: you\|them, name, text, at}]` (Christian's transcript shape) | Agent Phone |
+| Call notes | **Christian's routes (PR #78):** `POST /calls/summarize`, `POST /calls`, `GET /calls`, table `call_notes` (replaces the planned `/people/{id}/call-notes`) | Christian (merged) |
+| `POST /call-notes/{id}/actions`, `POST /call-notes/{id}/apply` | `{steps[], actions[{id,type,label,payload}]}` / `{applied[]}`; `{id}` is a `call_notes.id` | 90b |
+| `GET /people/{id}/pledges` | `[{amount, expected_by, status}]` | 90b |
+| `GET /context/search?q&kinds&k` | `[{id, kind, title, text, source_url, posted_at, score}]` | 86 |
+| `POST /undo/{token}` | `{undone: true}` | 3a |
 
 ## 3. Gaps the mockup exposes
 
