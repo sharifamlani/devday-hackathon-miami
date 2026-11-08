@@ -412,9 +412,41 @@ def _duplicate_groups(conn: sqlite3.Connection) -> list[tuple[list[int], list[st
     return sorted(((sorted(ids), reasons) for ids, reasons in groups.values()), key=lambda g: g[0])
 
 
+def _touched_by_people(conn: sqlite3.Connection, task_id: int) -> bool:
+    """Has anyone but the generator changed this task (an edit, a move, a completion) that still stands?"""
+    return conn.execute("SELECT 1 FROM agent_actions WHERE target = ? AND actor != 'generator' "
+                        "AND action != 'create_task' AND undone_at IS NULL", (f"task:{task_id}",)).fetchone() is not None
+
+
+def _revive_retired(conn: sqlite3.Connection, gen_key: str) -> dict | None:
+    """If the generator retired this alert's task and nothing changed it since, undo the retire."""
+    row = conn.execute("SELECT id, deleted_at FROM tasks WHERE gen_key = ?", (gen_key,)).fetchone()
+    if row is None or row["deleted_at"] is None:
+        return None
+    last = conn.execute("SELECT token, action FROM agent_actions WHERE target = ? AND undone_at IS NULL "
+                        "ORDER BY id DESC LIMIT 1", (f"task:{row['id']}",)).fetchone()
+    if last is None or last["action"] != "retire_stale_alert":
+        return None                                    # staff deleted it: stays deleted
+    undo(conn, last["token"])
+    return get_task(conn, row["id"])
+
+
+def generate_safely(conn: sqlite3.Connection, after: str) -> dict | None:
+    """generate() for the hooks (upload, refresh, merge, merge undo): an error is logged and rolled back,
+    never raised, so the write that already happened still answers normally."""
+    import logging
+    try:
+        return generate(conn)
+    except Exception:
+        conn.rollback()
+        logging.getLogger("service").exception("task generator failed after %s", after)
+        return None
+
+
 def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
-    """Create the tasks the data calls for. Idempotent: a rerun creates 0. Returns {created, tasks, updated}
-    (updated: open duplicate reviews rewritten because their group grew)."""
+    """Create the tasks the data calls for. Idempotent: a rerun creates 0. Returns {created, tasks, updated,
+    retired} (updated: open duplicate reviews rewritten because their group changed; retired: open alert calls
+    whose alert is gone, soft-deleted and undoable)."""
     from service.gift_alerts import alerts
 
     today = as_of or default_as_of()
@@ -429,15 +461,30 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
         if result:
             created.append(result[0])
 
-    # 1. failed / late regular gifts -> one call per donor (failed first, then most days late)
+    # 1. failed / late regular gifts -> one call per donor (failed first, then most days late). An alert that
+    # comes back after the generator retired its task (a merge undone) revives that task by undoing the retire.
     seen: set[int] = set()
+    live_alerts: set[str] = set()
     for a in alerts(conn, today):
         if a["donor_id"] in seen:
             continue
         seen.add(a["donor_id"])
-        add(f"alert:{a['donor_id']}:{a['expected_date']}", kind="call",
-            title=f"Call {names.get(a['donor_id'], 'donor')}", why=_alert_why(a),
+        key = f"alert:{a['donor_id']}:{a['expected_date']}"
+        live_alerts.add(key)
+        if (revived := _revive_retired(conn, key)) is not None:
+            created.append(revived)
+            continue
+        add(key, kind="call", title=f"Call {names.get(a['donor_id'], 'donor')}", why=_alert_why(a),
             person_id=a["donor_id"], chips=_call_chips(facts.get(a["donor_id"])))
+
+    # 1b. retire open alert calls whose alert is gone (e.g. two records merged: the alert now belongs to the
+    # kept donor, or the joined history is on track). Done tasks and tasks staff or the agent touched stay.
+    retired = 0
+    for r in conn.execute("SELECT id, gen_key FROM tasks WHERE gen_key LIKE 'alert:%' AND deleted_at IS NULL "
+                          "AND done = 0").fetchall():
+        if r["gen_key"] not in live_alerts and not _touched_by_people(conn, r["id"]):
+            delete_task(conn, r["id"], actor="generator", _action="retire_stale_alert")
+            retired += 1
 
     # 2. open duplicate groups -> one review each. Groups grow, join and split, so a review task has a stable
     # gen_key ("duplicates:<random>") and keeps its group in `members`. Each pass, a group takes the unclaimed
@@ -501,7 +548,7 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
                     why=f"{e['title']} is on {when.isoformat()}.", chips=chips,
                     due=max(today, when - timedelta(days=PREP_LEAD_DAYS)).isoformat())
 
-    return {"created": len(created), "tasks": created, "updated": len(updated)}
+    return {"created": len(created), "tasks": created, "updated": len(updated), "retired": retired}
 
 
 def main() -> None:
