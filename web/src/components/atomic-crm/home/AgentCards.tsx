@@ -1,7 +1,7 @@
 import { Check, CircleAlert, Clock, Loader2, Undo2, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { AgentApproval, AgentStep } from "./agentChat";
+import type { AgentApproval, AgentStep, MergedPair } from "./agentChat";
 import { PhoneCallButton } from "../voice/PhoneCallButton";
 import { focusRing } from "./tile";
 
@@ -23,6 +23,7 @@ const argLine = (args: Record<string, unknown>) =>
 export const APPROVAL_BUTTONS: Record<string, { yes: string; no: string }> = {
   call_person: { yes: "Call", no: "Not now" },
   send: { yes: "Send", no: "Don't send" },
+  merge_duplicate: { yes: "Merge", no: "Keep separate" },
 };
 const DEFAULT_BUTTONS = { yes: "Approve", no: "Decline" };
 
@@ -145,7 +146,43 @@ export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
   );
 };
 
-export const StepCard = ({ step, onUndo }: { step: AgentStep; onUndo?: () => void }) => {
+/** The pairs the agent merged by itself (80%+): each with its score, evidence and its own Undo. */
+const MergedPairs = ({ pairs, onUndoPair }: { pairs: MergedPair[]; onUndoPair?: (k: number) => void }) => (
+  <ul aria-label="Merged pairs" className="mt-1.5 flex flex-col gap-1">
+    {pairs.map((p, k) => (
+      <li key={p.suggestion_id} className={cn("flex flex-wrap items-start gap-x-2 gap-y-1", p.undone && "opacity-60")}>
+        <div className="min-w-0 flex-1 basis-40">
+          <p className="font-medium">
+            {`${p.merged_in} → ${p.kept} `}
+            <span className="font-normal text-muted-foreground">{`· ${Math.round(p.confidence * 100)}% match`}</span>
+          </p>
+          <p className="text-muted-foreground">{p.undone ? "Undone · back in the review list" : p.evidence}</p>
+        </div>
+        {p.undo_token && !p.undone && onUndoPair && (
+          <button
+            type="button"
+            onClick={() => onUndoPair(k)}
+            aria-label={`Undo merge of ${p.merged_in} and ${p.kept}`}
+            className={cn(chip, "ml-auto bg-current/10 hover:bg-current/20")}
+          >
+            <Undo2 className="size-3.5" aria-hidden="true" />
+            Undo
+          </button>
+        )}
+      </li>
+    ))}
+  </ul>
+);
+
+export const StepCard = ({
+  step,
+  onUndo,
+  onUndoPair,
+}: {
+  step: AgentStep;
+  onUndo?: () => void;
+  onUndoPair?: (pairIndex: number) => void;
+}) => {
   if (step.card?.kind === "call_sheet") return <CallSheetCard sheet={step.card as unknown as CallSheet} />;
   const Icon =
     step.status === "error"
@@ -174,6 +211,9 @@ export const StepCard = ({ step, onUndo }: { step: AgentStep; onUndo?: () => voi
       <div className="min-w-0 flex-1 basis-40">
         <p className="font-semibold">{toolLabel(step.tool)}</p>
         {step.summary && <p className="text-muted-foreground">{step.undone ? `Undone · ${step.summary}` : step.summary}</p>}
+        {step.card?.kind === "merged_pairs" && (
+          <MergedPairs pairs={(step.card as { pairs: MergedPair[] }).pairs} onUndoPair={onUndoPair} />
+        )}
       </div>
       {step.undo_token && !step.undone && onUndo && (
         <button type="button" onClick={onUndo} className={cn(chip, "ml-auto bg-current/10 hover:bg-current/20")}>

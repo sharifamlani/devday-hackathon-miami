@@ -43,7 +43,7 @@ describe("ApprovalCard", () => {
 
   it("a send card says Send; other tools keep Approve and Decline", () => {
     expect(card("send")).toContain("Send</button>");
-    const other = card("merge_duplicate");
+    const other = card("delete_task");
     expect(other).toContain("Approve</button>");
     expect(other).toContain("Decline</button>");
   });
@@ -91,5 +91,43 @@ describe("StepCard call sheet", () => {
 
   it("falls back to the plain card for an unknown card kind", () => {
     expect(renderToString(<StepCard step={step({ kind: "other" })} />)).toContain("Prep call");
+  });
+});
+
+describe("StepCard: pairs the agent merged by itself", () => {
+  it("lists each pair with its score, evidence and its own Undo", () => {
+    const html = renderToString(
+      <StepCard
+        step={{
+          tool: "resolve_duplicates",
+          args: {},
+          summary: "merged 2 sure pairs (80%+); 5 to confirm",
+          status: "done",
+          undo_token: null,
+          card: {
+            kind: "merged_pairs",
+            pairs: [
+              { suggestion_id: 1, kept: "Rosa Elena Martinez", merged_in: "Rosa E. Martinez", confidence: 0.9,
+                evidence: "similar name + same phone: ***-***-0150", undo_token: "u1" },
+              { suggestion_id: 2, kept: "Mildred Hayes", merged_in: "Millie Hayes", confidence: 0.9,
+                evidence: "similar name + same phone: ***-***-0159", undo_token: "u2", undone: true },
+            ],
+          },
+        }}
+        onUndoPair={() => {}}
+      />,
+    );
+    expect(html).toContain("Rosa E. Martinez → Rosa Elena Martinez");
+    expect(html).toContain("90% match");
+    expect(html).toContain("similar name + same phone: ***-***-0150");
+    expect(html).toContain('aria-label="Undo merge of Rosa E. Martinez and Rosa Elena Martinez"');
+    expect(html).not.toContain('aria-label="Undo merge of Millie Hayes and Mildred Hayes"');   // already undone
+    expect(html).toContain("Undone · back in the review list");
+  });
+
+  it("a merge card for a pair to confirm says Merge and Keep separate", () => {
+    const html = card("merge_duplicate");
+    expect(html).toContain("Merge</button>");
+    expect(html).toContain("Keep separate</button>");
   });
 });
