@@ -111,6 +111,8 @@ export const parsePerson = (raw: ApiPerson, fallbackTab: Tab): Person => {
     review_reason: raw.tab_review ?? raw.review_reason ?? null,
     notes: isBlank(raw.notes) ? null : (raw.notes as string).trim(),
     source: sourceFile(raw.source_row),
+    auto_merged: !!raw.auto_merged,
+    merged_from: raw.merged_from ?? 0,
   };
 };
 

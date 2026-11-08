@@ -43,6 +43,11 @@ export interface DonorSummary {
   gift_count: number;
   total_given: number;
   give_miami_day_days_away: number | null;
+  /** Which CRM tab the person is in; null when the API doesn't say (older builds). */
+  contact_type?: "giver" | "neighbor" | "community" | null;
+  /** An automatic merge waiting for staff review (#125); absent on older APIs. */
+  auto_merged?: boolean;
+  merged_from?: number;
 }
 
 /** One of score.py's four point buckets (they sum to the score). */

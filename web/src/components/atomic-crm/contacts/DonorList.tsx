@@ -45,6 +45,7 @@ import {
   tileClass,
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
+import { AutoMergeFlag } from "./AutoMergeFlag";
 import { DuplicateBanner } from "./DuplicateMerge";
 import { PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
 import { usePeopleTab } from "./usePeopleTab";
@@ -538,6 +539,12 @@ const DonorRows = () => {
                   )}
                   {donor.full_name}
                 </Link>
+                <AutoMergeFlag
+                  personId={donor.id}
+                  name={donor.full_name}
+                  autoMerged={donor.auto_merged}
+                  mergedFrom={donor.merged_from}
+                />
                 {donor.status_tags.slice(0, 2).map((tag) => (
                   <DonorTagBadge key={tag} tag={tag} />
                 ))}

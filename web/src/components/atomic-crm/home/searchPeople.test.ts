@@ -28,6 +28,8 @@ const person = (
   review_reason: null,
   notes: null,
   source: null,
+  auto_merged: false,
+  merged_from: 0,
   ...extra,
 });
 

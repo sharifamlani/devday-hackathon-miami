@@ -29,6 +29,8 @@ import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
 import { TagsListEdit } from "./TagsListEdit";
+import { AutoMergeFlag } from "./AutoMergeFlag";
+import { isNonGiver, TAB_ONE } from "./personTab";
 
 const TABS = ["overview", "notes", "tasks"] as const;
 type ProfileTab = (typeof TABS)[number];
@@ -121,10 +123,7 @@ const DonorShowContent = () => {
               />
             </TabsContent>
             <TabsContent value="notes" className="mt-1">
-              <ProfileSection
-                title="Notes"
-                caption="Your team's private notes"
-              >
+              <ProfileSection title="Notes" caption="Your team's private notes">
                 <InfiniteListBase
                   resource="contact_notes"
                   filter={{ contact_id: record.id }}
@@ -184,14 +183,26 @@ const ProfileHeader = ({
             </span>
           )}
           {record.full_name}
+          <span className="ml-2 inline-flex align-middle">
+            <AutoMergeFlag
+              personId={record.id}
+              name={record.full_name}
+              autoMerged={record.auto_merged}
+              mergedFrom={record.merged_from}
+            />
+          </span>
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {[
             record.donor_type === "organization"
               ? "Organization"
               : "Individual",
-            `${tierLabel[record.tier]} donor`,
-            statusLabel[record.donor_status],
+            ...(isNonGiver(record.contact_type)
+              ? [TAB_ONE[record.contact_type]]
+              : [
+                  `${tierLabel[record.tier]} donor`,
+                  statusLabel[record.donor_status],
+                ]),
             record.city,
           ]
             .filter(Boolean)

@@ -25,6 +25,7 @@ import {
   type Person,
   type Tab,
 } from "../providers/local/crmTypes";
+import { AutoMergeFlag } from "./AutoMergeFlag";
 import { InitialsAvatar, tileClass } from "./donorCrmUi";
 import { usePeopleTab } from "./usePeopleTab";
 
@@ -168,6 +169,12 @@ const PersonRow = ({ person }: { person: Person }) => (
         >
           {person.name}
         </Link>
+        <AutoMergeFlag
+          personId={person.id}
+          name={person.name}
+          autoMerged={person.auto_merged}
+          mergedFrom={person.merged_from}
+        />
         {person.needs_review && (
           <span
             title={person.review_reason ?? undefined}
