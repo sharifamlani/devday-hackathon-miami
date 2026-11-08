@@ -18,6 +18,7 @@ import {
   isActive,
   phoneKeys,
   previewPhoneCall,
+  retryPhoneCall,
   startPhoneCall,
   statusLabel,
   usePhoneCall,
@@ -77,6 +78,11 @@ export const usePhoneCallFlow = (donorId: number, enabled: boolean) => {
     onSuccess: (started) => setCallId(started.id),
   });
   const hangUp = useMutation({ mutationFn: () => hangUpPhoneCall(callId as string) });
+  // Try again: the call was recorded but its transcript failed; the service resumes from the kept recording
+  const retry = useMutation({
+    mutationFn: () => retryPhoneCall(callId as string),
+    onSuccess: (row) => queryClient.setQueryData(phoneKeys.call(row.id), row),
+  });
   const apply = useMutation({
     mutationFn: (actionId: string) => applyCallActions(call?.note_id as string, [actionId]),
     onSuccess: (_, actionId) => {
@@ -106,14 +112,14 @@ export const usePhoneCallFlow = (donorId: number, enabled: boolean) => {
       ? `Your phone (${preview.data.staff_phone}) rings first. When you pick up, ${name} (${preview.data.donor_phone}) is called and sees your number.`
       : "Rings your phone first, then the donor's.";
 
-  return { preview, call, elapsed, start, hangUp, apply, applied, done, reset, name, description };
+  return { preview, call, elapsed, start, hangUp, apply, retry, applied, done, reset, name, description };
 };
 
 type CallFlow = ReturnType<typeof usePhoneCallFlow>;
 
 /** Setup check before the call, live status during it, summary and follow-ups after it. */
 const CallBody = ({ flow }: { flow: CallFlow }) => {
-  const { preview, call, elapsed, start, apply, applied, done, name } = flow;
+  const { preview, call, elapsed, start, apply, retry, applied, done, name } = flow;
   const actions = call?.result.actions ?? [];
   return (
     <>
@@ -150,6 +156,7 @@ const CallBody = ({ flow }: { flow: CallFlow }) => {
             {statusLabel(call)}
             {call.status === "connected" && <span className="tabular-nums"> · {clock(elapsed)}</span>}
           </p>
+          {retry.error && <p role="alert" className="text-destructive">{errorText(retry.error)}</p>}
         </div>
       )}
 
@@ -202,7 +209,7 @@ const CallBody = ({ flow }: { flow: CallFlow }) => {
 
 /** Cancel / Call before the call, Hang up during it, Close after it. */
 const CallButtons = ({ flow, onClose }: { flow: CallFlow; onClose: () => void }) => {
-  const { preview, call, start, hangUp } = flow;
+  const { preview, call, start, hangUp, retry } = flow;
   return (
     <>
       {!call && (
@@ -225,6 +232,11 @@ const CallButtons = ({ flow, onClose }: { flow: CallFlow; onClose: () => void })
       {call && !isActive(call.status) && (
         <Button variant="outline" onClick={onClose}>
           Close
+        </Button>
+      )}
+      {call?.status === "failed" && call.result.retryable && (
+        <Button disabled={retry.isPending} onClick={() => retry.mutate()}>
+          {retry.isPending ? "Starting…" : "Try again"}
         </Button>
       )}
     </>
