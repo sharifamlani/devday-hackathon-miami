@@ -359,7 +359,7 @@ const Enrich = ({
     <>
       {live && !isOrg && (
         <p className={cn(box, "text-muted-foreground")}>
-          Not researched: the enrichment agent looks up organizations only, so individual donors stay private.
+          Individuals aren’t researched on the web; add tags by hand.
         </p>
       )}
       {preview.isPending && (
@@ -371,7 +371,7 @@ const Enrich = ({
         <p className={cn(box, "text-muted-foreground")} aria-live="polite">
           {proposal.identity_match === "ambiguous"
             ? "More than one organization matched this name, so nothing was suggested."
-            : "No public information found."}
+            : "No public information found: this looks like a private or fictional organization."}
         </p>
       )}
       {proposal && found && (

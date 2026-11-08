@@ -77,7 +77,9 @@ export const ResearchPanel = ({
       ) : (
         <p className="text-sm text-muted-foreground">
           {enrich.isSuccess
-            ? "No public facts found for this donor."
+            ? donor.donor_type === "organization"
+              ? "No public information found: this looks like a private or fictional organization."
+              : "Individuals aren’t researched on the web; add tags by hand."
             : live
               ? "No research yet. Enrich the profile to look up public sources."
               : "No research saved for this donor."}
