@@ -346,9 +346,13 @@ def forget_other_org(conn: sqlite3.Connection, website: str | None) -> bool:
 def forget_org_calendar(conn: sqlite3.Connection) -> None:
     """The previous org's calendar, on a setup rerun for another organization: every event came from its site
     and searches, so drop them with their audiences, unsent invite drafts, draft invite batches and the
-    generator's open prep tasks. Sent invites stay as donor history (unlinked from the event). Done prep tasks
-    stay too, with their generator key freed: event ids can be reused, and a kept key would stop the new
-    org's prep task for that id. Uncommitted, like forget_other_org."""
+    generator's open prep tasks, plus any invite work a slow run queued for them (PENDING_INVITES). Sent invites
+    stay as donor history (unlinked from the event). Open prep tasks are retired through tasks.delete_task, so
+    Undo still restores them; done ones stay. Every prep task's generator key is freed: event ids can be reused,
+    and a kept key would stop the new org's prep task for that id. Retiring a task commits (delete_task);
+    the rest is left for the caller's save, like forget_other_org."""
+    with REFRESH_LOCK:
+        PENDING_INVITES.clear()                       # never draft old-org invites onto new-org events
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     if "events" not in tables:
         return
@@ -362,7 +366,11 @@ def forget_org_calendar(conn: sqlite3.Connection) -> None:
         conn.execute(f"DELETE FROM campaigns WHERE id IN ({drafts})")
         conn.execute("UPDATE campaigns SET event_id = NULL WHERE event_id IS NOT NULL")
     if "tasks" in tables:
-        conn.execute("DELETE FROM tasks WHERE gen_key LIKE 'prep:%' AND done = 0")
+        from service import tasks
+        for (task_id,) in conn.execute("SELECT id FROM tasks WHERE gen_key LIKE 'prep:%' AND done = 0 "
+                                       "AND deleted_at IS NULL").fetchall():
+            tasks.delete_task(conn, task_id, actor="generator", _action="retire_old_org_prep",
+                              _raw={"gen_key": None})
         conn.execute("UPDATE tasks SET gen_key = NULL WHERE gen_key LIKE 'prep:%'")
     for table in ("event_drafts", "event_audience"):
         if table in tables:
@@ -482,7 +490,8 @@ def with_user_urls(result: dict | None, urls: dict) -> dict | None:
 
 # A first-run website read that ran past CONTEXT_DEADLINE_S keeps going in its own thread. The background refresh
 # the web starts next (POST /context/refresh) waits for that read instead of reading the site a second time.
-READ_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="context-read")
+# Room for several slow reads: a read can't be stopped once started, and a new run must never queue behind them.
+READ_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="context-read")
 SLOW_READ: dict = {}            # {"host", "urls", "future"} of the latest timed-out read, until a refresh takes it
 SLOW_READ_LOCK = threading.Lock()
 

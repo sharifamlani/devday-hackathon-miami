@@ -278,7 +278,27 @@ def test_setup_for_another_org_forgets_the_previous_orgs_calendar(db_file, monke
     assert rows["events"] == [] and rows["audience"] == []
     assert rows["drafts"] == [(ids["sent"], "sent")]                       # sent invites stay as history
     assert rows["campaigns"] == [(ids["campaign_sent"], None, "sent")]     # unlinked, not deleted
-    assert rows["prep"] == [("Prep list: Old Org Gala 1", 1, None)]        # done one kept, its key freed
+    assert rows["prep"] == [("Prep list: Old Org Gala 0", 0, None),        # open one retired (soft, logged)
+                            ("Prep list: Old Org Gala 1", 1, None)]        # done one kept, its key freed
+    conn = sqlite3.connect(db_file)
+    retired = conn.execute("SELECT t.deleted_at, a.token FROM tasks t JOIN agent_actions a "
+                           "ON a.target = 'task:' || t.id WHERE t.title = 'Prep list: Old Org Gala 0' "
+                           "AND a.action = 'retire_old_org_prep'").fetchone()
+    conn.close()
+    assert retired is not None and retired[0] is not None     # soft-deleted with an undo token
+
+
+def test_setup_for_another_org_drops_queued_invite_work(db_file, monkeypatch):
+    from service import main
+
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: good_result("Old Org"))
+    c.post("/context/run", json={"website": "https://example.org"})
+    main.PENDING_INVITES[:] = [([{"title": "Old Org Gala"}], {"Old Org Gala": 1}, True)]
+
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: good_result("New Org"))
+    c.post("/context/run", json={"website": "https://another-org.org"})
+    assert main.PENDING_INVITES == []
 
 
 def test_setup_for_the_same_org_keeps_its_calendar(db_file, monkeypatch):
