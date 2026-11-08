@@ -25,6 +25,8 @@ scripts/live_stack.ps1 reset  -Stack test           # stop TEST service, delete 
 # service as CORS_ORIGINS (service/config.py), so the walk's requests and the dictation WebSocket are allowed.
 scripts/live_stack.ps1 start -Stack test -TestServicePort 8199 -TestWebPort 5199 -TestRoot C:\path\to\worktree -StateDir C:\path\to\state
 python scripts/e2e_demo_path.py --reset --web http://localhost:5199 --api http://127.0.0.1:8199 --db C:\path\to\worktree\data\donors.db
+#   --reset uses a per-run state dir (<shots>\stack-state) off the reserved ports, and refuses the shared
+#   C:\Users\Shari\dd-live-state there, so a reviewer's reset can never stop the IT lane's stacks (--state-dir overrides)
 python scripts/e2e_demo_path.py --only 1,2 --web http://localhost:5173 --api http://127.0.0.1:8001 --db C:\Users\Shari\dd-live-main\data\donors.db   # reload LIVE after a reset
 ```
 

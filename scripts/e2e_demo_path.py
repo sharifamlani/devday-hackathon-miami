@@ -40,7 +40,10 @@ SKIP_FILES = ("answer_key.json", "_README.md")
 WEBSITE = "miamifoundation.org"
 ENRICH_ORG = "John S. and James L. Knight Foundation"
 # Known gaps the lead has accepted until a PR lands: the step's row is INFO, not FAIL
-KNOWN_GAPS = {"events": "sourced events arrive with e6's onboarding-events PR"}
+KNOWN_GAPS: dict[str, str] = {}   # e.g. {"events": "<why>"} turns that check's FAIL into INFO until a PR lands
+# live_stack.ps1's shared state (pids.json of the IT lane's own stacks) and the TEST ports it belongs to
+SHARED_STATE = Path("C:/Users/Shari/dd-live-state")
+RESERVED_TEST_PORTS = (8101, 5174)
 
 rows: list[tuple[str, str, str, str]] = []
 problems: list[str] = []          # console errors + failed requests, reset per step
@@ -139,8 +142,13 @@ def step(name: str):
             try:
                 return fn(*a, **kw)
             except PwError as e:
-                msg = str(e).splitlines()[0][:160]
-                record(name, "control found", msg, "SELECTOR" if "Timeout" in msg or "waiting for" in msg else "FAIL")
+                full = str(e)
+                msg = full.splitlines()[0][:160]
+                blocker = re.search(r"(<[^>]{0,160}>)[^\n]*intercepts pointer events", full)
+                if blocker:   # the control exists but something on screen covers it: a product FAIL, not a walk break
+                    record(name, "control clickable", f"click blocked: {blocker.group(1)} intercepts pointer events", "FAIL")
+                else:
+                    record(name, "control found", msg, "SELECTOR" if "Timeout" in msg or "waiting for" in msg else "FAIL")
             except Exception as e:  # noqa: BLE001 - the walk reports every failure as a row and moves on
                 record(name, "no exception", f"{type(e).__name__}: {str(e)[:160]}", "FAIL")
         return run
@@ -294,16 +302,26 @@ def s6_chat(page: Page, api: Api, shots: Path):
            ok(after == before + 1 and has_undo and undone == before))
 
     sent0 = api.outbox_sent()
-    reply, secs = ask(page, "Email Hye-jin Park a short thank-you for her support.")
-    approve = page.get_by_role("button", name=re.compile(r"^Approve"))
-    approve.first.wait_for(timeout=60000)
-    approve.first.click()
+    reply, secs = ask(page, "Send Hye-jin Park a short thank-you email now.")
+    # AgentCards.tsx (#112): the approval card carries data-decision="pending" and an "Approve" button
+    card = chat_log(page).locator("[data-decision='pending']")
+    t0 = time.time()
+    while not card.count() and time.time() - t0 < 60:
+        page.wait_for_timeout(1000)
+    if not card.count():
+        page.screenshot(path=str(shots / "6c_no_card.png"))
+        record("6c send -> approval", "approval card (data-decision=pending) for a send",
+               f"no approval card after {secs + round(time.time() - t0)}s; agent replied: '{' '.join(reply.split())[:160]}'", "FAIL")
+        return
+    card.first.get_by_role("button", name="Approve", exact=True).click()
     page.wait_for_timeout(4000)
     txt = chat_text(page)
+    decided = chat_log(page).locator("[data-decision='approved']").count()
     page.screenshot(path=str(shots / "6c_approve.png"))
     dry = bool(re.search(r"Approved.*dry run|dry run.*approved", txt, re.I | re.S))
     record("6c send -> approval", "approval card -> Approve -> 'Approved … (dry run)'; 0 real sends",
-           f"{secs}s; dry-run text={dry}; outbox sent {sent0} -> {api.outbox_sent()}", ok(dry and api.outbox_sent() == sent0))
+           f"{secs}s; card approved={decided > 0}; dry-run text={dry}; outbox sent {sent0} -> {api.outbox_sent()}",
+           ok(decided > 0 and dry and api.outbox_sent() == sent0))
 
 
 @step("7 task -> agent")
@@ -427,6 +445,9 @@ def main() -> int:
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("--only", default="", help="comma-separated step numbers, e.g. 1,2 to load a stack like a user "
                                                "(upload + website step) and leave duplicates for a person")
+    ap.add_argument("--state-dir", default=None,
+                    help="live_stack.ps1 state dir for --reset (pids.json). Default: the shared dir on the reserved TEST "
+                         "ports, otherwise a fresh per-run dir, so a reviewer's reset can never stop the IT lane's stacks")
     args = ap.parse_args()
     web = args.web if args.web.endswith("/") else args.web + "/"
     shots = Path(args.shots)
@@ -437,8 +458,14 @@ def main() -> int:
         # Reset the stack this walk points at: its service port from --api, its worktree from --db (<root>/data/donors.db)
         api_port = urllib.parse.urlparse(args.api).port or 80
         web_port = urllib.parse.urlparse(web).port or 80
+        reserved = (api_port, web_port) == RESERVED_TEST_PORTS
+        state = Path(args.state_dir) if args.state_dir else (SHARED_STATE if reserved else shots / "stack-state")
+        if state.resolve() == SHARED_STATE.resolve() and not reserved:
+            print(f"refused: --reset on ports {api_port}/{web_port} must not use the shared state dir {SHARED_STATE} "
+                  "(its pids.json holds the IT lane's stacks). Pass another --state-dir or omit it.")
+            return 2
         subprocess.run(["powershell", "-NoProfile", "-File", str(REPO_ROOT / "scripts" / "live_stack.ps1"), "reset", "-Stack", "test",
-                        "-TestRoot", str(Path(args.db).resolve().parent.parent),
+                        "-TestRoot", str(Path(args.db).resolve().parent.parent), "-StateDir", str(state),
                         "-TestServicePort", str(api_port), "-TestWebPort", str(web_port)], check=True)
     if api.people_counts()["giver"]:
         print(f"refused: {args.api} is not empty (run with --reset)")
