@@ -868,13 +868,46 @@ def approval_summary(tool: str, args: dict) -> str | None:
             phone = mask_address(rows[0]["phone"], "text")
             return f"Call {rows[0]['full_name']}" + (f" at {phone}" if phone else " (no phone number on file)")
     if tool == "send" and args.get("batch_id") is not None:
-        rows = query("SELECT c.name, c.channel, COUNT(m.id) AS n FROM campaigns c LEFT JOIN campaign_messages m "
-                     "ON m.campaign_id = c.id WHERE c.id = ? GROUP BY c.id", (args["batch_id"],))
+        return send_summary(args["batch_id"], args.get("message_ids"))
+    if tool == "merge_duplicate" and args.get("suggestion_id") is not None:
+        rows = query("SELECT a.id AS a_id, a.full_name AS a_name, b.id AS b_id, b.full_name AS b_name "
+                     "FROM duplicate_suggestions s JOIN donors a ON a.id = s.donor_a_id "
+                     "JOIN donors b ON b.id = s.donor_b_id WHERE s.id = ?", (args["suggestion_id"],))
         if rows:
             r = rows[0]
-            kind = "email" if r["channel"] == "email" else "text"
-            return f"Send {r['n']} {kind}{'s' if r['n'] != 1 else ''}: {r['name']}"
+            keep_a = args.get("keep_id") in (None, r["a_id"])
+            kept, merged = (r["a_name"], r["b_name"]) if keep_a else (r["b_name"], r["a_name"])
+            return f"Merge {merged} into {kept}"
+    if tool in ("delete_task", "delete_calendar_item"):
+        ref = args.get("task_id") if tool == "delete_task" else str(args.get("ref") or "").partition(":")[2]
+        rows = query("SELECT title FROM tasks WHERE id = ?", (ref,)) if str(ref or "").isdigit() else []
+        if rows:
+            return f"Delete {'task' if tool == 'delete_task' else 'calendar item'}: {rows[0]['title']}"
     return None
+
+
+INTENT_WORDS = {"thank_you": "thank-you", "re_engage": "re-engagement", "check_in": "check-in",
+                "event_invite": "event invite"}
+
+
+def send_summary(batch_id: int, message_ids: list[int] | None = None) -> str | None:
+    """"Send thank-you email to Hye-jin Park" / "... +2 more": who would get it, counting only the messages that
+    would go (still draft or approved, and only the chosen ones when message_ids is set)."""
+    camp = query("SELECT name, intent, channel FROM campaigns WHERE id = ?", (batch_id,))
+    if not camp:
+        return None
+    rows = query("SELECT m.id, m.channel, d.full_name FROM campaign_messages m JOIN donors d ON d.id = m.donor_id "
+                 "WHERE m.campaign_id = ? AND m.status IN ('draft', 'approved') ORDER BY m.id", (batch_id,))
+    if message_ids:
+        chosen = {int(i) for i in message_ids}
+        rows = [r for r in rows if r["id"] in chosen]
+    if not rows:
+        return f"Send {camp[0]['name']}: nothing left to send"
+    channels = {r["channel"] for r in rows}
+    kind = "email" if channels == {"email"} else "text" if channels == {"text"} else "message"
+    what = f"{INTENT_WORDS.get(camp[0]['intent'], '')} {kind}{'s' if len(rows) > 1 else ''}".strip()
+    who = rows[0]["full_name"] + (f" +{len(rows) - 1} more" if len(rows) > 1 else "")
+    return f"Send {what} to {who}"
 
 
 def approval_items(interruptions) -> list[dict]:

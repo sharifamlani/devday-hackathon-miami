@@ -769,7 +769,8 @@ def run_refresh() -> dict:
         except Exception:
             conn.rollback()
             log.exception("task generator failed after refresh")
-        return {"state": "done", "detail": None, "changes": changes}
+        failed = (changes.get("invites") or {}).get("failed")   # never "done" with 0 of N invites
+        return {"state": "failed" if failed else "done", "detail": failed, "changes": changes}
     finally:
         conn.close()
 
@@ -842,11 +843,14 @@ def invites_after_running_job(events: list[dict], ids: dict, stored: bool, poll_
 
 
 def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
-    from service.refresh import draft_invites_for
+    from service.refresh import draft_invites_for, invites_failed
     conn = db.connect()
     try:
         out = draft_invites_for(conn, events, ids, stored)
-        status, detail, changes = "done", None, {"drafts": out["drafts"], "errors": out["errors"][:10]}
+        detail = invites_failed(out)                         # never "done" with 0 of N invites
+        status = "failed" if detail else "done"
+        changes = {"drafts": out["drafts"], "attempted": out.get("attempted"), "drafted": out.get("drafted"),
+                   "errors": out["errors"][:10]}
     except Exception as e:
         log.warning("onboarding invites failed: %s", e)
         status, detail, changes = "failed", f"{type(e).__name__}: {e}", None

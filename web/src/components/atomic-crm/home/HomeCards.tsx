@@ -2,6 +2,7 @@ import { zoomClick } from "./workspaceView";
 import { useId, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  ArrowUpRight,
   AudioLines,
   ChevronDown,
   Clock,
@@ -51,7 +52,7 @@ const TileHead = ({
   children,
 }: {
   id: string;
-  title: string;
+  title: ReactNode;
   hint?: string;
   children?: ReactNode;
 }) => (
@@ -592,7 +593,24 @@ export const TasksTile = ({
       aria-labelledby={headingId}
       className={cn(tile, "home-projects")}
     >
-      <TileHead id={headingId} title="Tasks" hint="Alt+T">
+      <TileHead
+        id={headingId}
+        hint="Alt+T"
+        title={
+          <Link
+            to="/?workspace=tasks"
+            onClick={zoomClick("tasks")}
+            title="Open all tasks"
+            className={cn(
+              "inline-flex items-center gap-1 rounded-sm hover:underline",
+              focusRing,
+            )}
+          >
+            Tasks
+            <ArrowUpRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        }
+      >
         <span className="ml-auto text-xs text-muted-foreground">
           {tasks.length}
         </span>
