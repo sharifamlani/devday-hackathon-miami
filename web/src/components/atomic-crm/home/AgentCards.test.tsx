@@ -1,7 +1,14 @@
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ApprovalCard, StepCard } from "./AgentCards";
+
+// The Call button is local mode only (the laptop service places the call).
+vi.mock("../providers/local/config", async (orig) => ({
+  ...(await orig<object>()),
+  DATA_MODE: "local",
+}));
+vi.mock("../voice/PhoneCallDialog", () => ({ PhoneCallDialog: () => null }));
 
 const card = (tool: string) =>
   renderToString(
@@ -39,6 +46,51 @@ describe("ApprovalCard", () => {
     const other = card("delete_task");
     expect(other).toContain("Approve</button>");
     expect(other).toContain("Decline</button>");
+  });
+});
+
+describe("StepCard call sheet", () => {
+  const sheet = {
+    kind: "call_sheet",
+    person_id: 7,
+    name: "Elizabeth Fontaine",
+    has_phone: true,
+    phone_masked: "***-***-0104",
+    relationship: {
+      gift_count: 2,
+      total: 350,
+      first_gift: { date: "2024-03-01", amount: 100 },
+      last_gift: { date: "2026-02-01", amount: 250 },
+      usual_channel: "Online",
+    },
+    declined_charges: [{ date: "2026-10-10", amount: 40, status: "declined" }],
+    interests: ["Arts"],
+    recent_calls: [],
+    open_tasks: [],
+    facts: [],
+    talking_points: ["Thank Elizabeth Fontaine for the $250 gift on 2026-02-01."],
+  };
+  const step = (card: object) => ({
+    tool: "prep_call", args: {}, summary: "call sheet", status: "done" as const, undo_token: null, card,
+  });
+
+  it("renders the sheet with her masked phone, giving, a declined charge and talking points", () => {
+    const html = renderToString(<StepCard step={step(sheet)} />).replace(/<!-- -->/g, "");
+    expect(html).toContain("***-***-0104");
+    expect(html).toContain("$350 across 2 gifts");
+    expect(html).toContain("was declined");
+    expect(html).toContain("Thank Elizabeth Fontaine");
+    expect(html).toContain("Call</button>");
+  });
+
+  it("says No phone number on file and shows no Call button when there is none", () => {
+    const html = renderToString(<StepCard step={step({ ...sheet, has_phone: false, phone_masked: null })} />);
+    expect(html).toContain("No phone number on file");
+    expect(html).not.toContain("Call</button>");
+  });
+
+  it("falls back to the plain card for an unknown card kind", () => {
+    expect(renderToString(<StepCard step={step({ kind: "other" })} />)).toContain("Prep call");
   });
 });
 

@@ -48,8 +48,11 @@ Rules:
 - You can change records directly (people, tasks, calendar, interests, RSVPs, duplicates). Each change applies at
   once and the user sees an Undo button; say what you changed. Sends, merges and deletes wait for the user's
   approval: call the tool, and the user approves or declines on a card.
-- To phone someone, call call_person (it waits for the approval card). The user's own phone rings first,
-  then the person's; the call is recorded with a spoken notice and saved as a call note afterwards.
+- Call protocol: "call <person>", "phone <person>" or a call task -> call prep_call, and nothing that dials. Its
+  sheet has the Call button; that button is how the user calls. Say in a line or two who they are and the
+  suggested points; never add facts the sheet does not have. Use call_person only when, after seeing the sheet,
+  the user says to dial now (it waits for an approval card; their phone rings first, then the person's, the call
+  is recorded with a spoken notice and saved as a call note).
 - For event outreach use plan_event_outreach: it makes one batch per event; report each event's drafts and
   who needs individual approval.
 - "Who should I call / contact / reach out to / thank today?": call get_call_list and keep its order. It is the
@@ -961,6 +964,18 @@ def call_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
 
 
 @function_tool
+def prep_call(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
+    """Prepare a call: the person's call sheet (relationship with the Foundation, giving history, any declined
+    charge, interests, recent call notes, open tasks, sourced facts, suggested talking points). It appears in the
+    panel with a Call button, or says there is no phone number on file. Nothing is dialed."""
+    from service import call_sheet
+    try:
+        return {"card": with_conn(call_sheet.build, person_id)}
+    except LookupError as e:
+        return {"error": str(e)}
+
+
+@function_tool
 def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
     """Undo one earlier change by its undo_token."""
     from service import agent_writes, tasks
@@ -974,7 +989,7 @@ TOOLS = [
     # reads
     find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_call_list, get_calendar,
     get_task, get_tasks,
-    get_call_notes, build_brief, community_stats,
+    get_call_notes, build_brief, community_stats, prep_call,
     # writes (each returns an undo_token)
     update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, resolve_duplicates, rsvp_event,
     create_task, update_task, complete_task, add_calendar_item, move_calendar_item, get_after_call_actions,
@@ -1013,6 +1028,9 @@ def summarize(output) -> str:
         return str(output)[:160]
     if "error" in data:
         return f"error: {data['error']}"
+    if isinstance(data.get("card"), dict) and data["card"].get("kind") == "call_sheet":
+        from service import call_sheet
+        return call_sheet.summary_line(data["card"])
     if "to_confirm" in data and "merged" in data:          # resolve_duplicates
         if data.get("note"):
             return data["note"]
