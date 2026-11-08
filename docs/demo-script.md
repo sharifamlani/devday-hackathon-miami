@@ -23,8 +23,9 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
 
 1. **Empty start.** Open **http://localhost:5173/** (the bare URL). On an empty app, setup's first step is the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data** ("or drag and drop your files here (CSV, Excel, Word, notes)"), **Try sample data**, and Upload your list · Understand your donors · Reach out thoughtfully.
    Nothing is behind it: no people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during
-   setup** (steps 1–3): with people already uploaded, a reload could skip the website step (#193 should prevent it;
-   keep the habit).
+   setup** (steps 1–3). If someone does after **Try sample data**, the landing comes back as if the import vanished,
+   but the data is already in: press **Skip for now** (bottom of the landing) to reach the dashboard, and do NOT click
+   **Try sample data** again (that would import twice).
 2. **The files.** Click **Try sample data**: it imports the 8 sample files for real (the agent reads and sorts them),
    exactly like an upload. (Or **Upload donor data** → choose the 8 files from `data/sample_inputs/`
    (`give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`,
@@ -71,7 +72,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    - **Files & drafts** (campaigns and invites the agents drafted);
    - the greeting **Good afternoon, Denise.** (**Good evening, Denise.** after 6 PM; Denise is the demo staff persona);
    - **Ask the agent…** with three suggestion chips above it (e.g. **Enrich <the newest donor>**, **Who's late on a
-     usual gift?**, **Plan next week**). A chip only fills the box; press **Send** to run it. Or type, or say it with
+     usual gift?**, **Plan next week**; for the first ~25 s they read **Add your first donors / Who should I thank this
+     week? / Plan next week**, then settle once the website read lands). A chip only fills the box; press **Send** to run it. Or type, or say it with
      the mic.
    The tile headings open their panels beside the chat. The icon rail on the left holds **Live transcript** and
    **Open Ask sidebar**.

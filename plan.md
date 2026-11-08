@@ -2069,6 +2069,7 @@ fallback before T-30.
 ### 22.7. Fallbacks (if X fails → say/do Y)
 | Step | If | Say / do |
 |---|---|---|
+| 1–2 Reload mid-setup | after **Try sample data**, a reload (F5) brings the landing back, as if the import vanished | The data is already in: press **Skip for now** (bottom of the landing) to reach the dashboard. Do NOT click **Try sample data** again: it would import twice. |
 | 1 Empty app | the landing isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
 | 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: click **Try sample data** again, then continue. |
 | 2b Background read | the events or facts aren't on the dashboard yet | Keep touring: "The agent is still reading the site; the events land in a moment." If nothing lands after 2 min, carry on: the uploaded data carries every other moment. |
