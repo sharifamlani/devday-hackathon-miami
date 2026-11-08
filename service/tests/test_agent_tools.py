@@ -845,3 +845,19 @@ def test_saving_with_tag_labels_works_like_codes(db_file, monkeypatch):
     invoke("enrich_person", person_id=pid)
     saved = invoke("accept_enrichment", person_id=pid, fact_ids=["f1"], tags=["climate & RESILIENCE"])
     assert "error" not in saved and saved["saved"]["interests"] == 1
+
+
+def test_yes_saves_the_proposal_shown_without_researching_again(db_file, monkeypatch):
+    """Live, Gates Foundation: on "yes, save all" the agent re-ran enrich_person (a later turn sees only the chat
+    text, not the fact ids), got a different set back and saved nothing. Omitting the ids saves what was shown."""
+    from service import enrich_agent
+    calls = []
+    monkeypatch.setattr(enrich_agent, "enrich_full", lambda *a, **k: calls.append(a) or FAKE_ENRICHMENT)
+    pid = one(db_file, "SELECT id FROM donors WHERE donor_type = 'organization' ORDER BY id LIMIT 1")["id"]
+    before = one(db_file, "SELECT COUNT(*) AS n FROM research_facts WHERE donor_id = ?", pid)["n"]
+    invoke("enrich_person", person_id=pid)
+    saved = invoke("accept_enrichment", person_id=pid)
+    assert "error" not in saved and saved["saved"]["facts"] == 1 and saved["saved"]["interests"] == 1
+    assert len(calls) == 1
+    assert one(db_file, "SELECT COUNT(*) AS n FROM research_facts WHERE donor_id = ?", pid)["n"] == before + 1
+    assert "never run enrich_person again to save" in ca.INSTRUCTIONS
