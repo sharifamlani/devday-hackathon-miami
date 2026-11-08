@@ -807,4 +807,4 @@ Full mapping, wireframes and audit: `docs/problem-solution-mapping.md`.
   and a source URL, and (2) add any other public contact or professional details. Interest tags are a first-class
   database field used to segment donors and match them to campaigns, events and programs; staff can add or remove
   tags. Today `donors.interests` is a free-form JSON list the agent never fills. Tag list and data model:
-  `docs/research/interest-areas.md` (in progress). No tag is ever inferred from protected traits; untagged beats guessed.
+  `docs/research/interest-areas.md` (17 tags; Give Miami Day mappings marked ~ still to confirm). No tag is ever inferred from protected traits; untagged beats guessed.
