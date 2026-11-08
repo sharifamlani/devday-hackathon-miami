@@ -19,8 +19,11 @@
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  /* Scrolls, but with no visible bar: it crowded the tiles' right edge. */
+  scrollbar-width: none;
+}
+.home-overview::-webkit-scrollbar {
+  display: none;
 }
 .home-tile {
   border: 0;
