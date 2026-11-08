@@ -2062,7 +2062,7 @@ fallback before T-30.
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
-| 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the transcript is retried in the background and go to 4d. |
+| 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the recording is kept, so the transcript can be finished later, then go to 4d. |
 | 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do 4d (the Live transcript demo call). |
 | 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
 | 4e Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
