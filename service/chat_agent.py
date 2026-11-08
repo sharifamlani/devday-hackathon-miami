@@ -86,13 +86,39 @@ def query(sql: str, args: tuple = ()) -> list[dict]:
 TAB_CONTACT = {"givers": "giver", "neighbors": "neighbor", "community": "community"}
 
 
+GAVE_VIA_ALIASES = ({"gmd", "give miami day"},)   # "GMD" and "Give Miami Day" are the same thing
+JOINED_MIN = 6       # letters run together ("GiveMiamiDay") count only for a phrase this long: never "gmd" in "Big MD"
+
+
+def _words(text: str | None) -> list[str]:
+    """'give_miami_day_export_2022-2025.xlsx | sheet:GMD gifts:row:9' -> ['give', 'miami', 'day', ..., 'gmd', ...]."""
+    return re.findall(r"[a-z0-9]+", (text or "").lower())
+
+
+def _says(text: str | None, phrase: list[str]) -> bool:
+    """The phrase as whole words in order ("give miami day" in the file name, "gmd" in "sheet:GMD gifts", but not
+    "gmd" inside "Big MD"), or, for a long phrase, its letters run together ("GiveMiamiDay")."""
+    words, n = _words(text), len(phrase)
+    if any(words[i:i + n] == phrase for i in range(len(words) - n + 1)):
+        return True
+    joined = "".join(phrase)
+    return len(joined) >= JOINED_MIN and joined in "".join(words)
+
+
 def gave_via_ids(channel: str | None) -> set[int] | None:
-    """Donor ids with a gift through a matching channel (case-insensitive substring); None = no filter."""
-    if not channel:
+    """Donor ids with an ok gift through a matching channel; None = no filter. Matches gifts.channel or the
+    gift's source row (an upload often leaves channel empty: "Give Miami Day" lives only in the file name,
+    give_miami_day_export_2022-2025.xlsx), ignoring case and punctuation; "GMD" = "Give Miami Day"."""
+    asked = _words(channel)
+    if not asked:
         return None
-    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ? "
-                                         "AND COALESCE(status, 'ok') = 'ok'",       # a declined charge isn't a gift
-                                         (f"%{channel.strip().lower()}%",))}
+    alias = next((a for a in GAVE_VIA_ALIASES
+                  if " ".join(asked) in a or "".join(asked) in {p.replace(" ", "") for p in a}), None)
+    phrases = [p.split() for p in alias] if alias else [asked]
+    rows = query("SELECT donor_id, channel, source_row FROM gifts "
+                 "WHERE COALESCE(status, 'ok') = 'ok'")                    # a declined charge isn't a gift
+    return {r["donor_id"] for r in rows
+            if any(_says(r["channel"], p) or _says(r["source_row"], p) for p in phrases)}
 
 
 def tab_people(tab: str) -> list[dict] | None:
