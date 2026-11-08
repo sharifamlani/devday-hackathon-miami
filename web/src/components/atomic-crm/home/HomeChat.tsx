@@ -56,8 +56,11 @@ import {
 import { focusRing } from "./tile";
 import {
   AgentReply,
+  ConversationSuggestions,
+  HOME_SUGGESTIONS,
   UserMessage,
 } from "./Conversation";
+import { useHomeSummary } from "../providers/local/homeSummary";
 
 const pill = cn(
   "inline-flex min-h-9 items-center justify-center gap-2 rounded-[10px] px-3 text-sm font-medium transition-colors",
@@ -439,6 +442,14 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [bloomId, setBloomId] = useState(0);
   const busy = LIVE_AGENT ? agent.pending : session.pending;
+  // GET /home/summary's chips when the service has them; the shared defaults otherwise.
+  const summary = useHomeSummary();
+  const chips = summary.data?.suggestions?.length
+    ? summary.data.suggestions.slice(0, 3)
+    : DATA_MODE === "local"
+      ? HOME_SUGGESTIONS
+      : // An older snapshot without home_summary answers only these two (ask.ts chipAnswer).
+        ["Who's late on a usual gift?", "Plan next week"];
   const dictation = useDictationInput(text, setText);
   // Alt+V (useWorkspaceHotkeys) toggles the mic like a click on it.
   const dictationRef = useRef(dictation);
@@ -466,7 +477,15 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
 
   return (
     <div data-tour="composer" className="home-composer">
-      {/* No suggestion chips above the chat bar (Sharif, #222). */}
+      {/* Suggestion chips above the chat bar (back by Christian's call): a chip fills the box, Send sends. */}
+      <ConversationSuggestions
+        suggestions={chips}
+        disabled={busy}
+        onSelect={(chip) => {
+          setText(chip);
+          inputRef.current?.focus();
+        }}
+      />
       <form onSubmit={onSubmit} className="home-composer-input">
         <span
           key={bloomId}

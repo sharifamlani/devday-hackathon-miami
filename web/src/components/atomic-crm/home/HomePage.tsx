@@ -4,7 +4,7 @@ import { TaskDayPanel } from "./TaskDayPanel";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, STAFF_NAME } from "../providers/local/config";
 import {
   Dialog,
   DialogContent,
@@ -154,7 +154,8 @@ export const HomePage = () => {
   const staffName = (
     profile.data as { staff_name?: string | null } | null | undefined
   )?.staff_name;
-  const name = firstName(staffName);
+  // The org profile's staff name when it has one, else the demo persona (config.STAFF_NAME).
+  const name = firstName(staffName) ?? firstName(STAFF_NAME);
   const tasksPending = home.tasks.isPending;
   const briefing = hasData ? buildBriefing(summary, tasks) : null;
   const startTask = (key: string) => {
