@@ -1933,6 +1933,17 @@ everything is public (Sharif), but this doc never quotes the digits: it writes "
 first, so the person answering it is part of the call. Labels are from the code (`phone.ts` `statusLabel`,
 `PhoneCallInline`); 54's live test call confirms them.
 
+Live-call notes (19, from the real test call):
+- The staff phone (Sharif's) rings first, from **the Twilio number**: save it as a contact on that phone before the
+  demo, or iPhone call screening answers it. Docs write "the Twilio number", never its digits.
+- Each leg opens with Twilio's trial-account message. Say it out loud as a known limit ("a trial account, so Twilio
+  reads a notice first").
+- Christian hears "Hello. This call is recorded for our notes." before he joins.
+- Don't restart LIVE's service between **Call** and the summary (about a minute after **Hang up**): the call's
+  worker runs inside the service. If the transcript fails, the card offers **Try again** (it keeps the recording and
+  places no new call).
+- The trial balance covers a few short calls: keep each under 30 s. No callback URL is needed.
+
 ### 22.3. T-minus checklist (laptop operator)
 - [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
 - [ ] **T-30 (reset), OWNER: the IT lane (session 20).** The stage laptop runs LIVE: the service on :8001 (the
@@ -1975,6 +1986,9 @@ first, so the person answering it is part of the call. Labels are from the code 
       must print all six names; `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^PHONE_CALLS=on'`
       must match; `SEND_ALLOWLIST` must include his verified number. (The `/phone/preview` check for Christian comes
       after he's added, during step 3; see 4c.)
+- [ ] **T-15 (staff phone):** the Twilio number is saved as a contact on the staff phone (Sharif's), so iPhone call
+      screening doesn't answer it. During the run, nobody restarts LIVE's service between 4c's **Call** and its
+      summary.
 - [ ] **T-10 (mic):** open **Live transcript** (it should show **Listening**), then **Open Ask sidebar** →
       **Dictate** → **Stop dictation**. Grant the browser mic permission.
 - [ ] **T-5 (screen):** browser zoom 110%, notifications off, DevTools console open on a second screen; close other
@@ -2008,11 +2022,12 @@ first, so the person answering it is part of the call. Labels are from the code 
    **If it fails →** the snapshot is the fallback (see T-15); restart the tunnel only with 10+ minutes to spare, and
    only as `python scripts/public_tunnel.py on --port 8401` (never a bare `on`: it tunnels :8001).
 6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
-   **Command:** run 22.2 steps 1–5 in the browser, then `scripts\demo_reset.py --check` from `dd-live-main` with the same venv Python (it approves the
-   suggested merges on a COPY of the db) · **Expected:** `PASS` lines for people / gifts / alerts against
-   `answer_key.json` (68 people: 33 givers, 20 neighbors, 15 community; 131 gifts). Run it **before** the IT lane
-   adds Christian: with him the db holds 68 + Christian = 69 people (34 givers), and the check would FAIL on that
-   alone. **If it fails →** note which
+   **Command:** run 22.2 in the browser; right after step 2's import (before the IT lane adds Christian in step 3),
+   the IT lane runs `scripts\demo_reset.py --check` from `dd-live-main` with the same venv Python (it approves the
+   suggested merges on a COPY of the db); then the browser run continues through 4c and the close · **Expected:**
+   `PASS` lines for people / gifts / alerts against `answer_key.json` (68 people: 33 givers, 20 neighbors,
+   15 community; 131 gifts). With Christian added later, the screen reads 68 + Christian = 69 people (34 givers),
+   which is expected. **If it fails →** note which
    count differs, tell the lead, and demo without the merge step. Then reset (smoke 2) before T-30.
 
 ### 22.5. Evaluation criteria (definition of done for the stage run)
@@ -2024,7 +2039,7 @@ first, so the person answering it is part of the call. Labels are from the code 
 | All 4 events land | Sat 14 Early Giving, Sun 15 5K + Festival, Thu 19 Give Miami Day on the week strip | read the week strip / calendar | rehearsal screenshot |
 | Agents feel live | first step card ≤ 3 s; "Plan next week" done ≤ 15 s; call sheet ≤ 35 s | stopwatch | rehearsal timing table |
 | Calendar to campaign | **Open batch** opens the campaign page ≤ 5 s | stopwatch | rehearsal timing table |
-| Data stays right | with the suggested merges approved: 68 people, 131 gifts (on screen after the live-call setup: 68 + Christian = 69, 34 givers) | `demo_reset.py --check` (smoke 6, on a copy, before Christian is added) | its PASS lines |
+| Data stays right | with the suggested merges approved: 68 people, 131 gifts (on screen after the live-call setup: 68 + Christian = 69, 34 givers) | `demo_reset.py --check` (smoke 6: on a copy, right after step 2's import, before Christian is added in step 3) | its PASS lines |
 | No visible errors | 0 console errors, 0 failed requests during the run | DevTools console + Network on the operator's screen | rehearsal note |
 | Fits the slot | machine wait ≤ 3 min in total (rehearsal #2: ~131 s) | sum of the stopwatch times | rehearsal timing table |
 
@@ -2047,6 +2062,7 @@ fallback before T-30.
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
+| 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the transcript is retried in the background and go to 4d. |
 | 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do 4d (the Live transcript demo call). |
 | 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
 | 4e Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
