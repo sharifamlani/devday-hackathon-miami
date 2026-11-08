@@ -7,24 +7,19 @@ import {
   useListContext,
   type Exporter,
 } from "ra-core";
-import { Download, Filter, Megaphone, Search, Upload, X } from "lucide-react";
+import { Download, Filter, Megaphone, Upload, X } from "lucide-react";
 import { Link } from "react-router";
 
 import { BulkExportButton } from "@/components/admin/bulk-export-button";
 import { ListPagination } from "@/components/admin/list-pagination";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
 import {
@@ -39,6 +34,7 @@ import type { Tier } from "../providers/local/types";
 import { useTags } from "../tags/useTags";
 import { BulkTagButton } from "./BulkTagButton";
 import {
+  DirectorySearch,
   DonorsTabs,
   DonorTagBadge,
   InitialsAvatar,
@@ -47,7 +43,7 @@ import {
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { AutoMergeFlag } from "./AutoMergeFlag";
 import { DuplicateBanner } from "./DuplicateMerge";
-import { PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
+import { AlsoFound, PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
 import { usePeopleTab } from "./usePeopleTab";
 
 const SORTS = [
@@ -59,9 +55,11 @@ const SORTS = [
 ];
 
 /** The Donors tab: Atomic CRM's contact list, on the donor data. */
-export const DonorList = () => (
+export const DonorList = ({ embedded = false }: { embedded?: boolean }) => (
   <ListBase<DonorContact>
     resource="contacts"
+    disableSyncWithLocation={embedded}
+    storeKey={embedded ? "home-donors" : undefined}
     perPage={25}
     sort={{ field: "score", order: "DESC" }}
     exporter={exporter}
@@ -71,7 +69,6 @@ export const DonorList = () => (
 );
 
 const DonorListLayout = () => {
-  const isMobile = useIsMobile();
   const { data, isPending, error, filterValues, total, refetch } =
     useListContext<DonorContact>();
   const [importOpen, setImportOpen] = useState(false);
@@ -87,7 +84,7 @@ const DonorListLayout = () => {
   const activeFilters = Object.keys(filterValues).filter((k) => k !== "q");
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-3 px-4 pt-4 pb-24 md:px-0 md:pt-0">
+    <div className="@container mx-auto w-full max-w-6xl space-y-3 px-4 pt-4 pb-24 md:px-0 md:pt-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Donors</h1>
@@ -119,50 +116,34 @@ const DonorListLayout = () => {
       >
         <SearchBox />
         <SortSelect />
-        {isMobile && (
-          <Sheet>
-            <SheetTrigger
-              render={
-                <Button
-                  variant="outline"
-                  className="relative min-h-11 rounded-full"
-                />
-              }
-            >
-              <Filter aria-hidden />
-              Filters
-              {activeFilters.length > 0 && (
-                <span className="ml-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
-                  {activeFilters.length}
-                </span>
-              )}
-            </SheetTrigger>
-            <SheetContent
-              side="bottom"
-              className="max-h-[85dvh] overflow-y-auto p-4"
-            >
-              <SheetHeader className="px-0">
-                <SheetTitle>Filter donors</SheetTitle>
-              </SheetHeader>
-              <DonorFilters facets={facets} />
-              <SheetClose
-                render={
-                  <Button className="mt-4 min-h-11 w-full rounded-full" />
-                }
-              >
-                Show {total ?? 0} donor{total === 1 ? "" : "s"}
-              </SheetClose>
-            </SheetContent>
-          </Sheet>
-        )}
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button
+                variant="outline"
+                className="relative min-h-11 rounded-full"
+              />
+            }
+          >
+            <Filter aria-hidden /> Filter
+            {activeFilters.length > 0 && (
+              <span className="ml-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                {activeFilters.length}
+              </span>
+            )}
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            sideOffset={8}
+            className="desk-directory-filters"
+          >
+            <h2 className="font-semibold">Filter donors</h2>
+            <DonorFilters facets={facets} />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className={cn("flex gap-4", tab !== "giver" && "hidden")}>
-        {!isMobile && (
-          <aside aria-label="Filters" className="w-56 shrink-0">
-            <DonorFilters facets={facets} />
-          </aside>
-        )}
         <div className="min-w-0 flex-1 space-y-2">
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {isPending
@@ -196,6 +177,9 @@ const DonorListLayout = () => {
           )}
         </div>
       </div>
+      {tab === "giver" && (
+        <AlsoFound query={String(filterValues.q ?? "")} current="giver" />
+      )}
       {tab === "giver" && <BulkBar />}
     </div>
   );
@@ -206,7 +190,6 @@ const DonorListLayout = () => {
 const SearchBox = () => {
   const { filterValues, setFilters, displayedFilters } = useListContext();
   const [value, setValue] = useState<string>(String(filterValues.q ?? ""));
-  const id = useId();
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -218,25 +201,7 @@ const SearchBox = () => {
     return () => clearTimeout(handle);
   }, [value, filterValues, setFilters, displayedFilters]);
 
-  return (
-    <div className="relative min-w-0 flex-1 basis-56">
-      <label htmlFor={id} className="sr-only">
-        Search donors
-      </label>
-      <Search
-        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-        aria-hidden
-      />
-      <Input
-        id={id}
-        type="search"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Find a donor by name, organization or city"
-        className="min-h-11 rounded-full bg-card pl-9"
-      />
-    </div>
-  );
+  return <DirectorySearch value={value} onChange={setValue} />;
 };
 
 const SortSelect = () => {
@@ -507,8 +472,11 @@ const DonorRows = () => {
           }
         />
         <span className="flex-1">Donor</span>
-        <span className="hidden w-28 md:block">Last gift</span>
-        <span className="hidden w-24 text-right md:block">Lifetime</span>
+        <span className="hidden w-32 @min-[900px]:block">Status</span>
+        <span className="hidden w-28 @min-[640px]:block">Last gift</span>
+        <span className="hidden w-24 text-right @min-[760px]:block">
+          Lifetime
+        </span>
         <span className="w-12 text-right">Score</span>
       </div>
       <ul className="divide-y divide-border">
@@ -545,9 +513,11 @@ const DonorRows = () => {
                   autoMerged={donor.auto_merged}
                   mergedFrom={donor.merged_from}
                 />
-                {donor.status_tags.slice(0, 2).map((tag) => (
-                  <DonorTagBadge key={tag} tag={tag} />
-                ))}
+                <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
+                  {donor.status_tags.slice(0, 2).map((tag) => (
+                    <DonorTagBadge key={tag} tag={tag} />
+                  ))}
+                </span>
               </div>
               <p className="truncate text-xs text-muted-foreground">
                 {[
@@ -561,12 +531,20 @@ const DonorRows = () => {
                   .filter(Boolean)
                   .join(" · ")}
               </p>
-              <p className="text-xs text-muted-foreground md:hidden">
+              <p className="text-xs text-muted-foreground @min-[640px]:hidden">
                 Last gift {formatDay(donor.last_gift_date)} ·{" "}
                 {formatUsd(donor.total_given)} lifetime
               </p>
             </div>
-            <div className="hidden w-28 text-sm md:block">
+            <div
+              className="hidden w-32 flex-wrap gap-1 @min-[900px]:flex"
+              aria-label={`Status for ${donor.full_name}`}
+            >
+              {donor.status_tags.slice(0, 2).map((tag) => (
+                <DonorTagBadge key={tag} tag={tag} />
+              ))}
+            </div>
+            <div className="hidden w-28 text-sm @min-[640px]:block">
               {donor.last_gift_date ? (
                 <>
                   <div>{formatUsd(donor.last_gift_amount)}</div>

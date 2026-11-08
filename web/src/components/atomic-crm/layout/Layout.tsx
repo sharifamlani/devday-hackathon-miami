@@ -1,3 +1,4 @@
+import { OverviewProvider } from "../home/OverviewProvider";
 import { Suspense, type ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Notification } from "@/components/admin/notification";
@@ -14,14 +15,13 @@ import { DataImportProvider } from "../dataImport/DataImportProvider";
 import { OnboardingGate } from "../onboarding/OnboardingGate";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import Header from "./Header";
-import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
-import { Rail } from "./Rail";
+import { WorkspaceSidebar } from "../home/WorkspaceSidebar";
 import { shellState } from "./shellState";
 
 /**
  * Desktop shell in the Kindred look: a white canvas with soft yellow-green
  * glows, 16px around the edge and 12px between columns:
- *   rail | Projects sidebar (collapsible) | workspace (top bar + page) | right pane
+ *   rail | workspace (top bar + page) | right pane
  * Phones use MobileLayout instead (see CRM.tsx, useIsMobile).
  */
 export const Layout = ({ children }: { children: ReactNode }) => {
@@ -29,9 +29,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <DataImportProvider>
       <AskSessionProvider>
-        <ProjectsSidebarProvider>
+        <OverviewProvider>
           <LayoutShell>{children}</LayoutShell>
-        </ProjectsSidebarProvider>
+        </OverviewProvider>
       </AskSessionProvider>
       <Notification />
     </DataImportProvider>
@@ -61,9 +61,8 @@ const LayoutShell = ({ children }: { children: ReactNode }) => {
         >
           Skip to content
         </a>
-        <div className="flex h-dvh gap-3 p-4">
-          <Rail />
-          <ProjectsSidebar />
+        <div className="desk-app-shell">
+          <WorkspaceSidebar />
           <div
             className={cn(
               "flex min-w-0 flex-1 flex-col gap-3",

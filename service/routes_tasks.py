@@ -8,6 +8,8 @@ POST   /tasks/generate                              {created, tasks} (idempotent
 GET    /calendar?from&to                            [{date, time, title, kind: event|task, source, ref}]
 GET    /artifacts                                   [{kind: call_note|draft|report, title, date, ref}]
 POST   /undo/{token}                                {undone: true}; int_… tokens go to service.interests
+POST   /people/{id}/context-notes                   {note, undo_token}   a staff note (service.context_notes)
+DELETE /people/{id}/context-notes/{fact_id}         {deleted: true, undo_token}
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from service import agent_writes, tasks
+from service import agent_writes, context_notes, tasks
 from service.routes_data import get_conn
 
 router = APIRouter(tags=["tasks"])
@@ -122,3 +124,27 @@ def post_undo(token: str, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
         except (ValueError, KeyError) as exc:   # a malformed token (bad base64 / JSON) is a ValueError
             raise HTTPException(422, f"bad interest undo token: {exc}")
     return _call(agent_writes.undo, conn, token)
+
+
+class NoteIn(BaseModel):
+    fact: str = Field(min_length=1, max_length=2000)
+    source: str = Field("staff note", min_length=1, max_length=500)
+
+
+@router.post("/people/{person_id}/context-notes")
+def post_context_note(person_id: int, body: NoteIn, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    try:
+        note, token = context_notes.add_context_note(conn, person_id, body.fact, body.source, actor="staff")
+    except context_notes.NoteError as exc:
+        raise HTTPException(404 if "not found" in str(exc) else 422, str(exc))
+    return {"note": note, "undo_token": token}
+
+
+@router.delete("/people/{person_id}/context-notes/{fact_id}")
+def delete_context_note(person_id: int, fact_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    """Remove a note; POST /undo/{undo_token} puts it back. A removed call note is never re-added by a re-apply."""
+    try:
+        _, token = context_notes.delete_context_note(conn, fact_id, actor="staff", person_id=person_id)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc))
+    return {"deleted": True, "undo_token": token}
