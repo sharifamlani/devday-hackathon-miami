@@ -10,7 +10,7 @@ import {
 import { ArrowUp, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { DictationButton } from "../voice/DictationButton";
+import { DictationButton, DictationHint } from "../voice/DictationButton";
 import { useDictationInput } from "../voice/useDictationInput";
 import { completionFor } from "./askComplete";
 
@@ -171,6 +171,8 @@ export const AskPrompt = ({
           )}
         </button>
       </div>
+
+      <DictationHint error={dictation.error} className={compact ? "justify-start" : "justify-center"} />
 
       {/* Visible for discoverability, and announced politely when the suggestion changes. */}
       <p

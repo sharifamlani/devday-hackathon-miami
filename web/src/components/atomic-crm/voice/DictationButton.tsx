@@ -60,8 +60,23 @@ export const DictationButton = ({
         )}
       </button>
       <span role="status" aria-live="polite" className="sr-only">
-        {listening ? "Listening" : (error ?? "")}
+        {listening ? "Listening" : ""}
       </span>
     </>
   );
 };
+
+/**
+ * One visible line under the box when dictation fails (no service, no key, no
+ * audio), so the reason isn't only in a tooltip. Announced as it appears.
+ */
+export const DictationHint = ({ error, className }: { error: string | null; className?: string }) => (
+  <p role="status" aria-live="polite" className={cn(error ? "mt-2 flex items-center gap-1.5 text-xs text-[#c62a2f]" : "sr-only", className)}>
+    {error && (
+      <>
+        <MicOff className="size-3.5 shrink-0" aria-hidden />
+        {error}
+      </>
+    )}
+  </p>
+);
