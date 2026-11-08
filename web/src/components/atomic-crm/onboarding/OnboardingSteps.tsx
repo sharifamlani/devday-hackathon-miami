@@ -79,6 +79,7 @@ import {
   type OrgLinks,
   type SocialPlatform,
 } from "./onboardingState";
+import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 /** The laptop build talks to the service; the Vercel snapshot has no API. */
 const LIVE = DATA_MODE === "local";
@@ -1044,6 +1045,10 @@ export const ContextStep = ({
     setAttempt((n) => n + 1);
   };
 
+  // The public preview refuses the read (read-only), which isn't the website's fault.
+  const previewOnly =
+    phase.phase === "error" && phase.message === PUBLIC_PREVIEW_MESSAGE;
+
   const finishNow = () => {
     // From the receipt, the click shows the welcome card first; it opens the dashboard after WELCOME_MS
     if (phase.phase === "receipt") return send({ type: "welcome" });
@@ -1063,6 +1068,10 @@ export const ContextStep = ({
       <>
         Still reading <strong>your site.</strong>
       </>
+    ) : previewOnly ? (
+      <>
+        This preview can't read <strong>websites.</strong>
+      </>
     ) : phase.phase === "error" ? (
       <>
         We couldn't read <strong>your site.</strong>
@@ -1076,13 +1085,15 @@ export const ContextStep = ({
   const lede =
     phase.phase === "welcome"
       ? (phase.receipt.orgName ?? "Opening your dashboard.")
-      : phase.phase === "error"
-        ? "You can still use Donor Desk and run it again later."
-        : phase.phase === "slow"
-          ? "Reading your website is taking longer than usual. We'll keep reading in the background, and new facts appear on your dashboard when it's done."
-          : phase.phase === "receipt"
-            ? undefined
-            : "The agent is reading your website and recent news. This takes about half a minute; if it runs longer, it keeps going in the background.";
+      : previewOnly
+        ? "It's read-only, so nothing new is read. Your dashboard shows what's already in this preview."
+        : phase.phase === "error"
+          ? "You can still use Donor Desk and run it again later."
+          : phase.phase === "slow"
+            ? "Reading your website is taking longer than usual. We'll keep reading in the background, and new facts appear on your dashboard when it's done."
+            : phase.phase === "receipt"
+              ? undefined
+              : "The agent is reading your website and recent news. This takes about half a minute; if it runs longer, it keeps going in the background.";
 
   return (
     <StepForm
@@ -1091,7 +1102,7 @@ export const ContextStep = ({
       lede={lede}
       onSubmit={finishNow}
       secondary={
-        phase.phase === "error" ? (
+        phase.phase === "error" && !previewOnly ? (
           <button type="button" className="onb-btn quiet" onClick={retry}>
             Try again
           </button>
@@ -1138,7 +1149,7 @@ export const ContextStep = ({
               .
             </p>
           )}
-          {phase.phase === "error" && (
+          {phase.phase === "error" && !previewOnly && (
             <p className="onb-status" data-tone="error">
               {phase.message}
             </p>

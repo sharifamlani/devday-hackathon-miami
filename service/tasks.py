@@ -409,10 +409,21 @@ def _call_chips(f: dict | None, today: date) -> list[str]:
 
 def _alert_why(alert: dict, today: date) -> str:
     cadence = (alert.get("cadence") or "regular").replace("_gmd", " (Give Miami Day)")
+    if alert["kind"] == "failed" and alert.get("last_gift") and alert["last_gift"] > (alert["expected_date"] or ""):
+        # A skipped month that giving resumed after (routes_home words it the same way): not "no gift since".
+        return (f"Skipped a {cadence} gift around {nice_date(alert['expected_date'], today)}; "
+                f"last gift {nice_date(alert['last_gift'], today)}.")
     if alert["kind"] == "failed":
         return f"{cadence[:1].upper() + cadence[1:]} gift on {nice_date(alert['expected_date'], today)} failed, with no gift since."
     return (f"{cadence[:1].upper() + cadence[1:]} giver; the gift due {nice_date(alert['expected_date'], today)} "
             f"is {alert['days_late']} days late.")
+
+
+def review_title(people: list[str]) -> str:
+    """'Review possible duplicate: A, B'; records sharing one name read 'Name (2 records)', not 'Name, Name'."""
+    unique = list(dict.fromkeys(people))
+    label = ", ".join(unique) if len(unique) > 1 else f"{unique[0]} ({len(people)} records)"
+    return f"Review possible duplicate: {label}"
 
 
 def _duplicate_groups(conn: sqlite3.Connection) -> list[tuple[list[int], list[str]]]:
@@ -531,7 +542,7 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
     for ids, reasons in _duplicate_groups(conn):
         group = set(ids)
         people = [names.get(i, f"#{i}") for i in ids]
-        fields = {"title": f"Review possible duplicate: {', '.join(people)}",
+        fields = {"title": review_title(people),
                   "why": "; ".join(reasons) or "These records look like the same person.",
                   "person_id": ids[0], "chips": [f"{len(ids)} records"] + reasons[:2]}
         candidates = sorted((r for r in reviews if r["id"] not in claimed and r["member_set"] & group),

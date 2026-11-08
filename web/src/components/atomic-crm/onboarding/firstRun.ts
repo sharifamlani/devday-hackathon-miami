@@ -23,6 +23,7 @@ import {
   TAB_NAMES,
   readTabCounts,
 } from "./onboardingState";
+import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 /* ---------- Step 1: files ---------- */
 
@@ -497,7 +498,8 @@ export const contextSummary = (phase: ContextPhase): ContextSummary | null => {
       };
     case "error":
       return {
-        outcome: "failed",
+        // The public preview refuses the read; that isn't a failed read of the website.
+        outcome: phase.message === PUBLIC_PREVIEW_MESSAGE ? "preview" : "failed",
         items: phase.run?.facts.length ?? 0,
         tasks: null,
       };
@@ -637,6 +639,11 @@ export const offerCopy = (
     return {
       title: "Your desk is ready.",
       body: "Want a one-minute tour of where things are?",
+    };
+  if (outcome === "preview")
+    return {
+      title: "Your desk is open.",
+      body: "This preview can't read websites, so it shows what's already here. Want a one-minute tour of where things are?",
     };
   if (outcome === "background" && data.background?.status !== "failed")
     return {

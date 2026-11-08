@@ -86,9 +86,14 @@ export interface FilesSummary {
 /**
  * How step 3 ended. done: the website was read · background: the read was
  * slow and goes on in the background · saved: v2's "showed saved context" ·
- * failed: nothing was read.
+ * failed: nothing was read · preview: the read-only public preview refused the read.
  */
-export type ContextOutcome = "done" | "background" | "saved" | "failed";
+export type ContextOutcome =
+  | "done"
+  | "background"
+  | "saved"
+  | "failed"
+  | "preview";
 export interface ContextSummary {
   outcome: ContextOutcome;
   items: number;
@@ -266,6 +271,7 @@ const OUTCOMES: readonly ContextOutcome[] = [
   "done",
   "background",
   "saved",
+  "preview",
   "failed",
 ];
 

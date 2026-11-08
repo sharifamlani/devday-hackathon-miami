@@ -28,6 +28,7 @@ import {
   type Receipt,
 } from "./firstRun";
 import { EMPTY_LINKS, type FilesSummary } from "./onboardingState";
+import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 const file = (name: string, size = 1200) => ({ name, size });
 
@@ -655,6 +656,27 @@ describe("the dashboard card's copy", () => {
     expect(offerCopy({ context: null, background: null }).body).toContain(
       "wasn't read",
     );
+  });
+
+  it("the public preview's refused read shows saved facts, not an unread website", () => {
+    const reading = contextReducer(
+      { phase: "reading" },
+      { type: "run_failed", message: PUBLIC_PREVIEW_MESSAGE },
+    );
+    expect(contextSummary(reading)?.outcome).toBe("preview");
+    const copy = offerCopy({
+      context: { outcome: "preview", items: 13, tasks: null },
+      background: null,
+    });
+    expect(copy.body).toContain("can't read websites");
+    // v2's "saved" outcome (showed saved context) never gets the preview copy.
+    expect(
+      offerCopy({
+        context: { outcome: "saved", items: 3, tasks: null },
+        background: null,
+      }).body,
+    ).not.toContain("preview");
+    expect(copy.body).not.toContain("wasn't read");
   });
 
   it("the sample build talks about the sample desk, never an unread website", () => {
