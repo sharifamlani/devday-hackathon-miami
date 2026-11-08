@@ -19,8 +19,8 @@ export const DonorQuickFacts = ({
       <Stat
         label="Email"
         value={
-          // One line: long addresses truncate (full address on hover and in the link).
-          <span className="block truncate" title={record.email ?? undefined}>
+          // Always fully visible (Sharif): a long address wraps instead of truncating.
+          <span className="block [overflow-wrap:anywhere]">
             <EmailLink email={record.email} />
           </span>
         }
