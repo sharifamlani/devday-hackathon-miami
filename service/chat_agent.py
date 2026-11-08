@@ -1074,21 +1074,47 @@ APPROVAL_TOOLS = {t.name for t in TOOLS if getattr(t, "needs_approval", False)}
 # Public preview (PUBLIC_MODE=1): the agent's server-side tools bypass the HTTP allow-list, so every tool that
 # is not a plain read is swapped for one that refuses without touching the db.
 READ_ONLY_TOOLS = {"find_people", "get_person", "segment", "get_context", "search_context", "get_events", "get_alerts",
-                   "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats"}
+                   "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats", "get_call_notes"}
+READ_PREFIXES = ("get_", "find_", "search_", "list_")
 READ_ONLY_REPLY = "This is a read-only preview, so I can't make changes, draft or send anything. I can look things up for you."
 
 
 def refuse_in_preview(tool):
+    """A tool the preview doesn't allow. A write or send marks the run blocked (the reply becomes READ_ONLY_REPLY);
+    a read that isn't on the list just answers empty, so one refused lookup doesn't throw away the whole answer."""
+    is_read = tool.name.startswith(READ_PREFIXES)
+
     async def invoke(ctx, _input):
+        if is_read:
+            return json.dumps({"note": public_mode.NOT_AVAILABLE, "results": []})
         ctx.context.blocked = True
         return json.dumps({"error": public_mode.NOT_AVAILABLE})
     return dataclasses.replace(tool, on_invoke_tool=invoke, needs_approval=False)
 
 
+def masked_in_preview(tool):
+    """A read the preview allows, with its output masked before the model sees it (public_mode.mask_json, as for
+    every public JSON response): call notes and transcripts come back empty, staff notes blank, emails and phones
+    masked. The model can't repeat what it never got."""
+    run = tool.on_invoke_tool
+
+    async def invoke(ctx, input):
+        out = await run(ctx, input)
+        try:
+            data = out if isinstance(out, (dict, list)) else json.loads(out)
+        except (TypeError, ValueError):
+            return out
+        masked = public_mode.mask_json(data)
+        if isinstance(masked, dict) and "call_notes" in masked:     # they exist; they're just not shown here
+            masked["note"] = "call notes stay private in the public preview"
+        return masked if isinstance(out, (dict, list)) else json.dumps(masked)
+    return dataclasses.replace(tool, on_invoke_tool=invoke)
+
+
 def tools_for_mode() -> list:
     if not public_mode.enabled():
         return TOOLS
-    return [t if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
+    return [masked_in_preview(t) if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
 
 
 def summarize(output) -> str:
