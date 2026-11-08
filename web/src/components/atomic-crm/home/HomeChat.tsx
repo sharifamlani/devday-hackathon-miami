@@ -490,6 +490,7 @@ export const Composer = ({
         </label>
         <input
           id={inputId}
+          data-hotkeys="composer"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={dictation.interim || "Ask the agent…"}

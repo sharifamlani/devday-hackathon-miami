@@ -21,7 +21,8 @@ const Probe = () => {
   return (
     <>
       <i data-loc={loc.pathname + loc.search} />
-      <textarea data-testid="composer" />
+      <textarea data-testid="composer" data-hotkeys="composer" />
+      <input data-testid="search" />
       <div data-zoom-source="tasks" />
     </>
   );
@@ -78,6 +79,13 @@ describe("useWorkspaceHotkeys", () => {
     const e = press({ key: "†", code: "KeyT", altKey: true }, container.querySelector("textarea")!);
     expect(toggle).toHaveBeenCalledWith("tasks", expect.anything());
     expect(e.defaultPrevented).toBe(true);
+  });
+
+  it("leaves other text fields alone: Option+C types ç in a plain input", async () => {
+    const { container } = await mount();
+    const e = press({ key: "ç", code: "KeyC", altKey: true }, container.querySelector('[data-testid="search"]')!);
+    expect(toggle).not.toHaveBeenCalled();
+    expect(e.defaultPrevented).toBe(false);
   });
 
   it("S4: Alt+V dispatches the dictation toggle", async () => {

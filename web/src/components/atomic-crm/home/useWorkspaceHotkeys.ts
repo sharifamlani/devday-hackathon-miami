@@ -45,9 +45,20 @@ export function tileFor(view: WorkspaceView): HTMLElement | null {
 const modalOpen = () =>
   !!document.querySelector('[role="dialog"],[role="alertdialog"]');
 
+/** Text fields keep their keys (Option+C types ç on a Mac); only the home composer opts in. */
+const typingOutsideComposer = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest('[data-hotkeys="composer"]')) return false;
+  return (
+    target.isContentEditable ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+  );
+};
+
 /**
  * Alt+C Calendar, Alt+T Tasks, Alt+M CRM, Ctrl+I Impact, Alt+V dictation.
- * One document listener; works while typing in the composer, never over a modal.
+ * One document listener; works while typing in the composer, never in other
+ * text fields or over a modal.
  * Off Home the panel keys open Home with that panel.
  */
 export function useWorkspaceHotkeys() {
@@ -58,6 +69,7 @@ export function useWorkspaceHotkeys() {
       if (e.repeat || e.defaultPrevented || e.isComposing) return;
       const hit = hotkeyFor(e);
       if (!hit || modalOpen()) return;
+      if (typingOutsideComposer(e.target)) return;
       if ("dictation" in hit) {
         if (pathname !== "/") return;
         e.preventDefault();
