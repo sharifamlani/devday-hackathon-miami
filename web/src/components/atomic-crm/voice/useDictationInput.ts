@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { DATA_MODE } from "../providers/local/config";
 import { useDictation } from "../providers/local/dictation";
+import { warmUpCaptions } from "./geminiTranscriptSource";
 
 /**
  * Dictation into a chat box (plan §20.8): press the mic, speak, and the words
@@ -36,6 +37,12 @@ export const useDictationInput = (value: string, onChange: (value: string) => vo
   const placed = useRef(0);
 
   const active = d.status === "connecting" || d.status === "listening" || d.status === "stopping";
+
+  // Chrome builds its first 16 kHz audio context slowly; warming one while the
+  // box is on screen keeps the first spoken words (see warmUpCaptions).
+  useEffect(() => {
+    if (DATA_MODE === "local") warmUpCaptions();
+  }, []);
 
   useEffect(() => {
     if (before.current == null) return;

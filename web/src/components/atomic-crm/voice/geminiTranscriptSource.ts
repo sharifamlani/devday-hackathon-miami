@@ -344,20 +344,34 @@ export const micTranscriptSource = (): TranscriptSource =>
 
 /*
  * Chrome builds the first 16 kHz AudioContext in a page slowly (measured
- * ~100-400 ms), and the recorder builds its own only when the call starts, so
- * the first words were lost while it did. Holding one suspended 16 kHz context
- * from the moment the pane loads (half a second before the mic source starts)
- * brings the recorder's down to ~40 ms. Suspended, it uses no audio thread.
+ * ~100-450 ms), and the recorder builds its own only when the mic starts, so
+ * the first words were lost while it did. A 16 kHz context that has run once
+ * keeps that cost down to ~20-40 ms for the next one, even suspended.
+ *
+ * Chrome only starts a context's audio device after a user gesture, so one
+ * created at page load does nothing until then: the first pointer press
+ * anywhere in the page resumes it (bringing the device up) and suspends it
+ * again. Suspended, it uses no audio thread.
  */
 let warmContext: AudioContext | null = null;
+let listeningForGesture = false;
 
-export const warmUpCaptions = (): void => {
-  if (warmContext || typeof AudioContext === "undefined") return;
+const warm = () => {
   try {
-    warmContext = new AudioContext({ sampleRate: 16000 });
-    void warmContext.suspend();
+    if (!warmContext) warmContext = new AudioContext({ sampleRate: 16000 });
+    const ctx = warmContext;
+    void ctx.resume().then(() => ctx.suspend(), () => undefined);
   } catch {
     warmContext = null; // no gain, no harm: the recorder builds its own as before
+  }
+};
+
+export const warmUpCaptions = (): void => {
+  if (typeof AudioContext === "undefined" || typeof window === "undefined") return;
+  warm();
+  if (!listeningForGesture) {
+    listeningForGesture = true;
+    window.addEventListener("pointerdown", warm, { once: true, capture: true });
   }
 };
 
