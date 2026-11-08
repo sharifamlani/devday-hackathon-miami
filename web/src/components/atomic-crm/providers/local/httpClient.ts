@@ -242,7 +242,8 @@ export const localApiMethods: BaseDonorDeskMethods = {
 
   uploadFiles: (files, target = "auto") => postIngest(files, undefined, target),
   // Carlos's /ingest maps columns itself and may ignore "mapping".
-  importDonors: (input) => postIngest(input.files, input.mapping),
+  // "Import donors" adds Givers: a gift-free row would otherwise default to Neighbors (target auto)
+  importDonors: (input) => postIngest(input.files, input.mapping, "giver"),
   runContext: async (input) => {
     const website = requireWebsite(input);
     try {

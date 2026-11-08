@@ -235,3 +235,26 @@ def test_rsvp_writes_through_agent_writes_with_an_undo_token(env):
     ref = out["applied"][0]["ref"]
     assert ref["rsvp"] == "yes" and ref["undo_token"]
     assert conn.execute("SELECT actor, target FROM agent_actions WHERE token = ?", (ref["undo_token"],)).fetchone()[:] == ("call", f"rsvp:{beach}:{rosa}")
+
+
+def test_the_rosa_call_proposes_no_interest_tag(env, monkeypatch):
+    """c9: one live run added a tag from 'the beach cleanup'. Attending an event isn't stating an interest."""
+    from service import interests
+    conn, _, _ = env
+    slug = interests.tag_slugs()[0]
+    monkeypatch.setattr(aca, "interest_tags", lambda: interests.tag_slugs())
+    P = aca.ProposedAction
+    fake = aca.CallProposal(steps=["x"], actions=[
+        P(type="tag_interest", label="Tag", evidence="put me down for the beach cleanup on the 21st", tag=slug)])
+    monkeypatch.setattr(aca, "model_proposal", lambda *a, **k: fake)
+    got = aca.propose(conn, "note-1", TODAY, use_model=True)
+    assert "tag_interest" not in [a["type"] for a in got["actions"]]
+    assert any("doesn't state this interest" in d["why"] for d in got["dropped"])
+    assert "tag_interest" not in [a["type"] for a in aca.propose(conn, "note-1", TODAY)["actions"]]   # rules path too
+
+
+def test_interest_needs_an_outright_statement():
+    assert aca.states_interest("I really care about local news.") and aca.states_interest("We fund arts programs.")
+    assert aca.states_interest("Youth sports matters to me.")
+    assert not aca.states_interest("Put me down for the beach cleanup on the 21st.")
+    assert not aca.states_interest("I got a new card last month.")

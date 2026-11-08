@@ -5,10 +5,9 @@ import { isIsoDate } from "./dates";
 
 /**
  * The outreach plan: which donors or campaigns staff mean to contact on which
- * day, and whether it is done. Kept per viewer in this browser's localStorage
- * (local and snapshot mode alike); it never reaches the donor service.
- * FOLLOW-UP: a server table (outreach_plan: date, donor_id | campaign_id,
- * note, done, planned_by) so the plan is shared across staff and devices.
+ * day, and whether it is done. In live mode these are real tasks (POST /tasks,
+ * see ./usePlan) the agent can read and edit; in the read-only snapshot build
+ * they stay per viewer in this browser's localStorage.
  */
 export interface OutreachPlanItem {
   id: string;
@@ -22,6 +21,12 @@ export interface OutreachPlanItem {
   /** "agent" when it came from a recommendation, "staff" when picked by hand. */
   source: "staff" | "agent";
   created_at: string; // ISO timestamp
+  /** Set when the item is a real task (outreach/usePlan.ts): the line to show instead of "Contact <label>". */
+  title?: string;
+  /** Set for tasks: "Call", "Review", ... shown under the title. */
+  detail?: string;
+  /** Set for tasks: the generator's chips (lifetime giving, last gift, ...). */
+  chips?: string[];
 }
 
 export interface NewPlanItem {
@@ -252,10 +257,12 @@ export const resetPlanStoreForTests = () => {
 };
 
 /**
- * The viewer's outreach plan. `saved` is false when the browser would not
- * store it; the plan then lasts only while this tab is open.
+ * The browser-local plan, used by the read-only snapshot build (no service to
+ * hold tasks). In live mode use `useOutreachPlan` from ./usePlan: the same
+ * items as real tasks. `saved` is false when the browser would not store it;
+ * the plan then lasts only while this tab is open.
  */
-export const useOutreachPlan = () => {
+export const useLocalOutreachPlan = () => {
   const { identity } = useGetIdentity();
   const key = planStorageKey(identity?.id ?? null);
   const items = useSyncExternalStore(

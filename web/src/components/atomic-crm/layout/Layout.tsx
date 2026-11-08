@@ -1,3 +1,4 @@
+import { OverviewProvider } from "../home/OverviewProvider";
 import { Suspense, type ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Notification } from "@/components/admin/notification";
@@ -14,7 +15,7 @@ import { DataImportProvider } from "../dataImport/DataImportProvider";
 import { OnboardingGate } from "../onboarding/OnboardingGate";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import Header from "./Header";
-import { Rail } from "./Rail";
+import { WorkspaceSidebar } from "../home/WorkspaceSidebar";
 import { shellState } from "./shellState";
 
 /**
@@ -28,7 +29,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <DataImportProvider>
       <AskSessionProvider>
-        <LayoutShell>{children}</LayoutShell>
+        <OverviewProvider>
+          <LayoutShell>{children}</LayoutShell>
+        </OverviewProvider>
       </AskSessionProvider>
       <Notification />
     </DataImportProvider>
@@ -58,8 +61,8 @@ const LayoutShell = ({ children }: { children: ReactNode }) => {
         >
           Skip to content
         </a>
-        <div className="flex h-dvh gap-3 p-4">
-          <Rail />
+        <div className="desk-app-shell">
+          <WorkspaceSidebar />
           <div
             className={cn(
               "flex min-w-0 flex-1 flex-col gap-3",

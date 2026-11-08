@@ -96,7 +96,7 @@ export const Q4ProgressTile = ({
           <div className="home-quarter-gauge">
             <svg
               className="home-quarter-arc"
-              viewBox="0 0 104 60"
+              viewBox="0 0 104 68"
               aria-hidden="true"
             >
               <defs>
@@ -112,7 +112,7 @@ export const Q4ProgressTile = ({
                 </linearGradient>
               </defs>
               <path
-                d="M 8 52 A 44 44 0 0 1 96 52"
+                d="M 8 56 A 44 44 0 0 1 96 56"
                 fill="none"
                 strokeWidth="10"
                 strokeLinecap="round"
@@ -120,7 +120,7 @@ export const Q4ProgressTile = ({
               />
               {filled > 0 && (
                 <path
-                  d="M 8 52 A 44 44 0 0 1 96 52"
+                  d="M 8 56 A 44 44 0 0 1 96 56"
                   fill="none"
                   strokeWidth="10"
                   strokeLinecap="round"
@@ -128,20 +128,26 @@ export const Q4ProgressTile = ({
                   strokeDasharray={`${ARC * filled} ${ARC}`}
                 />
               )}
+              <text
+                className="home-quarter-percent"
+                x="52"
+                y="58"
+                textAnchor="middle"
+              >
+                {percent == null ? "—" : `${Math.round(percent)}%`}
+              </text>
             </svg>
-            <span className="home-quarter-percent">
-              {percent == null ? "—" : `${Math.round(percent)}%`}
-            </span>
           </div>
           <dl className="grid min-w-0 gap-1 text-sm">
             <div>
-              <dt className="text-xs text-muted-foreground">Raised</dt>
+              <dt className="text-xs text-muted-foreground">
+                Raised{goal != null && ` of ${formatCompactUsd(goal)}`}
+              </dt>
               <dd className="font-semibold tabular-nums">
                 {formatCompactUsd(target.raised)}
-                {goal != null && ` / ${formatCompactUsd(goal)}`}
                 {goal != null && goalIsSample && (
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    sample goal
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    Sample goal
                   </span>
                 )}
               </dd>
@@ -307,7 +313,7 @@ export const CrmTile = ({
     >
       <TileHead id={headingId} title="CRM">
         <Link
-          to="/contacts"
+          to="/?workspace=donors"
           className={cn(
             "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
             focusRing,
@@ -547,9 +553,7 @@ export const TasksTile = ({
     {
       id: "prep",
       title: "Preparation",
-      items: tasks.filter(
-        (t) => !["call", "email", "review"].includes(t.kind),
-      ),
+      items: tasks.filter((t) => !["call", "email", "review"].includes(t.kind)),
     },
   ];
   return (
@@ -626,8 +630,14 @@ export const TasksTile = ({
                         <button
                           type="button"
                           aria-pressed={task.key === selectedKey}
-                          aria-label={task.why ? `${task.title}: ${task.why}` : task.title}
-                          title={task.why ? `${task.title} — ${task.why}` : task.title}
+                          aria-label={
+                            task.why ? `${task.title}: ${task.why}` : task.title
+                          }
+                          title={
+                            task.why
+                              ? `${task.title} — ${task.why}`
+                              : task.title
+                          }
                           className={cn("home-project-thread", focusRing)}
                           onClick={() => onSelect(task.key)}
                         >

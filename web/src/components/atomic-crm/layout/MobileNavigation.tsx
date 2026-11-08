@@ -1,5 +1,12 @@
 import { cn } from "@/lib/utils";
-import { House, PhoneCall, Send, Sparkles, Users } from "lucide-react";
+import {
+  CalendarDays,
+  House,
+  PhoneCall,
+  Send,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
 
@@ -60,6 +67,12 @@ export const MobileNavigation = () => {
           Icon={Send}
           label={translate("crm.campaigns.title", { _: "Campaigns" })}
           isActive={onCampaigns}
+        />
+        <NavigationButton
+          href="/calendar"
+          Icon={CalendarDays}
+          label="Calendar"
+          isActive={!!matchPath("/calendar", location.pathname)}
         />
       </div>
     </nav>

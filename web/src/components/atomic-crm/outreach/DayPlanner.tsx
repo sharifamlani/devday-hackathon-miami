@@ -10,11 +10,8 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { formatDayLong, formatDayShort } from "./dates";
-import {
-  itemsOn,
-  useOutreachPlan,
-  type OutreachPlanItem,
-} from "./outreachPlan";
+import { itemsOn, type OutreachPlanItem } from "./outreachPlan";
+import { useOutreachPlan } from "./usePlan";
 import type { Recommendation } from "./recommend";
 
 export interface PlannerOption {
@@ -269,7 +266,7 @@ const PlanRow = ({
             {item.label}
           </span>
           <span className="block text-xs text-muted-foreground">
-            {item.campaign_id != null ? "Campaign" : "Donor"}
+            {item.detail ?? (item.campaign_id != null ? "Campaign" : "Donor")}
             {item.source === "agent"
               ? " · suggested by the outreach agent"
               : ""}

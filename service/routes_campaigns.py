@@ -65,8 +65,10 @@ def load_donor(conn: sqlite3.Connection, donor_id: int) -> tuple[dict, list[dict
     why = json.loads(donor.pop("why") or "{}")
     donor["is_star"] = bool(donor.get("is_star"))
     donor["is_sample"] = "SAMPLE" in (donor.get("source_row") or "").splitlines()
+    from service.targets import _counted          # a declined or failed charge is not a gift to thank anyone for
     gifts = [dict(r) for r in conn.execute(
-        "SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? ORDER BY gift_date", (donor_id,))]
+        "SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ?" + _counted(conn) + " ORDER BY gift_date",
+        (donor_id,))]
     research = [dict(r) for r in conn.execute(
         "SELECT fact, source_url FROM research_facts WHERE donor_id = ?", (donor_id,))]
     return donor, gifts, why, research
