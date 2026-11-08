@@ -274,6 +274,16 @@ describe("home data: tasks", () => {
     expect(tasks[1].why).toBe("Approve");
   });
 
+  it("keeps work marked done today from coming back as a recommendation", () => {
+    const tasks = buildTasks({
+      today,
+      plan: [planItem("a", { donor_id: 7, label: "Marcus Bell", done: true })],
+      recommendations: [rec("donor-7", { donor_id: 7, label: "Marcus Bell" })],
+      donors: [donor(7, { full_name: "Marcus Bell", status: "lapsing" })],
+    });
+    expect(tasks).toEqual([]);
+  });
+
   it("drops dismissed tasks and respects the limit", () => {
     const donors = [1, 2, 3].map((id) =>
       donor(id, { status: "lapsed", score: 10 * id }),
