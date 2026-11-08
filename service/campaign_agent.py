@@ -340,10 +340,10 @@ Hard rules:
 
 
 def model_write(donor: dict, gifts: list[dict], why: dict | None, research: list[dict], org_facts: list[dict],
-                facts: dict, intent: str, channel: str, today: date) -> tuple[str | None, str, list[dict]]:
+                facts: dict, intent: str, channel: str, today: date, story: dict | None = None) -> tuple[str | None, str, list[dict]]:
     """One model draft: (subject, body, facts_used). Raises if the model's draft fails the checks twice."""
     if intent == "re_engage" and channel == "email" and not is_beneficiary(donor):
-        d = oa.draft_outreach(donor, gifts, why, research, org_facts, today)
+        d = oa.draft_outreach(donor, gifts, why, research, org_facts, today, story=story)
         return d.subject, d.body, [f.model_dump() for f in d.facts_used]
 
     from agents import Agent, ModelSettings, Runner
@@ -376,20 +376,23 @@ def model_write(donor: dict, gifts: list[dict], why: dict | None, research: list
 
 
 def draft_message(donor: dict, gifts: list[dict], why: dict | None, research: list[dict], org_facts: list[dict],
-                  intent: str, channel: str, today: date | None = None, use_model: bool | None = None) -> CampaignDraft:
+                  intent: str, channel: str, today: date | None = None, use_model: bool | None = None,
+                  story: dict | None = None) -> CampaignDraft:
     """One campaign draft for one donor, always run through the guardrail. Never raises for a model failure:
     the template takes over, labelled with the reason."""
     if intent not in INTENTS or channel not in CHANNELS:
         raise ValueError(f"unknown intent/channel {intent}/{channel}")
     today = today or oa.as_of_date(why)
-    story, story_notes = oa.story_facts()
+    # story={} (an email prep's Draft): cite only the org facts given, no story facts from the context store
+    story, story_notes = oa.story_facts() if story is None else (story, [])
     facts = numbered_facts(donor, gifts, research, org_facts, story)
     use_model = model_available() if use_model is None else use_model
 
     draft = None
     if use_model:
         try:
-            subject, body, used = model_write(donor, gifts, why, research, org_facts, facts, intent, channel, today)
+            subject, body, used = model_write(donor, gifts, why, research, org_facts, facts, intent, channel, today,
+                                              story)
             draft = CampaignDraft(subject=subject, body=body, facts_used=used, drafted_by="model")
         except Exception as e:  # model error or a draft that failed its checks: never leave the row empty
             draft = template_draft(donor, gifts, why, facts, intent, channel, today,

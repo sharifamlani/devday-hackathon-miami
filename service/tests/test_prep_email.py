@@ -106,3 +106,57 @@ def test_a_batch_drafted_but_never_sent_is_not_last_time(db_file):
     finally:
         conn.close()
     assert card["last_time"] is None
+
+
+def test_when_nothing_is_newer_than_the_last_email_the_facts_are_not_called_since(db_file):
+    """82 on #255: the fallback facts were labelled 'since we last wrote' though they predate that email."""
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        seed_context(conn)
+        ids = givers(conn)
+        cur = conn.execute("INSERT INTO campaigns (name, intent, channel, created_at, created_by, status) "
+                           "VALUES ('Thank you', 'thank_you', 'email', '2026-11-07T10:00:00', 'test', 'sent')")
+        conn.execute("INSERT INTO campaign_messages (campaign_id, donor_id, channel, subject, body, facts_used, flags, "
+                     "drafted_by, status, needs_individual_approval) VALUES (?, ?, 'email', 's', 'b', '[]', '[]', "
+                     "'template', 'sent', 0)", (cur.lastrowid, ids[0]))
+        conn.commit()
+        card = prep_email.build(conn, ids, "Give Miami Day", TODAY)
+    finally:
+        conn.close()
+    assert card["since"] and card["facts_label"] == "Nothing new since 2026-11-07 · recent updates"
+    assert card["angle"].startswith("Nothing new since 2026-11-07")
+    assert "Since we last wrote" not in card["angle"]
+
+
+def test_labels_and_topic_read_cleanly(db_file):
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        seed_context(conn)
+        card = prep_email.build(conn, givers(conn, 1), "Give Miami Day email to lapsing givers; Give Miami Day "
+                                "2026-11-19 and Early Giving opens 2026-11-14 and more words here", TODAY)
+    finally:
+        conn.close()
+    assert card["facts_label"] == "What we've been doing"
+    assert card["topic"] == "Give Miami Day email to lapsing givers"
+
+
+def test_a_draft_from_the_prep_cites_only_the_cards_facts(db_file):
+    """82 on #255: Draft let the drafter pick its own org/story facts; with the card's facts it uses only those."""
+    from service import routes_campaigns as rc
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        seed_context(conn)
+        ids = givers(conn, 2)
+        card = [{"fact": "Two SET Summits trained 300+ nonprofit leaders.", "url": "https://example.org/1",
+                 "date": "2026-10-01"}]
+        rows = rc.draft_rows(conn, ids, "thank_you", "email", use_model=False, org_facts=card)
+        research = {f["source_url"] for i in ids for f in (rc.load_donor(conn, i)[3])}
+    finally:
+        conn.close()
+    for row in rows:
+        urls = {f.get("url") for f in row["draft"].facts_used}
+        assert urls <= {"https://example.org/1"} | research, urls
+        assert not any(str(f.get("id", "")).startswith("S") for f in row["draft"].facts_used)

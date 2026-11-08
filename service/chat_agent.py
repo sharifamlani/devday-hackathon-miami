@@ -57,7 +57,7 @@ Rules:
   Give Miami Day email", "prep an email to lapsing givers"): find the people (find_people), then call prep_email
   with their ids and the topic; it shows what we sent them before, what we did since (sourced facts X, Y, Z) and
   what's coming. Say in one line what the email will lead with; draft only when the user clicks Draft or asks
-  (then draft_email for those ids). An event prep task: who is invited and what to prepare.
+  (then draft_email for those ids with fact_urls = the card's fact links, so the emails cite only those). An event prep task: who is invited and what to prepare.
 - Call protocol: "call <person>", "phone <person>" or a call task -> call prep_call, and nothing that dials. Its
   sheet has the Call button; that button is how the user calls. Say in a line or two who they are and the
   suggested points; never add facts the sheet does not have. Use call_person only when, after seeing the sheet,
@@ -325,7 +325,16 @@ def get_events(ctx: RunContextWrapper[ChatContext]) -> dict:
         return {"events": [], "note": "the events list is not available yet"}
 
 
-def draft_batch(ctx: ChatContext, person_ids: list[int], intent: str, channel: str) -> dict:
+def card_facts(conn, urls: list[str]) -> list[dict]:
+    """The email prep's facts, by their links, as org facts the drafter can cite (newest first)."""
+    marks = ", ".join("?" * len(urls))
+    rows = conn.execute(f"SELECT fact, url, posted_at FROM org_context WHERE url IN ({marks}) "
+                        f"ORDER BY posted_at DESC, id DESC", urls).fetchall()
+    return [{"fact": r["fact"], "url": r["url"], "date": r["posted_at"]} for r in rows]
+
+
+def draft_batch(ctx: ChatContext, person_ids: list[int], intent: str, channel: str,
+                fact_urls: list[str] | None = None) -> dict:
     from service import routes_campaigns as rc
 
     if ctx.tab == "community" and intent != "check_in":
@@ -339,7 +348,10 @@ def draft_batch(ctx: ChatContext, person_ids: list[int], intent: str, channel: s
     try:
         db.create_schema(conn)
         try:
-            rows = rc.draft_rows(conn, ids, intent, channel)
+            only = card_facts(conn, fact_urls) if fact_urls else None
+            if fact_urls and not only:
+                return {"error": "none of those facts are in the context store"}
+            rows = rc.draft_rows(conn, ids, intent, channel, org_facts=only)
         except LookupError as e:
             return {"error": str(e)}
         name = rc.default_name(intent, channel, len(ids)) + " · chat"
@@ -384,9 +396,11 @@ def pending_batch(detail: dict) -> dict:
 
 
 @function_tool
-def draft_email(ctx: RunContextWrapper[ChatContext], person_ids: list[int], intent: Intent) -> dict:
-    """Draft one email per person as a batch awaiting human approval. Nothing is sent."""
-    return draft_batch(ctx.context, person_ids, intent, "email")
+def draft_email(ctx: RunContextWrapper[ChatContext], person_ids: list[int], intent: Intent,
+                fact_urls: list[str] | None = None) -> dict:
+    """Draft one email per person as a batch awaiting human approval. Nothing is sent. fact_urls (from an email
+    prep card): the emails cite only those facts."""
+    return draft_batch(ctx.context, person_ids, intent, "email", fact_urls)
 
 
 @function_tool

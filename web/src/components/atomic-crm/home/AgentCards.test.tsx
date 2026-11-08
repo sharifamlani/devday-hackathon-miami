@@ -158,6 +158,17 @@ describe("StepCard: email prep", () => {
     expect(html).toContain("Draft 2 emails</button>");
   });
 
+  it("the Draft request carries the card's fact links; one person reads 'this person'", () => {
+    let asked = "";
+    const one = { ...prep, person_ids: [4], audience: { count: 1, names: ["Carmen Ibarra"] },
+      facts_label: "Nothing new since 2026-11-07 · recent updates" };
+    const html = renderToString(<StepCard step={{ ...step, card: one }} onAsk={(t) => (asked = t)} />).replace(/<!-- -->/g, "");
+    expect(html).toContain("Nothing new since 2026-11-07 · recent updates");
+    expect(html).toContain("No email to this person on record yet.");
+    expect(html).toContain("Draft 1 email</button>");
+    expect(asked).toBe("");                                        // nothing asked until the click
+  });
+
   it("has no Draft button when nothing can ask the agent", () => {
     expect(renderToString(<StepCard step={step} />)).not.toContain("Draft 2 emails");
   });

@@ -199,6 +199,8 @@ export type EmailPrep = {
   since: { fact: string; url: string; date: string | null }[];
   coming_up: { title: string; date: string }[];
   angle: string;
+  /** "What we did since" only when the facts are newer than the last email (else "Nothing new since …"). */
+  facts_label?: string;
 };
 
 /** Email prep (Sharif): what we sent before, what we did since (X, Y, Z, sourced), what's next, then Draft. */
@@ -215,10 +217,10 @@ export const EmailPrepCard = ({ prep, onAsk }: { prep: EmailPrep; onAsk?: (text:
         <p>
           {prep.last_time
             ? `${prep.last_time.date} · ${prep.last_time.name} · ${prep.last_time.sent} sent`
-            : "No email to these people on record yet."}
+            : `No email to ${n === 1 ? "this person" : "these people"} on record yet.`}
         </p>
       </Section>
-      <Section title={prep.last_time ? "What we did since" : "What we've been doing"}>
+      <Section title={prep.facts_label ?? (prep.last_time ? "What we did since" : "What we've been doing")}>
         {prep.since.length === 0 ? (
           <p>No sourced updates on file.</p>
         ) : (
@@ -249,9 +251,10 @@ export const EmailPrepCard = ({ prep, onAsk }: { prep: EmailPrep; onAsk?: (text:
             className="rounded-full"
             onClick={() =>
               onAsk(
-                `Draft the ${prep.topic} email for these ${n} people (ids ${prep.person_ids.join(", ")}), leading with ` +
-                  `what we did (${prep.since.map((_, i) => String.fromCharCode(88 + i)).join(", ") || "a thank-you"}) as the email prep shows, ` +
-                  `then show me the Send card. Don't send until I approve it.`,
+                `Draft the ${prep.topic} email for ${n === 1 ? "this person" : `these ${n} people`} ` +
+                  `(ids ${prep.person_ids.join(", ")}) using only the email prep's facts ` +
+                  (prep.since.length ? `(fact_urls: ${prep.since.map((f) => f.url).join(", ")})` : "(none: a thank-you)") +
+                  `, then show me the Send card. Don't send until I approve it.`,
               )
             }
           >

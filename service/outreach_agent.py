@@ -102,7 +102,7 @@ Hard rules:
 # ----------------------------------------------------------------------------------------------
 
 def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: list[dict],
-                   org_facts: list[dict], today: date | None = None) -> Draft:
+                   org_facts: list[dict], today: date | None = None, story: dict | None = None) -> Draft:
     from agents import Agent, ModelSettings, Runner
     from openai.types.shared import Reasoning
 
@@ -113,7 +113,7 @@ def draft_outreach(donor: dict, gifts: list[dict], score_why, research_facts: li
     ranked = rank_org_facts(donor | {"notes": f"{donor.get('notes') or ''} {channels}"}, research_facts, org_facts)
     facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
              for i, f in enumerate(ranked[:MAX_ORG_FACTS], 1)}
-    story, notes = story_facts()
+    story, notes = story_facts() if story is None else (story, [])   # {} = only the given org facts
     facts |= story
     facts |= {f"R{i}": {"fact": f["fact"], "url": f.get("source_url") or f.get("url", "")}
               for i, f in enumerate(research_facts, 1)}

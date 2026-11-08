@@ -5,6 +5,7 @@ drafts themselves come from draft_email after the person clicks Draft.
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import date
 
@@ -56,16 +57,25 @@ def build(conn: sqlite3.Connection, person_ids: list[int], topic: str, today: da
             f"SELECT full_name FROM donors WHERE id IN ({marks}) ORDER BY full_name", ids)]
     last = last_campaign(conn, ids)
     facts = news_since(conn, last["date"] if last else None)
-    if last and not facts:              # nothing new since the last email: fall back to the newest facts
+    fallback = bool(last) and not facts
+    if fallback:                        # nothing new since the last email: fall back to the newest facts
         facts = news_since(conn, None)
     events = coming_up(conn, today)
-    lead = "Since we last wrote" if last else "Here's what we've been doing"
+    # The label never calls a fact "since" the last email unless it is newer than that email
+    if not last:
+        lead, label = "Here's what we've been doing", "What we've been doing"
+    elif fallback:
+        lead, label = f"Nothing new since {last['date']}, so", f"Nothing new since {last['date']} · recent updates"
+    else:
+        lead, label = "Since we last wrote", "What we did since"
     angle = (f"{lead}: lead with {', '.join(f'({chr(88 + i)})' for i in range(len(facts)))} below"
              if facts else f"{lead}: no new sourced updates on file, so keep it to a thank-you")
     if events:
         angle += f", then invite them to {events[0]['title']} ({events[0]['date']})."
     else:
         angle += "."
-    return {"kind": "email_prep", "topic": topic.strip() or "Email", "person_ids": ids,
+    # The topic is a title, not the whole instruction: its first clause, at most 60 characters
+    title = re.split(r"[;\n]", topic.strip())[0].strip()[:60].rstrip() or "Email"
+    return {"kind": "email_prep", "topic": title, "person_ids": ids, "facts_label": label,
             "audience": {"count": len(ids), "names": names[:5]},
             "last_time": last, "since": facts, "coming_up": events, "angle": angle}
