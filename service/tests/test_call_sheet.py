@@ -47,6 +47,7 @@ def test_sheet_summarizes_giving_and_masks_the_phone(conn):
     assert rel["last_gift"] == {"date": "2026-02-01", "amount": 100}
     assert rel["usual_channel"] == "Online"
     assert len(s["talking_points"]) <= 3 and "$100" in s["talking_points"][0]
+    assert "Acknowledge 3 gifts totaling $450 since 2024" in s["talking_points"][1]
 
 
 def test_declined_charge_is_noted_separately_not_counted(conn):

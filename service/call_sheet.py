@@ -58,6 +58,9 @@ def talking_points(sheet: dict) -> list[str]:
         g = rel["last_gift"]
         points.append(f"Thank {name} for the {money(g['amount'])} gift on {g['date']}"
                       + (f" (by {rel['usual_channel']})" if rel["usual_channel"] else "") + ".")
+        if rel["gift_count"] > 1:
+            points.append(f"Acknowledge {rel['gift_count']} gifts totaling {money(rel['total'])} since "
+                          f"{rel['first_gift']['date'][:4]}.")
     else:
         points.append(f"No gifts on record: introduce the Foundation and ask what brought {name} to us.")
     if sheet["interests"]:
