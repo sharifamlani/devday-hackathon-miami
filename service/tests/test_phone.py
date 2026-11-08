@@ -424,3 +424,30 @@ def test_staff_leg_dropping_mid_call_hangs_up_the_donor(setup, db_file):
                       recording=wav([STAFF_SIDE, HEARD_SIDE]))
     run(setup, db_file, fake)
     assert {"sid": "CA-donor", "twiml": None, "status": "completed"} in fake.updates
+
+
+
+def test_a_room_lookup_error_keeps_waiting(setup, db_file):
+    class Flaky(FakeTwilio):
+        def room_open(self, room):
+            if self.room and self.room[0] == "error":
+                self.room.pop(0)
+                raise phone.PhoneError("Twilio said: 503")
+            return super().room_open(room)
+    fake = Flaky(staff=["in-progress", "in-progress", "in-progress", "completed"], donor=["in-progress", "completed"],
+                 room=["error", "error", True], recording=wav([STAFF_SIDE, HEARD_SIDE]))
+    assert run(setup, db_file, fake)["status"] == "done"
+
+
+def test_a_worker_crash_hangs_up_both_legs(setup, db_file):
+    class Crashing(FakeTwilio):
+        def fetch_call(self, sid):
+            out = super().fetch_call(sid)
+            if sid == "CA-donor" and out["status"] == "in-progress":
+                raise RuntimeError("boom")
+            return out
+    fake = Crashing(staff=["in-progress"], donor=["in-progress"])
+    call = run(setup, db_file, fake)
+    assert call["status"] == "failed" and "boom" in call["detail"]
+    ended = {u["sid"] for u in fake.updates if u["status"] in ("completed", "canceled")}
+    assert ended == {"CA-staff", "CA-donor"}

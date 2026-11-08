@@ -339,10 +339,34 @@ def run_call(call_id: str, client: Twilio, sleep: Callable[[float], None] = time
         (step or _drive)(conn, call_id, client, sleep, transcriber)
     except Exception as e:
         log.exception("phone %s: worker error", call_id)
+        row = _row(conn, call_id) or {}
+        for sid in (row.get("donor_call_sid"), row.get("staff_call_sid")):   # never leave a phone on the line
+            if sid:
+                _hang_up_anyway(client, sid)
         _fail(conn, call_id, f"Something went wrong: {type(e).__name__}: {e}"[:300])
     finally:
         conn.close()
         _WORKERS.pop(call_id, None)
+
+
+def _hang_up_anyway(client: Twilio, sid: str) -> None:
+    """Best effort after a worker error: end the leg; if even its status can't be read, ask Twilio to complete it."""
+    try:
+        _end_leg(client, sid)
+    except Exception:
+        try:
+            client.update_call(sid, status="completed")
+        except Exception as e:
+            log.warning("could not hang up leg %s: %s", sid, e)
+
+
+def _room_open(client: Twilio, room: str) -> bool:
+    """A Twilio error on the lookup counts as "not open yet": the join timeout still bounds the wait."""
+    try:
+        return client.room_open(room)
+    except PhoneError as e:
+        log.warning("phone: room lookup failed (%s); still waiting", e)
+        return False
 
 
 def _drive(conn: sqlite3.Connection, call_id: str, client: Twilio, sleep, transcriber) -> None:
@@ -369,7 +393,7 @@ def _drive(conn: sqlite3.Connection, call_id: str, client: Twilio, sleep, transc
     # key to execute your code" and hangs up if nobody does (a live LIVE call, Sun Nov 8: leg 1 dropped at 13 s while
     # the donor, already dialed, sat alone in the room for 42 s). The donor is dialed only once the room exists.
     waited = 0.0
-    while not client.room_open(f"dd-{call_id}"):
+    while not _room_open(client, f"dd-{call_id}"):
         if client.fetch_call(staff_sid)["status"] in ENDED or waited > JOIN_S:
             _end_leg(client, staff_sid)
             return _fail(conn, call_id, f"Your phone hung up before the call started, so we didn't call {name}. "
