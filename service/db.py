@@ -751,6 +751,7 @@ def migrate_gifts_status_check(conn: sqlite3.Connection) -> bool:
     conn.commit()
     conn.execute("PRAGMA foreign_keys = OFF")
     try:
+        conn.execute("DROP TABLE IF EXISTS gifts_new")                 # left behind by a rebuild that crashed
         conn.execute(new_sql)
         conn.execute("INSERT INTO gifts_new SELECT * FROM gifts")
         conn.execute("DROP TABLE gifts")

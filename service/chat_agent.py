@@ -437,10 +437,12 @@ def get_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
 
 def person_record(donor: dict) -> dict:
     """What the agent sees about a person: gifts are only charges that went through; a declined or failed
-    charge moves to declined_charges, so a draft can never thank anyone for it. The UI route is unchanged."""
+    charge moves to declined_charges, so a draft can never thank anyone for it. A 'duplicate' row (the same gift
+    recorded on a merged twin) is in neither list: it isn't a second gift and it isn't a charge that failed.
+    The UI route is unchanged."""
     gifts = donor.get("gifts") or []
     ok = [g for g in gifts if (g.get("status") or "ok") == "ok"]
-    return donor | {"gifts": ok, "declined_charges": [g for g in gifts if g not in ok]}
+    return donor | {"gifts": ok, "declined_charges": [g for g in gifts if g.get("status") in ("declined", "failed")]}
 
 
 @function_tool

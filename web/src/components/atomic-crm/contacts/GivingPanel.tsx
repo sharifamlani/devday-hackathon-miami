@@ -119,10 +119,18 @@ export const GivingPanel = ({
                       ) : (
                         <span className="inline-flex items-center gap-1.5">
                           <span className="rounded-full bg-alert px-2 py-0.5 text-[11px] font-semibold text-alert-foreground">
-                            {gift.status === "failed" ? "Failed" : "Declined"}
+                            {gift.status === "failed"
+                              ? "Failed"
+                              : gift.status === "duplicate"
+                                ? "Counted once"
+                                : "Declined"}
                           </span>
                           <s
-                            aria-label={`${formatUsd(gift.amount)}, not a gift`}
+                            aria-label={
+                              gift.status === "duplicate"
+                                ? `${formatUsd(gift.amount)}, counted once on the merged record`
+                                : `${formatUsd(gift.amount)}, not a gift`
+                            }
                           >
                             {formatUsd(gift.amount)}
                           </s>

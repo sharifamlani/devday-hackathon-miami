@@ -112,6 +112,27 @@ def test_a_duplicate_row_is_neither_a_gift_nor_a_failure_for_alerts(conn):
     assert why["gift_count"] == 4                                           # the duplicate isn't counted
 
 
+def test_a_rebuild_that_crashed_halfway_recovers(tmp_path):
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.executescript("""
+        CREATE TABLE donors (id INTEGER PRIMARY KEY, full_name TEXT NOT NULL);
+        CREATE TABLE gifts (id INTEGER PRIMARY KEY, donor_id INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+            amount REAL NOT NULL, gift_date TEXT NOT NULL, channel TEXT, fund_type TEXT, source_row TEXT,
+            status TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed')));
+        CREATE TABLE gifts_new (id INTEGER PRIMARY KEY);
+        INSERT INTO donors VALUES (1, 'Ann');
+        INSERT INTO gifts (id, donor_id, amount, gift_date) VALUES (7, 1, 40, '2026-10-10');
+    """)
+    old.commit()
+    old.close()
+    conn = db.connect(path)
+    assert db.migrate_gifts_status_check(conn) is True
+    assert tuple(conn.execute("SELECT id, amount, status FROM gifts").fetchone()) == (7, 40.0, "ok")
+    assert not conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'gifts_new'").fetchone()
+    conn.close()
+
+
 def test_an_older_gifts_table_is_rebuilt_to_allow_duplicate(tmp_path):
     path = tmp_path / "old.db"
     old = sqlite3.connect(path)
