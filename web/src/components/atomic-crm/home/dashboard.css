@@ -33,6 +33,12 @@
   padding: 12px;
   flex-shrink: 0;
 }
+/* The CRM tile fills the column's spare height, but never shrinks below its header, the Find a donor
+   box and about two donor rows: on a short screen the column scrolls instead of the tile's content
+   spilling over the "Files & drafts" tile under it. */
+.home-overview > .home-crm {
+  min-height: 184px;
+}
 .home-overview > .home-tile > div:first-child {
   margin-bottom: 10px;
 }

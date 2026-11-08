@@ -303,7 +303,7 @@ export const CrmTile = ({
     <section
       data-tour="crm"
       aria-labelledby={headingId}
-      className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
+      className={cn(tile, "home-crm flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
     >
       <TileHead id={headingId} title="CRM">
         <Link
