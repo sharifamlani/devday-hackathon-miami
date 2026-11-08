@@ -16,6 +16,12 @@ overridden for one period by a "2026-11" (month) or "2026-Q4" (quarter) key.
      "top_donor_ids": [...], "donor_ids": [...]}
 
     python -m service.targets            # print both periods as of $SCORE_AS_OF or the demo date
+
+    quarters(conn, date(2026, 11, 8)) ->
+    {"quarters": [{"label": "2026-Q1", "start": "2026-01-01", "end": "2026-03-31", "raised": 9400.0}, ...],
+     "ytd": {"year": 2026, "raised": 61450.0}}
+
+    reached_today(conn, date(2026, 11, 8))   # distinct people contacted that day: outbox sends + call_notes
 """
 
 from __future__ import annotations
@@ -70,6 +76,18 @@ def _money(x: float) -> float:
     return round(float(x), 2)
 
 
+def has_table(conn: sqlite3.Connection, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)).fetchone() is not None
+
+
+def _counted(conn: sqlite3.Connection) -> str:
+    """SQL fragment that keeps declined and failed charges out of every total (they are not gifts).
+
+    Empty when the gifts table predates the status column. Pledges live outside the gifts table and never count."""
+    has_status = any(c[1] == "status" for c in conn.execute("PRAGMA table_info(gifts)"))
+    return " AND status = 'ok'" if has_status else ""
+
+
 def compute(conn: sqlite3.Connection, period: str, as_of: date | None = None, goals: dict | None = None) -> dict:
     """Raised vs. goal for the period containing as_of. Gifts after as_of are not counted (as in score.py)."""
     as_of = as_of or score.default_as_of()
@@ -77,13 +95,14 @@ def compute(conn: sqlite3.Connection, period: str, as_of: date | None = None, go
     start, end, label, key = period_bounds(period, as_of)
     counted_to = min(end, as_of)
 
+    ok = _counted(conn)
     rows = conn.execute(
-        "SELECT donor_id, amount, channel FROM gifts WHERE gift_date >= ? AND gift_date <= ?",
+        "SELECT donor_id, amount, channel FROM gifts WHERE gift_date >= ? AND gift_date <= ?" + ok,
         (start.isoformat(), counted_to.isoformat())).fetchall()
     # First gift ever per donor who gave in the period: before the period start means "returning"
     first_gift = {r[0]: r[1] for r in conn.execute(
         "SELECT donor_id, MIN(gift_date) FROM gifts WHERE donor_id IN "
-        "(SELECT donor_id FROM gifts WHERE gift_date >= ? AND gift_date <= ?) GROUP BY donor_id",
+        "(SELECT donor_id FROM gifts WHERE gift_date >= ? AND gift_date <= ?" + ok + ")" + ok + " GROUP BY donor_id",
         (start.isoformat(), counted_to.isoformat()))}
 
     by_donor: dict[int, float] = {}
@@ -129,6 +148,36 @@ def compute_all(conn: sqlite3.Connection, as_of: date | None = None, goals: dict
     """{"month": compute(...), "quarter": compute(...)}"""
     goals = load_goals() if goals is None else goals
     return {p: compute(conn, p, as_of, goals) for p in PERIODS}
+
+
+def quarters(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
+    """Money raised in each quarter of the as-of year, plus year to date (sums of gift rows; no goals).
+
+    Declined and failed charges are excluded, gifts after as_of are not counted, and a quarter that hasn't
+    started yet is 0. Quarter labels read "2026-Q3"."""
+    as_of = as_of or score.default_as_of()
+    ok = _counted(conn)
+    out = []
+    for q in range(1, 5):
+        start, end, _, key = period_bounds("quarter", date(as_of.year, 3 * q - 2, 1))
+        raised = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM gifts WHERE gift_date >= ? AND gift_date <= ?" + ok,
+            (start.isoformat(), min(end, as_of).isoformat())).fetchone()[0] if start <= as_of else 0
+        out.append({"label": key, "start": start.isoformat(), "end": end.isoformat(), "raised": _money(raised)})
+    return {"quarters": out, "ytd": {"year": as_of.year, "raised": _money(sum(q["raised"] for q in out))}}
+
+
+def reached_today(conn: sqlite3.Connection, today: date | None = None) -> int:
+    """Distinct people contacted on `today`: outbox sends plus saved call notes (once that table exists)."""
+    day = (today or score.default_as_of()).isoformat()
+    people: set[int] = set()
+    if has_table(conn, "outbox"):
+        people |= {r[0] for r in conn.execute(
+            "SELECT DISTINCT donor_id FROM outbox WHERE donor_id IS NOT NULL AND date(sent_at) = ?", (day,))}
+    if has_table(conn, "call_notes"):
+        people |= {r[0] for r in conn.execute(
+            "SELECT DISTINCT person_id FROM call_notes WHERE person_id IS NOT NULL AND date(created_at) = ?", (day,))}
+    return len(people)
 
 
 def main() -> None:
