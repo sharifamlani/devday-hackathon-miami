@@ -93,7 +93,9 @@ Sending is a **dry run** by default: email goes out only with `EMAIL_SEND=on` an
   approval is designed but not implemented.
 - **Social media is not read.** The context agent reads the website and news only. X, LinkedIn and Instagram URLs
   are saved on the profile but not fetched; official APIs need tokens we don't have.
-- **Individuals are not researched on the web.** Enrichment looks up organizations only.
+- **Enrichment researches public organizations only.** Individuals are never looked up on the web, and the
+  fictional sample organizations correctly return "no public information found"; the demo enriches a real
+  organization added by hand.
 - **The chat panel isn't in the web app yet.** The chat agent and its tools run in the service (`/chat`,
   `/chat/stream`); until the panel lands, the sidebar shows Ask.
 - **Pending chat approvals live in memory.** Restarting the service drops a run waiting for approval (drafts already

@@ -27,8 +27,11 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 7. **Story-first campaign.** Say "Draft a thank-you to Give Miami Day donors." Open a draft: it cites a success
    story, a use-of-funds line and an org-health line, each with its source; the review screen lists the sources. Big
    donors and organizations need individual approval.
-8. **Enrich.** On an organization's profile, click Enrich: sourced public facts and interest tags (from a fixed list
-   of 17). Nothing is saved until staff accept.
+8. **Enrich (on a real organization).** The sample data is fictional, so add a real one on stage: tell the agent
+   *"add the Knight Foundation as a contact"* (or add **John S. and James L. Knight Foundation** in the Neighbors tab),
+   a new contact with no gifts. Open it and click **Enrich**: sourced interest tags (civic engagement / local news,
+   each traced to a named gift) appear from cache in seconds. Click **Save to profile**. "Nothing is saved until staff
+   accept, and every tag shows where it came from."
 9. **Call + transcript + after-call Apply.** Start a call from the voice panel; the transcript appears live. At the
    end, the agent proposes follow-ups (a task to send the card-update link, a $50/month pledge, an RSVP to the event
    on the 21st, notes), each quoting the call. Click Apply; show the task on the list, then Undo it.
@@ -81,6 +84,8 @@ This is a skeleton: each step names the screen and the one point to land. Timing
       Leave `EMAIL_SEND` off and `SMS_PROVIDER` unset unless a send is part of the demo; `SEND_ALLOWLIST` only
       team numbers.
 - [ ] Reset: `python -m service.db --rebuild` (empty), then the warm-up upload, then rebuild again.
+- [ ] **Enrich only on the hand-added real org** (Knight Foundation). Fictional orgs correctly show "No public
+      information found" (the profile panel may word it "No public facts found for this donor").
 - [ ] Mic permission granted in the browser; test the voice panel once.
 - [ ] Vercel backup open in a second tab.
 - [ ] Browser zoom 110%, notifications off, a hotspot as Wi-Fi backup.
