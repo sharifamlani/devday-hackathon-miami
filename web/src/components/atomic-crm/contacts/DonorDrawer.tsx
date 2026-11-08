@@ -62,20 +62,20 @@ export const DonorDrawer = ({
     <Sheet open={donorId != null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-full overflow-y-auto bg-card data-[side=right]:sm:max-w-xl"
+        className="w-full overflow-y-auto bg-card data-[side=right]:w-full data-[side=right]:sm:max-w-xl"
       >
         {donor ? (
           <>
             <SheetHeader className="border-b border-border bg-surface px-6 pb-5 pt-6">
-              <div className="flex items-start justify-between gap-4 pr-10">
+              <div className="flex items-start justify-between gap-3 pr-10 sm:gap-4">
                 <div
                   aria-hidden
-                  className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand text-base font-bold text-brand-foreground"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand text-base font-bold text-brand-foreground sm:size-12"
                 >
                   {initialsOf(donor.full_name)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <SheetTitle className="text-xl font-bold tracking-tight">
+                  <SheetTitle className="text-lg font-bold tracking-tight [overflow-wrap:break-word] sm:text-xl">
                     {donor.is_star && (
                       <span
                         className="mr-1 text-brand-soft-foreground"
@@ -95,6 +95,15 @@ export const DonorDrawer = ({
                     </span>
                   </SheetTitle>
                   <SheetDescription className="mt-1 flex flex-wrap items-center gap-1.5">
+                    {/* Phone: the score sits with the badges so the name gets the full row. */}
+                    <span
+                      className={cn(
+                        "rounded-full bg-card px-2.5 py-0.5 text-xs font-bold tabular-nums sm:hidden",
+                        scoreClass(donor.score),
+                      )}
+                    >
+                      Score {donor.score}
+                    </span>
                     <Badge
                       variant="outline"
                       className="rounded-full border-border bg-card px-2.5 text-muted-foreground"
@@ -127,13 +136,13 @@ export const DonorDrawer = ({
                     </span>
                   </SheetDescription>
                 </div>
-                <div className="text-right">
+                <div className="hidden shrink-0 text-right sm:block">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                     Score
                   </div>
                   <div
                     className={cn(
-                      "text-4xl font-bold leading-none tabular-nums",
+                      "text-3xl font-bold leading-none tabular-nums sm:text-4xl",
                       scoreClass(donor.score),
                     )}
                   >
