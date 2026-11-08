@@ -2,6 +2,7 @@
 
     python scripts/e2e_demo_path.py                                  # TEST stack: web :5174, API :8101
     python scripts/e2e_demo_path.py --reset                          # first empty the TEST stack (scripts/live_stack.ps1 reset)
+    python scripts/e2e_demo_path.py --only 1,2 --web http://localhost:5173 --api http://127.0.0.1:8001 \n        --db C:/Users/Shari/dd-live-main/data/donors.db              # reload LIVE after a reset; duplicates left for a person
     python scripts/e2e_demo_path.py --web http://localhost:5174 --api http://127.0.0.1:8101 \
         --db C:/Users/Shari/dd-live-test/data/donors.db --shots <scratch>/shots
 
@@ -419,6 +420,8 @@ def main() -> int:
     ap.add_argument("--shots", default=str(Path.home() / "dd-live-state" / "shots"))
     ap.add_argument("--reset", action="store_true", help="empty the TEST stack first (scripts/live_stack.ps1 reset -Stack test)")
     ap.add_argument("--headed", action="store_true")
+    ap.add_argument("--only", default="", help="comma-separated step numbers, e.g. 1,2 to load a stack like a user "
+                                               "(upload + website step) and leave duplicates for a person")
     args = ap.parse_args()
     web = args.web if args.web.endswith("/") else args.web + "/"
     shots = Path(args.shots)
@@ -447,17 +450,21 @@ def main() -> int:
                 problems.append(f"{r.status} {r.request.method} {r.url[:90]}"); full_log.append(f"{r.status} {r.request.method} {r.url}")
         page.on("console", on_console)
         page.on("response", on_response)
-        s1_upload(page, api, web, shots)
-        s2_website(page, api, shots)
-        s3_donors(page, api, shots)
-        s4_duplicates(page, api, Path(args.db), shots)
-        s5_home(page, api, web, shots)
-        s6_chat(page, api, shots)
-        s7_task(page, api, shots)
-        s8_enrich(page, api, shots)
-        s9_calendar(page, api, web, shots)
-        s10_dictation(page, web, shots)
-        s11_phone(page, web, shots)
+        steps = {
+            1: lambda: s1_upload(page, api, web, shots),
+            2: lambda: s2_website(page, api, shots),
+            3: lambda: s3_donors(page, api, shots),
+            4: lambda: s4_duplicates(page, api, Path(args.db), shots),
+            5: lambda: s5_home(page, api, web, shots),
+            6: lambda: s6_chat(page, api, shots),
+            7: lambda: s7_task(page, api, shots),
+            8: lambda: s8_enrich(page, api, shots),
+            9: lambda: s9_calendar(page, api, web, shots),
+            10: lambda: s10_dictation(page, web, shots),
+            11: lambda: s11_phone(page, web, shots),
+        }
+        for n in (sorted(int(x) for x in args.only.split(",")) if args.only else steps):
+            steps[n]()
         browser.close()
     (shots / "problems.log").write_text("\n\n".join(full_log) or "none", encoding="utf-8")
 
