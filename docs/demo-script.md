@@ -35,7 +35,8 @@ Button and heading text below is what's on screen on main today, in **bold**.
    becomes **Your desk is set up.** Click **Go to the dashboard** (if the site was slow or unreachable it says so and
    the button reads **Continue to the dashboard**).
 5. **Dashboard (Overview).** Point at the glance links (**N gifts at risk**, **N possible duplicates**), **Plan
-   today**, **Coming up** (the next events) and today's tasks in the sidebar. The rail: **Overview**, **Calendar**,
+   today**, **Coming up** (the next events, e.g. **6 days to Give Miami Day — Early Giving opens**) and today's
+   tasks in the sidebar. The rail: **Overview**, **Calendar**,
    **Tasks**, **CRM**, **Projects**, **Files & drafts**, **Live transcript**, **Open Ask sidebar**.
 6. **Home chat agent.** In **Ask the agent…** type a request and click **Send**, or use a suggestion chip
    (**Who should I thank this week?**, **Plan next week**). The conversation shows the agent's tool steps. A step
@@ -54,9 +55,15 @@ Button and heading text below is what's on screen on main today, in **bold**.
    areas** (**civic engagement & local news, arts & culture, community development, economic mobility**) and
    **Facts**, each with its source link. Tick the ones to keep and click **Save to profile** (or **Discard**). The
    same panel is on the donor's profile under **ENRICHMENT**. "Nothing is saved until staff accept, and every tag shows where it came from."
-10. **Calendar.** Rail → **Calendar**: the Foundation's upcoming events (Give Miami Day early giving Nov 14, the
-    Give Miami 5K Nov 15, Give Miami Day Nov 19), each with **N drafts ready** for its audience. Click **Review** to
-    open that event's drafts (pending approval; nothing sent).
+10. **Calendar.** On the dashboard click **Open full calendar** (or rail → **Calendar**). Under **Calendar** ("The
+    Foundation's events and your tasks, side by side.") sit the chip **Context updated today …** and **Refresh now**
+    (re-reads the site, news and events; it shows **Refreshing…** until the pass is done). Filter pills
+    **Fundraising**, **Stewardship**, **Events**, **Community outreach**, **Tasks**; **Today** / **Back** / **Next**
+    over **November 2026**. The events the agent found at setup: Sat 14 **Give Miami Day — Early Giving opens**,
+    Sun 15 **The Give Miami 5K** (8:00) and **The Give Miami 5K Post-Race Festival, a Party with a Purpose!** (8:30),
+    Thu 19 **Give Miami Day**, plus the prep task Thu 12 **Prep list: Give Miami Day**. Click an event: its panel
+    shows a sample invite and **N drafts ready** for its audience (written in the background about a minute after
+    setup). Click **Review** to open that event's drafts (pending approval; nothing sent).
 11. **A call, transcribed.** On a task click **Call and transcribe**, or click the mic **Start live transcript**.
     The panel shows **Listening** and the words as they're spoken (**Pause** / **Resume**); **Try the demo call**
     plays a scripted call. Click **Generate summary**, or ask a question in **Ask about this call…**.
