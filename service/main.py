@@ -36,6 +36,7 @@ import sqlite3
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
@@ -338,7 +339,35 @@ def forget_other_org(conn: sqlite3.Connection, website: str | None) -> bool:
     if "last_refreshed_at" in {r[1] for r in conn.execute("PRAGMA table_info(org_profile)")}:
         reset += ", last_refreshed_at = NULL"
     conn.execute(f"UPDATE org_profile SET {reset} WHERE id = 1")
+    forget_org_calendar(conn)
     return True
+
+
+def forget_org_calendar(conn: sqlite3.Connection) -> None:
+    """The previous org's calendar, on a setup rerun for another organization: every event came from its site
+    and searches, so drop them with their audiences, unsent invite drafts, draft invite batches and the
+    generator's open prep tasks. Sent invites stay as donor history (unlinked from the event). Done prep tasks
+    stay too, with their generator key freed: event ids can be reused, and a kept key would stop the new
+    org's prep task for that id. Uncommitted, like forget_other_org."""
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    if "events" not in tables:
+        return
+    if {"event_drafts", "outreach_drafts"} <= tables:
+        conn.execute("DELETE FROM outreach_drafts WHERE status != 'sent' "
+                     "AND id IN (SELECT draft_id FROM event_drafts)")
+    if "campaigns" in tables:
+        drafts = "SELECT id FROM campaigns WHERE event_id IS NOT NULL AND status = 'draft'"
+        if "campaign_messages" in tables:
+            conn.execute(f"DELETE FROM campaign_messages WHERE campaign_id IN ({drafts})")
+        conn.execute(f"DELETE FROM campaigns WHERE id IN ({drafts})")
+        conn.execute("UPDATE campaigns SET event_id = NULL WHERE event_id IS NOT NULL")
+    if "tasks" in tables:
+        conn.execute("DELETE FROM tasks WHERE gen_key LIKE 'prep:%' AND done = 0")
+        conn.execute("UPDATE tasks SET gen_key = NULL WHERE gen_key LIKE 'prep:%'")
+    for table in ("event_drafts", "event_audience"):
+        if table in tables:
+            conn.execute(f"DELETE FROM {table}")
+    conn.execute("DELETE FROM events")
 
 
 def persist_context(result: dict) -> dict | None:
@@ -451,6 +480,37 @@ def with_user_urls(result: dict | None, urls: dict) -> dict | None:
     return {**result, "profile": {**result["profile"], **urls}}
 
 
+# A first-run website read that ran past CONTEXT_DEADLINE_S keeps going in its own thread. The background refresh
+# the web starts next (POST /context/refresh) waits for that read instead of reading the site a second time.
+READ_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="context-read")
+SLOW_READ: dict = {}            # {"host", "urls", "future"} of the latest timed-out read, until a refresh takes it
+SLOW_READ_LOCK = threading.Lock()
+
+
+def take_slow_read(urls: dict):
+    """A build(urls, refresh) for refresh() that returns the timed-out onboarding read of this same site, or None
+    (no such read, or another site). If that read failed or is still running after AGENT_DEADLINE_S, it reads
+    the site fresh, as the refresh would have without it."""
+    with SLOW_READ_LOCK:
+        held = dict(SLOW_READ)
+        SLOW_READ.clear()
+    if not held or held["host"] != host_of(urls.get("website")) or held["future"].cancelled():
+        return None
+    future, typed = held["future"], held["urls"]
+
+    def build(read_urls: dict, refresh: bool = True) -> dict:
+        try:
+            result = future.result(timeout=config.AGENT_DEADLINE_S)
+            log.info("background refresh reused the onboarding read of %s", held["host"])
+            return with_user_urls(result, typed) or result
+        except Exception as e:      # that read failed or never finished: read the site now
+            log.warning("onboarding read unusable (%s); reading again", type(e).__name__)
+            from service.org_context import build_context
+            return build_context(read_urls, refresh=refresh)
+
+    return build
+
+
 @app.post("/context/run")
 async def context_run(req: ContextRun) -> dict:
     """Onboarding screen 2, synchronous: reads the website (≤ CONTEXT_DEADLINE_S), saves, returns per-source status.
@@ -474,9 +534,15 @@ async def context_run(req: ContextRun) -> dict:
                 "profile": None, "facts": [], "saved": None}
 
     urls = req.model_dump(exclude={"refresh"})
+    with SLOW_READ_LOCK:
+        SLOW_READ.clear()                            # a new run supersedes an older slow read
     events_job = start_events_search(req.website)    # in parallel with the website read: same wait, not double
+    read = READ_POOL.submit(build_context, urls, True)
+    waiting = asyncio.wrap_future(read)
+    waiting.add_done_callback(lambda f: f.cancelled() or f.exception())   # read later, or never: no warning
     try:
-        result = await asyncio.wait_for(run_in_threadpool(build_context, urls, True), config.CONTEXT_DEADLINE_S)
+        # shield: a timeout stops the wait, not the read, so a background refresh can still use it
+        result = await asyncio.wait_for(asyncio.shield(waiting), config.CONTEXT_DEADLINE_S)
         result = with_user_urls(result, urls)
         state, cached, detail = "done", False, None
         served_from = "live"
@@ -484,6 +550,8 @@ async def context_run(req: ContextRun) -> dict:
         keep_urls = not isinstance(e, ValueError)   # a timeout or model error, not a missing/invalid website
         if isinstance(e, asyncio.TimeoutError):
             detail = f"website read took longer than {config.CONTEXT_DEADLINE_S:.0f} s"
+            with SLOW_READ_LOCK:
+                SLOW_READ.update(host=host_of(req.website), urls=urls, future=read)
         else:
             detail = f"{type(e).__name__}: {e}"
         log.warning("context run failed, serving cached context: %s", detail)
@@ -773,7 +841,8 @@ def run_refresh() -> dict:
         urls = org_urls(conn)
         if urls is None:
             return {"state": "failed", "detail": "no website saved yet: run onboarding first", "changes": None}
-        changes = refresh(conn, urls)
+        build = take_slow_read(urls)                 # a timed-out onboarding read of this site: reuse it
+        changes = refresh(conn, urls, build=build) if build else refresh(conn, urls)
         try:   # §21 B11: new events -> prep tasks; never fails a refresh already saved
             tasks.generate(conn)
         except Exception:

@@ -85,7 +85,8 @@ def test_background_refresh_reads_the_urls_a_timed_out_run_saved(db_file, monkey
     c.post("/context/run", json={"website": "https://slow-org.org", "linkedin_url": "https://www.linkedin.com/company/slow"})
 
     seen = []
-    monkeypatch.setattr(refresh_module, "refresh", lambda conn, urls: seen.append(urls) or {"facts": {"added": 0}})
+    monkeypatch.setattr(refresh_module, "refresh",
+                        lambda conn, urls, **kw: seen.append(urls) or {"facts": {"added": 0}})
     result = run_refresh()
 
     assert result["state"] == "done"
@@ -178,3 +179,117 @@ def test_partial_live_run_for_another_org_keeps_none_of_the_old_facts(db_file, m
     assert body["state"] == "partial"
     assert [(f["source"], f["fact"]) for f in c.get("/context").json()] == [("website", "new org fact")]
     assert full_profile(c)["name"] == "New Org"
+
+
+# ---- a slow first read is reused, not repeated; another org's calendar is forgotten -------------------------
+
+def test_background_refresh_reuses_the_timed_out_read_instead_of_reading_again(db_file, monkeypatch):
+    c = TestClient(app)
+    calls = []
+
+    def slow_counted(urls, refresh=False):
+        calls.append(urls["website"])
+        time.sleep(0.3)
+        return good_result("Slow Org")
+
+    monkeypatch.setattr(config, "CONTEXT_DEADLINE_S", 0.05)
+    monkeypatch.setattr(org_context, "build_context", slow_counted)
+    body = c.post("/context/run", json={"website": "https://slow-org.org", "x_url": "https://x.com/slow"}).json()
+    assert body["served_from"] == "fallback"
+
+    built = []
+
+    def fake_refresh(conn, urls, build=None, **kw):
+        built.append(build(urls, refresh=True) if build else None)
+        return {"facts": {"added": 0}}
+
+    monkeypatch.setattr(refresh_module, "refresh", fake_refresh)
+    assert run_refresh()["state"] == "done"
+
+    assert calls == ["https://slow-org.org"]                   # the site was read once
+    assert built[0]["profile"]["name"] == "Slow Org"            # the refresh got that read's result
+    assert built[0]["profile"]["x_url"] == "https://x.com/slow"  # with the URLs the user typed
+
+    assert run_refresh()["state"] == "done"                     # taken once: a later pass reads on its own
+    assert built[1] is None
+
+
+def test_a_slow_read_of_another_site_is_not_reused(db_file, monkeypatch):
+    from service.main import SLOW_READ, take_slow_read
+
+    monkeypatch.setattr(config, "CONTEXT_DEADLINE_S", 0.05)
+    monkeypatch.setattr(org_context, "build_context", slow)
+    TestClient(app).post("/context/run", json={"website": "https://first-org.org"})
+    assert SLOW_READ.get("host") == "first-org.org"
+    assert take_slow_read({"website": "https://second-org.org"}) is None
+    assert SLOW_READ == {}                                     # and it's dropped either way
+
+
+def seed_calendar(path) -> dict:
+    """One Old Org event with an audience, an unsent and a sent invite draft, a draft and a sent invite batch,
+    and an open and a done prep task."""
+    conn = sqlite3.connect(path)
+    conn.execute("PRAGMA foreign_keys = ON")
+    donor = conn.execute("SELECT id FROM donors ORDER BY id LIMIT 1").fetchone()[0]
+    ev = conn.execute("INSERT INTO events (title, starts_at, source_url, source) VALUES "
+                      "('Old Org Gala', '2026-11-20', 'https://example.org/gala', 'website')").lastrowid
+    conn.execute("INSERT INTO event_audience (event_id, person_id, reason) VALUES (?, ?, 'test')", (ev, donor))
+    ids = {}
+    for status in ("draft", "sent"):
+        ids[status] = conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'Join us', ?)",
+                                   (donor, status)).lastrowid
+        conn.execute("INSERT INTO event_drafts (event_id, draft_id) VALUES (?, ?)", (ev, ids[status]))
+    for status in ("draft", "sent"):
+        camp = conn.execute("INSERT INTO campaigns (name, intent, channel, event_id, status) "
+                            "VALUES (?, 'event_invite', 'email', ?, ?)", (f"Gala {status}", ev, status)).lastrowid
+        conn.execute("INSERT INTO campaign_messages (campaign_id, donor_id, channel, body, status) "
+                     "VALUES (?, ?, 'email', 'Join us', ?)", (camp, donor, status))
+        ids[f"campaign_{status}"] = camp
+    for done in (0, 1):
+        conn.execute("INSERT INTO tasks (kind, title, done, source, gen_key) VALUES ('prep', ?, ?, 'generator', ?)",
+                     (f"Prep list: Old Org Gala {done}", done, f"prep:{ev}" if not done else "prep:999"))
+    conn.commit()
+    conn.close()
+    return ids
+
+
+def calendar_rows(path) -> dict:
+    conn = sqlite3.connect(path)
+    q = lambda sql: [tuple(r) for r in conn.execute(sql)]   # noqa: E731
+    out = {"events": q("SELECT title FROM events"), "audience": q("SELECT event_id FROM event_audience"),
+           "drafts": q("SELECT id, status FROM outreach_drafts WHERE body = 'Join us' ORDER BY id"),
+           "campaigns": q("SELECT id, event_id, status FROM campaigns WHERE intent = 'event_invite' ORDER BY id"),
+           "prep": q("SELECT title, done, gen_key FROM tasks WHERE kind = 'prep' ORDER BY title")}
+    conn.close()
+    return out
+
+
+def test_setup_for_another_org_forgets_the_previous_orgs_calendar(db_file, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: good_result("Old Org"))
+    assert c.post("/context/run", json={"website": "https://example.org"}).json()["state"] == "done"
+    ids = seed_calendar(db_file)
+
+    monkeypatch.setattr(config, "CONTEXT_DEADLINE_S", 0.05)
+    monkeypatch.setattr(org_context, "build_context", slow)
+    c.post("/context/run", json={"website": "https://another-org.org"})
+
+    rows = calendar_rows(db_file)
+    assert rows["events"] == [] and rows["audience"] == []
+    assert rows["drafts"] == [(ids["sent"], "sent")]                       # sent invites stay as history
+    assert rows["campaigns"] == [(ids["campaign_sent"], None, "sent")]     # unlinked, not deleted
+    assert rows["prep"] == [("Prep list: Old Org Gala 1", 1, None)]        # done one kept, its key freed
+
+
+def test_setup_for_the_same_org_keeps_its_calendar(db_file, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(org_context, "build_context", lambda urls, refresh=False: good_result("Same Org"))
+    c.post("/context/run", json={"website": "https://example.org"})
+    seed_calendar(db_file)
+    before = calendar_rows(db_file)
+
+    monkeypatch.setattr(config, "CONTEXT_DEADLINE_S", 0.05)
+    monkeypatch.setattr(org_context, "build_context", slow)
+    c.post("/context/run", json={"website": "https://www.example.org/events"})
+
+    assert calendar_rows(db_file) == before
