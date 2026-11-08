@@ -14,6 +14,7 @@ Addresses are stored in full in the local db but always masked in responses (r**
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -30,7 +31,8 @@ router = APIRouter(tags=["campaigns"])
 
 DEFAULT_APPROVER = "Philanthropy team (demo)"
 MAX_DONORS = 25
-DRAFT_WORKERS = 4
+# One model call per draft (~15 s each): 20 drafts at 4 at a time took 74 s and blew the chat's 90 s cap
+DRAFT_WORKERS = int(os.getenv("DRAFT_WORKERS", "13"))
 
 
 def now() -> str:
@@ -71,7 +73,24 @@ def load_donor(conn: sqlite3.Connection, donor_id: int) -> tuple[dict, list[dict
         (donor_id,))]
     research = [dict(r) for r in conn.execute(
         "SELECT fact, source_url FROM research_facts WHERE donor_id = ?", (donor_id,))]
-    return donor, gifts, why, research
+    return donor, gifts, why, research + interest_facts(conn, donor)
+
+
+def interest_facts(conn: sqlite3.Connection, donor: dict) -> list[dict]:
+    """The donor's interests as facts a draft may cite: what the uploaded record says, then the active tags
+    from Enrich or staff with their evidence. They also steer which Foundation fact leads the draft."""
+    try:
+        on_file = [str(i) for i in json.loads(donor.get("interests") or "[]")]
+    except ValueError:
+        on_file = []
+    facts = [{"fact": f"Interest on the donor's record: {i}", "source_url": ""} for i in on_file]
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'donor_interests'").fetchone():
+        facts += [{"fact": f"Interest: {r['tag'].replace('_', ' ')}"
+                           + (f" ({r['sub_tag'].replace('_', ' ')})" if r["sub_tag"] else "") + f". {r['evidence']}",
+                   "source_url": r["source_url"] or ""}
+                  for r in conn.execute("SELECT tag, sub_tag, evidence, source_url FROM donor_interests "
+                                        "WHERE donor_id = ? AND status = 'active' ORDER BY id", (donor["id"],))]
+    return facts
 
 
 def load_org_facts() -> list[dict]:

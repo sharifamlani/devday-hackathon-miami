@@ -110,17 +110,60 @@ def not_loaded(ctx: ChatContext) -> dict:
     return {"people": [], "note": f"the {ctx.tab} list is not loaded yet (uploads for this tab are coming)"}
 
 
+def last_gift_dates() -> dict[int, str]:
+    """{donor id: newest gift date}; a declined charge isn't a gift."""
+    return {r["donor_id"]: r["last"] for r in query(
+        "SELECT donor_id, MAX(gift_date) AS last FROM gifts WHERE COALESCE(status, 'ok') = 'ok' GROUP BY donor_id")}
+
+
+def interests_by_person() -> dict[int, list[str]]:
+    """{donor id: interests}: what the uploaded record says plus the active tags from Enrich or staff."""
+    out: dict[int, list[str]] = {}
+    for r in query("SELECT id, interests FROM donors WHERE interests IS NOT NULL"):
+        try:
+            out[r["id"]] = [str(i) for i in json.loads(r["interests"] or "[]")]
+        except ValueError:
+            continue
+    for r in query("SELECT donor_id, tag FROM donor_interests WHERE status = 'active'"):
+        out.setdefault(r["donor_id"], []).append(r["tag"])
+    return {k: list(dict.fromkeys(v)) for k, v in out.items()}
+
+
+def with_gifts_and_interests(people: list[dict], no_gift_in_days: int | None, interest: str | None) -> list[dict]:
+    """Add last_gift_date and interests to each person; keep only people whose last gift is at least
+    no_gift_in_days old (people who never gave are left out) and whose interests mention interest."""
+    lasts, tags = last_gift_dates(), interests_by_person()
+    today = date.fromisoformat(os.getenv("SCORE_AS_OF") or date.today().isoformat())
+    want = (interest or "").strip().lower()
+    out = []
+    for p in people:
+        last, mine = lasts.get(p["id"]), tags.get(p["id"], [])
+        if no_gift_in_days is not None and (last is None or (today - date.fromisoformat(last[:10])).days < no_gift_in_days):
+            continue
+        if want and not any(want in i.lower() for i in mine):
+            continue
+        out.append(p | {"last_gift_date": last, "interests": mine})
+    return out
+
+
 @function_tool
 def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, tier: str | None = None,
-                star_only: bool = False, gave_via: str | None = None, limit: int = 25) -> dict:
-    """Find people on the current tab. status: lapsing | lapsed | due | on_track. tier: small | mid | major.
-    gave_via: people with a gift whose channel matches (e.g. "Give Miami Day", "event", "check", "online")."""
+                star_only: bool = False, gave_via: str | None = None, no_gift_in_days: int | None = None,
+                interest: str | None = None, name: str | None = None, limit: int = 25) -> dict:
+    """Find people on the current tab, each with last_gift_date and interests. status: lapsing | lapsed | due |
+    on_track. tier: small | mid | major. gave_via: people with a gift whose channel matches (e.g. "Give Miami Day",
+    "event", "check", "online"). no_gift_in_days: people whose last gift is at least that many days old ("hasn't
+    given in 7 days" = 7). interest: people whose interests mention it (e.g. "environment", "kids").
+    name: people whose name contains it (use it to look someone up by name)."""
     via = gave_via_ids(gave_via)
     people = tab_people(ctx.context.tab)
     if people is not None:
         people = [p for p in people if (not status or p.get("status") == status) and (not tier or p.get("tier") == tier)
-                  and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)][:min(limit, 50)]
-        keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status", "next_step")
+                  and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)
+                  and (not name or name.strip().lower() in (p.get("full_name") or "").lower())]
+        people = with_gifts_and_interests(people, no_gift_in_days, interest)[:min(limit, 50)]
+        keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status",
+                "last_gift_date", "interests", "next_step")
         return {"people": [{k: p.get(k) for k in keep} for p in people], "count": len(people)}
     if ctx.context.tab not in ("givers", "home", "calendar"):
         return not_loaded(ctx.context)
@@ -137,7 +180,8 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
         where.append(f"d.id IN ({', '.join(str(i) for i in via) or 'NULL'})")
     rows = query("SELECT d.id, d.full_name, d.donor_type, s.score, s.tier, s.is_star, s.status FROM donors d "
                  "JOIN donor_scores s ON s.donor_id = d.id" + (" WHERE " + " AND ".join(where) if where else "")
-                 + " ORDER BY s.score DESC LIMIT ?", (*args, min(limit, 50)))
+                 + " ORDER BY s.score DESC", tuple(args))
+    rows = with_gifts_and_interests(rows, no_gift_in_days, interest)[:min(limit, 50)]
     t = tasks_module()                  # the same next_step GET /people shows: the giver's next open task
     if t is not None:
         with_conn(t.with_next_steps, rows)
@@ -815,17 +859,45 @@ def build_agent(tab: str, selection: list[int], event_id: int | None, first_turn
                  model_settings=ModelSettings(reasoning=Reasoning(effort="low")))
 
 
-def respond(result, ctx: ChatContext, spec: dict, earlier_steps: list[dict] | None = None) -> dict:
-    """The /chat response for a finished or paused run."""
+def approval_summary(tool: str, args: dict) -> str | None:
+    """One plain line for an approval card ("Call Maria Delgado at ***-***-0101"); None = show the arguments."""
+    from service.routes_campaigns import mask_address
+    if tool == "call_person" and args.get("person_id") is not None:
+        rows = query("SELECT full_name, phone FROM donors WHERE id = ?", (args["person_id"],))
+        if rows:
+            phone = mask_address(rows[0]["phone"], "text")
+            return f"Call {rows[0]['full_name']}" + (f" at {phone}" if phone else " (no phone number on file)")
+    if tool == "send" and args.get("batch_id") is not None:
+        rows = query("SELECT c.name, c.channel, COUNT(m.id) AS n FROM campaigns c LEFT JOIN campaign_messages m "
+                     "ON m.campaign_id = c.id WHERE c.id = ? GROUP BY c.id", (args["batch_id"],))
+        if rows:
+            r = rows[0]
+            kind = "email" if r["channel"] == "email" else "text"
+            return f"Send {r['n']} {kind}{'s' if r['n'] != 1 else ''}: {r['name']}"
+    return None
+
+
+def approval_items(interruptions) -> list[dict]:
+    """The paused calls as approval cards: call_id, tool, args and a plain summary."""
+    out = []
+    for i in interruptions or []:
+        args = output_data(i.arguments)
+        out.append({"call_id": i.call_id, "tool": i.name, "args": args, "summary": approval_summary(i.name, args)})
+    return out
+
+
+def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = None) -> dict:
+    """The /chat response for a finished or paused run. shown = steps the thread already displays (a resumed
+    run): the SDK's resumed result repeats them, so only new steps and the approved call's result go back."""
     from service import routes_campaigns as rc
 
-    steps = (earlier_steps or []) + steps_from(result.new_items)
-    approvals = [{"call_id": i.call_id, "tool": i.name, "args": output_data(i.arguments)}
-                 for i in (getattr(result, "interruptions", None) or [])]
+    done = {s["call_id"] for s in (shown or []) if s["status"] != "awaiting_approval"}
+    steps = [s for s in steps_from(result.new_items) if s["call_id"] not in done]
+    approvals = approval_items(getattr(result, "interruptions", None))
     run_id = None
     if approvals:
         run_id = uuid.uuid4().hex
-        PENDING[run_id] = {**spec, "state": result.to_state().to_string(), "steps": steps}
+        PENDING[run_id] = {**spec, "state": result.to_state().to_string(), "steps": (shown or []) + steps}
         waiting = {a["call_id"] for a in approvals}
         for s in steps:
             if s["call_id"] in waiting:
@@ -839,7 +911,8 @@ def respond(result, ctx: ChatContext, spec: dict, earlier_steps: list[dict] | No
         finally:
             conn.close()
     reply = result.final_output if not approvals else (
-        result.final_output or "This needs your approval: " + ", ".join(a["tool"] for a in approvals) + ".")
+        result.final_output or "Waiting for you: " + "; ".join(a["summary"] or a["tool"].replace("_", " ")
+                                                              for a in approvals) + ".")
     return {"reply": reply, "tab": ctx.tab, "steps": steps, "run_id": run_id, "approvals": approvals,
             "pending_batch": batches[-1] if batches else None, "batches": batches}
 
@@ -868,5 +941,4 @@ def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> di
     for item in state.get_interruptions():
         (state.approve if decisions.get(item.call_id) else state.reject)(item)
     result = Runner.run_sync(agent, state, context=ctx, max_turns=12)
-    done = [s for s in spec["steps"] if s["status"] != "awaiting_approval"]
-    return respond(result, ctx, spec, done)
+    return respond(result, ctx, spec, spec["steps"])

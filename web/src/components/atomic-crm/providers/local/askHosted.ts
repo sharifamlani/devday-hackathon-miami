@@ -18,6 +18,48 @@ import {
 
 export const ASK_API_URL = "/api/ask";
 
+/**
+ * /api/ask needs a server key, so the snapshot build only calls it when built with VITE_ASK_API=on (set it
+ * alongside the key on Vercel). Off by default: free text goes straight to the friendly fallback, no request.
+ */
+const ASK_API_ON = import.meta.env.VITE_ASK_API === "on";
+
+/**
+ * Once /api/ask answers that it isn't there (503 not configured, 404/501 no function), later free-text
+ * questions skip the request, so a deployment without it logs one console error, not one per question.
+ * Remembered for the browser session.
+ */
+const UNCONFIGURED_KEY = "donordesk.askApi.unconfigured";
+const UNCONFIGURED_STATUS = new Set([404, 501, 503]);
+let unconfigured = !ASK_API_ON || readUnconfigured();
+
+function readUnconfigured(): boolean {
+  try {
+    return window.sessionStorage.getItem(UNCONFIGURED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const rememberUnconfigured = () => {
+  unconfigured = true;
+  try {
+    window.sessionStorage.setItem(UNCONFIGURED_KEY, "1");
+  } catch {
+    /* private mode: remembered for this page load */
+  }
+};
+
+/** For tests: forget a cached 503, with the API on or off (default: as built). */
+export const resetHostedAsk = (apiOn: boolean = ASK_API_ON) => {
+  unconfigured = !apiOn;
+  try {
+    window.sessionStorage.removeItem(UNCONFIGURED_KEY);
+  } catch {
+    /* nothing stored */
+  }
+};
+
 export const HOSTED_MESSAGES = {
   notConfigured:
     "Live AI isn't configured on this deployment. Pick one of the example questions, then edit its filters.",
@@ -68,6 +110,7 @@ export const askHosted = async (
   const text = question.trim();
   if (text.length < 3 || text.length > 300)
     return notAnswered(HOSTED_MESSAGES.length);
+  if (unconfigured) return notAnswered(HOSTED_MESSAGES.notConfigured);
 
   let response: Response;
   try {
@@ -79,8 +122,10 @@ export const askHosted = async (
   } catch {
     return notAnswered(HOSTED_MESSAGES.unavailable);
   }
-  if (response.status === 503)
+  if (UNCONFIGURED_STATUS.has(response.status)) {
+    rememberUnconfigured();
     return notAnswered(HOSTED_MESSAGES.notConfigured);
+  }
   if (response.status === 429) return notAnswered(HOSTED_MESSAGES.rateLimited);
   if (!response.ok) return notAnswered(HOSTED_MESSAGES.unavailable);
 

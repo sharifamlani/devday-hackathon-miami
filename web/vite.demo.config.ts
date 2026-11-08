@@ -29,6 +29,9 @@ export default defineConfig({
   ],
   define: {
     "import.meta.env.VITE_IS_DEMO": JSON.stringify("true"),
+    // Hosted Ask (web/api/ask.ts) needs OPENAI_API_KEY on Vercel; set VITE_ASK_API=on with it. Off, free
+    // text gets the fallback copy without a request (no 503 in the console per question).
+    "import.meta.env.VITE_ASK_API": JSON.stringify(process.env.VITE_ASK_API ?? "off"),
     "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
       process.env.VITE_SUPABASE_URL ?? "https://demo.example.org",
     ),
