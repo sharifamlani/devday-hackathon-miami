@@ -100,8 +100,11 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     someone approves it.
 11. **A call, transcribed.**
     **Live call (the run's choice).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate added as a
-    donor for the demo, off-screen, after setup). The agent answers with his call sheet; click **Call** inside the card
-    ("Rings your phone first, then the donor's."). The staff phone rings first (**Ringing your phone…**): answer it and
+    donor for the demo, off-screen, after setup). The agent answers with his call sheet. Click the sheet's **Call**:
+    the panel **Call Christian Gonzalez** opens in the card ("Your phone (…) rings first. When you pick up, Christian
+    Gonzalez (…) is called and sees your number.", and "Christian Gonzalez hears “Hello. This call is recorded for our
+    notes.” before the call connects."), with **Cancel** / **Call**. Click the panel's **Call** to dial. The staff
+    phone rings first (**Ringing your phone…**): answer it and
     you hear "Calling Christian Gonzalez. Please hold."; then **Calling Christian Gonzalez…**, his phone rings and he
     hears the recording notice; **Connected · recording**. Keep it under 30 s (the Twilio trial balance is low), then
     **Hang up**. The card works through **Getting the recording…**, **Transcribing…**, **Summarizing…** and
@@ -128,7 +131,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     **Keep separate**. "Merge only after a person approves; the gift history moves to the kept record." Open the kept
     donor (e.g. **Robert Nguyen**): the record reads e.g. **Merged Bob Nguyen · Nov 8, 2026 · 1 gift moved**, and
     **Undo merge** → **Confirm undo** puts both back (the pair returns to the review list). After the suggestions are approved the
-    counts match the answer key: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts.
+    counts match the answer key: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts. With Christian added
+    for the live call, the screen reads 68 + Christian = 69 people (34 givers).
 
 > Out of scope: the Neighbors / Community tabs.
 

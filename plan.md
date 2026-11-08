@@ -1911,7 +1911,7 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | 3 | Dashboard | **Go to the dashboard**, **Not now** on the tour card | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
 | 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
-| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* → his call sheet → **Call** inside the card ("Rings your phone first, then the donor's.") → answer the staff phone → keep it under 30 s → **Hang up** | **Ringing your phone…** → **Calling Christian Gonzalez…** (his phone rings; the recording notice plays) → **Connected · recording** → after **Hang up**: **Getting the recording…**, **Transcribing…**, **Summarizing…**, **Suggesting follow-ups…** → **Saved to the call notes**, the **Summary** and **Suggested follow-ups**, each with its own **Apply** (the in-card call has no **Apply selected**; that's the Live transcript card in 4d) |
+| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* → his call sheet → the sheet's **Call**: the panel **Call Christian Gonzalez** opens in the card: "Your phone (…) rings first. When you pick up, Christian Gonzalez (…) is called and sees your number.", the notice line "Christian Gonzalez hears “Hello. This call is recorded for our notes.” before the call connects.", and **Cancel** / **Call** → the panel's **Call** dials → answer the staff phone → keep it under 30 s → **Hang up** | **Ringing your phone…** → **Calling Christian Gonzalez…** (his phone rings; the recording notice plays) → **Connected · recording** → after **Hang up**: **Getting the recording…**, **Transcribing…**, **Summarizing…**, **Suggesting follow-ups…** → **Saved to the call notes**, the **Summary** and **Suggested follow-ups**, each with its own **Apply** (the in-card call has no **Apply selected**; that's the Live transcript card in 4d) |
 | 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the scripted call with Hye-jin Park streams in (~10 s); the summary and **Suggested next steps** (~4 s); the after-call card proposes a card-update task, the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") and a context note → **Apply selected** writes the ticked ones |
 | 4e | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
 | 4f | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
@@ -1926,9 +1926,10 @@ The Live transcript demo call (4d) is with Hye-jin Park (#210): her failed $40 g
 a committed doc: write "his verified number". The T-30 reset empties LIVE's db, and anyone added before onboarding
 would break the empty start (setup treats existing people as "already set up"). So **the IT lane adds him off-screen
 during step 3 (the dashboard tour)**, in its own terminal, never on the projector:
-`cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" -c "from service import db, agent_writes; c = db.connect(); print(agent_writes.add_contact(c, 'Christian Gonzalez', phone='<his verified number>')[0]); c.commit()"`.
-Then it checks `curl -s "http://localhost:8001/phone/preview?donor_id=<his id>"` → `"ready": true` before the
-presenter reaches 4c. If it's not ready, 4c is skipped for 4d (fallback below). The staff phone (`STAFF_PHONE`) rings
+`cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" -c "from service import db, agent_writes; c = db.connect(); print(agent_writes.add_contact(c, 'Christian Gonzalez', phone='<his verified number>')[0]['id']); c.commit()"`
+(prints only his id). Then it checks `(Invoke-RestMethod "http://localhost:8001/phone/preview?donor_id=<his id>").ready`
+→ `True` before the presenter reaches 4c (only the flag is shown, no numbers). The panel shows both phone numbers;
+everything is public (Sharif), but this doc never quotes the digits: it writes "(…)". If it's not ready, 4c is skipped for 4d (fallback below). The staff phone (`STAFF_PHONE`) rings
 first, so the person answering it is part of the call. Labels are from the code (`phone.ts` `statusLabel`,
 `PhoneCallInline`); 54's live test call confirms them.
 
@@ -1969,9 +1970,9 @@ first, so the person answering it is part of the call. Labels are from the code 
       `local` for `VITE_DATA_MODE` (`vercel env rm` the old values first);
       (3) `vercel --prod --yes`.
       Write down which state it's in.
-- [ ] **T-15 (phone, IT lane):** LIVE's `.env` has the five call settings, checked without printing their values:
-      `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^(PHONE_CALLS|TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|STAFF_PHONE|SEND_ALLOWLIST)=' | % { $_.Line.Split('=')[0] }`
-      must print all five names; `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^PHONE_CALLS=on'`
+- [ ] **T-15 (phone, IT lane):** LIVE's `.env` has the six call settings, checked without printing their values:
+      `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^(PHONE_CALLS|TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|TWILIO_PHONE_NUMBER|STAFF_PHONE|SEND_ALLOWLIST)=' | % { $_.Line.Split('=')[0] }`
+      must print all six names; `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^PHONE_CALLS=on'`
       must match; `SEND_ALLOWLIST` must include his verified number. (The `/phone/preview` check for Christian comes
       after he's added, during step 3; see 4c.)
 - [ ] **T-10 (mic):** open **Live transcript** (it should show **Listening**), then **Open Ask sidebar** →
@@ -2009,7 +2010,9 @@ first, so the person answering it is part of the call. Labels are from the code 
 6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
    **Command:** run 22.2 steps 1–5 in the browser, then `scripts\demo_reset.py --check` from `dd-live-main` with the same venv Python (it approves the
    suggested merges on a COPY of the db) · **Expected:** `PASS` lines for people / gifts / alerts against
-   `answer_key.json` (68 people: 33 givers, 20 neighbors, 15 community; 131 gifts). **If it fails →** note which
+   `answer_key.json` (68 people: 33 givers, 20 neighbors, 15 community; 131 gifts). Run it **before** the IT lane
+   adds Christian: with him the db holds 68 + Christian = 69 people (34 givers), and the check would FAIL on that
+   alone. **If it fails →** note which
    count differs, tell the lead, and demo without the merge step. Then reset (smoke 2) before T-30.
 
 ### 22.5. Evaluation criteria (definition of done for the stage run)
@@ -2021,7 +2024,7 @@ first, so the person answering it is part of the call. Labels are from the code 
 | All 4 events land | Sat 14 Early Giving, Sun 15 5K + Festival, Thu 19 Give Miami Day on the week strip | read the week strip / calendar | rehearsal screenshot |
 | Agents feel live | first step card ≤ 3 s; "Plan next week" done ≤ 15 s; call sheet ≤ 35 s | stopwatch | rehearsal timing table |
 | Calendar to campaign | **Open batch** opens the campaign page ≤ 5 s | stopwatch | rehearsal timing table |
-| Data stays right | with the suggested merges approved: 68 people, 131 gifts | `demo_reset.py --check` (smoke 6, on a copy) | its PASS lines |
+| Data stays right | with the suggested merges approved: 68 people, 131 gifts (on screen after the live-call setup: 68 + Christian = 69, 34 givers) | `demo_reset.py --check` (smoke 6, on a copy, before Christian is added) | its PASS lines |
 | No visible errors | 0 console errors, 0 failed requests during the run | DevTools console + Network on the operator's screen | rehearsal note |
 | Fits the slot | machine wait ≤ 3 min in total (rehearsal #2: ~131 s) | sum of the stopwatch times | rehearsal timing table |
 
