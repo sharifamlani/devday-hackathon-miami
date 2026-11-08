@@ -15,26 +15,34 @@ case "$STACK" in
 esac
 say() { echo "[$(date +%T)] $*"; }
 
-if [ "$STACK" = live ] && netstat -ano | grep LISTENING | grep -qE "127.0.0.1:8401\b|0.0.0.0:8401\b"; then
+# demo_reset resets --db, else $DONORS_DB, else <cwd repo>/data/donors.db: pin it to this stack's db, never the
+# Dropbox repo's (also catches a mistyped STAGE_*_ROOT).
+unset DONORS_DB
+case "$ROOT" in *Dropbox*) say "REFUSED: root $ROOT is inside Dropbox; the stage stacks live in C:\\Users\\Shari\\dd-live-*"; exit 2 ;; esac
+[ -d "$ROOT/data" ] || { say "REFUSED: $ROOT/data does not exist"; exit 2; }
+DB="$(cd "$ROOT" && pwd -W)/data/donors.db"
+
+if [ "$STACK" = live ] && netstat -ano | grep LISTENING | grep -qE "127.0.0.1:8401\b|0.0.0.0:8401\b|\[::\]:8401\b|\[::1\]:8401\b"; then
   say "STOP: :8401 (22's public copy) still holds LIVE's db. Ask 22 to stop it first."; exit 3
 fi
 say "(b) stop $STACK service only (:$SVC)"
 powershell -NoProfile -File "$LAUNCH" stop -Stack "$STACK" -Only service < /dev/null
 t0=$(date +%s); while netstat -ano | grep LISTENING | grep -qE ":$SVC\b"; do [ $(( $(date +%s)-t0 )) -gt 15 ] && { say "FAIL: :$SVC still listening"; exit 4; }; sleep 1; done
 
-say "(c) demo_reset.py --warm --port $SVC  (from $ROOT, resets $ROOT/data/donors.db)"
-out=$(cd "$ROOT" && PYTHONIOENCODING=utf-8 "$PY" scripts/demo_reset.py --warm --port "$SVC" 2>&1); rc=$?
+say "(c) demo_reset.py --warm --port $SVC --db $DB"
+out=$(cd "$ROOT" && PYTHONIOENCODING=utf-8 "$PY" scripts/demo_reset.py --warm --port "$SVC" --db "$DB" 2>&1); rc=$?
 echo "$out" | grep -E "PASS|FAIL|stage numbers|refused|Error" | tail -8
 if [ $rc -ne 0 ] || ! echo "$out" | grep -q "PASS stage numbers: 77 people / 9"; then
   say "(c) not PASS (exit $rc). Running it once more (it retries the model read)."
-  out=$(cd "$ROOT" && PYTHONIOENCODING=utf-8 "$PY" scripts/demo_reset.py --warm --port "$SVC" 2>&1); rc=$?
+  out=$(cd "$ROOT" && PYTHONIOENCODING=utf-8 "$PY" scripts/demo_reset.py --warm --port "$SVC" --db "$DB" 2>&1); rc=$?
   echo "$out" | grep -E "PASS|FAIL|stage numbers" | tail -6
-  echo "$out" | grep -q "PASS stage numbers: 77 people / 9" || { say "FAIL twice: demo the receipt's counts (fallback §22.7)"; START_ANYWAY=1; }
+  echo "$out" | grep -q "PASS stage numbers: 77 people / 9" || { say "warm FAILED twice: demo the receipt's counts (fallback §22.7)"; WARM_FAILED=1; }
 fi
 
 say "(d) start $STACK service"
-# Not piped: the service the launcher starts inherits a pipe and would hold it open forever (seen in the dry run)
-LOG="$(mktemp)"; powershell -NoProfile -File "$LAUNCH" start -Stack "$STACK" -Only service > "$LOG" 2>&1 < /dev/null; tail -1 "$LOG"
+# Not piped: the service the launcher starts would inherit a pipe and hold it open forever (seen in the dry run).
+# Smoke 3 below is the health check.
+powershell -NoProfile -File "$LAUNCH" start -Stack "$STACK" -Only service > /dev/null 2>&1 < /dev/null
 
 say "(e) smoke 3: health / events / public-mode on :$SVC"
 h=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$SVC/health"); e=$(curl -s "http://127.0.0.1:$SVC/events"); pm=$(curl -s "http://127.0.0.1:$SVC/public-mode")
@@ -53,4 +61,7 @@ with sync_playwright() as p:
     print('  Step 1 of 3 shown:', ok, '| console errors:', errs[:2]); b.close()
     raise SystemExit(0 if ok and not errs else 6)
 " || { say "FAIL smoke 4"; exit 6; }
-say "READY: $STACK is empty + warm on :$SVC/:$WEB${START_ANYWAY:+ (warm FAILED twice; see above)}"
+if [ -n "${WARM_FAILED:-}" ]; then say "NOT READY: warm FAILED twice; fallback §22.7 (the service is up and empty)"; exit 7; fi
+say "READY: $STACK is empty + warm on :$SVC/:$WEB"
+[ "$STACK" = live ] && say "Then ask 22 to restart :8401 on the fresh db."
+exit 0
