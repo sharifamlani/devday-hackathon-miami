@@ -46,6 +46,7 @@
     "date-fns": "^4.4.0",
     "diacritic": "^0.0.2",
     "dompurify": "^3.4.17",
+    "eventemitter3": "^5.0.4",
     "faker": "^5.5.3",
     "inflection": "^3.0.2",
     "json-stream-es": "^1.2.1",

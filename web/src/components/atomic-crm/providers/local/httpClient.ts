@@ -48,7 +48,7 @@ export class ApiError extends Error {
 
 export const request = async <T>(
   path: string,
-  init?: { method?: "GET" | "POST" | "PATCH"; body?: unknown },
+  init?: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown },
 ): Promise<T> => {
   const method = init?.method ?? "GET";
   // Don't call a route this API build doesn't serve (see routes.ts): answer

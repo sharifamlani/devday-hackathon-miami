@@ -15,14 +15,16 @@ import type {
   CampaignSummary,
   OutboxEntry,
 } from "./campaignTypes";
+import { parseSources } from "./sources";
 import { whyShort } from "./parse";
 
 /* ---------- Raw API shapes (service/routes_campaigns.py) ---------- */
 
 export interface ApiCampaignMessage extends Omit<
   CampaignMessage,
-  "why_short" | "facts_used"
+  "why_short" | "facts_used" | "sources"
 > {
+  sources?: unknown; // C2: [{id, kind, title, text, source_url, posted_at}]
   why: ApiWhy | null;
   facts_used: {
     fact: string;
@@ -60,11 +62,12 @@ const parseFact = (
 export const parseCampaignMessage = (
   raw: ApiCampaignMessage,
 ): CampaignMessage => {
-  const { why, facts_used, ...rest } = raw;
+  const { why, facts_used, sources, ...rest } = raw;
   return {
     ...rest,
     why_short: whyShort(why ?? null),
     facts_used: (facts_used ?? []).map(parseFact).filter((f) => f.source_url),
+    sources: parseSources(sources),
     flags: raw.flags ?? [],
   };
 };

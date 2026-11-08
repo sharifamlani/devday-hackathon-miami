@@ -79,10 +79,39 @@ def invite_row(event: dict, person: dict) -> dict:
         invite = events_agent().draft_event_invite(event, person)
     except Exception as e:   # the invite failed its own checks twice, or the model failed: leave it out
         return {"skip": f"invite not drafted ({type(e).__name__}: {e})"[:200]}
-    draft = CampaignDraft(subject=invite["subject"] if channel == "email" else None,
-                          body=invite["email_body"] if channel == "email" else invite["sms"],
-                          facts_used=invite.get("facts_used", []), drafted_by="model")
+    body = invite["email_body"] if channel == "email" else invite["sms"]
+    used = list(invite.get("facts_used", []))
+    note = None
+    if channel == "email":                       # §21.2.4: the invite tells the story too, each line cited
+        body, story_used, notes = with_story(body)
+        used += story_used
+        note = " ".join(notes) or None
+    draft = CampaignDraft(subject=invite["subject"] if channel == "email" else None, body=body,
+                          facts_used=used, drafted_by="model", note=note)
+    from service.campaign_agent import sources_of
+    draft.sources = sources_of(used)
     return {"donor": person, "channel": channel, "draft": draft}
+
+
+STORY_LINES = (("success_story", "A story we're proud of"), ("use_of_funds", "Where gifts go"),
+               ("org_health", "How the Foundation is doing"))
+
+
+def with_story(body: str) -> tuple[str, list[dict], list[str]]:
+    """The newest success story, use-of-funds and org-health facts from the context store, one line each,
+    placed before the sign-off. A missing kind is left out and named for staff; nothing is invented."""
+    from service import outreach_agent as oa
+    from service.campaign_agent import story_of
+
+    story, notes = oa.story_facts(per_kind=1)
+    tale = story_of(story)
+    lines = [(label, tale[k]) for k, label in STORY_LINES if k in tale]
+    if not lines:
+        return body, [], notes
+    block = "\n".join(f"{label}: {f['fact']}" for label, f in lines)
+    head, sep, sign_off = body.rpartition("\n\n")
+    body = f"{head}\n\n{block}{sep}{sign_off}" if sep else f"{body}\n\n{block}"
+    return body, [f for _, f in lines], notes
 
 
 def summary(conn: sqlite3.Connection, event: dict, batch_id: int | None, **extra) -> dict:

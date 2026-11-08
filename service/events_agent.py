@@ -173,7 +173,20 @@ def today_str() -> str:
 
 
 def valid_when(s: str) -> bool:
-    return bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?", s or ""))
+    """A real calendar date (optionally with HH:MM). The shape alone isn't enough:
+    the model can return 2026-02-31, which would crash verify_sources later and
+    abort the whole refresh instead of dropping just that event."""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?", s or ""):
+        return False
+    try:
+        date.fromisoformat(s[:10])
+        if len(s) > 10:
+            hh, mm = int(s[11:13]), int(s[14:16])
+            if hh > 23 or mm > 59:
+                return False
+    except ValueError:
+        return False
+    return True
 
 
 def read_runs(path: Path) -> dict:
