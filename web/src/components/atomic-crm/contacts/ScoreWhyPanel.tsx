@@ -24,7 +24,10 @@ export const ScoreWhyPanel = ({
       aria-label="Why this donor"
       className={className ?? "space-y-3 rounded-[22px] bg-surface p-5"}
     >
-      <PanelHeading title={title} caption="From their gift history" />
+      <PanelHeading
+        title={title}
+        caption="Score computed in Python from gift history (score.py)"
+      />
       <p className="text-sm leading-relaxed">{donor.why}</p>
       {children}
       {donor.score_factors.length > 0 && (

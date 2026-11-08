@@ -11,6 +11,7 @@ import { NoteCreate, NotesIterator } from "../notes";
 import { reasonLabel } from "../providers/local/crmDonors";
 import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
+import { EmailLink, PhoneLink } from "./ContactLinks";
 import type { DonorDetail } from "../providers/local/types";
 import { TaskCreateSheet } from "../tasks/TaskCreateSheet";
 import { PhoneCallButton } from "../voice/PhoneCallButton";
@@ -33,7 +34,6 @@ import { ScoreWhyPanel } from "./ScoreWhyPanel";
 import { TagsListEdit } from "./TagsListEdit";
 import { AutoMergeFlag } from "./AutoMergeFlag";
 import { AboutPanel } from "./AboutPanel";
-import { DonorQuickFacts } from "./DonorQuickFacts";
 import { isNonGiver, TAB_ONE } from "./personTab";
 import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
@@ -103,8 +103,6 @@ const DonorShowContent = () => {
         contact_id={record.id}
       />
       <DuplicateBanner donorId={record.id} />
-      {/* Above the tabs: contact facts stay on every tab and don't wait for the giving history. */}
-      <DonorQuickFacts record={record} />
 
       <Tabs
         value={tab}
@@ -227,15 +225,19 @@ const ProfileHeader = ({
           </p>
         )}
       </div>
-      <span
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm"
-        title="Priority score, from their gift history: how much reaching out now matters"
-      >
-        <span className="text-muted-foreground">Priority</span>
-        <span className={cn("font-bold tabular-nums", scoreClass(record.score))}>
+      <div className="text-right">
+        <div className="text-xs font-medium text-muted-foreground">
+          Priority score
+        </div>
+        <div
+          className={cn(
+            "text-3xl font-bold leading-none tabular-nums sm:text-4xl",
+            scoreClass(record.score),
+          )}
+        >
           {record.score}
-        </span>
-      </span>
+        </div>
+      </div>
     </div>
     <div className="mt-4 flex flex-wrap gap-2">
       <PhoneCallButton donorId={record.id} />
@@ -300,7 +302,7 @@ const Overview = ({
           </ul>
         )}
       </ScoreWhyPanel>
-      <GivingPanel donor={donor} recurring={record.recurring} compact byYear />
+      <GivingPanel donor={donor} recurring={record.recurring} />
       <div className={cn(tileClass, "overflow-hidden")}>
         <OutreachPanel donor={donor} />
       </div>
@@ -322,11 +324,11 @@ const Overview = ({
 };
 
 const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
-  // One Details card. Email, phone and organization are in the quick facts above;
-  // where the record came from (Source) sits at the bottom, small.
-  <aside className="min-w-0" aria-label="Donor details">
-    <ProfileSection title="Details">
+  <aside className="min-w-0 space-y-3" aria-label="Donor details">
+    <ProfileSection title="Contact">
       <dl className="space-y-2 text-sm">
+        <Row label="Email" value={<EmailLink email={record.email} />} />
+        <Row label="Phone" value={<PhoneLink phone={record.phone} />} />
         <Row
           label="Location"
           value={
@@ -335,58 +337,50 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
           }
         />
         <Row label="Fund" value={record.fund_type ?? "Not recorded"} />
-        <Row
-          label={
-            record.donor_type === "organization"
-              ? "Organization"
-              : "Household or org."
-          }
-          value={
-            record.company_id != null ? (
-              <Link
-                to={`/companies/${record.company_id}/show`}
-                className="underline underline-offset-2"
-              >
-                {record.company_name}
-              </Link>
-            ) : (
-              "None linked"
-            )
-          }
-        />
+        <Row label="Source list" value={record.source} />
       </dl>
-      <div className="space-y-2 border-t border-border pt-3">
-        <h3 className="text-xs font-semibold text-muted-foreground">Tags</h3>
-        <TagsListEdit />
-      </div>
-      <div className="space-y-2 border-t border-border pt-3">
-        <h3 className="text-xs font-semibold text-muted-foreground">
-          Interest areas
-        </h3>
-        <InterestAreasEditor personId={record.id} />
-        {(record.interests ?? []).length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            From the uploaded list: {(record.interests ?? []).join(", ")}
-          </p>
-        )}
-      </div>
-      {record.imported_notes && (
-        <div className="space-y-1 border-t border-border pt-3">
-          <h3 className="text-xs font-semibold text-muted-foreground">
-            Imported notes
-          </h3>
-          <p className="whitespace-pre-line text-sm">{record.imported_notes}</p>
-        </div>
-      )}
-      {record.source && (
-        <p
-          className="truncate border-t border-border pt-3 text-xs text-muted-foreground"
-          title={record.source}
+    </ProfileSection>
+
+    <ProfileSection
+      title={
+        record.donor_type === "organization"
+          ? "Organization"
+          : "Household or organization"
+      }
+    >
+      {record.company_id != null ? (
+        <Link
+          to={`/companies/${record.company_id}/show`}
+          className="text-sm font-medium underline underline-offset-2"
         >
-          Source: {record.source}
+          {record.company_name}
+        </Link>
+      ) : (
+        <p className="text-sm text-muted-foreground">None linked.</p>
+      )}
+    </ProfileSection>
+
+    <ProfileSection title="Tags" caption="Your team's labels">
+      <TagsListEdit />
+    </ProfileSection>
+
+    <ProfileSection
+      title="Interest areas"
+      caption="What they support, with the source for each"
+    >
+      <InterestAreasEditor personId={record.id} />
+      {(record.interests ?? []).length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          From the uploaded list: {(record.interests ?? []).join(", ")}
         </p>
       )}
     </ProfileSection>
+
+    {record.imported_notes && (
+      <ProfileSection title="Imported notes" caption="From the uploaded list">
+        <p className="whitespace-pre-line text-sm">{record.imported_notes}</p>
+      </ProfileSection>
+    )}
   </aside>
 );
 
