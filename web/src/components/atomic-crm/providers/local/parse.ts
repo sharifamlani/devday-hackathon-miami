@@ -26,6 +26,7 @@ import type {
 } from "./apiTypes";
 import type {
   DonorDetail,
+  SummarySource,
   DonorStatus,
   DonorSummary,
   DuplicatePair,
@@ -431,7 +432,31 @@ export const parseDonorDetail = (raw: ApiDonorDetail): DonorDetail => ({
     : null,
   // Absent on older servers; always [] in the snapshot (export_snapshot.py).
   call_notes: parseApiCallNotes(raw.call_notes),
+  summary: raw.summary ?? null,
+  summary_updated_at: raw.summary_updated_at ?? null,
+  summary_sources: parseSummarySources(raw.summary_sources),
 });
+
+const SUMMARY_SOURCE_KINDS = new Set(["chat", "call_note", "note", "gift"]);
+
+/** Lenient: drops anything that isn't {kind, ref, at} with a known kind. */
+export const parseSummarySources = (raw: unknown): SummarySource[] =>
+  Array.isArray(raw)
+    ? raw.flatMap((s) =>
+        s &&
+        typeof s === "object" &&
+        SUMMARY_SOURCE_KINDS.has((s as { kind?: string }).kind ?? "") &&
+        typeof (s as { at?: unknown }).at === "string"
+          ? [
+              {
+                kind: (s as SummarySource).kind,
+                ref: String((s as { ref?: unknown }).ref ?? ""),
+                at: (s as SummarySource).at,
+              },
+            ]
+          : [],
+      )
+    : [];
 
 export const parseDuplicate = (raw: ApiDuplicate): DuplicatePair => {
   const side = (row: ApiDonorRow | null, id: number, giftCount: number) => ({

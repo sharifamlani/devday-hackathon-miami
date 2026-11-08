@@ -10,6 +10,7 @@ Everything here logs into the same table with its own target prefix, and undo(to
     merge:3              merge_duplicate: dedupe.undo_merge (the merge log keeps both rows)
     rsvp:<event>:<id>    rsvp_event: restores the previous answer
     note:<id>            context_notes add/delete: removes the note, or puts it back (3a)
+    event:<id>           events_crud add/update/move/delete (calendar v3): removes, restores or puts it back (3a)
 
 The same functions back the screens' buttons and the agent's tools; the agent passes actor="agent".
 """
@@ -235,12 +236,18 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
         event_id, person_id = (int(x) for x in ref.split(":"))
         conn.execute("UPDATE event_audience SET rsvp = ? WHERE event_id = ? AND person_id = ?",
                      (before["rsvp"], event_id, person_id))
+    elif kind == "summary":                    # donor_summary.update: put back the paragraph as it was
+        from service import donor_summary
+        donor_summary.restore(conn, int(ref), before)
     elif kind == "note":
         from service import context_notes
         try:
             context_notes.undo_note(conn, action)
         except context_notes.NoteError as e:
             raise WriteError(str(e))
+    elif kind == "event":
+        from service import events_crud
+        events_crud.undo_event(conn, action)
     else:
         raise WriteError(f"can't undo a {kind} change")
     conn.execute("UPDATE agent_actions SET undone_at = ? WHERE id = ?", (_now(), action["id"]))

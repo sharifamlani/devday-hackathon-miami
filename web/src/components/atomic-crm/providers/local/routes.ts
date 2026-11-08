@@ -1,4 +1,5 @@
 import { API_URL } from "./config";
+import { isPublicMode } from "./publicMode";
 
 /**
  * Which routes the running API build serves, read once from FastAPI's
@@ -7,6 +8,7 @@ import { API_URL } from "./config";
  * console error, and the demo bar is 0 console errors.
  *
  * Unknown (openapi.json unreadable) means "assume it exists and call it".
+ * In public mode the allow-list refuses /openapi.json, so it isn't asked (unknown, as before, minus the 403).
  */
 export type RouteTable = { pattern: RegExp; methods: Set<string> }[];
 
@@ -34,9 +36,10 @@ export const knownRoutes = (): Promise<RouteTable | null> => {
   // Unit tests mock fetch call by call; they test the routes themselves.
   if (import.meta.env.MODE === "test") return Promise.resolve(null);
   if (!tablePromise) {
-    tablePromise = fetch(`${API_URL}/openapi.json`)
+    tablePromise = isPublicMode()
+      .then((isPublic) => (isPublic ? null : fetch(`${API_URL}/openapi.json`)))
       .then(async (response) =>
-        response.ok
+        response?.ok
           ? toRouteTable(((await response.json()) as { paths?: Record<string, Record<string, unknown>> }).paths ?? {})
           : null,
       )

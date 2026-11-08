@@ -92,8 +92,8 @@ describe("DataImportButton", () => {
     await screen.getByLabelText("Resource").click();
     const options = screen.getByRole("listbox");
 
-    await expect.element(options.getByText("Contacts")).toBeVisible();
-    await expect.element(options.getByText("Companies")).toBeVisible();
+    await expect.element(options.getByText("Donors")).toBeVisible();
+    await expect.element(options.getByText("Organizations")).toBeVisible();
     await expect.element(options.getByText("Deals")).toBeVisible();
   });
 
@@ -180,7 +180,7 @@ describe("DataImportButton", () => {
     await screen.getByLabelText("Resource").click();
     const options = screen.getByRole("listbox");
 
-    await expect.element(options.getByText("Contacts")).toBeVisible();
+    await expect.element(options.getByText("Donors")).toBeVisible();
     await expect.element(options.getByText("Deals")).not.toBeInTheDocument();
   });
 

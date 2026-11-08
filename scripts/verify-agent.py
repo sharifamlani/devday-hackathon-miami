@@ -32,6 +32,33 @@ def api(base: str, path: str, **params):
     return r.json()
 
 
+def chat_data(r) -> dict:
+    """{steps, reply, approvals} from POST /chat (JSON) or POST /chat/stream (assistant-stream lines: b: a tool
+    starts, a: its result, 0: text, 2: data such as approvals)."""
+    if "application/json" in (r.headers.get("content-type") or ""):
+        return r.json()
+    steps, text, approvals = [], [], []
+    for line in r.text().splitlines():
+        kind, _, raw = line.partition(":")
+        try:
+            value = json.loads(raw)
+        except ValueError:
+            continue
+        if kind == "b":
+            steps.append({"tool": value.get("toolName")})
+        elif kind == "0":
+            text.append(str(value))
+        elif kind == "2":
+            approvals += [a for d in value if d.get("type") == "approvals" for a in d.get("approvals", [])]
+        elif kind == "3":
+            text.append(f"[stream error: {value}]")
+    return {"steps": steps, "reply": "".join(text), "approvals": approvals}
+
+
+def is_chat(r) -> bool:
+    return r.request.method == "POST" and (r.url.endswith("/chat") or r.url.endswith("/chat/stream"))
+
+
 def person_id(base: str, name: str) -> int:
     for p in api(base, "/people")["people"]:
         if p["full_name"] == name:
@@ -48,9 +75,13 @@ class Case:
     reply: str | None = None                             # regex the reply must match (case-insensitive)
     approve: bool | str = False                          # True: approve every card; "each": one card per resume
     ui: str | None = None                                # role=button name regex that must be on screen
+    ui_count: int | None = None                          # with ui: exactly this many such buttons
+    tools_none: set[str] = field(default_factory=set)    # none of these may run (e.g. nothing that dials)
     probe: Callable[[str], tuple[bool, str]] | None = None
     setup: Callable[[str], None] | None = None
     start: Callable[[Page], None] | None = None          # how the conversation starts (default: type prompt)
+    live: bool = False                                   # the first step card must show before the reply ends
+    after: Callable[[Page], str | None] | None = None     # a UI check once the reply is in; returns a failure note
 
 
 def crm_probe(base):
@@ -65,9 +96,11 @@ def task_probe(base):
 
 
 def calendar_probe(base):
+    """A dated task (GET /calendar) or, since #211, an event (GET /events) for the lunch on Friday."""
     rows = api(base, "/calendar", **{"from": FRIDAY.isoformat(), "to": FRIDAY.isoformat()})
-    hit = [i for i in rows if "lunch" in json.dumps(i).lower()]
-    return bool(hit), f"{len(hit)} lunch item(s) on {FRIDAY}"
+    events = [e for e in api(base, "/events") if str(e.get("starts_at") or "").startswith(FRIDAY.isoformat())]
+    hit = [i for i in rows + events if "lunch" in json.dumps(i).lower()]
+    return bool(hit), f"{len(hit)} lunch item(s) on {FRIDAY} (calendar + events)"
 
 
 SEEN: dict[str, int] = {}
@@ -89,7 +122,11 @@ WALK_TASKS = ("Walk test task A", "Walk test task B")
 
 
 def two_tasks(base):
-    """Two tasks due today for the two-pending-cards case (each delete waits on its own approval card)."""
+    """Two tasks due today for the two-pending-cards case (each delete waits on its own approval card).
+    Leftovers from an earlier run are deleted first, so the agent sees exactly one of each."""
+    for t in api(base, "/tasks", due="today"):
+        if t["title"] in WALK_TASKS:
+            httpx.delete(f"{base}/tasks/{t['id']}", timeout=30).raise_for_status()
     for title in WALK_TASKS:
         r = httpx.post(base + "/tasks", json={"kind": "other", "title": title, "due": TODAY.isoformat()}, timeout=30)
         r.raise_for_status()
@@ -113,14 +150,31 @@ def today_task(base):
     r.raise_for_status()
 
 
+def call_opens_in_the_card(page: Page) -> str | None:
+    """The call sheet's Call opens the call inside the card (Sharif): no dialog over the page. The inner Call is
+    never clicked here (and stays disabled with PHONE_CALLS off)."""
+    sheet = page.locator("[role=log] [data-testid=call-sheet]").last
+    sheet.get_by_role("button", name=re.compile(r"^Call$")).click()
+    try:
+        sheet.locator("[data-testid=inline-call]").wait_for(timeout=10000)
+    except Exception:
+        return "no inline call panel after clicking Call"
+    page.wait_for_timeout(1500)                          # let the setup check answer
+    if page.locator("[role=dialog]").count():
+        return "a dialog opened over the page"
+    return None
+
+
 def click_work_on_task(page: Page):
     """A click on a sidebar task hands it to the home agent (WorkspaceSidebar.workOn)."""
     page.get_by_role("button", name=re.compile("^Work on with the agent: Call Carmen Ibarra", re.I)).first.click()
 
 
 CASES = [
-    Case("call a donor", "Call Elizabeth Fontaine", tools_any={"get_person", "find_people", "call_person"},
-         ui=r"^Call\b"),
+    # Call protocol (#219): "call <person>" shows the call sheet with one Call button; nothing dials (the button
+    # is never clicked here, and every test stack runs PHONE_CALLS=off).
+    Case("call a donor", "Call Elizabeth Fontaine", tools_all={"prep_call"}, tools_none={"call_person"},
+         ui=r"^Call$", ui_count=1, after=call_opens_in_the_card),
     Case("CRM write", "Update Carmen Ibarra's city to Coral Gables", tools_all={"update_person"},
          probe=crm_probe),
     Case("events read", "What are the next events coming up?", tools_any={"get_events", "get_calendar"},
@@ -131,13 +185,15 @@ CASES = [
          tools_all={"draft_email", "send"}, approve=True, probe=outbox_probe),
     Case("task write", "Add a task to call Priya Raman on Tuesday", tools_all={"create_task"}, probe=task_probe),
     Case("calendar write", "Put a donor lunch on the calendar for Friday at noon",
-         tools_any={"add_calendar_item", "create_task"}, probe=calendar_probe),
+         tools_any={"add_calendar_item", "create_task", "add_event"}, probe=calendar_probe),
     Case("context read", "What has the Foundation been doing lately?",
          tools_any={"get_context", "search_context"}, reply=r"\w{20,}|\."),
     Case("task -> agent", "(home task card: Work on it with the agent)", tools_all={"get_task"},
          setup=today_task, start=click_work_on_task),
     Case("GMD thank-you", "Draft a thank-you to Give Miami Day donors", tools_all={"draft_email"},
          setup=note_last_batch, probe=gmd_probe),
+    Case("streams live", "Which donors are lapsing, and what should I do about each one?",
+         tools_any={"find_people", "get_alerts"}, live=True),
     Case("two pending cards", "Delete both of today's tasks 'Walk test task A' and 'Walk test task B'.",
          tools_all={"delete_task"}, approve="each", setup=two_tasks, probe=both_deleted_probe),
 ]
@@ -149,8 +205,7 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
     page.goto(web + "/", wait_until="networkidle")
     tools, replies, notes = [], [], []
     started = time.time()
-    with page.expect_response(lambda r: r.url.endswith("/chat") and r.request.method == "POST",
-                              timeout=CHAT_TIMEOUT_MS) as resp:
+    with page.expect_response(is_chat, timeout=CHAT_TIMEOUT_MS) as resp:
         if case.start:
             case.start(page)
         else:
@@ -160,19 +215,27 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
     r = resp.value
     if r.status != 200:
         return False, f"/chat {r.status}: {r.text()[:160]}"
-    data = r.json()
+    if case.live:                                        # a step card shows while the reply is still streaming
+        page.locator("[role=log] [data-testid=agent-step]").first.wait_for(timeout=CHAT_TIMEOUT_MS)
+        card_at = time.time()
+        r.finished()
+        lead = time.time() - card_at
+        notes.append(f"first step card {lead:.1f}s before the reply finished")
+        if lead < 1.0:
+            notes.append("not live: the card came with the finished reply")
+    data = chat_data(r)
     tools += [s["tool"] for s in data.get("steps", [])]
     replies.append(data.get("reply") or "")
     if case.approve == "each":
         notes.append(f"{len(data.get('approvals') or [])} card(s) pending at once")
-        yes = re.compile(r"^(Approve|Send|Call)$")
+        yes = re.compile(r"^Approve$")                       # delete cards; never Send or Call here
         for _ in range(4):                                   # one card per round trip; the others must stay pending
             pending = page.locator("[data-testid=agent-approval][data-decision=pending]")
             if pending.count() == 0:
                 break
             with page.expect_response(lambda r: r.url.endswith("/chat/approve"), timeout=CHAT_TIMEOUT_MS) as resp:
                 pending.first.get_by_role("button", name=yes).click()
-            data = resp.value.json()
+            data = chat_data(resp.value)
             tools += [s["tool"] for s in data.get("steps", [])]
             replies.append(data.get("reply") or "")
             page.wait_for_timeout(500)
@@ -188,14 +251,14 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
                         "button", name=re.compile(r"^(Approve|Send|Call)$")).all():
                     if b.is_enabled():
                         b.click()
-            data = resp.value.json()
+            data = chat_data(resp.value)
             tools += [s["tool"] for s in data.get("steps", [])]
             replies.append(data.get("reply") or "")
     page.wait_for_timeout(800)
     secs = time.time() - started
     page.screenshot(path=str(shots / f"{n:02d}-{re.sub(r'[^a-z0-9]+', '-', case.name)}.png"), full_page=True)
 
-    ok = not any("without a click" in n for n in notes)
+    ok = not any("without a click" in n or n.startswith("not live") for n in notes)
     if case.tools_any and not (case.tools_any & set(tools)):
         ok, _ = False, notes.append(f"none of {sorted(case.tools_any)} ran")
     if case.tools_all - set(tools):
@@ -203,8 +266,20 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
     text = " ".join(replies)
     if case.reply and not re.search(case.reply, text, re.I):
         ok, _ = False, notes.append(f"reply doesn't match /{case.reply}/")
-    if case.ui and page.locator("[role=log]").get_by_role("button", name=re.compile(case.ui, re.I)).count() == 0:
-        ok, _ = False, notes.append(f"no /{case.ui}/ button in the conversation")
+    if case.ui:
+        n = page.locator("[role=log]").get_by_role("button", name=re.compile(case.ui, re.I)).count()
+        if (n != case.ui_count) if case.ui_count is not None else n == 0:
+            ok, _ = False, notes.append(f"{n} /{case.ui}/ button(s) in the conversation"
+                                        + (f", want {case.ui_count}" if case.ui_count is not None else ""))
+    if case.tools_none & set(tools):
+        ok, _ = False, notes.append(f"must not run {sorted(case.tools_none & set(tools))}")
+    if case.after and ok:
+        problem = case.after(page)
+        if problem:
+            ok, _ = False, notes.append(problem)
+        else:
+            notes.append("call opened inside the card, no dialog")
+            page.screenshot(path=str(shots / f"{n:02d}-inline-call.png"), full_page=True)
     if case.probe:
         good, detail = case.probe(base)
         notes.append(f"db: {detail}")

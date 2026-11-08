@@ -13,12 +13,23 @@ import {
 } from "@/components/ui/dialog";
 import { DonorDrawer } from "../contacts/DonorDrawer";
 import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
-import { useDonors, useOrgProfile, useTargets } from "../providers/local/hooks";
+import {
+  useDonors,
+  useOrgContext,
+  useOrgProfile,
+  useTargets,
+} from "../providers/local/hooks";
 import { useHomeData } from "../providers/local/homeFeed";
 import { useCompleteTask } from "../providers/local/tasks";
 import { isIsoDate, toIsoDate } from "../outreach/dates";
 import { FindDonorDialog } from "./FindDonorDialog";
-import { ArtifactsTile, CrmTile, Q4ProgressTile, TasksTile } from "./HomeCards";
+import {
+  ArtifactsTile,
+  CrmTile,
+  ImpactTile,
+  Q4ProgressTile,
+  TasksTile,
+} from "./HomeCards";
 import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
 import { buildBriefing } from "./briefing";
 import { DailyBriefing } from "./DailyBriefing";
@@ -35,7 +46,11 @@ import {
 } from "./homeData";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { CrmPanel } from "./panels/CrmPanel";
-import { ImpactPanel } from "./panels/ImpactPanel";
+import {
+  ImpactPanel,
+  listFacts,
+  type ImpactFact,
+} from "./panels/ImpactPanel";
 import { TasksPanel } from "./panels/TasksPanel";
 import {
   PanelFrame,
@@ -53,6 +68,11 @@ export const HomePage = () => {
   const overview = useOverview();
   const { view: panel, closeWorkspace } = useWorkspaceView();
   const targets = useTargets();
+  const orgContext = useOrgContext();
+  const impactFacts = useMemo(
+    () => listFacts((orgContext.data?.facts ?? []) as ImpactFact[]).length,
+    [orgContext.data],
+  );
   // "Today" is the service's as-of date (the demo runs as of Nov 8), not this
   // browser's clock; the browser's date only holds until /targets answers.
   const today = targets.data?.quarter?.as_of ?? toIsoDate(new Date());
@@ -170,6 +190,7 @@ export const HomePage = () => {
             goalIsSample={targets.data?.quarter?.goal_is_sample ?? false}
             isPending={targets.isPending}
           />
+          <ImpactTile factCount={impactFacts} />
           <AgendaList today={today} onOpenDay={openDay} />
           <TasksTile
             tasks={tasks}
@@ -223,12 +244,7 @@ export const HomePage = () => {
               ) : undefined
             }
           />
-          <Composer
-            onUploadList={() => setImportOpen(true)}
-            suggestions={
-              summary?.suggestions?.length ? summary.suggestions : undefined
-            }
-          />
+          <Composer onUploadList={() => setImportOpen(true)} />
         </section>
         {panel && (
           <PanelFrame view={panel} onClose={closeWorkspace}>

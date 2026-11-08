@@ -1827,3 +1827,179 @@ store + story-first campaigns, tasks, voice, after-call, agent write tools.
 - Q4 example sheet (D2): included by default; say if you'd rather lower the sample goal instead.
 - Sessions 12 and 37: roles confirmed on brief (12 already confirmed as the deploy watcher).
 - Nit from 12's walk: Vercel's "Live AI isn't configured" answer shows a "Cached answer" badge (UI owner).
+
+## 22. Demo run plan (Sharif, Sun Nov 8). The plan an agent executes; `docs/demo-script.md` stays the word-for-word script
+
+Sharif: *"Start with showing the onboarding about putting in the data and then taking it to the dashboard."* This
+section is the run order, the checks around it and the fallbacks. The bold labels, spoken lines and per-step timings
+are in `docs/demo-script.md` (the script wins on wording; this section wins on order and checks). It describes main
+as of Sun Nov 8 afternoon: no suggestion chips, the dashboard briefing, streaming agent replies, calendar v3. Nothing
+here is run until Sharif says go.
+
+### 22.1. Files touched
+```
+plan.md                         §22 (this section): run order, T-minus checklist, smokes, criteria, roles, fallbacks
+docs/demo-script.md             read only here: the words and bold labels for every step below
+scripts/demo_reset.py           T-30: --warm empties the db, warms the upload cache, checks the stage numbers
+scripts/public_tunnel.py        T-15: on | off | status for the public site (tunnels the LIVE stack, :8001 by default)
+scripts/smoke-openai.py         smoke 1: key + model tiers + one Agents SDK tool call (7/7)
+data/sample_inputs/             the 8 files dragged in on stage (not answer_key.json or _README.md)
+```
+No UI or code changes: this section only orders what is already on main.
+
+### 22.2. The stage run (flow)
+```
+ T-30  +-----------------------------------------------+
+       | python scripts/demo_reset.py --warm            |  service stopped
+       |  -> "PASS stage numbers: 77 people / 9 ..."    |--(exit 1)--> run it again
+       +-----------------------+-----------------------+
+                               v
+       +-----------------------------------------------+
+       | start service :8000 + web :5173 (local mode)   |  commands the reset prints
+       | smokes 1-4 (22.4)  ->  browser on Step 1 of 3  |
+       +-----------------------+-----------------------+
+                               v
+ T-0   +-----------------------------------------------+
+  (1)  | EMPTY APP: "Donor Desk · Step 1 of 3"          |  "Nothing is preloaded."
+       +-----------------------+-----------------------+
+                               v
+  (2)  +-----------------------------------------------+
+       | ONBOARDING                                    |
+       |  drag 8 files -> Import 8 files (~10 s)       |
+       |  receipt: 77 people · 131 gifts · 40/22/15 ·  |
+       |           9 possible duplicates               |
+       |  website miamifoundation.org -> Continue      |
+       |  Reading your website (~30 s) -> "Your desk   |--("Still reading your site.")--> Continue to the
+       |  is set up." -> Go to the dashboard           |                                  dashboard
+       +-----------------------+-----------------------+
+                               v
+  (3)  +-----------------------------------------------+
+       | DASHBOARD TOUR: tour card -> Not now          |
+       |  "Here's your day." (4 lines) · Q4 gauge ·    |
+       |  Impact & story · week strip (4 events) ·     |
+       |  Tasks · CRM · Files & drafts                 |
+       +-----------------------+-----------------------+
+                               v
+  (4)  +-----------------------------------------------+
+       | DEMO MOMENTS (in this order)                  |
+       |  a agent chat streams ("Plan next week")      |
+       |  b duplicates in chat (Review -> inbox ->     |
+       |    Ask the agent to fix)                      |
+       |  c call sheet (task row: Call Hye-jin Park)   |
+       |  d transcript -> after-call card -> Apply     |
+       |  e calendar v3 (next week -> 5K ⓘ -> batch)   |
+       |  f Impact & story (Copy for a grant report)   |
+       |  g CRM row expand + Enhance (Knight)          |
+       |  h donor summary ("About <name>")             |
+       +-----------------------+-----------------------+
+                               v
+  (5)  +-----------------------------------------------+
+       | CLOSE: the closing line (demo-script "Close") |
+       +-----------------------------------------------+
+   any step fails --> its fallback (22.7) --> next step
+   laptop or network dies --> Vercel preview tab (read-only sample data), say so
+```
+
+Step details (labels and timings from the Nov 8 dress rehearsals on main):
+
+| # | Step | Operator does | Screen shows |
+|---|---|---|---|
+| 1 | Empty app | Hard refresh http://localhost:5173 | **Donor Desk · Step 1 of 3**, **Drag in your files.** |
+| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | **Import finished: 77 people · 131 gifts (+1 declined charge on record)**, **40 Givers · 22 Neighbors · 15 Community**, **9 possible duplicates to review** |
+| 2b | Website | Type `miamifoundation.org`, **Continue** | **Reading your website · m:ss**, then **Your desk is set up.** (e.g. 15 facts) |
+| 3 | Dashboard | **Go to the dashboard**, **Not now** on the tour card | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
+| 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
+| 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
+| 4c | Call sheet | Click the **Call Hye-jin Park** task row | steps incl. **Prep call**, a call sheet + a draft, **Mark done?** (~28 s). The call sheet's **Call** opens the call controls inside that chat card, not a pop-up (#248); **Call** stays disabled until the phone setup is ready, so don't press it unless the phone call is part of the run |
+| 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the transcript streams in (~10 s), the summary and **Suggested next steps** (~4 s); once #210 is in: the after-call card proposes the tasks and the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") → **Apply selected** writes the ticked ones |
+| 4e | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
+| 4f | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
+| 4g | CRM + Enhance | Type *"Add the Knight Foundation as a contact."*; **CRM** heading → expand the Knight row → **Enhance** → **Save to profile** | **Enhancing…**, sourced interest tags (cached: under 1 s) |
+| 4h | Donor summary | Open a donor's profile (e.g. Hye-jin Park) | **About Hye-jin** · **written by the agent** at the top of the Overview |
+| 5 | Close | Presenter says the closing line | the dashboard |
+
+If #210 has merged, the Live transcript demo call (4d) is with Hye-jin Park: her failed $40 gift, then an RSVP to
+the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-script.md` carries the words. Before
+#210 the card still appears but isn't tied to a donor; stop at the summary.
+
+### 22.3. T-minus checklist (laptop operator)
+- [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
+- [ ] **T-30 (reset):** stop the service, then `python scripts/demo_reset.py --warm`. It must end with
+      **`PASS stage numbers: 77 people / 9 duplicate suggestions`**. Exit 1 means run it again. Start the service
+      (:8000) and the web (:5173, `VITE_DATA_MODE=local`) with the commands it prints.
+- [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
+      key, and a busy key slows invites and agent replies (Nov 8: 429s).
+- [ ] **T-20:** smokes 1–4 (22.4), in order.
+- [ ] **T-15 (public site):** `python scripts/public_tunnel.py status`. Turn it `on` only if the public link is part
+      of the pitch (it tunnels the LIVE stack, :8001 by default); otherwise `off`. Write down the state.
+- [ ] **T-10 (mic):** open **Live transcript** (it should show **Listening**), then **Open Ask sidebar** →
+      **Dictate** → **Stop dictation**. Grant the browser mic permission.
+- [ ] **T-5 (screen):** browser zoom 110%, notifications off, DevTools console open on a second screen; close other
+      apps (Dropbox sync paused, no other dev servers).
+- [ ] **T-5 (fallback):** the Vercel preview open in a second tab (https://devday-donor-desk.vercel.app); a hotspot
+      ready as Wi-Fi backup.
+- [ ] **T-0:** hard refresh: the app shows **Donor Desk · Step 1 of 3** with nothing behind it.
+
+### 22.4. Derisking: smokes in dependency order
+1. **What it proves:** the API key, the model tiers and the Agents SDK work.
+   **Command:** `.venv/Scripts/python.exe scripts/smoke-openai.py` · **Expected:** `7/7`, exit 0.
+   **If it fails →** check `.env` (`OPENAI_API_KEY`, `OPENAI_MODEL_*`), then rerun; don't start the demo on a failing key.
+2. **What it proves:** the upload reads the 8 files to the stage numbers, and the cache is warm.
+   **Command:** `python scripts/demo_reset.py --warm` (service stopped) · **Expected:** `PASS stage numbers: 77 people
+   / 9 duplicate suggestions (expected 77 / 9, …)`, exit 0. **If it fails →** run it again (it retries the model read);
+   twice FAIL means demo the counts the receipt shows and say "the agent sorted them".
+3. **What it proves:** the service is up, empty and private.
+   **Command:** `curl -s http://localhost:8000/health` · `curl -s http://localhost:8000/events` ·
+   `curl -s http://localhost:8000/public-mode` · **Expected:** HTTP 200 · `[]` · `{"enabled":false}`.
+   **If it fails →** restart the service from the reset's printout; a non-empty `/events` means rerun step 2.
+4. **What it proves:** the web talks to that service in local mode.
+   **Command:** open http://localhost:5173 · **Expected:** **Donor Desk · Step 1 of 3**, 0 errors in the DevTools
+   console. **If it fails →** check `VITE_API_URL=http://localhost:8000` and `VITE_DATA_MODE=local`; restart the web.
+5. **What it proves:** the public switch is in the state you want.
+   **Command:** `python scripts/public_tunnel.py status` · **Expected:** `off` (or the pid + URL + `health: HTTP 200`
+   if it's part of the pitch). **If it fails →** `python scripts/public_tunnel.py off`, then decide again.
+6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
+   **Command:** run 22.2 steps 1–5 in the browser, then `python scripts/demo_reset.py --check` (it approves the
+   suggested merges on a COPY of the db) · **Expected:** `PASS` lines for people / gifts / alerts against
+   `answer_key.json` (68 people: 33 givers, 20 neighbors, 15 community; 131 gifts). **If it fails →** note which
+   count differs, tell the lead, and demo without the merge step. Then reset (smoke 2) before T-30.
+
+### 22.5. Evaluation criteria (definition of done for the stage run)
+| Criterion | Metric + threshold | How measured | Evidence |
+|---|---|---|---|
+| Stage numbers before going on | `PASS stage numbers: 77 people / 9` | `demo_reset.py --warm` output | the terminal line, kept on screen |
+| Import receipt matches the answer key | 77 people · 131 gifts · 40/22/15 · 9 duplicates on screen | read the receipt (step 2a) | rehearsal screenshot |
+| Setup is fast enough for a stage | import ≤ 15 s; context ≤ 45 s (or the "Still reading" path taken) | stopwatch from click to screen | rehearsal timing table |
+| All 4 events land | Sat 14 Early Giving, Sun 15 5K + Festival, Thu 19 Give Miami Day on the week strip | read the week strip / calendar | rehearsal screenshot |
+| Agents feel live | first step card ≤ 3 s; "Plan next week" done ≤ 15 s; call sheet ≤ 35 s | stopwatch | rehearsal timing table |
+| Calendar to campaign | **Open batch** opens the campaign page ≤ 5 s | stopwatch | rehearsal timing table |
+| Data stays right | with the suggested merges approved: 68 people, 131 gifts | `demo_reset.py --check` (smoke 6, on a copy) | its PASS lines |
+| No visible errors | 0 console errors, 0 failed requests during the run | DevTools console + Network on the operator's screen | rehearsal note |
+| Fits the slot | machine wait ≤ 3 min in total (rehearsal #2: ~131 s) | sum of the stopwatch times | rehearsal timing table |
+
+Each criterion is graded at the T-60 rehearsal by someone who isn't the operator. Any FAIL is fixed or covered by its
+fallback before T-30.
+
+### 22.6. Who does what
+| Role | Does | Doesn't |
+|---|---|---|
+| Presenter | speaks every line from `docs/demo-script.md`, points at the screen, takes questions | touch the laptop mid-step |
+| Laptop operator | the T-minus checklist, every click and typed prompt, watches the console, triggers fallbacks | improvise prompts (type them exactly) |
+| Backup | holds the Vercel tab and the hotspot; times the steps at the rehearsal | interrupt the run |
+
+### 22.7. Fallbacks (if X fails → say/do Y)
+| Step | If | Say / do |
+|---|---|---|
+| 1 Empty app | **Step 1 of 3** isn't showing, or the page errors | Don't start: stop the service, rerun `python scripts/demo_reset.py --warm` (it must PASS), restart, hard refresh. |
+| 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: **Use the example files**, then continue. |
+| 2b Context | **Still reading your site.** | **Continue to the dashboard**: "It keeps reading in the background; the facts land in a minute." |
+| 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
+| 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
+| 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
+| 4c Call sheet | over 40 s | "It's writing a call sheet and a draft from her record." Move on when the draft shows. |
+| 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
+| 4e Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
+| 4f Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
+| 4g Enhance | slow (cache miss) | "It's reading the public web; every tag will carry its source." Skip **Save to profile** if over 30 s. |
+| 4h Summary | **About …** says no notes | "The agent writes this from calls and notes as they come in." |
+| Any | laptop, network or service down | Switch to the Vercel tab: "This is the read-only preview of the same data." |

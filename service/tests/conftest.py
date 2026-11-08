@@ -43,3 +43,10 @@ def no_slow_read_between_tests():
     main = sys.modules.get("service.main")
     if main is not None and hasattr(main, "SLOW_READ"):
         main.SLOW_READ.clear()
+
+
+@pytest.fixture(autouse=True)
+def summary_writer_offline(monkeypatch):
+    """Saving a call note rewrites the donor's "About" summary (donor_summary.py) with one model call. Tests never
+    go online: the plain rule stands in, unless a test patches donor_summary.model_available itself."""
+    monkeypatch.setenv("SUMMARY_WRITER", "rules")

@@ -76,6 +76,7 @@ app.include_router(campaigns_router)
 app.include_router(ask_router)  # POST /ask (issue #36)
 from service.routes_tasks import router as tasks_router  # noqa: E402  (§21 B11/B12)
 app.include_router(tasks_router)
+app.include_router(importlib.import_module("service.routes_events").router)  # calendar v3: POST/PATCH/DELETE /events
 app.include_router(calls_router)  # live transcript call notes: /calls, /calls/summarize
 app.include_router(crm_router)  # the Donors tab's notes, tasks and tags: /crm/...
 app.include_router(importlib.import_module("service.routes_interests").router)  # B1 interests; owns POST /enrich (dry_run)
@@ -611,7 +612,7 @@ def start_events_search(website: str | None):
     return asyncio.ensure_future(run_in_threadpool(find_onboarding_events, website))
 
 
-ONBOARDING_SEARCHES = 2
+ONBOARDING_SEARCHES = 3
 
 
 def find_onboarding_events(website: str) -> list[dict]:

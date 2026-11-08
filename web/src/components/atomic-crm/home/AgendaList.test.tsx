@@ -96,7 +96,7 @@ describe("agendaDays", () => {
     ]);
   });
 
-  it("lists All day rows first, one summary row for untimed tasks, and flags agent rows", () => {
+  it("is events only: tasks never appear, All day rows come first, agent rows are flagged", () => {
     const [today, later] = agendaDays(
       [
         item("Planning", TODAY, "14:00", { source: "agent" }),
@@ -114,12 +114,10 @@ describe("agendaDays", () => {
       TODAY,
     );
     expect(today.rows.map((r) => [r.time, r.label, r.byAgent])).toEqual([
-      ["All day", "3 calls · 1 review", false],
       ["2:00 PM", "Planning", true],
     ]);
     expect(later.rows.map((r) => [r.time, r.label])).toEqual([
       ["All day", "Give Miami Day"],
-      ["All day", "Review B"],
       ["7:00 AM", "Early"],
     ]);
   });

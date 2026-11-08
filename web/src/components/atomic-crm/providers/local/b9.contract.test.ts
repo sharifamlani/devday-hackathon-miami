@@ -7,6 +7,7 @@ import { acceptEnrichment, addInterest, enrichPreview, getInterestTags, getPerso
 import { getHomeSummary, getPeopleAttention, getTargetQuarters } from "./homeSummary";
 import { completeTask, createTask, deleteTask, generateTasks, getTasks, undo, updateTask } from "./tasks";
 import { getArtifacts, getCalendarFeed } from "./calendarFeed";
+import { createEvent, deleteEvent, getCalendarEvents, updateEvent } from "./events";
 import { applyAfterCall, getPledges, proposeAfterCall, transcribeFile } from "./voice";
 import { searchContext } from "./contextSearch";
 import { resetMockTasks } from "./mocks";
@@ -136,8 +137,23 @@ describe("calendar + artifacts (3a, B12)", () => {
   it("GET /calendar?from&to → [{date, time, title, kind, source, ref}]", async () => {
     const items = await getCalendarFeed("2026-11-01", "2026-11-30");
     expect(last().path).toBe("/calendar?from=2026-11-01&to=2026-11-30");
-    expect(keysOf(items[0])).toEqual(["date", "kind", "ref", "source", "time", "title"]);
+    for (const key of ["date", "kind", "ref", "source", "time", "title"]) expect(items[0]).toHaveProperty(key);
     expect(["event", "task"]).toContain(items[0].kind);
+  });
+
+  it("GET /calendar?kind=event → events only; POST/PATCH/DELETE /events + undo", async () => {
+    const before = await getCalendarEvents("2026-11-01", "2026-11-30");
+    expect(last().path).toBe("/calendar?from=2026-11-01&to=2026-11-30&kind=event");
+    expect(before.every((i) => i.kind === "event")).toBe(true);
+    const made = await createEvent({ title: "Board coffee", starts_at: "2026-11-12T08:00", place: "Coral Room" });
+    expect(last()).toMatchObject({ method: "POST", path: "/events", body: { title: "Board coffee" } });
+    expect(made.undo_token).toBeTruthy();
+    const after = await getCalendarEvents("2026-11-01", "2026-11-30");
+    expect(after.find((i) => i.title === "Board coffee")).toMatchObject({ date: "2026-11-12", time: "08:00", place: "Coral Room", source: "staff" });
+    await updateEvent(made.id, { place: "Lobby" });
+    expect(last()).toMatchObject({ method: "PATCH", path: `/events/${made.id}` });
+    expect((await deleteEvent(made.id)).deleted).toBe(true);
+    expect((await getCalendarEvents()).some((i) => i.title === "Board coffee")).toBe(false);
   });
 
   it("GET /artifacts → [{kind, title, date, ref}]", async () => {

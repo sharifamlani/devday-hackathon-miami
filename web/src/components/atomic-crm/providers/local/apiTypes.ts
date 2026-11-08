@@ -126,6 +126,10 @@ export interface ApiDonorDetail extends ApiDonorRow {
   // The donor's saved call notes, newest first (routes_calls.py); absent on
   // older servers, [] in the snapshot. Parsed leniently by parseApiCallNotes.
   call_notes?: unknown;
+  // "About <donor>" (service/donor_summary.py); absent on older servers and snapshots.
+  summary?: string | null;
+  summary_updated_at?: string | null;
+  summary_sources?: unknown;
 }
 
 /** One item of GET /duplicates */

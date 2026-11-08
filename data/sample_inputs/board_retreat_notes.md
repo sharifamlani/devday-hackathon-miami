@@ -8,7 +8,7 @@
 - Maria Delgado is our anchor: she has given on every single Give Miami Day since 2022. Jules will call her this
   week. She is now María Delgado-Ruiz on her new intake form - same person, same email, just hyphenated.
 - Pledges for the day (promised, NOT received yet, so do not enter as gifts): Lucia Ferrante says $1,000,
-  Annelise Moreau $500, and the hardware store (Tamarind Quay Hardware) $1,500 as a match challenge.
+  Annelise Moreau $500, and the hardware store (Tamarind Quay Hardware, LLC) $1,500 as a match challenge.
 - Tobias Lindqvist pledged $2,000 for year-end, nothing booked yet.
 
 ## Who is who (clean-up items)
@@ -28,12 +28,13 @@
 
 ## Pantry and community notes
 
-- Dolores Quinones (Spanish speaker, picks up pantry boxes every other Friday) put $25 in the donation jar at the
+- Dolores Quinones (Spanish speaker, picks up pantry boxes every other Friday; 305-555-0145,
+  dolores.quinones@example.com) put $25 in the donation jar at the
   Oct 18 open house. Not sure whether she goes in as a donor or stays a client. Marisol to ask what she prefers.
 - Marcus Bell, one of our pantry regulars (he filled out an intake form in September), told Jules he wants to give
   $10 a month once his new job starts in December. Nothing received yet.
 - Tomas met Gabriela Rincon at the chamber mixer. She says she wants to "get involved and probably give" and mentioned
-  her mother gets senior meals from us. No form, no gift yet.
+  her mother gets senior meals from us. No form, no gift yet. Her card: gabriela.rincon@example.com, 305-555-0170.
 
 ## Action items
 

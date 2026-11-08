@@ -17,8 +17,10 @@ import type { DonorContactDetail } from "../providers/local/crmResources";
 import { AutoMergeFlag } from "./AutoMergeFlag";
 import { isNonGiver, TAB_ONE } from "./personTab";
 import { useDonor } from "../providers/local/hooks";
+import { AboutPanel } from "./AboutPanel";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { EmailLink, PhoneLink } from "./ContactLinks";
+import { useDonorProjects } from "../providers/local/campaignHooks";
 import { DonorTagList, Stat } from "./donorCrmUi";
 import { GivingPanel } from "./GivingPanel";
 import { SavedInterestChips } from "./InterestChips";
@@ -49,6 +51,7 @@ export const DonorDrawer = ({
   onClose: () => void;
 }) => {
   const { data: donor, isPending, error } = useDonor(donorId);
+  const projects = useDonorProjects(donorId);
   // The CRM record adds status tags, contact details and call notes.
   const { data: record } = useGetOne<DonorContactDetail>(
     "contacts",
@@ -154,14 +157,27 @@ export const DonorDrawer = ({
                   <ArrowRight aria-hidden />
                 </Link>
               </div>
+              <AboutPanel donor={donor} />
               {record && (
-                <dl className="grid grid-cols-2 gap-2 text-sm">
+                // Four equal bubbles. Where the record came from (Source) lives on the full record.
+                <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                   <Stat label="Email" value={<EmailLink email={record.email} />} />
                   <Stat label="Phone" value={<PhoneLink phone={record.phone} />} />
-                  <Stat label="Source" value={record.source} />
                   <Stat
                     label="Organization"
                     value={record.company_name ?? "None linked"}
+                  />
+                  <Stat
+                    label="Project"
+                    value={
+                      projects.isPending
+                        ? "…"
+                        : projects.isError
+                          ? "Couldn't load"
+                          : projects.projects.length
+                          ? projects.projects.map((p) => p.name).join(", ")
+                          : "None yet"
+                    }
                   />
                 </dl>
               )}
