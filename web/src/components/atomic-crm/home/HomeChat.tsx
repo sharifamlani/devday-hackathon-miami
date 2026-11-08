@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
-import { EXAMPLE_QUESTIONS, type AskAnswer } from "../providers/local/ask";
+import { type AskAnswer } from "../providers/local/ask";
 import { DATA_MODE } from "../providers/local/config";
 import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
@@ -391,17 +391,8 @@ const AskThread = ({ intro }: { intro?: ReactNode }) => {
 
 /* ---------- Composer ---------- */
 
-/** Generic example questions, used until GET /home/summary has chips for this data. */
-export const SUGGESTIONS = EXAMPLE_QUESTIONS.slice(1, 4);
-
-export const Composer = ({
-  onUploadList,
-  suggestions = SUGGESTIONS,
-}: {
-  onUploadList: () => void;
-  /** GET /home/summary.suggestions. */
-  suggestions?: string[];
-}) => {
+/** No suggestion chips above the input (Sharif); /home/summary.suggestions is not rendered. */
+export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   const session = useAskSession();
   const agent = useAgentChat();
   const refetch = useAgentRefetch();
@@ -437,23 +428,6 @@ export const Composer = ({
 
   return (
     <div data-tour="composer" className="home-composer">
-      <ul aria-label="Suggestions" className="mb-2.5 flex flex-wrap gap-2">
-        {suggestions.map((question) => (
-          <li key={question} className="max-w-full">
-            <button
-              type="button"
-              onClick={() => send(question)}
-              disabled={busy}
-              className={cn(
-                "inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-left text-xs hover:bg-accent disabled:opacity-60",
-                focusRing,
-              )}
-            >
-              {question}
-            </button>
-          </li>
-        ))}
-      </ul>
       <form onSubmit={onSubmit} className="home-composer-input">
         <span
           key={bloomId}

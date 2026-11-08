@@ -244,12 +244,7 @@ export const HomePage = () => {
               ) : undefined
             }
           />
-          <Composer
-            onUploadList={() => setImportOpen(true)}
-            suggestions={
-              summary?.suggestions?.length ? summary.suggestions : undefined
-            }
-          />
+          <Composer onUploadList={() => setImportOpen(true)} />
         </section>
         {panel && (
           <PanelFrame view={panel} onClose={closeWorkspace}>
