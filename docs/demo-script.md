@@ -106,8 +106,11 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     notes.” before the call connects."), with **Cancel** / **Call**. Click the panel's **Call** to dial. The staff
     phone rings first (**Ringing your phone…**): answer it and
     you hear "Calling Christian Gonzalez. Please hold."; then **Calling Christian Gonzalez…**, his phone rings and he
-    hears the recording notice; **Connected · recording**. Each leg opens with Twilio's trial-account message: "it's a
-    trial account, so Twilio reads a notice first." Keep it under 30 s (the trial balance is low), then
+    hears the recording notice; **Connected · recording**. Each leg opens with Twilio's trial message ("You have a
+    trial account… press any key to execute your code"): **press any key** on the staff phone, and Christian presses
+    any key on his (brief him beforehand). Without the key press Twilio hangs up, and the transcript comes back empty.
+    Say it as a known limit: "it's a trial account, so Twilio reads a notice first." If the call drops: "That's a
+    trial-account limit," and do the demo call below. Keep it under 30 s (the trial balance is low), then
     **Hang up**. The card works through **Getting the recording…**, **Transcribing…**, **Summarizing…** and
     **Suggesting follow-ups…**, then shows **Saved to the call notes**, the **Summary** and **Suggested follow-ups**,
     each with its own **Apply**. If it doesn't connect or Twilio errors: "Calls go through Twilio; here's the sheet and
