@@ -10,6 +10,8 @@ import {
 import { ArrowUp, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { DictationButton, DictationHint } from "../voice/DictationButton";
+import { useDictationInput } from "../voice/useDictationInput";
 import { completionFor } from "./askComplete";
 
 /**
@@ -43,6 +45,7 @@ export const AskPrompt = ({
   const ghostRef = useRef<HTMLDivElement>(null);
   // The text the suggestion was dismissed for (Escape); a new keystroke brings it back.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
+  const dictation = useDictationInput(value, onChange);
 
   const completion = useMemo(
     () => (dismissedFor === value ? null : completionFor(value)),
@@ -58,6 +61,7 @@ export const AskPrompt = ({
     if (event.nativeEvent.isComposing) return;
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
+      dictation.halt();
       onSubmit(value);
       return;
     }
@@ -82,11 +86,12 @@ export const AskPrompt = ({
 
   const onFormSubmit = (event: FormEvent) => {
     event.preventDefault();
+    dictation.halt();
     onSubmit(value);
   };
 
   const textClass = cn(
-    "w-full rounded-[22px] px-4 pt-3 pr-16 pb-3 text-base break-words whitespace-pre-wrap",
+    "w-full rounded-[22px] px-4 pt-3 pr-28 pb-3 text-base break-words whitespace-pre-wrap",
     compact ? "min-h-[72px]" : "min-h-[96px]",
   );
 
@@ -106,7 +111,15 @@ export const AskPrompt = ({
               "pointer-events-none absolute inset-0 overflow-hidden text-transparent",
             )}
           >
-            {completion?.suffix != null && (
+            {dictation.interim ? (
+              <>
+                {value}
+                <span className="text-muted-foreground italic">
+                  {value && !/\s$/.test(value) ? " " : ""}
+                  {dictation.interim}
+                </span>
+              </>
+            ) : completion?.suffix != null && (
               <>
                 {value}
                 <span className="text-muted-foreground">
@@ -135,6 +148,13 @@ export const AskPrompt = ({
             )}
           />
         </div>
+        <DictationButton
+          state={dictation.state}
+          error={dictation.error}
+          available={dictation.available}
+          onToggle={dictation.toggle}
+          className="absolute right-16 bottom-4"
+        />
         <button
           type="submit"
           disabled={!value.trim() || pending}
@@ -151,6 +171,8 @@ export const AskPrompt = ({
           )}
         </button>
       </div>
+
+      <DictationHint error={dictation.error} className={compact ? "justify-start" : "justify-center"} />
 
       {/* Visible for discoverability, and announced politely when the suggestion changes. */}
       <p
