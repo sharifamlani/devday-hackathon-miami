@@ -118,3 +118,26 @@ export const ApprovalCard = ({
   </div>
   );
 };
+
+/** Which of a reply's changes were taken back with Undo, so the agent's prose can't read as still true. */
+export const undoneSummary = (steps: AgentStep[]) => {
+  const undoable = steps.filter((s) => s.undo_token);
+  const undone = undoable.filter((s) => s.undone);
+  return {
+    any: undone.length > 0,
+    all: undoable.length > 0 && undone.length === undoable.length,
+    labels: undone.map((s) => (s.summary ? `${toolLabel(s.tool)} (${s.summary})` : toolLabel(s.tool))),
+  };
+};
+
+/** Shown under the agent's reply once any of its changes is undone. */
+export const UndoneNote = ({ steps }: { steps: AgentStep[] }) => {
+  const u = undoneSummary(steps);
+  if (!u.any) return null;
+  return (
+    <p data-testid="agent-undone-note" className="text-xs font-medium text-muted-foreground">
+      {u.all ? "Undone: " : "Partly undone: "}
+      {u.labels.join("; ")}
+    </p>
+  );
+};
