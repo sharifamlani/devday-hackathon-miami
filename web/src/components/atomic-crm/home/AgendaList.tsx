@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Link } from "react-router";
 import { zoomClick } from "./workspaceView";
 import {
@@ -203,8 +203,12 @@ export const AgendaList = ({
             <Link
               to="/calendar"
               onClick={zoomClick("calendar")}
-              className={focusRing}
+              className={cn(
+                "-mx-1 rounded-sm px-1 hover:underline hover:underline-offset-4 hover:decoration-2",
+                focusRing,
+              )}
               title="Open full calendar"
+              aria-label="Open full calendar"
             >
               {month}
             </Link>
@@ -220,15 +224,6 @@ export const AgendaList = ({
           </p>
         </div>
         <div className="home-calendar-tools">
-          <Link
-            to="/calendar"
-            onClick={zoomClick("calendar")}
-            aria-label="Open full calendar"
-            title="Open full calendar"
-            className={cn("grid place-items-center", focusRing)}
-          >
-            <ArrowUpRight size={14} aria-hidden="true" />
-          </Link>
           <button
             type="button"
             aria-label="Previous week"
