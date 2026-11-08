@@ -804,7 +804,7 @@ def test_nice_date_reads_like_the_rest_of_the_app():
     assert tasks.nice_date("2027-01-02", AS_OF) == "Jan 2, 2027"
 
 
-# ---------- next step per person (GET /people) ----------
+# ---------- a giver's next step (GET /people) ----------
 
 def tabbed(conn, name, contact_type, first=None):
     pid = db.insert_donor(conn, {"full_name": name, "first_name": first, "donor_type": "individual"})
@@ -819,47 +819,47 @@ def steps_for(conn, *ids):
     return [p["next_step"] for p in tasks.with_next_steps(conn, people, AS_OF)]
 
 
-def test_people_without_a_task_get_a_tab_appropriate_step_and_never_an_ask(conn):
-    nina = tabbed(conn, "Nina Ortiz", "neighbor", first="Nina")
-    carl = tabbed(conn, "Carl Reyes", "community")
+def test_a_givers_next_step_is_their_next_open_task(conn):
     gina = tabbed(conn, "Gina Park", "giver")
-    neighbor, community, giver = steps_for(conn, nina, carl, gina)
-    assert neighbor == "Follow up with Nina"
-    assert community == "Invite Carl to an upcoming program"
-    assert not any(w in community.lower() for w in ("give", "donat", "gift", "support us"))
-    assert giver is None
-
-
-def test_the_next_open_task_is_the_step(conn):
-    nina = tabbed(conn, "Nina Ortiz", "neighbor", first="Nina")
-    later, _ = tasks.create_task(conn, kind="email", title="Send Nina the pantry hours", person_id=nina, due="2026-11-20")
-    soon, _ = tasks.create_task(conn, kind="call", title="Call Nina about the cleanup", person_id=nina, due="2026-11-12")
-    assert steps_for(conn, nina) == ["Call Nina about the cleanup · Nov 12"]
+    assert steps_for(conn, gina) == [None]                                       # no task yet
+    later, _ = tasks.create_task(conn, kind="email", title="Thank Gina for the gala table", person_id=gina,
+                                 due="2026-11-20")
+    soon, _ = tasks.create_task(conn, kind="call", title="Call Gina about her pledge", person_id=gina, due="2026-11-12")
+    assert steps_for(conn, gina) == ["Call Gina about her pledge · Nov 12"]
     tasks.complete_task(conn, soon["id"])
-    assert steps_for(conn, nina) == ["Send Nina the pantry hours · Nov 20"]
+    assert steps_for(conn, gina) == ["Thank Gina for the gala table · Nov 20"]
     tasks.delete_task(conn, later["id"])
-    assert steps_for(conn, nina) == ["Follow up with Nina"]                     # back to the default
-    tasks.create_task(conn, kind="call", title="Call Nina", person_id=nina, due=AS_OF.isoformat())
-    tasks.create_task(conn, kind="other", title="Old note", person_id=nina, due="2026-11-01")
-    assert steps_for(conn, nina) == ["Old note · overdue"]                       # overdue comes first
-    gina = tabbed(conn, "Gina Park", "giver")
+    assert steps_for(conn, gina) == [None]
     tasks.create_task(conn, kind="call", title="Call Gina", person_id=gina, due=AS_OF.isoformat())
     assert steps_for(conn, gina) == ["Call Gina"]                                # due today: no date
+    tasks.create_task(conn, kind="other", title="Old note", person_id=gina, due="2026-11-01")
+    assert steps_for(conn, gina) == ["Old note · overdue"]                       # overdue comes first
 
 
-def test_get_people_sends_next_step_on_every_tab(tmp_path, monkeypatch):
+def test_neighbors_and_community_members_get_no_next_step(conn):
+    """Givers only (Sharif): a neighbor or community member stays null, even with an open task."""
+    nina = tabbed(conn, "Nina Ortiz", "neighbor", first="Nina")
+    carl = tabbed(conn, "Carl Reyes", "community")
+    tasks.create_task(conn, kind="call", title="Call Nina", person_id=nina, due=AS_OF.isoformat())
+    assert steps_for(conn, nina, carl) == [None, None]
+
+
+def test_get_people_and_find_people_carry_the_givers_next_step(tmp_path, monkeypatch):
     monkeypatch.setenv("DONORS_DB", str(tmp_path / "donors.db"))
     monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
-    from service.routes_data import router as data_router
+    from service.routes_data import list_people, router as data_router
     conn = db.connect()
     db.create_schema(conn)
+    gina = tabbed(conn, "Gina Park", "giver")
     nina = tabbed(conn, "Nina Ortiz", "neighbor", first="Nina")
-    tabbed(conn, "Carl Reyes", "community")
-    conn.close()
+    tasks.create_task(conn, kind="call", title="Call Gina", person_id=gina, due="2026-11-12")
     app = FastAPI()
     app.include_router(data_router)
     client = TestClient(app)
+    givers = client.get("/people", params={"type": "giver"}).json()["people"]
+    assert [(p["id"], p["next_step"]) for p in givers] == [(gina, "Call Gina · Nov 12")]
     neighbors = client.get("/people", params={"type": "neighbor"}).json()["people"]
-    assert [(p["id"], p["next_step"]) for p in neighbors] == [(nina, "Follow up with Nina")]
-    community = client.get("/people", params={"type": "community"}).json()["people"]
-    assert community[0]["next_step"] == "Invite Carl to an upcoming program"
+    assert [(p["id"], p["next_step"]) for p in neighbors] == [(nina, None)]
+    # the chat agent's find_people reads people through list_people, so it sees the same step
+    assert {p["id"]: p["next_step"] for p in list_people(conn)}[gina] == "Call Gina · Nov 12"
+    conn.close()

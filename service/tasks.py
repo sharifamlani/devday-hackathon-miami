@@ -705,29 +705,24 @@ def crm_delete(conn: sqlite3.Connection, task_id: int) -> dict | None:
     return to_crm(row)
 
 
-# ---------- a person's next step (GET /people: every tab's "Next step" column) ----------
-# One task store, so a person's next step is their next open task. With none: neighbors get a plain follow-up,
-# community members a program invitation (never a donation ask); givers stay empty until a task exists.
-
-NO_TASK_STEP = {
-    "neighbor": "Follow up with {first}",
-    "community": "Invite {first} to an upcoming program",
-}
+# ---------- a giver's next step (GET /people: the "Next step" column) ----------
+# One task store, so a giver's next step is their next open task. Givers only (Sharif): neighbors and community
+# members get null.
 
 
-def _first_name(person: dict) -> str:
-    return (person.get("first_name") or (person.get("full_name") or "them").split()[0]).strip()
-
-
-def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | None = None) -> list[dict]:
-    """Set person["next_step"] on each row (in place) and return the list."""
+def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | None = None,
+                    public_only: bool = False) -> list[dict]:
+    """Set person["next_step"] on each row (in place): a giver's next open task, else null. Returns the list.
+    public_only skips the Donors tab's private tasks (the public snapshot recomputes with it)."""
     today = as_of or default_as_of()
-    ids = [p["id"] for p in people if p.get("id") is not None]
+    givers = [p for p in people if (p.get("contact_type") or "giver") == "giver"]
+    ids = [p["id"] for p in givers if p.get("id") is not None]
     nxt: dict[int, dict] = {}
     if ids and _has_table(conn, "tasks"):
         for chunk in range(0, len(ids), 500):
             part = ids[chunk:chunk + 500]
-            for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL AND done = 0 AND person_id IN "
+            private = f" AND {PUBLIC_ONLY}" if public_only else ""
+            for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL AND done = 0{private} AND person_id IN "
                                   f"({', '.join('?' * len(part))})", part):
                 r = dict(r)
                 key = (r["due"] or "9999", r["time"] or "99:99", KIND_ORDER.get(r["kind"], 9), r["id"])
@@ -735,13 +730,12 @@ def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | 
                 if best is None or key < best["_key"]:
                     nxt[r["person_id"]] = {**r, "_key": key}
     for p in people:
+        p["next_step"] = None
+    for p in givers:
         t = nxt.get(p.get("id"))
         if t:
             due = t["due"]
             when = (" · overdue" if due < today.isoformat() else "" if due == today.isoformat()
                     else f" · {nice_date(due, today)}") if due else ""
             p["next_step"] = f"{t['title']}{when}"
-        else:
-            template = NO_TASK_STEP.get(p.get("contact_type") or "")
-            p["next_step"] = template.format(first=_first_name(p)) if template else None
     return people

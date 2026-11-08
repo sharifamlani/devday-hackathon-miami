@@ -48,7 +48,7 @@ import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from service import dedupe, score, targets
+from service import dedupe, score, targets, tasks
 from service.ask_agent import snapshot_examples
 from service.db import REPO_ROOT, connect, create_schema
 from service.routes_data import (get_donor, get_org_profile_or_none, get_prospect, latest_icp, list_context,
@@ -80,7 +80,9 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "donors": donors,
         "donor_details": {str(r[0]): snapshot_donor(r[0], conn) for r in conn.execute("SELECT id FROM donors ORDER BY id")},
         "duplicates": list_duplicates(conn),
-        "people": {"counts": people_counts(conn), **{t: list_people(conn, t) for t in ("giver", "neighbor", "community")}},
+        # next_step recomputed without the Donors tab's private tasks (tasks.crm), like home_snapshot's task lists
+        "people": {"counts": people_counts(conn), **{t: tasks.with_next_steps(conn, list_people(conn, t), as_of, public_only=True)
+                                                     for t in ("giver", "neighbor", "community")}},
         "events": (events := list_events(conn)),
         "event_details": {str(e["id"]): event_detail(conn, e["id"]) for e in events},
         "community_stats": community_stats(conn),
