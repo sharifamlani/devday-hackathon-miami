@@ -8,12 +8,14 @@ POST  /campaigns/{id}/approve-small       bulk-approve only drafts that need no 
 POST  /campaigns/{id}/send                approved messages -> outbox (simulated: no provider, nothing leaves the laptop)
 GET   /outbox                             the simulated outbox = the contact log (?campaign_id=, ?donor_id=)
 
-Addresses are stored in full in the local db but always masked in responses (r***@example.com, ***-***-0101).
+Addresses are stored in full in the local db and returned in full by the live API. Only the public snapshot's
+sample campaign (campaigns_demo) masks them (r***@example.com, ***-***-0101).
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -30,7 +32,8 @@ router = APIRouter(tags=["campaigns"])
 
 DEFAULT_APPROVER = "Philanthropy team (demo)"
 MAX_DONORS = 25
-DRAFT_WORKERS = 4
+# One model call per draft (~15 s each): 20 drafts at 4 at a time took 74 s and blew the chat's 90 s cap
+DRAFT_WORKERS = int(os.getenv("DRAFT_WORKERS", "13"))
 
 
 def now() -> str:
@@ -38,7 +41,7 @@ def now() -> str:
 
 
 # ----------------------------------------------------------------------------------------------
-# Masking
+# Masking (the public snapshot's sample campaign only; the live API returns addresses in full)
 # ----------------------------------------------------------------------------------------------
 
 def mask_address(address: str | None, channel: str) -> str | None:
@@ -65,11 +68,30 @@ def load_donor(conn: sqlite3.Connection, donor_id: int) -> tuple[dict, list[dict
     why = json.loads(donor.pop("why") or "{}")
     donor["is_star"] = bool(donor.get("is_star"))
     donor["is_sample"] = "SAMPLE" in (donor.get("source_row") or "").splitlines()
+    from service.targets import _counted          # a declined or failed charge is not a gift to thank anyone for
     gifts = [dict(r) for r in conn.execute(
-        "SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? ORDER BY gift_date", (donor_id,))]
+        "SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ?" + _counted(conn) + " ORDER BY gift_date",
+        (donor_id,))]
     research = [dict(r) for r in conn.execute(
         "SELECT fact, source_url FROM research_facts WHERE donor_id = ?", (donor_id,))]
-    return donor, gifts, why, research
+    return donor, gifts, why, research + interest_facts(conn, donor)
+
+
+def interest_facts(conn: sqlite3.Connection, donor: dict) -> list[dict]:
+    """The donor's interests as facts a draft may cite: what the uploaded record says, then the active tags
+    from Enrich or staff with their evidence. They also steer which Foundation fact leads the draft."""
+    try:
+        on_file = [str(i) for i in json.loads(donor.get("interests") or "[]")]
+    except ValueError:
+        on_file = []
+    facts = [{"fact": f"Interest on the donor's record: {i}", "source_url": ""} for i in on_file]
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'donor_interests'").fetchone():
+        facts += [{"fact": f"Interest: {r['tag'].replace('_', ' ')}"
+                           + (f" ({r['sub_tag'].replace('_', ' ')})" if r["sub_tag"] else "") + f". {r['evidence']}",
+                   "source_url": r["source_url"] or ""}
+                  for r in conn.execute("SELECT tag, sub_tag, evidence, source_url FROM donor_interests "
+                                        "WHERE donor_id = ? AND status = 'active' ORDER BY id", (donor["id"],))]
+    return facts
 
 
 def load_org_facts() -> list[dict]:
@@ -109,7 +131,7 @@ LEFT JOIN donor_scores s ON s.donor_id = m.donor_id
 """
 
 
-def message_out(row: sqlite3.Row | dict) -> dict:
+def message_out(row: sqlite3.Row | dict, mask: bool = False) -> dict:
     m = dict(row)
     donor = {"is_star": bool(m.get("is_star")), "donor_type": m.get("donor_type"), "tier": m.get("tier")}
     address = m.get("email") if m["channel"] == "email" else m.get("phone")
@@ -121,7 +143,7 @@ def message_out(row: sqlite3.Row | dict) -> dict:
         "why": json.loads(m["why"]) if m.get("why") else None,
         "needs_individual_approval": bool(m["needs_individual_approval"]),
         "approval_reason": ca.approval_reason(donor) if m["needs_individual_approval"] else None,
-        "channel": m["channel"], "to": mask_address(address, m["channel"]),
+        "channel": m["channel"], "to": mask_address(address, m["channel"]) if mask else address,
         "subject": m.get("subject"), "body": m["body"],
         "facts_used": json.loads(m.get("facts_used") or "[]"), "flags": json.loads(m.get("flags") or "[]"),
         "drafted_by": m["drafted_by"], "draft_note": m.get("draft_note"),
@@ -153,7 +175,7 @@ def campaign_detail(conn: sqlite3.Connection, campaign_id: int) -> dict:
 
 def outbox_out(row: sqlite3.Row) -> dict:
     d = dict(row)
-    d["to"] = mask_address(d.pop("to_address"), d["channel"])
+    d["to"] = d.pop("to_address")
     d["simulated"] = bool(d["simulated"])
     return d
 
@@ -324,7 +346,8 @@ def send_message(conn: sqlite3.Connection, m: sqlite3.Row, sent_at: str) -> dict
     simulated = bool(r.get("simulated", not r.get("delivered")))
     status = r.get("status") or ("sent" if r.get("delivered") else "queued (dry run)")
     if status.startswith("failed"):
-        return {"sent": False, "reason": status, "failed": True, "detail": r.get("detail")}
+        return {"sent": False, "reason": status, "failed": True, "detail": r.get("detail"),
+                "provider": r.get("provider") or "dryrun"}
     if "provider" in {c[1] for c in conn.execute("PRAGMA table_info(outbox)")}:
         outbox_id = conn.execute(
             "INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, "
@@ -339,7 +362,7 @@ def send_message(conn: sqlite3.Connection, m: sqlite3.Row, sent_at: str) -> dict
             "VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
             (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at)).lastrowid
     conn.execute("UPDATE campaign_messages SET status = 'sent', sent_at = ? WHERE id = ?", (sent_at, m["id"]))
-    return {"sent": True, "outbox_id": outbox_id, "simulated": simulated}
+    return {"sent": True, "outbox_id": outbox_id, "simulated": simulated, "provider": r.get("provider") or "dryrun"}
 
 
 @router.post("/campaigns/{campaign_id}/send")
@@ -347,7 +370,7 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
     """Approved messages go out through send_message (the deliver hook: a dry run unless configured).
     A failed delivery stays 'approved' and is reported under "failed"."""
     campaign_detail(conn, campaign_id)
-    sent, no_address, failed, any_real = 0, [], [], False
+    sent, no_address, failed, any_real, providers = 0, [], [], False, {}
     sent_at = now()
     rows = conn.execute("""SELECT m.*, d.email, d.phone, d.full_name FROM campaign_messages m
                            JOIN donors d ON d.id = m.donor_id
@@ -358,9 +381,10 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
             if result["sent"]:
                 sent += 1
                 any_real = any_real or not result["simulated"]
+                providers[result["provider"]] = providers.get(result["provider"], 0) + 1
             elif result.get("failed"):
                 failed.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"],
-                               "detail": result.get("detail")})
+                               "detail": result.get("detail"), "provider": result["provider"]})
             elif result["reason"].startswith("no "):
                 no_address.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"]})
         left = conn.execute("SELECT COUNT(*) FROM campaign_messages WHERE campaign_id = ? AND status IN ('draft', 'approved')",
@@ -368,7 +392,7 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
         if sent and not left:
             conn.execute("UPDATE campaigns SET status = 'sent' WHERE id = ?", (campaign_id,))
     detail = campaign_detail(conn, campaign_id)
-    return {"simulated": not any_real, "sent": sent, "no_address": no_address, "failed": failed,
+    return {"simulated": not any_real, "sent": sent, "providers": providers, "no_address": no_address, "failed": failed,
             "not_approved": detail["counts"]["draft"], "campaign": detail}
 
 
@@ -406,14 +430,14 @@ def demo_message(donor: dict, why: dict, draft: ca.CampaignDraft, channel: str, 
         "subject": draft.subject, "body": draft.body, "facts_used": json.dumps(draft.facts_used),
         "flags": json.dumps(draft.flags), "drafted_by": draft.drafted_by, "draft_note": draft.note,
         "status": "draft", "approved_by": None, "approved_via": None, "approved_at": None, "sent_at": None,
-        "outreach_draft_id": None})
+        "outreach_draft_id": None}, mask=True)
 
 
 def campaigns_demo(conn: sqlite3.Connection) -> dict:
     """{label, campaigns: [sample campaign detail], outbox: [], drafts: {donor_id: {"intent:channel": message}}}.
 
     Template path only (no model, no writes), so the Vercel build can show create -> approve -> send in the tab.
-    Addresses are masked already; the browser never sees a full email or phone number."""
+    Addresses stay masked in this sample (the snapshot's donor rows are masked by the web build, not here)."""
     ids = [r[0] for r in conn.execute("SELECT d.id FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id "
                                       "ORDER BY s.score IS NULL, s.score DESC, d.id LIMIT ?", (SNAPSHOT_DRAFT_DONORS,))]
     drafts: dict[str, dict] = {}

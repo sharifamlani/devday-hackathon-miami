@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Search, Sparkles } from "lucide-react";
 
 import {
@@ -10,18 +10,25 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { EmailLink, PhoneLink } from "../contacts/ContactLinks";
 import { SourceLink } from "../contacts/ResearchPanel";
 import { formatUsd } from "../contacts/donorFormat";
 import { DATA_MODE } from "../providers/local/config";
-import { useDonor, useEnrichDonor } from "../providers/local/hooks";
+import { contactEmail, contactPhone } from "../providers/local/crmDonors";
+import { usePeople } from "../providers/local/crmHooks";
+import { TAB_LABELS } from "../providers/local/crmTypes";
+import { useDonor } from "../providers/local/hooks";
+import { usePersonInterests } from "../providers/local/interests";
+import { InterestChip, tagLabel, useTagLabels } from "../contacts/InterestChips";
+import { ENRICH_COPY, EnrichProposal, enrichBox, useEnrichReview } from "../contacts/EnrichReview";
 import type { DonorDetail, DonorSummary } from "../providers/local/types";
 import {
   donorMeta,
   donorTag,
   initials,
-  maskEmail,
   searchDonors,
 } from "./homeData";
+import { searchPeople } from "./searchPeople";
 import { focusRing, tagTone } from "./tile";
 
 const pill = cn(
@@ -29,11 +36,22 @@ const pill = cn(
   focusRing,
 );
 
+/** Singular tab names for the label on each result. */
+const TAB_ONE = {
+  giver: "Giver",
+  neighbor: "Neighbor",
+  community: "Community",
+};
+
 /**
- * "Find a donor" from the CRM tile: search by name, email or organization,
- * pick one, see the essentials and any research the enrich agent saved.
- * "Enrich profile" runs the enrich agent on the live service; the static
- * snapshot only shows what was saved.
+ * "Find a donor" from the CRM tile: search all three tabs (Givers, Neighbors,
+ * Community) by name, email or organization; each result says its tab. Pick a
+ * giver to see the essentials and anything the enrich agent saved; a neighbor
+ * or community member opens their full record.
+ * "Enrich profile" runs the agent on the live service as a dry run: it proposes
+ * facts and interest areas (each with a source) and nothing is written until
+ * staff press "Save to profile". Organizations only; the static snapshot only
+ * shows what was saved.
  */
 export const FindDonorDialog = ({
   open,
@@ -50,6 +68,17 @@ export const FindDonorDialog = ({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const inputId = useId();
   const results = useMemo(() => searchDonors(donors, query), [donors, query]);
+  const neighbors = usePeople("neighbor", open);
+  const community = usePeople("community", open);
+  const others = useMemo(
+    () =>
+      searchPeople(
+        [...(neighbors.data?.people ?? []), ...(community.data?.people ?? [])],
+        query,
+      ),
+    [neighbors.data, community.data, query],
+  );
+  const total = results.length + others.length;
 
   const close = (next: boolean) => {
     onOpenChange(next);
@@ -88,15 +117,16 @@ export const FindDonorDialog = ({
             </div>
             <p aria-live="polite" className="sr-only">
               {query.trim()
-                ? `${results.length} ${results.length === 1 ? "match" : "matches"}`
+                ? `${total} ${total === 1 ? "match" : "matches"}`
                 : ""}
             </p>
-            {query.trim() && results.length === 0 ? (
+            {query.trim() && total === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No donor matches “{query.trim()}”.
+                No one in Givers, Neighbors or Community matches “{query.trim()}
+                ”.
               </p>
             ) : (
-              <ul className="-mx-1 grid gap-0.5" aria-label="Donors">
+              <ul className="-mx-1 grid gap-0.5" aria-label="People">
                 {results.map((donor) => {
                   const tag = donorTag(donor);
                   return (
@@ -120,7 +150,9 @@ export const FindDonorDialog = ({
                             {donor.full_name}
                           </span>
                           <span className="block truncate text-xs text-muted-foreground">
-                            {donorMeta(donor)}
+                            {[TAB_ONE.giver, donorMeta(donor)]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </span>
                         </span>
                         <span
@@ -135,6 +167,45 @@ export const FindDonorDialog = ({
                     </li>
                   );
                 })}
+                {others.map((person) => (
+                  <li key={person.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        close(false);
+                        onOpenRecord(person.id);
+                      }}
+                      className={cn(
+                        "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-1 py-2 text-left hover:bg-surface",
+                        focusRing,
+                      )}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="grid size-8 shrink-0 place-items-center rounded-full bg-quiet text-[11px] font-bold text-quiet-foreground"
+                      >
+                        {initials(person.name)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">
+                          {person.name}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {[
+                            TAB_ONE[person.tab],
+                            person.city,
+                            contactEmail(person.email),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold">
+                        {TAB_LABELS[person.tab]}
+                      </span>
+                    </button>
+                  </li>
+                ))}
               </ul>
             )}
           </>
@@ -153,7 +224,7 @@ export const FindDonorDialog = ({
   );
 };
 
-const Fact = ({ label, value }: { label: string; value: string }) => (
+const Fact = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="rounded-xl bg-surface px-3 py-2">
     <dt className="text-xs text-muted-foreground">{label}</dt>
     <dd className="truncate font-semibold">{value}</dd>
@@ -224,79 +295,118 @@ const DonorSummaryView = ({
       <dl className="grid grid-cols-2 gap-2 text-sm">
         <Fact label="Lifetime" value={formatUsd(donor.total_given)} />
         <Fact label="Gifts" value={String(donor.gift_count)} />
-        <Fact label="Email" value={maskEmail(donor.email)} />
+        <Fact
+          label="Email"
+          value={<EmailLink email={contactEmail(donor.email)} />}
+        />
+        <Fact
+          label="Phone"
+          value={<PhoneLink phone={contactPhone(donor.phone)} />}
+        />
         <Fact label="Pattern" value={donorMeta(donor) || "—"} />
       </dl>
-      <Research donor={donor} live={live} />
+      <Saved donor={donor} live={live} />
+      <Enrich donor={donor} live={live} onOpenRecord={onOpenRecord} />
+    </>
+  );
+};
+
+const box = enrichBox;
+
+/** What's already on the profile: saved research facts and interest areas. */
+const Saved = ({ donor, live }: { donor: DonorDetail; live: boolean }) => {
+  const { data: interests } = usePersonInterests(donor.id);
+  const labels = useTagLabels();
+  const tags = interests ?? [];
+  if (donor.research.length === 0 && tags.length === 0)
+    return (
+      <p className={cn(box, "text-muted-foreground")}>
+        {!live
+          ? "Nothing saved for this donor yet. Enrichment runs on the live service."
+          : donor.donor_type === "organization"
+            ? "Nothing saved yet. Enrich profile looks up public, professional sources."
+            : "Nothing saved yet."}
+      </p>
+    );
+  return (
+    <div className={box}>
+      <p className="font-semibold">On the profile</p>
+      {tags.length > 0 && (
+        <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Saved interest areas">
+          {tags.map((interest) => (
+            <InterestChip
+              key={`${interest.tag}:${interest.sub_tag ?? ""}`}
+              interest={interest}
+              label={tagLabel(interest, labels)}
+            />
+          ))}
+        </ul>
+      )}
+      {donor.research.length > 0 && (
+        <ul className="mt-1.5 grid gap-1">
+          {donor.research.map((fact) => (
+            <li key={fact.id}>
+              {fact.fact} <SourceLink href={fact.source_url} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+/** Enrich → review → Save to profile (organizations only); the flow lives in contacts/EnrichReview. */
+const Enrich = ({
+  donor,
+  live,
+  onOpenRecord,
+}: {
+  donor: DonorDetail;
+  live: boolean;
+  onOpenRecord: () => void;
+}) => {
+  const review = useEnrichReview(donor);
+  const { isOrg, found, preview, accept, picked } = review;
+  return (
+    <>
+      {live && !isOrg && <p className={cn(box, "text-muted-foreground")}>{ENRICH_COPY.individual}</p>}
+      <EnrichProposal review={review} />
       <div className="flex flex-wrap gap-2">
-        {live && <EnrichButton donor={donor} />}
+        {live && isOrg && found ? (
+          <button
+            type="button"
+            onClick={review.save}
+            disabled={accept.isPending || picked === 0}
+            className={cn(pill, "bg-primary text-primary-foreground hover:bg-primary/85")}
+          >
+            {accept.isPending && <Spinner />}
+            {accept.isPending ? "Saving…" : "Save to profile"}
+          </button>
+        ) : (
+          live &&
+          isOrg && (
+            <button
+              type="button"
+              onClick={review.run}
+              disabled={preview.isPending}
+              className={cn(pill, "bg-primary text-primary-foreground hover:bg-primary/85")}
+            >
+              {preview.isPending ? <Spinner /> : <Sparkles className="size-4" aria-hidden="true" />}
+              {preview.isPending ? "Enriching…" : "Enrich profile"}
+            </button>
+          )
+        )}
         <button
           type="button"
           onClick={onOpenRecord}
           className={cn(
             pill,
-            live
-              ? "bg-surface hover:bg-accent"
-              : "bg-primary text-primary-foreground hover:bg-primary/85",
+            live && isOrg ? "bg-surface hover:bg-accent" : "bg-primary text-primary-foreground hover:bg-primary/85",
           )}
         >
           Open full record
         </button>
       </div>
-    </>
-  );
-};
-
-const Research = ({ donor, live }: { donor: DonorDetail; live: boolean }) => {
-  if (donor.research.length === 0)
-    return (
-      <p className="rounded-xl border-l-4 border-brand bg-surface px-3.5 py-2.5 text-sm text-muted-foreground">
-        {live
-          ? "No research yet. Enrich profile looks up public, professional sources."
-          : "No saved research for this donor. Enrichment runs on the live service."}
-      </p>
-    );
-  return (
-    <div className="rounded-xl border-l-4 border-brand bg-surface px-3.5 py-2.5 text-sm">
-      <p className="font-semibold">
-        Enrichment found (public web, review before using):
-      </p>
-      <ul className="mt-1 grid gap-1">
-        {donor.research.map((fact) => (
-          <li key={fact.id}>
-            {fact.fact} <SourceLink href={fact.source_url} />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
-
-const EnrichButton = ({ donor }: { donor: DonorDetail }) => {
-  const enrich = useEnrichDonor(donor.id);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => enrich.mutate()}
-        disabled={enrich.isPending}
-        className={cn(
-          pill,
-          "bg-primary text-primary-foreground hover:bg-primary/85",
-        )}
-      >
-        {enrich.isPending ? (
-          <Spinner />
-        ) : (
-          <Sparkles className="size-4" aria-hidden="true" />
-        )}
-        {enrich.isPending ? "Enriching…" : "Enrich profile"}
-      </button>
-      {enrich.isError && (
-        <p role="alert" className="basis-full text-sm text-alert-foreground">
-          {enrich.error.message}
-        </p>
-      )}
     </>
   );
 };

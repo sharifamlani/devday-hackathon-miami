@@ -5,6 +5,7 @@ import {
   CalendarPlus,
   Check,
   Mail,
+  Sparkles,
   Paperclip,
   Plus,
   Upload,
@@ -52,6 +53,7 @@ export const FocusTaskCard = ({
   hasData,
   live = true,
   onAction,
+  onWork,
 }: {
   task: HomeTask | null;
   index: number;
@@ -64,6 +66,8 @@ export const FocusTaskCard = ({
   /** False in the read-only snapshot build: no "all caught up" there. */
   live?: boolean;
   onAction?: () => void;
+  /** Hand this task to the home agent (live only). */
+  onWork?: (task: HomeTask) => void;
 }) => {
   const session = useAskSession();
   const headingId = useId();
@@ -128,6 +132,19 @@ export const FocusTaskCard = ({
         </ul>
       )}
       <div className="flex flex-wrap gap-2">
+        {onWork && (
+          <button
+            type="button"
+            onClick={() => onWork(task)}
+            className={cn(
+              pill,
+              "bg-brand text-brand-foreground hover:bg-brand/85",
+            )}
+          >
+            <Sparkles className="size-4" aria-hidden="true" />
+            Work on it with the agent
+          </button>
+        )}
         {task.kind !== "review" && task.kind !== "prep" && (
           <button
             type="button"
@@ -395,7 +412,7 @@ export const Composer = ({
   };
 
   return (
-    <div className="home-composer">
+    <div data-tour="composer" className="home-composer">
       <ul aria-label="Suggestions" className="mb-2.5 flex flex-wrap gap-2">
         {suggestions.map((question) => (
           <li key={question} className="max-w-full">

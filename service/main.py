@@ -15,7 +15,7 @@ POST /chat                   chat agent (tab-aware tools); drafts land as a batc
 POST /send/{batch_id}        a human approves a chat batch (orgs/star/big need per-item ids) and it goes out
                              through outbound.deliver: dry run unless EMAIL_SEND=on / SMS_PROVIDER is set
 POST /events/{id}/plan       create or open an event's outreach batch (one campaign per event); 503 until 86 lands
-POST /events/refresh, GET /events/{id}/drafts   events agent (86), 503 until it lands
+POST /events/refresh         one refresh pass now (context, events, invites, tasks); GET /events/{id}/drafts
 POST /context/refresh        "Refresh now": starts a background context + calendar pass (86's service.refresh) on
                              org_profile's URLs and returns {status: "refreshing"}; GET /context/refresh reports it;
                              the same pass runs daily at REFRESH_DAILY_AT (HH:MM) when set
@@ -81,6 +81,8 @@ app.include_router(voice_router)
 
 from service.routes_after_call import router as after_call_router  # noqa: E402  (§21 B6: /call-notes/{id}/actions, /apply)
 app.include_router(after_call_router)
+from service.routes_phone import router as phone_router  # noqa: E402  (§21 S1: call a donor from your own phone)
+app.include_router(phone_router)
 
 def module_present(name: str) -> bool:
     try:
@@ -197,6 +199,7 @@ async def enrich(donor_id: int, refresh: bool = False) -> dict:
     donor = load_donor_row(donor_id)
     facts = await run_agent("enrich", enrich_donor, donor["full_name"], donor.get("org_name"), donor.get("city"),
                             refresh=refresh, donor_type=donor.get("donor_type"),
+                            state=donor.get("state"), email=donor.get("email"),   # identity: city, state or email domain
                             fallback=lambda: {"donor_id": donor_id})
     run_id = f"enrich-{uuid.uuid4().hex[:12]}"
     saved = await run_in_threadpool(save_facts, donor_id, facts, run_id)
@@ -322,19 +325,52 @@ def cached_context(website: str | None) -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")).get(host)
 
 
+def forget_other_org(conn: sqlite3.Connection, website: str | None) -> bool:
+    """Setup rerun for a different organization (another site host): drop the previous org's facts
+    (org_context, which is also the context store) and its name, priorities, voice and source status,
+    so none of it shows under the new URL. Same host, or nothing saved yet: keep everything.
+    Uncommitted; the save_context that follows commits it. True when something was cleared."""
+    row = conn.execute("SELECT website FROM org_profile WHERE id = 1").fetchone()
+    if not row or not row[0] or host_of(row[0]) == host_of(website):
+        return False
+    conn.execute("DELETE FROM org_context")
+    reset = "name = NULL, priorities = '[]', voice = '{}', source_status = '{}'"
+    if "last_refreshed_at" in {r[1] for r in conn.execute("PRAGMA table_info(org_profile)")}:
+        reset += ", last_refreshed_at = NULL"
+    conn.execute(f"UPDATE org_profile SET {reset} WHERE id = 1")
+    return True
+
+
 def persist_context(result: dict) -> dict | None:
     """build_context is pure; db.save_context is the only writer of org_profile + org_context.
 
     Returns {"org_profile_id", "context_ids", "replaced_sources"}, or None until save_context lands.
+    A run for another organization first forgets the previous one (forget_other_org).
     """
     if not hasattr(db, "save_context"):
         return None
     conn = db.connect()
     try:
         db.create_schema(conn)
+        forget_other_org(conn, (result.get("profile") or {}).get("website"))
         saved = db.save_context(conn, result)
         from service.org_context import after_context_saved; after_context_saved(conn)  # index the store, then tasks (86)
         return saved
+    finally:
+        conn.close()
+
+
+def persist_urls(urls: dict) -> dict:
+    """Saves only the URLs the user typed into org_profile, for a run that timed out or hit a model error,
+    so the background refresh (org_urls) can read them later. Same organization: its facts, name,
+    priorities and voice stay as they were. Another organization: the previous one is forgotten first.
+    """
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        cleared = forget_other_org(conn, urls.get("website"))
+        saved = db.save_context(conn, {"profile": dict(urls), "sources": {}, "facts": []})
+        return {**saved, "urls_only": True, "cleared_previous_org": cleared}
     finally:
         conn.close()
 
@@ -401,6 +437,13 @@ def savable(result: dict, sources: dict) -> dict:
     return {**result, "sources": statuses}
 
 
+def failure_detail(website: str | None, sources: dict) -> str:
+    """One plain sentence for a failed read: which site, and what each source reported."""
+    why = "; ".join(f"{s}: {(sources.get(s) or {}).get('detail') or (sources.get(s) or {}).get('status')}"
+                    for s in ("website", "news") if (sources.get(s) or {}).get("status") != "done")
+    return f"We couldn't read {website}" + (f" ({why})" if why else "") + ". Nothing was saved."
+
+
 def with_user_urls(result: dict | None, urls: dict) -> dict | None:
     """What the user typed is always what's saved; a cached run supplies facts, never the org's URLs."""
     if not result or not isinstance(result.get("profile"), dict):
@@ -414,8 +457,9 @@ async def context_run(req: ContextRun) -> dict:
 
     served_from: "live" (always: the site is read on every run; `refresh` is accepted and ignored) or
     "fallback" (the read timed out or failed: cached: true, every fact flagged cached, still 200, so the
-    screen moves on). The saved/committed context is used only in that failure branch. No website: state
-    "failed", detail "no website provided", served_from null, empty context, nothing saved.
+    screen moves on). The saved/committed context is used only in that failure branch, which still saves the
+    typed URLs (only the URLs) so a background refresh can read them. No website: state "failed", detail
+    "no website provided", served_from null, empty context, nothing saved.
     """
     try:
         from service.org_context import build_context
@@ -430,12 +474,14 @@ async def context_run(req: ContextRun) -> dict:
                 "profile": None, "facts": [], "saved": None}
 
     urls = req.model_dump(exclude={"refresh"})
+    events_job = start_events_search(req.website)    # in parallel with the website read: same wait, not double
     try:
         result = await asyncio.wait_for(run_in_threadpool(build_context, urls, True), config.CONTEXT_DEADLINE_S)
         result = with_user_urls(result, urls)
         state, cached, detail = "done", False, None
         served_from = "live"
     except Exception as e:  # timeout, model error, site error: fall back, never leave the screen hanging
+        keep_urls = not isinstance(e, ValueError)   # a timeout or model error, not a missing/invalid website
         if isinstance(e, asyncio.TimeoutError):
             detail = f"website read took longer than {config.CONTEXT_DEADLINE_S:.0f} s"
         else:
@@ -447,17 +493,103 @@ async def context_run(req: ContextRun) -> dict:
         state, cached, served_from = "failed", True, "fallback"
 
     sources = source_progress(req, result, fallback=served_from == "fallback")
-    saved = None
+    saved, calendar = None, None
     if served_from != "fallback":
         state = run_state(sources)
+        if state == "failed" and not detail:            # say why at the top, not only per source
+            detail = failure_detail(req.website, sources)
         # A failed run saves nothing: a typo'd URL must not wipe the saved profile or facts
         if state != "failed":
             saved = await run_in_threadpool(persist_context, savable(result, sources))
+            # the first calendar: events + prep tasks before this returns, invites in the background
+            calendar = await onboarding_calendar(events_job) if saved is not None else None
+    elif keep_urls:
+        # The site is still worth reading: keep what the user typed (never their facts) so
+        # POST /context/refresh can finish the job in the background on these URLs.
+        saved = await run_in_threadpool(persist_urls, urls)
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,
             "profile": (result or {}).get("profile"), "facts": (result or {}).get("facts", []),
-            "saved": saved}
+            "saved": saved, "calendar": calendar}
+
+
+def start_events_search(website: str | None):
+    """The events agent's read of the org's site, started next to build_context (None if it hasn't landed,
+    or ONBOARDING_EVENTS=off, which the tests set)."""
+    if not website or os.getenv("ONBOARDING_EVENTS", "on").lower() == "off" or not module_present("service.events_agent"):
+        return None
+    return asyncio.ensure_future(run_in_threadpool(find_onboarding_events, website))
+
+
+ONBOARDING_SEARCHES = 2
+
+
+def find_onboarding_events(website: str) -> list[dict]:
+    """The events agent's search, run ONBOARDING_SEARCHES times in parallel and merged: one hosted search
+    sometimes misses an event (a live run once found 3 of the 4). Events found before for this site go in as
+    hints only; every event still has to pass the search-returned URL and page check. Duplicates are merged
+    with the refresh's own same-event rule (same date, overlapping title)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from service import events_agent as ea
+    from service.refresh import same_event
+
+    host = ea.site_host(website)
+    known = [e for path in (ea.EVENTS_LIVE, ea.EVENTS_CACHE) for e in ea.read_runs(path).get(host, [])]
+    hints = [{"fact": f"{e['title']} on {e['starts_at'][:10]}" + (f" at {e['place']}" if e.get("place") else ""),
+              "posted_at": None} for e in known]
+    with ThreadPoolExecutor(max_workers=ONBOARDING_SEARCHES) as pool:
+        runs = list(pool.map(lambda _: _safe_extract(ea, hints, website), range(ONBOARDING_SEARCHES)))
+    merged: list[dict] = []
+    for run in runs:
+        for e in run:
+            if not any(same_event(e, m) for m in merged):
+                merged.append(e)
+    return sorted(merged, key=lambda e: e["starts_at"])
+
+
+def _safe_extract(ea, hints: list[dict], website: str) -> list[dict]:
+    try:
+        return ea.extract_events(hints, True, website)
+    except Exception as e:  # one search failing must not sink the other
+        log.warning("onboarding events search failed: %s", e)
+        return []
+
+
+async def onboarding_calendar(events_job) -> dict | None:
+    """The first run's calendar, so the dashboard isn't empty after onboarding: save the events the search
+    found and generate tasks (prep tasks for events within 14 days) before step 3 answers; then draft every
+    event's invites in the background (GET /context/refresh shows that job). A search that failed or found
+    nothing leaves the calendar as it was."""
+    if events_job is None:
+        return None
+    try:
+        events = await asyncio.wait_for(events_job, config.CONTEXT_DEADLINE_S)
+    except Exception as e:  # timeout or search error: the daily refresh (or "Refresh now") will pick events up
+        log.warning("onboarding events search failed: %s", e)
+        return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": f"{type(e).__name__}: {e}"[:200]}
+    if not events:
+        return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": "no upcoming events found"}
+    out, ids, stored = await run_in_threadpool(save_onboarding_calendar, events)
+    out["invites"] = start_invites_job(events, ids, stored)["status"]
+    return out
+
+
+def save_onboarding_calendar(events: list[dict]) -> tuple[dict, dict, bool]:
+    from service import tasks
+    from service.refresh import save_found_events
+
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        ids, stored = save_found_events(conn, events)
+        tasks.generate_safely(conn, after="onboarding")
+        prep = conn.execute("SELECT COUNT(*) FROM tasks WHERE kind = 'prep' AND done = 0 AND deleted_at IS NULL").fetchone()[0]
+        n = sum(1 for i in ids.values() if i is not None) if stored else len(events)
+        return {"events": n, "prep_tasks": prep, "detail": None}, ids, stored
+    finally:
+        conn.close()
 
 
 class ChatTurn(BaseModel):
@@ -682,6 +814,49 @@ def start_refresh_job() -> dict:
     return started
 
 
+def start_invites_job(events: list[dict], ids: dict, stored: bool) -> dict:
+    """Draft invites for the onboarding events in the background; GET /context/refresh reports it. If a refresh
+    is already running, the invites wait for it and start right after (never dropped)."""
+    with REFRESH_LOCK:
+        if REFRESH_JOB["status"] == "refreshing":
+            threading.Thread(target=invites_after_running_job, args=(events, ids, stored), daemon=True,
+                             name="onboarding-invites-queued").start()
+            return dict(REFRESH_JOB) | {"queued": "invites start when this job finishes"}
+        REFRESH_JOB.update(status="refreshing", started_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                           finished_at=None, detail="drafting event invites", changes=None)
+        started = dict(REFRESH_JOB)
+    threading.Thread(target=invites_job, args=(events, ids, stored), daemon=True, name="onboarding-invites").start()
+    return started
+
+
+def invites_after_running_job(events: list[dict], ids: dict, stored: bool, poll_s: float = 1.0) -> None:
+    deadline = time.monotonic() + 2 * config.REFRESH_DEADLINE_S
+    while time.monotonic() < deadline:
+        with REFRESH_LOCK:
+            busy = REFRESH_JOB["status"] == "refreshing"
+        if not busy:
+            start_invites_job(events, ids, stored)
+            return
+        time.sleep(poll_s)
+    log.warning("onboarding invites gave up waiting for the running refresh")
+
+
+def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
+    from service.refresh import draft_invites_for
+    conn = db.connect()
+    try:
+        out = draft_invites_for(conn, events, ids, stored)
+        status, detail, changes = "done", None, {"drafts": out["drafts"], "errors": out["errors"][:10]}
+    except Exception as e:
+        log.warning("onboarding invites failed: %s", e)
+        status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
+    finally:
+        conn.close()
+    with REFRESH_LOCK:
+        REFRESH_JOB.update(status=status, detail=detail, changes=changes,
+                           finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+
+
 def refresh_job() -> None:
     try:
         result = run_refresh()
@@ -758,10 +933,10 @@ def events_agent():
 
 @app.post("/events/refresh")
 async def events_refresh() -> dict:
-    ea = events_agent()
-    if not hasattr(ea, "refresh_events"):
-        raise not_landed("service.events_agent.refresh_events")
-    return await capped("events", config.CHAT_DEADLINE_S, ea.refresh_events)
+    """One refresh pass now (context + events + invites for what's new or changed + tasks), waited for:
+    {state, detail, changes}. "Refresh now" is the background version (POST /context/refresh)."""
+    events_agent()                                   # 503 until the events agent has landed
+    return await capped("events", config.REFRESH_DEADLINE_S, run_refresh)
 
 
 @app.post("/events/{event_id}/plan")

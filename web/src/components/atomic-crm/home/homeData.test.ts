@@ -19,7 +19,6 @@ import {
   giveMiamiDay,
   goalEnds,
   kindLabel,
-  maskEmail,
   searchDonors,
   tasksFromApi,
   type CalendarItem,
@@ -122,11 +121,6 @@ describe("home data: donors", () => {
     expect(donorMeta(donor(1, { gift_count: 0 }))).toBe("No gifts yet");
   });
 
-  it("masks email addresses", () => {
-    expect(maskEmail("priya@example.org")).toBe("p•••@example.org");
-    expect(maskEmail(null)).toBe("—");
-    expect(maskEmail("@example.org")).toBe("•••");
-  });
 
   it("searches name, email and organization word by word", () => {
     const list = [
@@ -339,5 +333,21 @@ describe("home data: agent thread", () => {
       answerSummary(answer("x", [], { understood: false, detail: "Try again" }))
         .headline,
     ).toBe("Try again");
+  });
+
+  it("snapshot mode greets instead of saying it could not read the message", () => {
+    const miss = (q: string) => answer(q, [], { understood: false });
+    expect(answerSummary(miss("hello?"), 3, "snapshot").headline).toMatch(
+      /^Hi! This public preview/,
+    );
+    expect(answerSummary(miss("Good morning"), 3, "snapshot").headline).toMatch(
+      /^Hi! /,
+    );
+    expect(answerSummary(miss("what is the weather"), 3, "snapshot").headline).toBe(
+      "This preview can’t answer that one. The full agent runs on the laptop. Try one of these:",
+    );
+    expect(answerSummary(miss("hello?"), 3, "local").headline).toMatch(
+      /read that as a donor question/,
+    );
   });
 });

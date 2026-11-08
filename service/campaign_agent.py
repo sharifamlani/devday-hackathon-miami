@@ -204,6 +204,7 @@ def check_message(text: str, donor: dict, gifts: list[dict], facts: dict, channe
             if hit not in fact_text:
                 flags.append(f"'{hit}' comes from a SAMPLE gift history; thank them for their partnership instead")
 
+    flags += oa.declined_mentions(text, oa.declined_for(donor.get("id")), gifts)   # never thank a declined charge
     if oa.BANNED_FIGURES.search(text):
         flags.append("never state a Press Forward South Florida total")
     if channel == "text" and len(text) > SMS_MAX:
@@ -333,6 +334,7 @@ Hard rules:
 - Use ONLY the numbered facts and the donor's own gift history. Never invent a number, name,
   program, date or outcome. Copy figures exactly as the fact states them. Never name an amount to give.
 - Lead with O1 and list it first in fact_ids; list every fact id you used.
+- If an R fact names the donor's interest, connect the message to that interest (and cite it).
 - Gifts are made only at miamifoundation.org or givemiamiday.org. Never mention WhatsApp,
   text-to-give, or automated calls."""
 

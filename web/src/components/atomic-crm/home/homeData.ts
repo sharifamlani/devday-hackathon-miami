@@ -8,6 +8,7 @@ import { attentionTag } from "../providers/local/homeFeed";
 import type { Task } from "../providers/local/tasks";
 import { campaignHref } from "../ask/askChips";
 import { formatUsd } from "../contacts/donorFormat";
+import { DATA_MODE } from "../providers/local/config";
 import { computeDayMarks, type DayMarks } from "../outreach/calendarMonth";
 import { addDays, giveMiamiDayFor, mondayIndex } from "../outreach/dates";
 
@@ -126,14 +127,6 @@ export const donorMeta = (
   ]
     .filter(Boolean)
     .join(" · ");
-};
-
-/** "priya@example.org" → "p•••@example.org", so the pop-up never shows a full address. */
-export const maskEmail = (email: string | null | undefined) => {
-  if (!email) return "—";
-  const at = email.indexOf("@");
-  if (at < 1) return "•••";
-  return `${email[0]}•••${email.slice(at)}`;
 };
 
 /**
@@ -376,13 +369,28 @@ export interface AnswerSummary {
   more: number;
 }
 
+const GREETING =
+  /^\s*(hi|hello|hey|howdy|yo|good\s+(morning|afternoon|evening))\b[\s!?.,]*$/i;
+
+/** Public preview only: a friendly reply instead of "could not read that". */
+export const snapshotFallback = (question: string): string =>
+  GREETING.test(question)
+    ? "Hi! This public preview answers sample donor questions. The full agent, which can update records, tasks and the calendar, runs on the laptop. Try one of these:"
+    : "This preview can’t answer that one. The full agent runs on the laptop. Try one of these:";
+
 /** A compact reading of an Ask answer for the home thread. */
-export const answerSummary = (answer: AskAnswer, max = 3): AnswerSummary => {
+export const answerSummary = (
+  answer: AskAnswer,
+  max = 3,
+  mode: string = DATA_MODE,
+): AnswerSummary => {
   if (!answer.understood)
     return {
       headline:
         answer.detail ??
-        "I couldn’t read that as a donor question. Try one of the suggestions.",
+        (mode === "snapshot"
+          ? snapshotFallback(answer.question)
+          : "I couldn’t read that as a donor question. Try one of the suggestions."),
       detail: null,
       rows: [],
       more: 0,

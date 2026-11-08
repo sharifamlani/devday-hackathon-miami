@@ -14,6 +14,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { useOnboarding } from "../onboarding/onboardingState";
 import { DATA_MODE, donorDeskMethods } from "../providers/local";
 import type { IngestResult } from "../providers/local/types";
@@ -80,6 +81,19 @@ const useHasPeople = (): boolean | null => {
   return hasPeople;
 };
 
+/**
+ * Files that aren't donor data: the answer key, READMEs and hidden files. The same rule as onboarding
+ * (onboarding/firstRun.ts skipReason) minus its extension check, since the landing also takes .txt.
+ * /ingest reads .json and .md, so without this the answer key and the README would be imported as data.
+ */
+const isNotDonorData = (name: string) =>
+  /answer[_-]?key/i.test(name) || /^_?readme\b/i.test(name) || name.startsWith(".");
+
+const splitDonorFiles = (incoming: File[]) => ({
+  keep: incoming.filter((f) => !isNotDonorData(f.name)),
+  skipped: incoming.filter((f) => isNotDonorData(f.name)).map((f) => f.name),
+});
+
 /** The files the app can read; the landing accepts all of them. */
 const ACCEPTED_FILES = ".csv,.xlsx,.docx,.md,.txt";
 const ACCEPTED_TYPES = {
@@ -113,6 +127,12 @@ export const KindredLanding = () => {
   const [isUploadOpen, setUploadOpen] = useState(false);
   const [isSampleOpen, setSampleOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [skipped, setSkipped] = useState<string[]>([]);
+  const chooseFiles = (incoming: File[]) => {
+    const { keep, skipped: left } = splitDonorFiles(incoming);
+    setFiles(keep);
+    setSkipped(left);
+  };
   const [pending, setPending] = useState(false);
   const elapsed = useElapsed(pending);
   const [error, setError] = useState("");
@@ -128,8 +148,12 @@ export const KindredLanding = () => {
       setResult(null);
       setError("");
       if (canUpload) {
-        setFiles(accepted);
-        if (rejected.length)
+        chooseFiles(accepted);
+        // The answer key (.json) is refused by type too: list it as skipped, not as a wrong file
+        const wrong = rejected.filter((r) => !isNotDonorData(r.file.name));
+        const notData = rejected.filter((r) => isNotDonorData(r.file.name)).map((r) => r.file.name);
+        if (notData.length) setSkipped((s) => [...s, ...notData]);
+        if (wrong.length)
           setError("Please choose .csv, .xlsx, .docx, .md or .txt files.");
       }
       setUploadOpen(true);
@@ -159,6 +183,18 @@ export const KindredLanding = () => {
       aria-labelledby="kindred-heading"
     >
       <div className="kindred-landing-content">
+        {DATA_MODE === "snapshot" && (
+          <div className="fixed right-4 top-4 z-10">
+            <Badge
+              variant="outline"
+              title="Read-only sample export. Not real donor records."
+              aria-label="Sample data. Read-only sample export. Not real donor records."
+              data-testid="sample-data-badge"
+            >
+              Sample data
+            </Badge>
+          </div>
+        )}
         <p className="kindred-wordmark">kindred</p>
         <h1 id="kindred-heading" className="kindred-headline">
           <span>Less time on tasks.</span>
@@ -263,13 +299,18 @@ export const KindredLanding = () => {
                 required={!files.length}
                 disabled={pending}
                 onChange={(event) => {
-                  setFiles(Array.from(event.target.files ?? []));
+                  chooseFiles(Array.from(event.target.files ?? []));
                   setError("");
                 }}
               />
               {files.length > 0 && (
                 <p role="status">
                   Selected: {files.map((f) => f.name).join(", ")}
+                </p>
+              )}
+              {skipped.length > 0 && (
+                <p className="kindred-skipped">
+                  Skipped (not donor data): {skipped.join(", ")}
                 </p>
               )}
               {error && <p role="alert">{error}</p>}
@@ -380,7 +421,7 @@ const SampleDialog = ({
           {result
             ? summarize(result)
             : cachedRun
-              ? "This preview can’t import files, so it opens a cached sample workspace instead. It wasn’t built from these files."
+              ? "This sample workspace was built from the 8 example files in data/sample_inputs. It’s read-only here; run it on a laptop to upload your own files."
               : canUpload
                 ? "The example files from data/sample_inputs/. Every name, email and amount is invented. You can also drag them onto the landing page yourself."
                 : "Fictional records for a Miami nonprofit: every name, email and amount is invented."}

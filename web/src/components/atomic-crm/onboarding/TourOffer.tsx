@@ -1,53 +1,101 @@
 import { useId, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { Compass } from "lucide-react";
+import {
+  CircleAlert,
+  CircleCheck,
+  Compass,
+  LoaderCircle,
+  X as XIcon,
+} from "lucide-react";
 
+import { backgroundLine, offerCopy } from "./firstRun";
 import { useOnboarding } from "./onboardingState";
 import "./onboarding.css";
 
+const STATUS_ICON = {
+  running: <LoaderCircle aria-hidden="true" size={16} className="onb-spin" />,
+  done: <CircleCheck aria-hidden="true" size={16} />,
+  failed: <CircleAlert aria-hidden="true" size={16} />,
+} as const;
+
 /**
- * A small card on the dashboard after setup: "Take a quick tour" or "Not now".
- * Not modal: the dashboard stays usable and focus isn't moved; it's announced
- * politely. Esc inside it means "Not now".
+ * A small card on the dashboard after setup: the optional tour ("Take a
+ * quick tour" / "Not now") and, while a slow website read finishes in the
+ * background, one status line. Not modal: the dashboard stays usable and
+ * focus isn't moved; changes are announced politely. Esc inside it closes it.
  */
-export const TourOffer = () => {
-  const { startTour, dismissTourOffer } = useOnboarding();
+export const TourOffer = ({ offer }: { offer: boolean }) => {
+  const { data, startTour, dismissTourOffer, update } = useOnboarding();
   const titleId = useId();
+  const background =
+    data.background && !data.background.hidden ? data.background : null;
+  const copy = offerCopy(data);
+
+  const hideStatus = () =>
+    data.background &&
+    update({ background: { ...data.background, hidden: true } });
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
     event.stopPropagation();
-    dismissTourOffer();
+    if (offer) dismissTourOffer();
+    else hideStatus();
   };
 
   return createPortal(
     <section
       className="onb-offer onb-tile"
-      aria-labelledby={titleId}
-      aria-live="polite"
+      aria-labelledby={offer ? titleId : undefined}
+      aria-label={offer ? undefined : "Website reading"}
       onKeyDown={onKeyDown}
     >
-      <Compass aria-hidden="true" size={20} strokeWidth={1.8} />
-      <div className="onb-offer-text">
-        <h2 id={titleId}>Your desk is ready.</h2>
-        <p>Want a one-minute tour of where things are?</p>
-      </div>
-      <div className="onb-offer-actions">
-        <button
-          type="button"
-          className="onb-btn text small"
-          onClick={dismissTourOffer}
+      {offer && (
+        <>
+          <Compass aria-hidden="true" size={20} strokeWidth={1.8} />
+          <div className="onb-offer-text">
+            <h2 id={titleId}>{copy.title}</h2>
+            <p>{copy.body}</p>
+          </div>
+        </>
+      )}
+      {background && (
+        <div
+          className="onb-offer-status"
+          data-tone={background.status}
+          role="status"
         >
-          Not now
-        </button>
-        <button
-          type="button"
-          className="onb-btn primary small"
-          onClick={startTour}
-        >
-          Take a quick tour
-        </button>
-      </div>
+          {STATUS_ICON[background.status]}
+          <span>{backgroundLine(background)}</span>
+          {!offer && background.status !== "running" && (
+            <button
+              type="button"
+              className="onb-icon-btn small"
+              aria-label="Close"
+              onClick={hideStatus}
+            >
+              <XIcon aria-hidden="true" size={16} />
+            </button>
+          )}
+        </div>
+      )}
+      {offer && (
+        <div className="onb-offer-actions">
+          <button
+            type="button"
+            className="onb-btn text small"
+            onClick={dismissTourOffer}
+          >
+            Not now
+          </button>
+          <button
+            type="button"
+            className="onb-btn primary small"
+            onClick={startTour}
+          >
+            Take a quick tour
+          </button>
+        </div>
+      )}
     </section>,
     document.body,
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ListPlus, Megaphone } from "lucide-react";
 import { InfiniteListBase, ShowBase, useShowContext } from "ra-core";
 import { Link, useSearchParams } from "react-router";
@@ -8,11 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NoteCreate, NotesIterator } from "../notes";
+import { DATA_MODE } from "../providers/local/config";
 import { reasonLabel } from "../providers/local/crmDonors";
 import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
+import { EmailLink, PhoneLink } from "./ContactLinks";
 import type { DonorDetail } from "../providers/local/types";
 import { TaskCreateSheet } from "../tasks/TaskCreateSheet";
+import { PhoneCallButton } from "../voice/PhoneCallButton";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { ContactTasksList } from "./ContactTasksList";
 import {
@@ -24,11 +27,14 @@ import {
 import { scoreClass, statusLabel, tierLabel } from "./donorFormat";
 import { DuplicateBanner } from "./DuplicateMerge";
 import { GivingPanel } from "./GivingPanel";
+import { InterestAreasEditor } from "./InterestChips";
 import { MergeHistory } from "./MergeHistory";
 import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
 import { TagsListEdit } from "./TagsListEdit";
+import { AutoMergeFlag } from "./AutoMergeFlag";
+import { isNonGiver, TAB_ONE } from "./personTab";
 
 const TABS = ["overview", "notes", "tasks"] as const;
 type ProfileTab = (typeof TABS)[number];
@@ -171,7 +177,7 @@ const ProfileHeader = ({
 }) => (
   <header className={cn(tileClass, "p-4 sm:p-5")}>
     <div className="flex flex-wrap items-start gap-4">
-      <InitialsAvatar name={record.full_name} size="lg" />
+      <InitialsAvatar name={record.full_name ?? [record.first_name, record.last_name].filter(Boolean).join(" ")} size="lg" />
       <div className="min-w-0 flex-1">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {record.is_star && (
@@ -181,21 +187,33 @@ const ProfileHeader = ({
             </span>
           )}
           {record.full_name}
+          <span className="ml-2 inline-flex align-middle">
+            <AutoMergeFlag
+              personId={record.id}
+              name={record.full_name}
+              autoMerged={record.auto_merged}
+              mergedFrom={record.merged_from}
+            />
+          </span>
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {[
             record.donor_type === "organization"
               ? "Organization"
               : "Individual",
-            `${tierLabel[record.tier]} donor`,
-            statusLabel[record.donor_status],
+            ...(isNonGiver(record.contact_type)
+              ? [TAB_ONE[record.contact_type]]
+              : [
+                  `${tierLabel[record.tier]} donor`,
+                  statusLabel[record.donor_status],
+                ]),
             record.city,
           ]
             .filter(Boolean)
             .join(" · ")}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <DonorTagList tags={record.status_tags} />
+          <DonorTagList tags={record.status_tags ?? []} />
           {record.is_sample && <SampleHistoryBadge />}
         </div>
       </div>
@@ -214,6 +232,7 @@ const ProfileHeader = ({
       </div>
     </div>
     <div className="mt-4 flex flex-wrap gap-2">
+      <PhoneCallButton donorId={record.id} />
       <Button size="sm" className="rounded-full" onClick={onAddTask}>
         <ListPlus aria-hidden />
         Add task
@@ -257,9 +276,9 @@ const Overview = ({
         hideGifts
         className={cn(tileClass, "space-y-3 p-4 sm:p-5")}
       >
-        {record.reasons.length > 0 && (
+        {(record.reasons ?? []).length > 0 && (
           <ul className="flex flex-wrap gap-1.5" aria-label="Score reasons">
-            {record.reasons.map((reason) => (
+            {(record.reasons ?? []).map((reason) => (
               <li
                 key={reason}
                 className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
@@ -295,8 +314,8 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
   <aside className="space-y-3" aria-label="Donor details">
     <ProfileSection title="Contact">
       <dl className="space-y-2 text-sm">
-        <Row label="Email" value={record.email ?? "Not recorded"} />
-        <Row label="Phone" value={record.phone ?? "Not recorded"} />
+        <Row label="Email" value={<EmailLink email={record.email} />} />
+        <Row label="Phone" value={<PhoneLink phone={record.phone} />} />
         <Row
           label="Location"
           value={
@@ -307,9 +326,11 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
         <Row label="Fund" value={record.fund_type ?? "Not recorded"} />
         <Row label="Source list" value={record.source} />
       </dl>
-      <p className="text-xs text-muted-foreground">
-        Contact details are masked on screen.
-      </p>
+      {DATA_MODE === "snapshot" ? (
+        <p className="text-xs text-muted-foreground">
+          Contact details are masked in this public demo.
+        </p>
+      ) : null}
     </ProfileSection>
 
     <ProfileSection
@@ -335,21 +356,14 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
       <TagsListEdit />
     </ProfileSection>
 
-    <ProfileSection title="Interest areas">
-      {record.interests.length ? (
-        <ul className="flex flex-wrap gap-1.5">
-          {record.interests.map((interest) => (
-            <li
-              key={interest}
-              className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
-            >
-              {interest}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          None recorded yet. Enrichment or a call note can add them.
+    <ProfileSection
+      title="Interest areas"
+      caption="What they support, with the source for each"
+    >
+      <InterestAreasEditor personId={record.id} />
+      {(record.interests ?? []).length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          From the uploaded list: {(record.interests ?? []).join(", ")}
         </p>
       )}
     </ProfileSection>
@@ -362,10 +376,10 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
   </aside>
 );
 
-const Row = ({ label, value }: { label: string; value: string }) => (
+const Row = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="flex justify-between gap-3">
     <dt className="text-muted-foreground">{label}</dt>
-    <dd className="min-w-0 truncate text-right font-medium" title={value}>
+    <dd className="min-w-0 truncate text-right font-medium" title={typeof value === "string" ? value : undefined}>
       {value}
     </dd>
   </div>

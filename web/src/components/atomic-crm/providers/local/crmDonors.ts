@@ -2,11 +2,12 @@
  * The donor CRM's records (the Donors tab, built on Atomic CRM's contacts and
  * companies screens). Pure functions: raw GET /donors rows in, react-admin
  * records out. Every score and status still comes from score.py; this file
- * only labels, groups, masks and filters what the service already computed.
+ * only labels, groups and filters what the service already computed.
  */
 
 import type { CallNote } from "../../voice/callNotes";
 import type { ApiDonorDetail, ApiDonorRow, ApiGift, ApiJson } from "./apiTypes";
+import { DATA_MODE, type DataMode } from "./config";
 import { parseApiCallNotes, parseDonorRow } from "./parse";
 import type { DonorStatus, DonorType, Tier } from "./types";
 
@@ -98,28 +99,55 @@ export const donorTags = (d: TagInput, asOf: string): DonorTag[] => {
   return tags;
 };
 
-/* ---------- Masking (the screens never show a full address) ---------- */
+/* ---------- Contact details ----------
+ * The live laptop app shows the full email and phone. The public snapshot build
+ * (DATA_MODE "snapshot", Vercel) still masks them: its snapshot.json carries the
+ * donor rows as GET /donors returns them, so this is its only privacy layer (#106). */
 
 const isMasked = (value: string) => /[*•]/.test(value);
 
-/** "maria.delgado@example.com" → "m•••@example.com". */
-export const maskEmail = (email: string | null | undefined): string | null => {
-  if (!email) return null;
-  const value = email.trim();
-  if (isMasked(value)) return value;
-  const at = value.lastIndexOf("@");
+/** "maria.delgado@example.com" → "m•••@example.com". Snapshot build only. */
+const maskEmail = (email: string): string => {
+  if (isMasked(email)) return email;
+  const at = email.lastIndexOf("@");
   if (at < 1) return "•••";
-  return `${value[0]}•••${value.slice(at)}`;
+  return `${email[0]}•••${email.slice(at)}`;
 };
 
-/** "+13055550101" → "•••-•••-0101". */
-export const maskPhone = (phone: string | null | undefined): string | null => {
-  if (!phone) return null;
-  const value = phone.trim();
-  if (isMasked(value)) return value;
-  const digits = value.replace(/\D/g, "");
+/** "+13055550101" → "•••-•••-0101". Snapshot build only. */
+const maskPhone = (phone: string): string => {
+  if (isMasked(phone)) return phone;
+  const digits = phone.replace(/\D/g, "");
   if (digits.length < 4) return "•••";
   return `•••-•••-${digits.slice(-4)}`;
+};
+
+/** "+13055550101" → "(305) 555-0101"; anything that is not a US number stays as stored. */
+export const formatPhone = (phone: string): string => {
+  const digits = phone.replace(/\D/g, "");
+  const national = digits.length === 11 && digits[0] === "1" ? digits.slice(1) : digits;
+  if (national.length !== 10) return phone;
+  return `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}`;
+};
+
+/** The email to show: full on the laptop, masked in the public snapshot, null when there is none. */
+export const contactEmail = (
+  email: string | null | undefined,
+  mode: DataMode = DATA_MODE,
+): string | null => {
+  const value = email?.trim();
+  if (!value) return null;
+  return mode === "snapshot" ? maskEmail(value) : value;
+};
+
+/** The phone to show: formatted on the laptop, masked in the public snapshot, null when there is none. */
+export const contactPhone = (
+  phone: string | null | undefined,
+  mode: DataMode = DATA_MODE,
+): string | null => {
+  const value = phone?.trim();
+  if (!value) return null;
+  return mode === "snapshot" ? maskPhone(value) : formatPhone(value);
 };
 
 /* ---------- Giving ---------- */
@@ -260,8 +288,8 @@ export interface DonorContact {
   donor_type: DonorType;
   company_id: number | null;
   company_name: string | null;
-  email: string | null; // masked
-  phone: string | null; // masked
+  email: string | null; // full on the laptop, masked in the snapshot build
+  phone: string | null; // formatted on the laptop, masked in the snapshot build
   city: string | null;
   state: string | null;
   fund_type: string | null;
@@ -299,6 +327,11 @@ export interface DonorContact {
   avatar: { src?: string };
   email_jsonb: [];
   phone_jsonb: [];
+  /** CRM tab (giver | neighbor | community); null on older APIs. */
+  contact_type?: "giver" | "neighbor" | "community" | null;
+  /** Exact-match merge waiting for staff review (#125): the "!" icon. */
+  auto_merged?: boolean;
+  merged_from?: number;
 }
 
 export interface DonorOrganization {
@@ -409,6 +442,8 @@ export const toDonorContact = (
     companyName?: string | null;
     overlay?: ContactOverlay;
     extras?: DonorExtras;
+    /** Where the row came from; the snapshot build masks contact details. */
+    mode?: DataMode;
   } = {},
 ): DonorContact => {
   const summary = parseDonorRow(row);
@@ -443,8 +478,8 @@ export const toDonorContact = (
     donor_type: summary.donor_type,
     company_id: options.companyId ?? null,
     company_name: options.companyName ?? null,
-    email: maskEmail(row.email),
-    phone: maskPhone(row.phone),
+    email: contactEmail(row.email, options.mode),
+    phone: contactPhone(row.phone, options.mode),
     city: row.city,
     state: row.state ?? null,
     fund_type: row.fund_type,
@@ -468,6 +503,9 @@ export const toDonorContact = (
     usual_month: why?.pattern?.month_name ?? null,
     recurring: isRecurring(why?.usual_cadence_days, summary.gift_count),
     give_miami_day_days_away: summary.give_miami_day_days_away,
+    contact_type: summary.contact_type ?? null,
+    auto_merged: summary.auto_merged ?? false,
+    merged_from: summary.merged_from ?? 0,
     source: sourceList(row.source_row),
     interests: stringList(row.interests),
     imported_notes: row.notes?.trim() || null,

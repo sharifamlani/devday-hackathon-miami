@@ -137,6 +137,9 @@ def create_task(conn: sqlite3.Connection, *, kind: str, title: str, actor: str =
         f"INSERT OR IGNORE INTO tasks ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
         list(values.values()))
     if cur.rowcount == 0:
+        # The ignored INSERT still opened a transaction: end it, or this connection keeps the write lock and the
+        # next writer on another connection gets "database is locked" (a generate rerun inside build_snapshot).
+        conn.commit()
         return None
     row = _row(conn, cur.lastrowid)
     token = _log(conn, actor, "create_task", row["id"], None, row)
@@ -703,3 +706,39 @@ def crm_delete(conn: sqlite3.Connection, task_id: int) -> dict | None:
         return None
     delete_task(conn, task_id, actor="staff")
     return to_crm(row)
+
+
+# ---------- a giver's next step (GET /people: the "Next step" column) ----------
+# One task store, so a giver's next step is their next open task. Givers only (Sharif): neighbors and community
+# members get null.
+
+
+def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | None = None,
+                    public_only: bool = False) -> list[dict]:
+    """Set person["next_step"] on each row (in place): a giver's next open task, else null. Returns the list.
+    public_only skips the Donors tab's private tasks (the public snapshot recomputes with it)."""
+    today = as_of or default_as_of()
+    givers = [p for p in people if (p.get("contact_type") or "giver") == "giver"]
+    ids = [p["id"] for p in givers if p.get("id") is not None]
+    nxt: dict[int, dict] = {}
+    if ids and _has_table(conn, "tasks"):
+        for chunk in range(0, len(ids), 500):
+            part = ids[chunk:chunk + 500]
+            private = f" AND {PUBLIC_ONLY}" if public_only else ""
+            for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL AND done = 0{private} AND person_id IN "
+                                  f"({', '.join('?' * len(part))})", part):
+                r = dict(r)
+                key = (r["due"] or "9999", r["time"] or "99:99", KIND_ORDER.get(r["kind"], 9), r["id"])
+                best = nxt.get(r["person_id"])
+                if best is None or key < best["_key"]:
+                    nxt[r["person_id"]] = {**r, "_key": key}
+    for p in people:
+        p["next_step"] = None
+    for p in givers:
+        t = nxt.get(p.get("id"))
+        if t:
+            due = t["due"]
+            when = (" · overdue" if due < today.isoformat() else "" if due == today.isoformat()
+                    else f" · {nice_date(due, today)}") if due else ""
+            p["next_step"] = f"{t['title']}{when}"
+    return people

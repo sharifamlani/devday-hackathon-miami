@@ -49,6 +49,15 @@ def stored_facts(conn) -> list[dict]:
     return [dict(r) for r in conn.execute("SELECT source, url, fact, posted_at FROM org_context")]
 
 
+def saved_urls(conn) -> dict | None:
+    """The org's URLs as onboarding saved them in org_profile, or None before onboarding."""
+    if not has_table(conn, "org_profile"):
+        return None
+    keys = ("name", "website", "x_url", "linkedin_url", "instagram_url")
+    row = conn.execute(f"SELECT {', '.join(keys)} FROM org_profile ORDER BY id DESC LIMIT 1").fetchone()
+    return dict(zip(keys, row)) if row and row[1] else None
+
+
 def stored_events(conn, host: str) -> list[dict]:
     """The calendar as it stood before this run: data's events table when it exists, else the
     last cached run (runtime file, then the committed cache)."""
@@ -83,8 +92,12 @@ def diff_facts(before: list[dict], result: dict) -> dict:
 def same_event(a: dict, b: dict, by_date: bool = True) -> bool:
     """Search words the same event differently run to run ("Give Miami Day" vs "Give Miami Day -
     15th anniversary"). Same event = one title contains the other, or most title words overlap;
-    with by_date, also the same start date."""
-    if by_date and (a.get("starts_at") or "")[:10] != (b.get("starts_at") or "")[:10]:
+    with by_date, also the same start date. Two events on one day with different start times are different
+    events, however alike their titles ("The Give Miami 5K" at 8:00 vs its Post-Race Festival at 8:30)."""
+    sa, sb = a.get("starts_at") or "", b.get("starts_at") or ""
+    if by_date and sa[:10] != sb[:10]:
+        return False
+    if by_date and len(sa) > 10 and len(sb) > 10 and sa[11:16] != sb[11:16]:
         return False
     ka, kb = event_key(a), event_key(b)
     if not ka or not kb:
@@ -159,12 +172,66 @@ def data_writers(conn) -> dict:
     return found
 
 
+def save_found_events(conn, events: list[dict]) -> tuple[dict, bool]:
+    """Store events found in a successful read through data's save_events (complete=True: nothing is
+    removed unless this read found events). Returns ({event key: id or None}, stored_in_db)."""
+    w = data_writers(conn)
+    if not events or not w.get("save_events"):
+        return {}, False
+    saved = w["save_events"](conn, events, complete=True)
+    conn.commit()
+    return {event_key(e): i for e, i in zip(events, saved.get("ids") or [])}, True
+
+
+def draft_invites_for(conn, events: list[dict], event_ids: dict, stored_in_db: bool, people: list[dict] | None = None,
+                      *, audience=suggest_audience, invite=draft_event_invite, save=save_invite) -> dict:
+    """Audience + invite drafts (never sent) for these events: {drafts: {title: n}, errors: [...]}. Shared by
+    the daily refresh (new or changed events) and onboarding (every event the first read found)."""
+    from concurrent.futures import ThreadPoolExecutor
+    w = data_writers(conn)
+    errors = []
+    people = people if people is not None else (w["list_people"](conn) if w.get("list_people") else load_people(conn))
+    by_id = {p["id"]: p for p in people}
+    drafts, work = {}, []
+    for e in events:
+        eid = event_ids.get(event_key(e))
+        if stored_in_db and eid is None:              # data rejected it (no source, title or date): no invites anywhere
+            errors.append(f"event rejected by save_events, no invites drafted: {e.get('title')}")
+            continue
+        try:
+            chosen = audience(e, people, rationale=False)
+            if eid and w.get("save_event_audience"):
+                w["save_event_audience"](conn, eid, chosen)
+        except Exception as ex:
+            errors.append(f"audience {e.get('title')}: {type(ex).__name__}")
+            continue
+        drafts[e["title"]] = 0
+        work += [(e, eid, pid) for pid in chosen["person_ids"][:MAX_DRAFTS_PER_EVENT] if pid in by_id]
+
+    # every invite for every event in one pool of model calls; writes stay on this thread
+    with ThreadPoolExecutor(max_workers=INVITE_WORKERS) as pool:
+        jobs = [(e, eid, pid, pool.submit(invite, e, by_id[pid])) for e, eid, pid in work]
+    for e, eid, pid, job in jobs:
+        try:
+            inv = job.result()
+            if eid and w.get("save_event_draft"):
+                w["save_event_draft"](conn, eid, pid, inv)
+            else:
+                save(e, by_id[pid], inv)
+            drafts[e["title"]] += 1
+        except Exception as ex:
+            errors.append(f"invite {e.get('title')} -> {pid}: {type(ex).__name__}")
+    if conn is not None:
+        conn.commit()
+    return {"drafts": drafts, "errors": errors}
+
+
 def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: list[dict] | None = None,
             *, build=build_context, extract=extract_events, audience=suggest_audience,
             invite=draft_event_invite, save=save_invite) -> dict:
     """One refresh pass. The agent functions are parameters so tests can stand them in."""
     started = time.monotonic()
-    urls = urls or FOUNDATION_URLS
+    urls = urls or saved_urls(conn) or FOUNDATION_URLS    # the saved org first; the Foundation only before onboarding
     host = site_host(urls.get("website"))
     as_of = as_of or os.environ.get("SCORE_AS_OF") or date.today().isoformat()
     errors = []
@@ -217,39 +284,10 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
             errors.append(f"save_events: {ex}")
 
     # 3. audience + invites for what's new or changed (drafts only)
-    people = people if people is not None else (w["list_people"](conn) if w.get("list_people") else load_people(conn))
-    by_id = {p["id"]: p for p in people}
-    drafts, work = {}, []
-    for e in events["new"] + [c["event"] for c in events["changed"]]:
-        eid = event_ids.get(event_key(e))
-        if stored_in_db and eid is None:              # data rejected it (no source, title or date): no invites anywhere
-            errors.append(f"event rejected by save_events, no invites drafted: {e.get('title')}")
-            continue
-        try:
-            chosen = audience(e, people, rationale=False)
-            if eid and w.get("save_event_audience"):
-                w["save_event_audience"](conn, eid, chosen)
-        except Exception as ex:
-            errors.append(f"audience {e.get('title')}: {type(ex).__name__}")
-            continue
-        drafts[e["title"]] = 0
-        work += [(e, eid, pid) for pid in chosen["person_ids"][:MAX_DRAFTS_PER_EVENT] if pid in by_id]
-
-    # every invite for every event in one pool of model calls; writes stay on this thread
-    with ThreadPoolExecutor(max_workers=INVITE_WORKERS) as pool:
-        jobs = [(e, eid, pid, pool.submit(invite, e, by_id[pid])) for e, eid, pid in work]
-    for e, eid, pid, job in jobs:
-        try:
-            inv = job.result()
-            if eid and w.get("save_event_draft"):
-                w["save_event_draft"](conn, eid, pid, inv)
-            else:
-                save(e, by_id[pid], inv)
-            drafts[e["title"]] += 1
-        except Exception as ex:
-            errors.append(f"invite {e.get('title')} -> {pid}: {type(ex).__name__}")
-    if conn is not None:
-        conn.commit()
+    out = draft_invites_for(conn, events["new"] + [c["event"] for c in events["changed"]], event_ids,
+                            stored_in_db, people, audience=audience, invite=invite, save=save)
+    drafts = out["drafts"]
+    errors += out["errors"]
 
     return {
         "as_of": as_of,

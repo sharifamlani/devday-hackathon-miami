@@ -32,6 +32,7 @@ import type {
   Tab,
 } from "./crmTypes";
 import { TABS } from "./crmTypes";
+import { parseWhen } from "./parseWhen";
 
 /** Shown wherever the nonprofit didn't record a value. Never guess one. */
 export const NOT_RECORDED = "not recorded";
@@ -109,7 +110,17 @@ export const parsePerson = (raw: ApiPerson, fallbackTab: Tab): Person => {
     next_step: raw.next_step ?? null,
     needs_review: !!(raw.tab_review ?? raw.needs_review),
     review_reason: raw.tab_review ?? raw.review_reason ?? null,
+    notes: isBlank(raw.notes) ? null : (raw.notes as string).trim(),
+    source: sourceFile(raw.source_row),
+    auto_merged: !!raw.auto_merged,
+    merged_from: raw.merged_from ?? 0,
   };
+};
+
+/** "file.xlsx: sheet:Nov 1 Open House:row 4" → "file.xlsx" (the file part of an ingest source_row). */
+export const sourceFile = (row: string | null | undefined): string | null => {
+  const file = (row ?? "").split(":")[0].trim();
+  return file || null;
 };
 
 export const parsePeople = (raw: ApiPeopleResponse, tab: Tab): PeoplePage => {
@@ -303,7 +314,7 @@ const plural = (n: number, word: string) => `${n} new ${word}${n === 1 ? "" : "s
 
 /** "today 7:00 AM", "yesterday 6:30 PM", "Nov 5 7:00 AM", in the viewer's timezone. */
 export const relativeDay = (iso: string, now: Date = new Date()): string => {
-  const when = new Date(iso);
+  const when = parseWhen(iso);
   if (Number.isNaN(when.getTime())) return iso;
   const time = when.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   const dayKey = (d: Date) => d.toDateString();

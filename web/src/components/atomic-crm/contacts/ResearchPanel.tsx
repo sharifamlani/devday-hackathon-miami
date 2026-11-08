@@ -1,17 +1,18 @@
-import { Search } from "lucide-react";
+import { Check, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { DATA_MODE } from "../providers/local/config";
-import { useEnrichDonor } from "../providers/local/hooks";
 import type { DonorDetail } from "../providers/local/types";
 import { formatDay } from "./donorFormat";
+import { ENRICH_COPY, EnrichProposal, useEnrichReview } from "./EnrichReview";
 import { PanelHeading } from "./ScoreWhyPanel";
 
 /**
- * RESEARCH: sourced public facts from the enrich agent (POST /enrich/{id}).
- * The snapshot can't run the agent, so it shows the research saved at export
- * and says so instead of offering a button that would fail.
+ * RESEARCH: sourced public facts from the enrich agent. Enrich proposes (dry run: nothing is written),
+ * staff review the facts and interest tags, and "Save to profile" writes only what they kept: the same
+ * flow as the home's Find a donor dialog. Organizations only. The snapshot can't run the agent, so it
+ * shows the research saved at export and says so instead of offering a button that would fail.
  */
 export const ResearchPanel = ({
   donor,
@@ -20,7 +21,8 @@ export const ResearchPanel = ({
   donor: DonorDetail;
   className?: string;
 }) => {
-  const enrich = useEnrichDonor(donor.id);
+  const review = useEnrichReview(donor);
+  const { isOrg, found, preview, accept, picked } = review;
   const live = DATA_MODE === "local";
   return (
     <section
@@ -31,21 +33,45 @@ export const ResearchPanel = ({
         title="Enrichment"
         caption="Enrich agent · public, professional sources only"
       >
-        {live && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="rounded-full border-border bg-card px-4 font-semibold hover:bg-olive focus-visible:outline-2 focus-visible:outline-ring"
-            onClick={() => enrich.mutate()}
-            disabled={enrich.isPending}
-          >
-            {enrich.isPending ? <Spinner /> : <Search />}
-            {enrich.isPending
-              ? "Enriching…"
-              : donor.research.length
-                ? "Enrich again"
-                : "Enrich profile"}
-          </Button>
+        {live && isOrg && found ? (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-full px-3 font-semibold focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={review.discard}
+              disabled={accept.isPending}
+            >
+              Discard
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-full px-4 font-semibold focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={review.save}
+              disabled={accept.isPending || picked === 0}
+            >
+              {accept.isPending ? <Spinner /> : <Check />}
+              {accept.isPending ? "Saving…" : "Save to profile"}
+            </Button>
+          </div>
+        ) : (
+          live &&
+          isOrg && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full border-border bg-card px-4 font-semibold hover:bg-olive focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={review.run}
+              disabled={preview.isPending}
+            >
+              {preview.isPending ? <Spinner /> : <Search />}
+              {preview.isPending
+                ? "Enriching…"
+                : donor.research.length
+                  ? "Enrich again"
+                  : "Enrich profile"}
+            </Button>
+          )
         )}
       </PanelHeading>
       {!live && (
@@ -75,19 +101,17 @@ export const ResearchPanel = ({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {enrich.isSuccess
-            ? "No public facts found for this donor."
-            : live
-              ? "No research yet. Enrich the profile to look up public sources."
-              : "No research saved for this donor."}
-        </p>
+        !review.proposal && (
+          <p className="text-sm text-muted-foreground">
+            {live && !isOrg
+              ? ENRICH_COPY.individual
+              : live
+                ? "No research yet. Enrich the profile to look up public sources."
+                : "No research saved for this donor."}
+          </p>
+        )
       )}
-      {enrich.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {enrich.error.message}
-        </p>
-      )}
+      <EnrichProposal review={review} />
     </section>
   );
 };

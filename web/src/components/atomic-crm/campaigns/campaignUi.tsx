@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
-import { Mail, MessageSquareText, ShieldCheck } from "lucide-react";
+import { Mail, MessageSquareText } from "lucide-react";
 import { Link } from "react-router";
 
 import { buttonVariants } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
-import { DATA_MODE } from "../providers/local/config";
 import type { CampaignChannel } from "../providers/local/campaignTypes";
 import { pillButton } from "./campaignFormat";
 
@@ -18,27 +17,6 @@ export const ChannelLabel = ({ channel }: { channel: CampaignChannel }) => {
     </span>
   );
 };
-
-/** "No message leaves this laptop": shown wherever something could look like a send. */
-export const SimulatedNote = ({ className }: { className?: string }) => (
-  <p
-    className={cn(
-      "flex items-start gap-2 text-xs text-muted-foreground",
-      className,
-    )}
-  >
-    <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-    <span>
-      <strong className="font-semibold text-foreground">
-        No message leaves this laptop.
-      </strong>{" "}
-      Sending writes to a simulated outbox and contact log; there is no email or
-      text provider.
-      {DATA_MODE === "snapshot" &&
-        " In this cached sample, the outbox lives only in this browser tab."}
-    </span>
-  </p>
-);
 
 export const PageShell = ({
   eyebrow,

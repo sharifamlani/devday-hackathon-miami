@@ -75,6 +75,9 @@ def _donor_out(row: sqlite3.Row) -> dict:
         d["is_star"] = bool(d["is_star"]) if d["is_star"] is not None else False
     if "why" in d:
         d["why"] = json.loads(d["why"]) if d["why"] else None
+    if "merged_from" in d:   # an automatic (exact-identity) merge staff haven't reviewed yet: the UI's "!"
+        d["auto_merged"] = bool(d["merged_from"])
+        d["merged_from"] = d["merged_from"] or 0
     if "interests" in d:
         d["interests"] = json.loads(d["interests"] or "[]")
         d["demographics"] = parse_demographics(d["demographics"])
@@ -83,7 +86,9 @@ def _donor_out(row: sqlite3.Row) -> dict:
 
 
 DONOR_WITH_SCORE = """
-SELECT d.*, s.score, s.tier, s.is_star, s.status, s.why, s.as_of AS score_as_of
+SELECT d.*, s.score, s.tier, s.is_star, s.status, s.why, s.as_of AS score_as_of,
+       (SELECT json_array_length(am.sources) FROM auto_merges am
+         WHERE am.donor_id = d.id AND am.reviewed_at IS NULL ORDER BY am.id DESC LIMIT 1) AS merged_from
 FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id
 """
 
@@ -147,6 +152,11 @@ def merge_duplicate(suggestion_id: int, keep_id: int | None = Body(None, embed=T
     except ValueError as e:
         raise HTTPException(409, str(e))
     score.run(conn)
+    # The merge supersedes other pending cards that named the merged-away person. Re-scan so the kept person
+    # (now carrying both sides' names and emails) gets fresh cards: without it, a chain such as
+    # "Marrow Lane Print" ~ Bernard Okoye ~ Marrow Lane Print Co. strands its third member. Merged and
+    # dismissed decisions are kept (dedupe.run only refreshes pending cards).
+    dedupe.run(conn)
     tasks.generate_safely(conn, "merge")   # alerts move with the gifts: stale calls retire, new ones appear
     result["donor"] = get_donor(result["kept_donor_id"], conn)
     return result
@@ -338,7 +348,7 @@ def list_people(conn: sqlite3.Connection, contact_type: str | None = None, has_d
         args.append(interest)
     sql = DONOR_WITH_SCORE + (" WHERE " + " AND ".join(where) if where else "")
     sql += " ORDER BY s.score IS NULL, s.score DESC, d.full_name, d.id"
-    return [_donor_out(r) for r in conn.execute(sql, args)]
+    return tasks.with_next_steps(conn, [_donor_out(r) for r in conn.execute(sql, args)])   # "Next step" (3a)
 
 
 @router.get("/people")
@@ -481,3 +491,106 @@ def community_stats(conn: sqlite3.Connection) -> dict:
 @router.get("/community/stats")
 def get_community_stats(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
     return community_stats(conn)
+
+
+
+# ---- automatic merges: flag for staff review (Sharif: exact matches merge, but staff can keep or split) ----
+
+def _auto_merge_out(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
+    m = dict(row)
+    sources = json.loads(m.pop("sources") or "[]")
+    m["split_ids"] = json.loads(m["split_ids"]) if m.get("split_ids") else []
+    m["sources"] = [{"name": src["name"], "email": src.get("email"), "phone": src.get("phone"),
+                     "files": sorted({loc.split(": ", 1)[0] for loc in src.get("locs") or []}),
+                     "locations": src.get("locs") or [], "gift_ids": src.get("gift_ids") or [],
+                     "gift_count": len(src.get("gift_ids") or []), "survivor": bool(src.get("survivor")),
+                     "rule": src.get("rule")} for src in sources]
+    return m
+
+
+def person_merges(conn: sqlite3.Connection, person_id: int) -> dict:
+    if conn.execute("SELECT 1 FROM donors WHERE id = ?", (person_id,)).fetchone() is None:
+        raise LookupError(f"person {person_id} not found")
+    merges = [_auto_merge_out(conn, r) for r in conn.execute(
+        "SELECT * FROM auto_merges WHERE donor_id = ? ORDER BY id DESC", (person_id,))]
+    open_ = [m for m in merges if m["reviewed_at"] is None]
+    return {"person_id": person_id, "auto_merged": bool(open_),
+            "merged_from": len(open_[0]["sources"]) if open_ else 0, "merges": merges}
+
+
+@router.get("/people/{person_id}/merges")
+def get_person_merges(person_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    """The source records an automatic merge joined into this person, with their file/row and gift counts."""
+    try:
+        return person_merges(conn, person_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+
+
+class ReviewMerge(BaseModel):
+    action: str = Field(pattern="^(keep|split)$")
+    reviewed_by: str | None = None
+
+
+def split_auto_merge(conn: sqlite3.Connection, person_id: int, merge: sqlite3.Row) -> list[int]:
+    """Restore every non-survivor source as its own person with exactly its own gifts (moved, never copied)."""
+    person = dict(conn.execute("SELECT * FROM donors WHERE id = ?", (person_id,)).fetchone())
+    sources = json.loads(merge["sources"])
+    kept_emails = {s["email"] for s in sources if s.get("survivor") and s.get("email")}
+    created = []
+    for src in sources:
+        if src.get("survivor"):
+            continue
+        name = src["name"]
+        is_org = person.get("donor_type") == "organization"
+        parts = name.split(" ", 1)
+        new = {
+            "full_name": name,
+            "first_name": None if is_org else parts[0],
+            "last_name": None if is_org or len(parts) < 2 else parts[1],
+            "org_name": name if is_org else None,
+            "donor_type": person.get("donor_type"),
+            "email": src.get("email"),
+            "emails_all": json.dumps([src["email"]] if src.get("email") else []),
+            "phone": src.get("phone"),
+            "source_row": "; ".join(src.get("locs") or []) or None,
+            "contact_type": person.get("contact_type") or "giver",
+        }
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(donors)")}
+        new = {k: v for k, v in new.items() if k in cols}
+        new_id = conn.execute(f"INSERT INTO donors ({', '.join(new)}) VALUES ({', '.join('?' * len(new))})",
+                              list(new.values())).lastrowid
+        ids = [int(g) for g in src.get("gift_ids") or []]
+        if ids:
+            conn.execute(f"UPDATE gifts SET donor_id = ? WHERE donor_id = ? AND id IN ({', '.join('?' * len(ids))})",
+                         (new_id, person_id, *ids))
+        created.append(new_id)
+    # The survivor keeps only its own emails
+    emails = [e for e in json.loads(person.get("emails_all") or "[]")
+              if e in kept_emails or not any(e == s.get("email") for s in sources if not s.get("survivor"))]
+    conn.execute("UPDATE donors SET emails_all = ?, email = ? WHERE id = ?",
+                 (json.dumps(emails), person.get("email") if person.get("email") in emails else (emails[0] if emails else None),
+                  person_id))
+    return created
+
+
+@router.post("/people/{person_id}/merges/review")
+def review_person_merge(person_id: int, req: ReviewMerge, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    """keep: clear the "!" (the automatic merge was right). split: restore each source person with its own
+    gifts; they come back as pending duplicate suggestions for staff. Gift totals are unchanged either way."""
+    if conn.execute("SELECT 1 FROM donors WHERE id = ?", (person_id,)).fetchone() is None:
+        raise HTTPException(404, f"person {person_id} not found")
+    merge = conn.execute("SELECT * FROM auto_merges WHERE donor_id = ? AND reviewed_at IS NULL ORDER BY id DESC LIMIT 1",
+                         (person_id,)).fetchone()
+    if merge is None:
+        raise HTTPException(409, f"person {person_id} has no automatic merge waiting for review")
+    created = split_auto_merge(conn, person_id, merge) if req.action == "split" else []
+    conn.execute("UPDATE auto_merges SET reviewed_at = ?, review_action = ?, reviewed_by = ?, split_ids = ? WHERE id = ?",
+                 (datetime.now(timezone.utc).isoformat(timespec="seconds"), req.action,
+                  (req.reviewed_by or "").strip() or None, json.dumps(created) if created else None, merge["id"]))
+    conn.commit()
+    if created:
+        score.run(conn)
+        dedupe.run(conn)
+    return {"action": req.action, "person": get_donor(person_id, conn),
+            "restored": [get_donor(i, conn) for i in created], "merges": person_merges(conn, person_id)}

@@ -141,7 +141,8 @@ def cached_facts(name: str) -> list[Fact] | None:
 
 def enrich_donor(name: str, org_name: str | None = None, city: str | None = None,
                  focus: str | None = None, refresh: bool = False,
-                 donor_type: str | None = None, use_cache: bool = False) -> list[Fact]:
+                 donor_type: str | None = None, use_cache: bool = False,
+                 state: str | None = None, email: str | None = None) -> list[Fact]:
     """Research one donor and return sourced facts whose URLs load. Empty list means nothing public found.
 
     Always a live run. data/research_cache.json is read only when the live run raises (refresh=False),
@@ -157,7 +158,7 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
     if skip_reason(org_name, donor_type):
         return []
     try:
-        return research_live(name, org_name, city, focus)
+        return research_live(name, org_name, city, focus, state, email)
     except Exception:
         cached = None if refresh else cached_facts(name)
         if cached is None:
@@ -165,7 +166,13 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
         return cached
 
 
-def research_live(name: str, org_name: str | None, city: str | None, focus: str | None) -> list[Fact]:
+def research_live(name: str, org_name: str | None, city: str | None, focus: str | None,
+                  state: str | None = None, email: str | None = None) -> list[Fact]:
+    """The live run behind enrich_donor. It goes through enrich_full, so an organization's identity must match on
+    its name plus one more attribute (identity_matches); only the CLI's --focus search keeps the facts-only agent."""
+    if not focus:
+        found = enrich_full(name, org_name, city, "organization", refresh=True, state=state, email=email)
+        return [Fact(fact=f["fact"], source_url=f["source_url"], retrieved_at=f["retrieved_at"]) for f in found["facts"]]
     query = f"Donor: {name}"
     if org_name:
         query += f"\nOrganization: {org_name}"
@@ -318,6 +325,66 @@ def generic_mailbox(email: str | None) -> str | None:
     return email if email and any(local.startswith(m) for m in GENERIC_MAILBOXES) else None
 
 
+# --- Identity: a name match alone never counts (c9: "Whitaker Family Charitable Fund" got a South Carolina
+# org's tags). A run is trusted only when the org's name AND one more attribute from the donor row match what
+# the agent found on a page that loads: the city, the state, or a website domain = the donor's email domain.
+
+US_STATES = {
+    "AL": "alabama", "AK": "alaska", "AZ": "arizona", "AR": "arkansas", "CA": "california", "CO": "colorado",
+    "CT": "connecticut", "DE": "delaware", "DC": "district of columbia", "FL": "florida", "GA": "georgia",
+    "HI": "hawaii", "ID": "idaho", "IL": "illinois", "IN": "indiana", "IA": "iowa", "KS": "kansas",
+    "KY": "kentucky", "LA": "louisiana", "ME": "maine", "MD": "maryland", "MA": "massachusetts",
+    "MI": "michigan", "MN": "minnesota", "MS": "mississippi", "MO": "missouri", "MT": "montana",
+    "NE": "nebraska", "NV": "nevada", "NH": "new hampshire", "NJ": "new jersey", "NM": "new mexico",
+    "NY": "new york", "NC": "north carolina", "ND": "north dakota", "OH": "ohio", "OK": "oklahoma",
+    "OR": "oregon", "PA": "pennsylvania", "RI": "rhode island", "SC": "south carolina", "SD": "south dakota",
+    "TN": "tennessee", "TX": "texas", "UT": "utah", "VT": "vermont", "VA": "virginia", "WA": "washington",
+    "WV": "west virginia", "WI": "wisconsin", "WY": "wyoming", "PR": "puerto rico",
+}
+# Mail domains that say nothing about an organization's identity (incl. the sample data's example.* domains)
+PERSONAL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com", "aol.com", "me.com",
+                    "live.com", "msn.com", "proton.me", "protonmail.com", "example.com", "example.org", "example.net"}
+IDENTITY_NOTE = ("Only the name matched: the city, state and website on the pages found don't match this "
+                 "donor's record, so nothing was suggested.")
+
+
+def _norm(text: str | None) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+
+
+def state_name(state: str | None) -> str:
+    s = _norm(state)
+    return US_STATES.get(s.upper(), s) if len(s) == 2 else s
+
+
+def _domain(value: str | None) -> str:
+    v = (value or "").strip().lower()
+    v = v.split("@", 1)[1] if "@" in v else re.sub(r"^[a-z]+://", "", v).split("/", 1)[0]
+    return v[4:] if v.startswith("www.") else v
+
+
+def identity_matches(e: "Enrichment", alive: dict[str, bool], city: str | None, state: str | None,
+                     email: str | None) -> list[str]:
+    """Which donor-row attributes besides the name match what the agent found: city, state, website.
+
+    The agent's location and website count only when a contact source page loads. An empty list means a
+    name-only match, which never counts.
+    """
+    if not any(alive.get(u) for u in e.contact.source_urls):
+        return []
+    loc = e.contact.location
+    matched = []
+    if city and loc.city and _norm(city) == _norm(loc.city):
+        matched.append("city")
+    if state and loc.region and state_name(state) == state_name(loc.region):
+        matched.append("state")
+    mail = _domain(email)
+    site = _domain(e.contact.website)
+    if mail and site and mail not in PERSONAL_DOMAINS and (site == mail or site.endswith("." + mail)):
+        matched.append("website")
+    return matched
+
+
 def empty_enrichment(reason: str | None = None, identity_match: str = "not_found") -> dict:
     return {"identity_match": identity_match, "identity_basis": [], "facts": [], "interests": [],
             "contact": {}, "notes": reason, "searched_at": None}
@@ -365,13 +432,16 @@ def write_interest_cache(name: str, result: dict) -> None:
 
 
 def enrich_full(name: str, org_name: str | None = None, city: str | None = None,
-                donor_type: str | None = None, refresh: bool = False) -> dict:
+                donor_type: str | None = None, refresh: bool = False, state: str | None = None,
+                email: str | None = None) -> dict:
     """Facts, interest tags and public contact for one donor. Writes nothing (the caller decides).
 
     Returns {identity_match, identity_basis, facts: [{id, fact, source_url, retrieved_at}],
     interests: [{id, tag, label, sub_tag, confidence, evidence, source_url, source_type}], contact, notes,
     searched_at}. Cached donors (data/interest_cache.json) come back with no model call unless refresh=True.
     Individuals are never researched live (skip_reason): a made-up person gets no tags.
+    A live run counts only when the name AND one more attribute match (identity_matches); otherwise it comes
+    back as identity_match "ambiguous" with no facts or tags.
     """
     if not refresh:
         cached = read_interest_cache().get(name)
@@ -381,13 +451,20 @@ def enrich_full(name: str, org_name: str | None = None, city: str | None = None,
     if reason:
         return empty_enrichment(reason, "not_researched")
 
-    query = f"Donor: {name}" + (f"\nOrganization: {org_name}" if org_name else "") + (f"\nCity: {city}" if city else "")
+    query = (f"Donor: {name}" + (f"\nOrganization: {org_name}" if org_name else "")
+             + (f"\nCity: {city}" if city else "") + (f"\nState: {state}" if state else ""))
     e: Enrichment = Runner.run_sync(enrichment_agent, query).final_output
     searched_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     urls = sorted({f.source_url for f in e.facts} | {i.source_url for i in e.interests} | set(e.contact.source_urls))
     with ThreadPoolExecutor(max_workers=8) as pool:
         alive = dict(zip(urls, pool.map(url_loads, urls)))
-    return finalize(e, alive, searched_at)
+    result = finalize(e, alive, searched_at)
+    if result["identity_match"] in IDENTITY_UNSAFE:
+        return result
+    matched = identity_matches(e, alive, city, state, email)
+    if not matched:
+        return {**empty_enrichment(IDENTITY_NOTE, "ambiguous"), "identity_basis": ["name"], "searched_at": searched_at}
+    return {**result, "identity_basis": ["name", *matched]}
 
 
 def main() -> int:

@@ -118,6 +118,21 @@ describe("localApiMethods onboarding calls", () => {
     expect(init.headers).toBeUndefined(); // the browser sets the multipart boundary
   });
 
+  it("Import donors uploads as Givers, so a gift-free row isn't filed under Neighbors", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ people_added: 1, gifts_added: 0 }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await localApiMethods.importDonors({
+      files: [new File(["Name\nKnight Foundation"], "knight.csv")],
+      mapping: { Name: "full_name" },
+      rows: [],
+    });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toMatch(/\/ingest$/);
+    expect((init.body as FormData).get("target")).toBe("giver");
+  });
+
   it("explains a missing ingest service", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 503 })));
     await expect(localApiMethods.uploadFiles([new File(["x"], "a.csv")])).rejects.toThrow(

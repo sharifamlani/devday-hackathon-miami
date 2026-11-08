@@ -19,7 +19,13 @@ export type AgentStep = {
   undone?: boolean;
 };
 
-export type AgentApproval = { call_id: string; tool: string; args: Record<string, unknown> };
+export type AgentApproval = {
+  call_id: string;
+  tool: string;
+  args: Record<string, unknown>;
+  /** One plain line from the service ("Call Maria Delgado at ***-***-0101"); absent = show the args. */
+  summary?: string | null;
+};
 
 export type AgentMessage =
   | { role: "user"; text: string }
@@ -60,6 +66,7 @@ export const useAgentChat = () =>
       return () => listeners.delete(l);
     },
     () => state,
+    () => state, // server snapshot: renderToString (the render tests) needs one
   );
 
 export type Refetch = (scopes?: RefetchScope[]) => unknown;

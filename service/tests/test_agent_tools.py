@@ -20,11 +20,11 @@ from service import db
 TOOLS = {t.name: t for t in ca.TOOLS}
 
 
-def invoke(name: str, **args) -> dict:
-    tool = TOOLS[name]
+def invoke(tool_name: str, /, **args) -> dict:
+    tool = TOOLS[tool_name]
     payload = json.dumps(args)
-    ctx = ToolContext(context=ca.ChatContext(tab="givers", approved_by="Test approver"), tool_name=name,
-                      tool_call_id=f"test-{name}", tool_arguments=payload)
+    ctx = ToolContext(context=ca.ChatContext(tab="givers", approved_by="Test approver"), tool_name=tool_name,
+                      tool_call_id=f"test-{tool_name}", tool_arguments=payload)
     out = asyncio.run(tool.on_invoke_tool(ctx, payload))
     return out if isinstance(out, dict) else json.loads(out)
 
@@ -43,7 +43,7 @@ def undo(token: str) -> dict:
 
 
 def test_sends_merges_and_deletes_are_approval_gated_and_nothing_else():
-    assert ca.APPROVAL_TOOLS == {"send", "merge_duplicate", "delete_task", "delete_calendar_item"}
+    assert ca.APPROVAL_TOOLS == {"send", "merge_duplicate", "delete_task", "delete_calendar_item", "call_person"}
     reads = {"find_people", "get_person", "get_alerts", "get_events", "get_calendar", "get_tasks",
              "get_call_notes", "search_context"}
     writes = {"update_person", "add_interest", "remove_interest", "accept_enrichment", "merge_duplicate",
@@ -320,3 +320,85 @@ def test_add_contact_defaults_to_giver_and_expands_a_unique_short_name(db_file):
     assert knight["full_name"] == "John S. and James L. Knight Foundation"         # exact name: cached tags match
     assert "which one did you mean" in invoke("add_contact", full_name="Foundation",
                                               donor_type="organization")["error"]
+
+
+def test_rsvp_step_reads_like_a_sentence():
+    assert ca.summarize({"event_id": 3, "person_id": 7, "rsvp": "yes", "full_name": "Rosa Delgado",
+                         "event_title": "Beach Cleanup", "starts_at": "2026-11-21", "undo_token": "t"}) == \
+        "RSVP: Rosa Delgado → Beach Cleanup (Sat Nov 21), attending"
+    assert ca.summarize({"event_id": 3, "person_id": 7, "rsvp": "no"}) == "RSVP: person 7 → event 3, not attending"
+
+
+def lapsed_and_tagged(db_file) -> tuple[int, int]:
+    """Two givers: one whose last gift is 3 days old, one 60 days old with interests on file and from Enrich."""
+    conn = sqlite3.connect(db_file)
+    try:
+        recent, lapsed = [r[0] for r in conn.execute(
+            "SELECT id FROM donors WHERE contact_type = 'giver' ORDER BY id LIMIT 2")]
+        conn.execute("DELETE FROM gifts WHERE donor_id IN (?, ?)", (recent, lapsed))
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 50, '2026-11-05', 'online')",
+                     (recent,))
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 50, '2026-09-09', 'online')",
+                     (lapsed,))
+        conn.execute("UPDATE donors SET interests = ? WHERE id = ?", (json.dumps(["kids program"]), lapsed))
+        db.create_schema(conn)
+        conn.execute("INSERT INTO donor_interests (donor_id, tag, confidence, evidence, source_url, source_type, set_by) "
+                     "VALUES (?, 'environment', 'high', 'Sponsored the Biscayne Bay cleanup', 'https://example.org/bay', "
+                     "'event_sponsor', 'agent')", (lapsed,))
+        conn.commit()
+    finally:
+        conn.close()
+    return recent, lapsed
+
+
+def test_find_people_filters_by_days_since_last_gift_and_interest(db_file):
+    recent, lapsed = lapsed_and_tagged(db_file)
+    people = {p["id"]: p for p in invoke("find_people", no_gift_in_days=7, limit=50)["people"]}
+    assert lapsed in people and recent not in people
+    assert people[lapsed]["last_gift_date"] == "2026-09-09"
+    assert set(people[lapsed]["interests"]) >= {"kids program", "environment"}
+    tagged = invoke("find_people", interest="environment", limit=50)["people"]
+    assert [p["id"] for p in tagged] == [lapsed]
+    name = one(db_file, "SELECT full_name FROM donors WHERE id = ?", lapsed)["full_name"]
+    assert lapsed in [p["id"] for p in invoke("find_people", name=name.split()[0].lower())["people"]]
+
+
+def test_campaign_drafts_are_given_the_donors_interests(db_file):
+    from service import routes_campaigns as rc
+    _, lapsed = lapsed_and_tagged(db_file)
+    conn = db.connect()
+    try:
+        _, _, _, research = rc.load_donor(conn, lapsed)
+    finally:
+        conn.close()
+    text = " ".join(f["fact"] for f in research)
+    assert "kids program" in text and "Biscayne Bay cleanup" in text
+    assert any(f["source_url"] == "https://example.org/bay" for f in research)
+
+
+def test_a_resumed_run_returns_only_steps_the_user_has_not_seen(monkeypatch):
+    """The SDK's resumed result repeats the items from before the pause; the thread already shows those."""
+    from types import SimpleNamespace
+    shown = [{"tool": "find_people", "call_id": "a", "status": "done", "summary": "2 people", "undo_token": None},
+             {"tool": "send", "call_id": "b", "status": "awaiting_approval", "summary": "waiting", "undo_token": None}]
+    rerun = [dict(shown[0]), {**shown[1], "status": "done", "summary": "Approved: batch #1, 2 sent"},
+             {"tool": "get_tasks", "call_id": "c", "status": "done", "summary": "0 tasks", "undo_token": None}]
+    monkeypatch.setattr(ca, "steps_from", lambda items: [dict(s) for s in rerun])
+    result = SimpleNamespace(new_items=[], interruptions=[], final_output="Sent.")
+    out = ca.respond(result, ca.ChatContext(tab="home"), {"tab": "home"}, shown)
+    assert [s["call_id"] for s in out["steps"]] == ["b", "c"]
+    assert out["steps"][0]["summary"].startswith("Approved")
+
+
+def test_approval_cards_name_the_person_and_the_batch(db_file):
+    conn = sqlite3.connect(db_file)
+    try:
+        pid, name = conn.execute("SELECT id, full_name FROM donors WHERE contact_type = 'giver' ORDER BY id").fetchone()
+        conn.execute("UPDATE donors SET phone = '305-555-0104' WHERE id = ?", (pid,))
+        conn.commit()
+    finally:
+        conn.close()
+    assert ca.approval_summary("call_person", {"person_id": pid}) == f"Call {name} at ***-***-0104"
+    batch = invoke("draft_email", person_ids=[pid], intent="thank_you")["batch_id"]
+    assert ca.approval_summary("send", {"batch_id": batch}).startswith("Send 1 email")
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": 1}) is None

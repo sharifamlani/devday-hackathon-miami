@@ -57,6 +57,9 @@ export interface ApiDonorRow {
   status: string | null;
   why: ApiWhy | null;
   score_as_of: string | null;
+  contact_type?: string | null; // giver | neighbor | community (#60)
+  auto_merged?: boolean | null; // an exact-match merge staff haven't reviewed (#125)
+  merged_from?: number | null; // how many source records it joined
 }
 
 export interface ApiGift {

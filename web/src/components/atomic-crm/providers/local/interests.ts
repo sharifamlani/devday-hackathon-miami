@@ -10,13 +10,18 @@ export interface InterestTag {
   definition: string;
 }
 
+/** How sure the agent is (docs/research/interest-areas.md §3); staff-set tags come back "high". */
+export type InterestConfidence = "high" | "medium" | "low";
+
 export interface PersonInterest {
-  tag: string; // a slug from GET /interest-tags
+  tag: string; // one of the 17 slugs from GET /interest-tags
   sub_tag: string | null;
-  confidence: number | null; // 0-1 for agent-found tags; null when a person set it
+  confidence: InterestConfidence | null;
   evidence: string | null;
-  source_url: string | null;
-  set_by: string; // "agent" | a staff name
+  source_url: string | null; // always set for agent tags; null for staff tags
+  set_by?: string; // "agent" | "staff"; absent on dry-run proposals (all agent-found)
+  label?: string; // the tag's label, when the service includes it
+  source_type?: string | null; // board_seat, named_gift, statement, ...
 }
 
 export interface EnrichFact {
@@ -30,7 +35,12 @@ export interface EnrichFact {
 export interface EnrichPreview {
   facts: EnrichFact[];
   interests: PersonInterest[];
-  contact: Record<string, string | null>; // e.g. {email, phone, employer}
+  contact: Record<string, unknown>; // {website, public_phone, employer, location, source_urls, ...}
+  /** confirmed | probable | ambiguous | not_found, or not_researched for individuals */
+  identity_match?: string;
+  /** What matched; ["name"] alone means a name-only match (shown as ambiguous, with the service's note). */
+  identity_basis?: string[];
+  notes?: string | null; // e.g. "individual donors are not researched in the demo"
 }
 
 export interface AcceptEnrichmentInput {
@@ -38,9 +48,17 @@ export interface AcceptEnrichmentInput {
   tags: string[];
 }
 
-/** {saved}: a count, or {facts, interests, contact} counts (docs/ui-integration.md §2). */
+/** {saved}: a count, or {facts, interests, contact} (docs/ui-integration.md §2). */
 export type AcceptEnrichmentResult = {
-  saved: number | { facts?: number; interests?: number; contact?: number | boolean };
+  saved:
+    | number
+    | {
+        facts?: number;
+        interests?: number;
+        contact?: unknown; // echoed for display; never stored (contact_persisted: false)
+        skipped_staff_tags?: string[]; // tags staff set or removed: the agent never overrides them
+      };
+  undo?: string;
 };
 
 export const interestKeys = {
@@ -62,7 +80,7 @@ export const addInterest = (personId: number, input: { tag: string; sub_tag?: st
 
 /** The row is kept (marked removed); the response says so. */
 export const removeInterest = (personId: number, tag: string) =>
-  call<{ removed: true }>(
+  call<{ removed: boolean; undo?: string }>(
     "Removing an interest",
     "DELETE",
     `/people/${personId}/interests/${encodeURIComponent(tag)}`,

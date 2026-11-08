@@ -1,10 +1,12 @@
-import { useContext } from "react";
-import { AudioLines } from "lucide-react";
+import { useContext, useState } from "react";
+import { AudioLines, Phone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AskSessionContext } from "../ask/askSessionContext";
+import { DATA_MODE } from "../providers/local/config";
 import { callNotesForDonor } from "../providers/local/crmDonors";
 import { useCallNotes, type CallNote } from "../voice/callNotes";
+import { PhoneCallDialog } from "../voice/PhoneCallDialog";
 import { ProfileSection } from "./donorCrmUi";
 
 const when = (iso: string) => {
@@ -41,25 +43,46 @@ export const CallNotesPanel = ({
   const session = useContext(AskSessionContext);
   const notes = callNotesForDonor(donorId, serverNotes, browserNotes);
   const shown = limit ? notes.slice(0, limit) : notes;
+  // Placing a phone call needs the laptop service; the Vercel snapshot can't
+  const canPhone = DATA_MODE === "local";
+  const [phoneOpen, setPhoneOpen] = useState(false);
 
   return (
     <ProfileSection
       title="Call notes"
       caption="From the live transcript pane"
       actions={
-        session ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="rounded-full"
-            onClick={() => session.openPane("voice")}
-          >
-            <AudioLines aria-hidden />
-            Start a call
-          </Button>
+        session || canPhone ? (
+          <div className="flex flex-wrap gap-2">
+            {canPhone && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setPhoneOpen(true)}
+              >
+                <Phone aria-hidden />
+                Call from my phone
+              </Button>
+            )}
+            {session && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => session.openPane("voice")}
+              >
+                <AudioLines aria-hidden />
+                Start a call
+              </Button>
+            )}
+          </div>
         ) : undefined
       }
     >
+      {canPhone && (
+        <PhoneCallDialog donorId={donorId} open={phoneOpen} onOpenChange={setPhoneOpen} />
+      )}
       {shown.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No call notes yet. Notes saved to this donor from a call show up here.
@@ -69,7 +92,15 @@ export const CallNotesPanel = ({
           {shown.map((note) => (
             <li key={note.id} className="rounded-xl bg-muted/60 p-3 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <h3 className="font-medium">{note.title}</h3>
+                <h3 className="font-medium">
+                  {note.title}
+                  {note.id.startsWith("phone-") && (
+                    <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                      <Phone aria-hidden className="mr-1 inline size-3" />
+                      Phone call · recorded
+                    </span>
+                  )}
+                </h3>
                 <span className="text-xs text-muted-foreground">
                   {when(note.createdAt)}
                   {note.durationSec > 0 && ` · ${duration(note.durationSec)}`}

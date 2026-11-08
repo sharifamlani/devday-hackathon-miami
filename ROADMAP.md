@@ -4,19 +4,19 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.10 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.11 · Sun Nov 8, 2026 (early morning) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
 ## §0 You are here
 
-- **Current phase:** Phase 5E (three CRMs in one + calendar + chat agent), building in parallel · Phase 4 (Integrate, QA-gated merges) · Phase 5B (ICP + prospects + org outreach) · Christian integrating his design (5)
-- **Current step:** 4.5, PR #12 (service) re-check by QA at its new head, then #11 and #13; QA-gated, the lead merges on approval
+- **Current phase:** Phase 5F (Home zoom panels) + integrate · Phase 5E (three CRMs in one + calendar + chat agent) still open · Christian integrating his design (5)
+- **Current step:** U1 mapping refresh (docs PR open), U2 agenda sidebar and U3 zoom panels in build; open UI PRs #126, #134, #135, #123 awaiting review
 - **Blocking decisions (Sharif):** 6.6 Amazon fact
-- **In flight:** 7.2 SQLite per-request connection fix (8b) · 7.3 service-wide model timeout (90) · QA round 4 (98)
-- **Next unblocked action:** merge PR #12 on QA approval
+- **In flight:** U1–U3 (mapping refresh, agenda sidebar, zoom panels framework)
+- **Next unblocked action:** merge U2 (feat/agenda-sidebar)
 - **Clock:** freeze **Sun Nov 8, 4:15 PM** · team in person at The LAB **4:30 PM** · submissions close **4:45 PM ET**
-- **Last update:** Sat Nov 7, 2026 · lead session ("Ideas")
+- **Last update:** Sun Nov 8, 2026 · lead session ("Ideas")
 
 ## §1 The North Star
 
@@ -208,6 +208,19 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5E.15 | Daily refresh agent: re-read website/news daily + "Refresh now"; update facts + calendar; re-draft invites for new/changed events; log changes; never wipe on failure | 86 (logic) · 90 (scheduler + route) | ⏸ | — | same |
 | 5E.16 | UI: "Context updated today …" + Refresh now; social posting shown as **Coming soon** | 80 · Christian | ⏸ | — | same |
 
+### Phase 5F — Home zoom panels (Sharif, Sun Nov 8)
+**Goal:** Tasks, Calendar, CRM (Givers) and Impact & story zoom open inside Home as a ~2/3 panel with the agent chat still visible at ~1/3 (`docs/problem-solution-mapping.md` §3.6). **Entry gate:** Christian's `WorkspaceSidebar` on main. **Exit gate:** `scripts/verify_home_zoom.py` passes (panel ratio 0.63–0.70, chat ≥380px, 0 console errors) and U1–U7 are merged before the 4:15 PM freeze. **Status:** ⏸
+
+| # | Action | Owner | Status | Date · Commit | Source |
+|---|---|---|---|---|---|
+| U1 | Problem-solution mapping refreshed to main@8ee6258; §3.6 Home v3 | 9e | ✅ | Nov 8 · PR #140 `04be0ee` | `docs/problem-solution-mapping.md` |
+| U2 | Agenda sidebar: day-grouped list calendar on Home, Projects section removed (PR2 feat/agenda-sidebar) | 9e | ✅ Nov 8 · PR #152 | — | mapping §3.6 (D2, D3) |
+| U3 | Zoom panels framework + View Transitions animation + `scripts/verify_home_zoom.py` (PR3 feat/zoom-panels) | 9e | ⏸ | — | mapping §3.6 (D1, D6) |
+| U4 | Tasks panel (PR3b feat/tasks-panel) | 9e | ⏸ | — | mapping §3.6 |
+| U5 | Impact & story panel: `/context`, `/context/status`, `/community/stats` (PR3c feat/impact-panel; closes P4, P5) | 9e | ⏸ | — | mapping §2 P4+P5 (D4) |
+| U6 | Workspace hotkeys Alt+C / Alt+T / Alt+M / Ctrl+I / Alt+V / Esc (PR4 feat/workspace-hotkeys, after #123) | 9e | ⏸ | — | mapping §3.6 (D5) |
+| U7 | Changed rows flash after agent writes (PR5 feat/row-flash) + send labels "Sent via Gmail/Twilio" / "Dry run" (PR6 fix/send-labels) | 9e | ⏳ send labels ✅ #146; row flash pending | — | mapping §3.6 |
+
 ### Phase 6 — Data and ingest
 **Goal:** the demo's donor data matches the challenge, and upload works. **Entry gate:** 1.6. **Exit gate:** upload → ranked list, 6/6 duplicates. **Status:** ⏸
 
@@ -289,6 +302,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 - **Stat-MCP transaction-first file import (feature branch):** CSV, JSON, XLSX, DOCX, Markdown, and text readers preserve explicit events and derive person summaries; batch MCP import added, server default moved to port 8010. Main-app `/ingest` adapter and SQLite persistence remain a separate integration step.
 
+- **v0.11 · Sun Nov 8, 2026 (early morning):** Phase 5F added: Home zoom panels (U1–U7), Sharif-approved. Problem-solution mapping re-derived from `main` @ `8ee6258` (U1, docs PR open). In flight: U1–U3; next unblocked: merge U2. Open UI PRs: #126, #134, #135, #123. Freeze unchanged (Sun 4:15 PM).
 - **v0.10 · Sat Nov 7, 2026 (night):** one context database (profile + facts + calendar + audiences + drafts + refresh log); daily refresh agent; social posting = Coming soon (5E.14–5E.16). Merged: #41 (Faye's landing), #43.
 - **v0.9 · Sat Nov 7, 2026 (night):** names locked Givers · Neighbors · Community; send gate = Christian's campaigns (no second log); 5E dispatched to 8b, 86, 90, 80, 42 + new ingest and sample-input agents; Christian's issues #36–#40 mapped (5E.5/5E.6/5E.8/5E.13); Faye's landing PR #41 awaiting naming. Merged since v0.7: #28–#35, #42.
 - **v0.8 · Sat Nov 7, 2026 (night):** Phase 5E: three CRMs in one (names locked: Givers · Neighbors · Community), upload with tab choice or agent sort, event calendar from website + social context with pre-drafted invites, chat agent with approval-gated email/SMS (Linq or Twilio). No iPhone app. Individual-giver research parked. `plan.md` §17.
