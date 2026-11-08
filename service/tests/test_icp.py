@@ -30,7 +30,7 @@ def test_icp_stats_from_seeded_db(db_file):
     stats = icp_agent.icp_stats(conn)
     conn.close()
     names = [d["name"] for d in stats["donors"]]
-    assert "Amazon" in names and "Maria Delgado" not in names          # organizations only
+    assert "Seagrape Logistics Co." in names and "Maria Delgado" not in names   # organizations only
     assert stats["org_donors"] == len(names)
     band = stats["lifetime_band"]
     assert band["min"] <= band["median"] <= band["max"]
@@ -54,7 +54,7 @@ def test_fit_score_is_deterministic_and_ranks_geography():
 
 def test_find_prospects_excludes_donors_and_thin_or_dead_sources(tmp_path, monkeypatch):
     monkeypatch.setattr(icp_agent, "ICP_CACHE", tmp_path / "icp_cache.json")
-    found = [prospect("Amazon, Inc."),                       # current donor (punctuation-insensitive)
+    found = [prospect("Seagrape Logistics, Inc."),           # current donor (punctuation-insensitive)
              prospect("Peacock Foundation", facts=3),        # fact 3 cites a page that doesn't state it
              prospect("Peacock Foundation"),                 # duplicate
              prospect("Thin Co", facts=1),                   # fewer than 2 facts
@@ -68,7 +68,7 @@ def test_find_prospects_excludes_donors_and_thin_or_dead_sources(tmp_path, monke
     text_for = lambda url: None if url.startswith("https://dea") else "mission only" if url == "https://pea/2" else page
     monkeypatch.setattr(icp_agent, "fetch_pages", lambda urls, budget: {u: text_for(u) for u in urls})
 
-    out = icp_agent.find_prospects(ICP, {"Amazon Inc"}, refresh=True)
+    out = icp_agent.find_prospects(ICP, {"Seagrape Logistics Inc"}, refresh=True)
     assert [p["name"] for p in out] == ["Peacock Foundation"]
     p = out[0]
     assert p["status"] == "new" and [f["url"] for f in p["facts"]] == ["https://pea/0", "https://pea/1"]
@@ -164,12 +164,12 @@ def test_reverify_keeps_only_facts_still_on_their_pages_and_merge_dedupes(monkey
          "facts": [{**fact, "url": "https://k/1"}, {**fact, "url": "https://k/2"}], "status": "new"},
         {"name": "No Quote Co", "city": "Miami", "priority": "Empower Youth & Families", "matched_traits": [],
          "facts": [{"fact": "x", "url": "https://n/1"}, {"fact": "y", "url": "https://n/2"}], "status": "new"},
-        {"name": "Amazon", "city": "Miami", "priority": "Empower Youth & Families", "matched_traits": [],
+        {"name": "Seagrape Logistics Co.", "city": "Miami", "priority": "Empower Youth & Families", "matched_traits": [],
          "facts": [{**fact, "url": "https://k/1"}, {**fact, "url": "https://k/2"}], "status": "new"},
     ]
     monkeypatch.setattr(icp_agent, "fetch_pages",
                         lambda urls, budget: {u: "the foundation funds youth programs in miami-dade." for u in urls})
-    kept = icp_agent.reverify(old, ICP, {"Amazon"})
+    kept = icp_agent.reverify(old, ICP, {"Seagrape Logistics Co."})
     assert [p["name"] for p in kept] == ["Kept Fund"] and kept[0]["fit_score"] > 0
     new = [{**kept[0], "fit_score": 10}, {"name": "Fresh", "fit_score": 50}]
     assert [p["name"] for p in icp_agent.merge_prospects(new, kept)] == ["Fresh", "Kept Fund"]

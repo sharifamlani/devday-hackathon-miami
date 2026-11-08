@@ -14,6 +14,21 @@ uv pip install --python .venv/Scripts/python.exe -r service/requirements.txt
 ```
 
 `SCORE_AS_OF` defaults to `2026-11-08` (set in `service/config.py`); override it in `.env`.
+
+## Demo persona (made-up data)
+
+The hackathon rules ask for made-up data, so the demo runs as **Tidepath**, a fictional Miami kids-and-families
+nonprofit. `service/org_config.json` `"persona"` picks the org (`DONOR_DESK_PERSONA` overrides it); restart the
+service and rerun the pipeline after a flip. Each pack lives in `service/personas/<persona>/` (`service/persona.py`
+explains the files): `tidepath` is invented end to end (seed donors, impact facts, research, ICP prospects; every
+fact cites `sample://tidepath/<slug>`, which is never fetched and shows as a "sample" label in the UI), and nothing
+real is researched for it. `miami_foundation` is the original real-org demo, kept unchanged for flipping back.
+
+Rebuild the snapshot with no AI calls:
+
+```bash
+CAMPAIGN_DRAFTER=template OPENAI_API_KEY= DONORS_DB=/tmp/donors.db python -m service.pipeline --as-of 2026-11-08
+```
 CORS allows the Vite dev servers on `localhost:5173` and `localhost:5174`.
 
 ## Routes
@@ -73,7 +88,7 @@ curl localhost:8000/donors/1
 curl -X POST localhost:8000/enrich/11
 curl -X POST localhost:8000/outreach/1
 curl -X POST localhost:8000/drafts/1/approve -H 'Content-Type: application/json' -d '{"approved_by":"Sharif"}'
-curl -X POST localhost:8000/context/run -H 'Content-Type: application/json' -d '{"website":"https://miamifoundation.org"}'
+curl -X POST localhost:8000/context/run -H 'Content-Type: application/json' -d '{"website":"https://tidepath.example.org"}'
 ```
 
 ## Files
@@ -85,4 +100,5 @@ curl -X POST localhost:8000/context/run -H 'Content-Type: application/json' -d '
 | `enrich_agent.py` | enrich lane | research agent |
 | `outreach_agent.py`, `org_context.py` | outreach lane | drafting agent, context agent |
 | `icp_agent.py` | ICP lane | ideal donor profile + prospect finder |
+| `persona.py`, `personas/`, `template_drafts.py` | made-up data | demo persona switch + SAMPLE packs; no-AI drafts for the snapshot |
 | `ingest/` | Carlos | file ingest (never edited by other lanes) |

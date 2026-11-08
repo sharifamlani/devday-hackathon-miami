@@ -129,7 +129,7 @@ score.
 | `org_name`, `donor_type` | string\|null, `"individual" \| "organization"` | |
 | `email`, `city`, `fund_type` | string\|null | `"Donor Advised"` |
 | `tier` | `"big" \| "mid" \| "small"` | |
-| `is_star` | boolean | ★ Shack Society level ($1M+ lifetime). **Never auto-sent** |
+| `is_star` | boolean | ★ star donor ($1M+ lifetime; reason code `shack_society_level`). **Never auto-sent** |
 | `is_sample` | boolean | Gift history is invented: show a "Sample history" badge |
 | `score` | number 0–100 | `89` |
 | `status` | `"lapsing" \| "due" \| "on_track" \| "lapsed" \| "no_gifts"` | |
@@ -165,7 +165,7 @@ once approved; `"approved"`; `"sent"`), `approved_by`, `approved_at`.
 - `recent_context: DatedFact[]`: the newest org facts the ICP leaned on, `{ source, fact, source_url, posted_at }`
 
 **`ProspectSummary`**: `id`, `name`, `org_type` (`"company"`, `"foundation"`, …), `city`, `fit_score`
-(0–100, Python), `matched_traits: string[]` (ICP trait labels), `priority` (the Foundation priority it
+(0–100, Python), `matched_traits: string[]` (ICP trait labels), `priority` (the org priority it
 fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_url }[]`,
 `fit_breakdown: { label, points }[]` (why it scored what it did; biggest first, sums to `fit_score`, e.g.
 "Priority overlap" 22, "Geography" 12) and `matched_context: DatedFact[]` (org facts it lines up with).

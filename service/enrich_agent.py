@@ -31,13 +31,17 @@ from dotenv import load_dotenv
 from openai.types.shared import Reasoning
 from pydantic import BaseModel, Field
 
+from service import persona
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(REPO_ROOT / ".env")
 
 # Until db.py lands, facts go here; save_facts() is the only writer, so swapping in SQLite is one edit
 FACTS_JSON = REPO_ROOT / "data" / "research_facts.json"
-# Precomputed research keyed by donor name, committed so the demo never waits on web search
-CACHE_JSON = REPO_ROOT / "data" / "research_cache.json"
+# Precomputed research keyed by donor name, committed so the demo never waits on web search. A fictional
+# persona (service/persona.py) uses its own SAMPLE research.json instead: invented facts about invented orgs.
+CACHE_JSON = (persona.pack_file("research") if persona.is_fictional()
+              else REPO_ROOT / "data" / "research_cache.json")
 NO_INFO = "no public information found"
 INDIVIDUAL_SKIP = "individual donors are not researched in the demo"
 URL_TIMEOUT_S = 8
@@ -70,6 +74,7 @@ Rules:
 - Never include home addresses, family members, personal phone numbers or personal social media.
 - Return 2 to 5 facts, the most useful for a fundraiser first. If you find nothing reliable, return an empty list.
 """
+INSTRUCTIONS = persona.localize(INSTRUCTIONS)
 
 agent = Agent(
     name="Donor enrichment",
@@ -82,7 +87,10 @@ agent = Agent(
 
 
 def url_loads(url: str) -> bool:
-    """True only when the URL ends (after redirects) in HTTP 200; used to drop facts with dead links."""
+    """True only when the URL ends (after redirects) in HTTP 200; used to drop facts with dead links.
+    A sample://<persona>/<slug> source is a labelled SAMPLE fact: accepted as sample, never fetched."""
+    if persona.is_sample_url(url):
+        return True
     if not url.startswith(("http://", "https://")):
         return False
     request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (donor-enrichment check)"})
@@ -134,7 +142,11 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
     Cached donors come back from data/research_cache.json without a model call unless refresh=True.
     focus steers the search (e.g. "Miami giving"); it only applies to live runs.
     Individuals are never researched live (see skip_reason); cached entries are vetted organizations.
+    Under a fictional persona every donor is invented, so a web search could only find some real namesake:
+    the pack's SAMPLE facts come back (refresh or not), or nothing.
     """
+    if persona.is_fictional():
+        return [Fact(**f) for f in read_cache().get(name, [])]
     if not refresh:
         cached = read_cache().get(name)
         if cached is not None:

@@ -1,0 +1,19 @@
+{
+  "Palmetto Lantern Foundation": [
+    {"fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.", "source_url": "sample://tidepath/research/palmetto-lantern-giving", "retrieved_at": "2026-11-07T18:00:00+00:00"},
+    {"fact": "SAMPLE: Its grant guidelines favor small nonprofits that report results every quarter.", "source_url": "sample://tidepath/research/palmetto-lantern-guidelines", "retrieved_at": "2026-11-07T18:00:00+00:00"}
+  ],
+  "Seagrape Logistics Co.": [
+    {"fact": "SAMPLE: Seagrape Logistics Co. matches employee donations to Miami family-support nonprofits each September.", "source_url": "sample://tidepath/research/seagrape-employee-match", "retrieved_at": "2026-11-07T18:00:00+00:00"},
+    {"fact": "SAMPLE: Its employee volunteer days include packing food boxes and school supplies for local families.", "source_url": "sample://tidepath/research/seagrape-volunteer-days", "retrieved_at": "2026-11-07T18:00:00+00:00"}
+  ],
+  "Marlowe Tide Foundation": [
+    {"fact": "SAMPLE: The Marlowe Tide Foundation makes multi-year grants for school success and summer learning in South Florida.", "source_url": "sample://tidepath/research/marlowe-tide-grants", "retrieved_at": "2026-11-07T18:00:00+00:00"},
+    {"fact": "SAMPLE: Its board reviews new grant requests each spring and renews current grantees in June.", "source_url": "sample://tidepath/research/marlowe-tide-cycle", "retrieved_at": "2026-11-07T18:00:00+00:00"},
+    {"fact": "SAMPLE: It also funds family coaching and parent education programs.", "source_url": "sample://tidepath/research/marlowe-tide-families", "retrieved_at": "2026-11-07T18:00:00+00:00"}
+  ],
+  "Quinterra & Vale Law Group": [
+    {"fact": "SAMPLE: Quinterra & Vale Law Group gives in-kind pro bono legal help to small Miami nonprofits.", "source_url": "sample://tidepath/research/quinterra-vale-pro-bono", "retrieved_at": "2026-11-07T18:00:00+00:00"},
+    {"fact": "SAMPLE: Its attorneys volunteer as mentors through a local business partners program.", "source_url": "sample://tidepath/research/quinterra-vale-volunteers", "retrieved_at": "2026-11-07T18:00:00+00:00"}
+  ]
+}

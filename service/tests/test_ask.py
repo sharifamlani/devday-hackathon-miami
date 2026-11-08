@@ -20,11 +20,12 @@ from service.tests.conftest import AS_OF
 
 QUARTER_THANKS, GONE_QUIET, MONTHLY_LATE, BIG_NOT_CALLED = EXAMPLE_QUESTIONS
 
-# Seed ids (service/db.py SEED_DONORS order): 1 Maria Delgado, 2 María Delgado-Ruiz, 3 James Carter,
-# 4 Biscayne Harbor, 5 Robert Nguyen, 6 Angela Brooks, 7 Luis Herrera, 8 Priya Shah, 9 Knight Foundation,
-# 10 Amazon, 11 DeLuca Foundation, 12 McDermott Will & Schulte
+# Seed ids (the tidepath pack, service/personas/tidepath/donors.json): 1 Maria Delgado, 2 María Delgado-Ruiz,
+# 3 James Carter, 4 Biscayne Harbor, 5 Robert Nguyen, 6 Angela Brooks, 7 Luis Herrera, 8 Priya Shah,
+# 9 Palmetto Lantern Foundation, 10 Seagrape Logistics Co., 11 Marlowe Tide Foundation (star),
+# 12 Quinterra & Vale Law Group. Same ids, tiers and histories as the miami_foundation pack.
 SEED_EXPECTED = {
-    # gave Oct 1 - Nov 7, 2026: Knight $50,000 (Oct 5), James Carter $50 (Oct 15); biggest total first
+    # gave Oct 1 - Nov 7, 2026: Palmetto Lantern $50,000 (Oct 5), James Carter $50 (Oct 15); biggest total first
     QUARTER_THANKS: [9, 3],
     # overdue vs cadence or missed their usual month, by score. Luis Herrera (December giver, window next
     # month) is not quiet; Priya Shah and the on-track orgs are not either
@@ -118,7 +119,7 @@ def test_filter_fields(seeded):
 
     assert ids(star=True) == [11, 4]
     assert set(ids(star=False)) == set(range(1, 13)) - {11, 4}
-    assert ids(donor_type="organization", sort="name") == [10, 4, 11, 9, 12]
+    assert ids(donor_type="organization", sort="name") == [4, 11, 9, 12, 10]   # Biscayne, Marlowe, Palmetto, Quinterra, Seagrape
     assert ids(channel=["give miami day"]) == [1]
     assert ids(cadence="quarterly") == [5]
     assert ids(cadence="one_time", sort="name") == [6, 2, 8]
@@ -146,7 +147,7 @@ def test_only_approved_or_sent_outreach_counts_as_contact(seeded):
                        "approved_at) VALUES (?, 'email', 'Hello', ?, ?, ?, ?)",
                        (donor_id, status, created_at, approved_at and "Staff", approved_at))
     seeded.commit()
-    assert ids_for(seeded, BIG_NOT_CALLED, AS_OF) == [4, 9, 10]   # only DeLuca was contacted since Oct 1
+    assert ids_for(seeded, BIG_NOT_CALLED, AS_OF) == [4, 9, 10]   # only Marlowe Tide was contacted since Oct 1
     assert [r["id"] for r in apply_filter(seeded, AskFilter(has_draft=True), AS_OF)] == [11, 4, 9]
     assert [r["id"] for r in apply_filter(seeded, AskFilter(has_draft=False, tier=["big"]), AS_OF)] == [10]
 
@@ -166,8 +167,8 @@ def test_rows_match_get_donors_plus_ask(seeded):
         ask = row.pop("ask")
         assert row == by_id[row["id"]]
         assert ask["period_gifts"] >= 1
-    knight = apply_filter(seeded, rules_plan(QUARTER_THANKS, AS_OF).filter, AS_OF)[0]
-    assert knight["ask"] == {"period_total": 50000.0, "period_gifts": 1, "last_gift_date": "2026-10-05"}
+    palmetto = apply_filter(seeded, rules_plan(QUARTER_THANKS, AS_OF).filter, AS_OF)[0]
+    assert palmetto["ask"] == {"period_total": 50000.0, "period_gifts": 1, "last_gift_date": "2026-10-05"}
 
 
 def test_agent_is_read_only_and_its_schema_is_strict():

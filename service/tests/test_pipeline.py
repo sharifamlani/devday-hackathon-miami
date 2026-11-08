@@ -24,7 +24,7 @@ def stubs(monkeypatch):
     calls = {"enriched": [], "drafted": [], "prospect_drafts": [], "excluded": set(), "context_urls": None, "context_calls": []}
 
     enrich = types.ModuleType("service.enrich_agent")
-    enrich.read_cache = lambda: {"Amazon": [], "Frederick A. DeLuca Foundation": []}
+    enrich.read_cache = lambda: {"Seagrape Logistics Co.": [], "Marlowe Tide Foundation": []}
 
     def enrich_donor(name, org_name=None, city=None, focus=None, refresh=False):
         calls["enriched"].append(name)
@@ -84,7 +84,7 @@ def stubs(monkeypatch):
             {"name": "Everglades Futures Co", "org_type": "company", "city": "Doral", "fit_score": 61,
              "matched_traits": ["sector"], "priority": "Climate & Resilience",
              "facts": [{"fact": "Climate", "url": "https://example.org/3"}, {"fact": "Doral", "url": "https://example.org/4"}]},
-            {"name": "AMAZON", "org_type": "company", "city": "Miami", "fit_score": 99,       # a current donor
+            {"name": "SEAGRAPE LOGISTICS CO", "org_type": "company", "city": "Miami", "fit_score": 99,   # a current donor
              "matched_traits": ["sector"], "priority": "Civic", "facts": []},
         ]
 
@@ -119,7 +119,7 @@ def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     stage = {r["stage"]: r for r in report}
 
     # Orgs only, cache only: the two cached orgs; no individual, no uncached org
-    assert sorted(stubs["enriched"]) == ["Amazon", "Frederick A. DeLuca Foundation"]
+    assert sorted(stubs["enriched"]) == ["Marlowe Tide Foundation", "Seagrape Logistics Co."]
     assert "individuals skipped by policy" in stage["enrich"]["detail"]
 
     snap = json.loads(out.read_text(encoding="utf-8"))
@@ -132,14 +132,14 @@ def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
         assert len(drafts) == 1 and drafts[0]["facts_used"]
     for d in stars:
         assert snap["donor_details"][str(d["id"])]["outreach_drafts"][0]["status"] == "draft"
-    deluca = next(d for d in snap["donors"] if d["full_name"] == "Frederick A. DeLuca Foundation")
-    facts = snap["donor_details"][str(deluca["id"])]["research_facts"]
+    marlowe = next(d for d in snap["donors"] if d["full_name"] == "Marlowe Tide Foundation")
+    facts = snap["donor_details"][str(marlowe["id"])]["research_facts"]
     assert facts and all(f["source_url"].startswith("https://") for f in facts)
     assert all(today == AS_OF for _, today, _ in stubs["drafted"])
     assert snap["meta"]["as_of"] == "2026-11-08"
 
     # Context stage: config URLs in, facts newest first, the URL-less fact dropped, blocked shown as blocked
-    assert stubs["context_urls"]["website"] == "https://miamifoundation.org"
+    assert stubs["context_urls"]["website"] == "https://tidepath.example.org"     # the active persona's (tidepath)
     assert stubs["context_urls"]["x_url"] is None and "_comment" not in stubs["context_urls"]
     ctx = snap["context"]
     assert [f["source"] for f in ctx["facts"]] == ["linkedin", "website"]
@@ -147,7 +147,7 @@ def test_pipeline_fills_facts_drafts_and_snapshot(env, stubs):
     assert "1 facts without a URL dropped" in stage["context"]["detail"]
 
     # ICP stage: profile, prospects best-fit first, current donors excluded, a 'draft' per prospect
-    assert "Amazon" in stubs["excluded"]
+    assert "Seagrape Logistics Co." in stubs["excluded"]
     assert len(snap["icp"]["traits"]) == 2 and snap["icp"]["stats"] == {"org_donors": 5}
     assert [p["name"] for p in snap["prospects"]] == ["Coral Reef Arts Fund", "Everglades Futures Co"]
     for p in snap["prospects"]:

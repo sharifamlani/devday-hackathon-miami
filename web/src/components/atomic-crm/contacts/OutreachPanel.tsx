@@ -37,7 +37,7 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
     >
       <PanelHeading
         title="Draft"
-        caption="Outreach agent · written in the Foundation's voice"
+        caption="Outreach agent · written in your organization's voice"
       >
         {!draft && (
           <Button
@@ -144,8 +144,8 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          No draft yet. The outreach agent leads with what the Foundation did,
-          then the ask.
+          No draft yet. The outreach agent leads with what your organization
+          did, then the ask.
         </p>
       )}
       {(draftOutreach.isError || approve.isError) && (
@@ -160,7 +160,7 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
 export const SampleHistoryBadge = () => (
   <span
     className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-soft-foreground"
-    title="This donor's gifts are invented sample data, not the Foundation's records."
+    title="This donor's gifts are invented sample data, not real records."
   >
     Sample history
   </span>

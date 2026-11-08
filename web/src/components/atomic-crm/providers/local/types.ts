@@ -155,7 +155,7 @@ export interface ProspectSummary {
   city: string | null;
   fit_score: number; // 0-100, computed in Python from matched traits
   matched_traits: string[];
-  priority: string | null; // the Foundation priority it fits
+  priority: string | null; // the org priority it fits
   status: ProspectStatus;
   facts: FactUsed[]; // sourced facts, every one with a URL
   fit_breakdown: FitComponent[]; // biggest first; sums to fit_score

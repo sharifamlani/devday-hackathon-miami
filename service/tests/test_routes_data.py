@@ -91,14 +91,14 @@ def test_draft_columns_round_trip_through_detail(db_file):
     assert draft["facts_used"] == facts
 
 
-def test_seed_has_real_orgs_and_two_stars(db_file):
+def test_seed_has_fictional_orgs_and_two_stars(db_file):
     donors = client().get("/donors").json()
     by_name = {d["full_name"]: d for d in donors}
-    for org in ["Amazon", "John S. and James L. Knight Foundation", "Frederick A. DeLuca Foundation",
-                "McDermott Will & Schulte"]:
+    for org in ["Seagrape Logistics Co.", "Palmetto Lantern Foundation", "Marlowe Tide Foundation",
+                "Quinterra & Vale Law Group"]:
         assert by_name[org]["donor_type"] == "organization" and by_name[org]["source_row"] == "SAMPLE"
     stars = {d["full_name"] for d in donors if d["is_star"]}
-    assert stars == {"Frederick A. DeLuca Foundation", "Biscayne Harbor Family Foundation"}
+    assert stars == {"Marlowe Tide Foundation", "Biscayne Harbor Family Foundation"}
 
 
 def test_is_sample_on_list_detail_and_snapshot(db_file, tmp_path):

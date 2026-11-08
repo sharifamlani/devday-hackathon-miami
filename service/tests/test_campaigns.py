@@ -12,8 +12,8 @@ from service import db
 from service.main import app
 from service.export_snapshot import build_snapshot
 
-# Seed ids (db.SEED_DONORS order): 1 Maria Delgado, 3 James Carter, 4 Biscayne Harbor (star org),
-# 5 Robert Nguyen, 6 Angela Brooks, 9 Knight Foundation (org, no email), 11 DeLuca (star org)
+# Seed ids (tidepath pack order): 1 Maria Delgado, 3 James Carter, 4 Biscayne Harbor (star org),
+# 5 Robert Nguyen, 6 Angela Brooks, 9 Palmetto Lantern Foundation (org, no email), 11 Marlowe Tide (star org)
 FIVE = [1, 3, 4, 5, 6]
 
 
@@ -55,7 +55,7 @@ def test_five_donors_make_five_distinct_model_drafts(client, monkeypatch):
     assert len(c["messages"]) == 5 and len({m["body"] for m in c["messages"]}) == 5
     assert all(m["drafted_by"] == "model" and m["status"] == "draft" and m["flags"] == [] for m in c["messages"])
     assert "$3,000 gift" in by_donor(c)[1]["body"]          # Maria's last gift: a real record fact
-    assert all(m["facts_used"] and m["facts_used"][0]["url"].startswith("http") for m in c["messages"])
+    assert all(m["facts_used"] and m["facts_used"][0]["url"].startswith(("http", "sample://")) for m in c["messages"])
     assert c["name"] == "Thank you · Email · 5 donors" and c["counts"]["total"] == 5
 
 
@@ -123,13 +123,13 @@ def test_send_moves_approved_messages_to_a_masked_simulated_outbox(client):
     c = client.post("/campaigns", json={"donor_ids": [1, 5, 9, 6], "intent": "thank_you", "channel": "email"}).json()
     msgs = by_donor(c)
     client.post(f"/campaigns/{c['id']}/approve-small")
-    client.patch(f"/campaigns/{c['id']}/messages/{msgs[9]['id']}", json={"status": "approved"})   # Knight: no email
+    client.patch(f"/campaigns/{c['id']}/messages/{msgs[9]['id']}", json={"status": "approved"})   # Palmetto Lantern: no email
     client.patch(f"/campaigns/{c['id']}/messages/{msgs[6]['id']}", json={"status": "skipped"})
 
     r = client.post(f"/campaigns/{c['id']}/send").json()
 
     assert r["simulated"] is True and r["sent"] == 2
-    assert r["no_address"] == [{"message_id": msgs[9]["id"], "donor_name": "John S. and James L. Knight Foundation",
+    assert r["no_address"] == [{"message_id": msgs[9]["id"], "donor_name": "Palmetto Lantern Foundation",
                                 "reason": "no email on file"}]
     out = client.get("/outbox").json()
     assert {o["donor_name"] for o in out} == {"Maria Delgado", "Robert Nguyen"}

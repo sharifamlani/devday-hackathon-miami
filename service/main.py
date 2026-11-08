@@ -113,8 +113,9 @@ def newest_draft(column: str, ref_id: int) -> dict | None:
 
 
 def cached_icp() -> dict | None:
-    """data/icp_cache.json has the same shape run_icp returns."""
-    path = config.REPO_ROOT / "data" / "icp_cache.json"
+    """data/icp_cache.json (or a fictional persona's SAMPLE icp.json) has the same shape run_icp returns."""
+    from service import persona
+    path = persona.pack_file("icp") if persona.is_fictional() else config.REPO_ROOT / "data" / "icp_cache.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
@@ -266,9 +267,14 @@ def cached_context(website: str | None) -> dict | None:
     """
     from service import routes_data
 
+    from service import persona
+
     host = host_of(website)
     if not host:
         return None
+    sample = persona.sample_context({"website": website})   # a fictional persona's own site: its SAMPLE pack
+    if sample is not None:
+        return {"profile": sample["profile"], "facts": sample["facts"]}
     if hasattr(routes_data, "get_org_profile_or_none"):
         conn = db.connect()
         try:

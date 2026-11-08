@@ -81,7 +81,8 @@ def stage_rebuild(as_of: date, keep_db: bool) -> str:
 
 
 def load_org_config(path: Path = ORG_CONFIG) -> dict:
-    config = json.loads(path.read_text(encoding="utf-8"))
+    from service import persona                      # the org's URLs come from the active persona pack
+    config = {**persona.org_urls(), **json.loads(path.read_text(encoding="utf-8"))}
     return {k: v for k, v in config.items() if not k.startswith("_")}
 
 
@@ -165,6 +166,14 @@ def bound_model_calls(timeout_s: float = MODEL_TIMEOUT_S) -> None:
         set_default_openai_client(AsyncOpenAI(timeout=timeout_s, max_retries=2))
 
 
+def template_drafter():
+    """CAMPAIGN_DRAFTER=template: draft from the deterministic templates (service/template_drafts.py) instead
+    of the model, so a snapshot can be rebuilt with no AI calls. None means use the outreach agent."""
+    if os.environ.get("CAMPAIGN_DRAFTER", "").lower() != "template":
+        return None
+    return importlib.import_module("service.template_drafts")
+
+
 def stage_outreach(as_of: date, top_n: int, workers: int = 4) -> str:
     outreach_agent, org_context = load_stage("outreach")
     bound_model_calls()
@@ -178,7 +187,7 @@ def stage_outreach(as_of: date, top_n: int, workers: int = 4) -> str:
     def draft(donor_id: int):
         d = details[donor_id]
         try:
-            return donor_id, outreach_agent.draft_outreach(
+            return donor_id, (template_drafter() or outreach_agent).draft_outreach(
                 d, d["gifts"], d["why"], d["research_facts"], org_facts, today=as_of), None
         except Exception as e:                      # one bad draft must not sink the demo run
             return donor_id, None, f"{type(e).__name__}: {e}"
@@ -227,7 +236,7 @@ def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
 
     def draft(p: dict):
         try:
-            return p, outreach_agent.draft_prospect(p, profile, org_facts, today=as_of), None
+            return p, (template_drafter() or outreach_agent).draft_prospect(p, profile, org_facts, today=as_of), None
         except Exception as e:                      # one bad draft must not sink the demo run
             return p, None, f"{type(e).__name__}: {e}"
 

@@ -12,23 +12,23 @@ const run: ApiContextRun = {
   finished_at: "2026-11-07T23:00:20Z",
   sources: {
     instagram: { status: "not provided", facts: 0, detail: null },
-    x: { status: "saved, not connected", facts: 0, detail: "https://x.com/miamifoundation" },
+    x: { status: "saved, not connected", facts: 0, detail: "https://x.com/tidepath-example" },
     website: { status: "done", facts: 2, detail: null },
     news: { status: "blocked", facts: 0, detail: "captcha" },
     linkedin: { status: "saved, not connected", facts: 0, detail: "https://linkedin.com/company/x" },
   },
   profile: {
-    name: "The Miami Foundation",
-    website: "https://miamifoundation.org",
-    x_url: "https://x.com/miamifoundation",
+    name: "Tidepath",
+    website: "https://tidepath.example.org",
+    x_url: "https://x.com/tidepath-example",
     linkedin_url: "https://linkedin.com/company/x",
     instagram_url: "",
     priorities: '["Empower Youth & Families", "Build Climate & Disaster Resilience"]',
     voice: ["upbeat", "civic"],
   },
   facts: [
-    { id: 1, source: "website", url: "https://miamifoundation.org/a", posted_at: "2026-08-31", fact: "Older fact" },
-    { id: 2, source: "website", url: "https://miamifoundation.org/b", posted_at: "2026-09-15", fact: "Newer fact", quote: "q" },
+    { id: 1, source: "website", url: "https://tidepath.example.org/a", posted_at: "2026-08-31", fact: "Older fact" },
+    { id: 2, source: "website", url: "https://tidepath.example.org/b", posted_at: "2026-09-15", fact: "Newer fact", quote: "q" },
     { id: 3, source: "website", url: "", posted_at: "2026-10-01", fact: "No URL: dropped" },
   ],
   saved: { org_profile_id: 1, context_ids: [1, 2], replaced_sources: ["website"] },
@@ -47,7 +47,7 @@ describe("parseContextRun", () => {
     expect(parsed.sources[2]).toMatchObject({
       label: "X",
       status_text: "saved, not connected",
-      detail: "https://x.com/miamifoundation",
+      detail: "https://x.com/tidepath-example",
     });
     expect(parsed.status).toBe("done");
     expect(parsed.cached).toBe(false);
@@ -86,7 +86,7 @@ describe("parseContextRun", () => {
   it("reads voice phrases from build_context's {phrases, urls}", () => {
     const profile = parseOrgProfile({
       ...run.profile!,
-      voice: { phrases: ["All of us, together."], urls: ["https://miamifoundation.org/"] },
+      voice: { phrases: ["All of us, together."], urls: ["https://tidepath.example.org/"] },
     });
     expect(profile.voice).toEqual(["All of us, together."]);
   });
@@ -94,7 +94,7 @@ describe("parseContextRun", () => {
   it("parses GET /context as a bare list or as {profile, facts}", () => {
     expect(parseContext(run.facts!).facts).toHaveLength(2);
     expect(parseContext({ org_profile: run.profile, org_context: run.facts }).profile?.name).toBe(
-      "The Miami Foundation",
+      "Tidepath",
     );
   });
 });

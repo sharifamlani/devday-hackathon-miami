@@ -18,7 +18,7 @@ PROSPECTS = [
      "facts": [{"fact": "Funds arts", "url": "https://example.org/1"}]},
     {"name": "Everglades Futures Co", "org_type": "company", "city": "Doral", "fit_score": 61,
      "matched_traits": [], "priority": "Climate & Resilience", "facts": []},
-    {"name": "amazon.", "org_type": "company", "city": "Miami", "fit_score": 99, "matched_traits": [], "facts": []},
+    {"name": "seagrape logistics co", "org_type": "company", "city": "Miami", "fit_score": 99, "matched_traits": [], "facts": []},
 ]
 
 
@@ -30,7 +30,7 @@ def seeded(conn):
 def test_writers_store_profile_and_exclude_current_donors(conn):
     seeded(conn)
     out = db.save_icp_run(conn, {"generated_at": "x", "icp": PROFILE, "prospects": PROSPECTS})
-    assert len(out["prospect_ids"]) == 2                       # "amazon." matches donor Amazon
+    assert len(out["prospect_ids"]) == 2                       # matches donor "Seagrape Logistics Co."
     row = conn.execute("SELECT * FROM icp_profile WHERE id = ?", (out["icp_id"],)).fetchone()
     assert json.loads(row["stats"]) == PROFILE["stats"]
     names = [r[0] for r in conn.execute("SELECT name FROM prospects ORDER BY id")]

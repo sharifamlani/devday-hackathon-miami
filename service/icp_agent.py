@@ -30,14 +30,15 @@ from dotenv import load_dotenv
 from openai.types.shared import Reasoning
 from pydantic import BaseModel, Field
 
-from service import db
+from service import db, persona
 
 from service.enrich_agent import clean_fact, read_cache as read_research_cache
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(REPO_ROOT / ".env")
 
-ICP_CACHE = REPO_ROOT / "data" / "icp_cache.json"
+# A fictional persona (service/persona.py) serves its SAMPLE icp.json: invented prospects, never a web search
+ICP_CACHE = persona.pack_file("icp") if persona.is_fictional() else REPO_ROOT / "data" / "icp_cache.json"
 MIN_FACTS = 2
 # Live runs (POST /icp/run) must fit the spec's 90 s cap; the --cache precompute runs before the demo
 # and gets a longer budget so slow searches and page renders still contribute
@@ -233,7 +234,8 @@ def flat_stats(stats: dict) -> dict[str, float]:
 
 # --- Org context: what the Foundation has been doing recently (plan §15) ---------------------------
 
-ORG_FACTS_JSON = REPO_ROOT / "service" / "org_facts.json"   # outreach's website cache, until org_context fills
+ORG_FACTS_JSON = (persona.pack_file("facts") if persona.is_fictional()   # outreach's website cache, until org_context fills
+                  else REPO_ROOT / "service" / "org_facts.json")
 RECENT_CONTEXT = 12
 
 
@@ -290,7 +292,7 @@ def giving_style_trait(stats: dict) -> dict:
                  + (f", giving about every {cadence} days" if cadence else "")
                  + f"; {stats['tiers']['big']} big-tier, {stats['stars']} ★")
     evidence = [{"donor": d["name"], "donor_id": d["id"], "url": None,
-                 "fact": f"{d['gifts']} gifts, ${d['lifetime']:,.0f} lifetime, tier {d['tier']} (Foundation gift records)"}
+                 "fact": persona.localize(f"{d['gifts']} gifts, ${d['lifetime']:,.0f} lifetime, tier {d['tier']} (Foundation gift records)")}
                 for d in stats["donors"] if d["gifts"]]
     return {"trait": "giving_style", "value": value, "evidence": evidence}
 
@@ -315,12 +317,12 @@ class Profile(BaseModel):
 
 icp_agent = Agent(
     name="ICP builder",
-    instructions="""You build The Miami Foundation's ideal ORGANIZATION donor profile from its current
+    instructions=persona.localize("""You build The Miami Foundation's ideal ORGANIZATION donor profile from its current
 organization donors. You get Python-computed stats and a list of sourced research facts.
 Write exactly one trait for each of: sector, causes, geography, foundation_priorities.
 - foundation_priorities names which of the Foundation's five priorities these donors' work ties to.
 - Every trait cites 1-4 evidence items copied EXACTLY (donor, fact, url) from the input facts.
-- Use only the input. Never add facts, numbers or URLs that are not in it.""",
+- Use only the input. Never add facts, numbers or URLs that are not in it."""),
     model=os.getenv("OPENAI_MODEL_DEFAULT"),
     output_type=Profile,
     model_settings=ModelSettings(reasoning=Reasoning(effort="low")),
@@ -366,7 +368,7 @@ class Prospects(BaseModel):
 
 prospect_agent = Agent(
     name="Prospect finder",
-    instructions="""You find NEW organization donor prospects for The Miami Foundation in South Florida.
+    instructions=persona.localize("""You find NEW organization donor prospects for The Miami Foundation in South Florida.
 Use web search. Every prospect is a company or a foundation with a South Florida presence: never a private
 individual, never a government body, never one of the excluded current donors, and never a peer
 fundraiser that competes for the same donors (other community foundations, United Ways, federated campaigns).
@@ -377,7 +379,7 @@ the exact URL of the page that STATES it (a grants, news or community page, not 
 links there) and a quote of 6-30 words copied exactly from that page; facts are checked against the page. matched_traits lists which ICP traits it shares (sector, causes,
 geography, foundation_priorities); priority is the Foundation priority it fits best.
 Never invent facts or URLs. Prefer sources that are plain public pages (news releases, grant pages, annual reports) over pages
-that block automated access. Search only for the kind of organization named in search_for. Return 8-10 prospects, best fit first.""",
+that block automated access. Search only for the kind of organization named in search_for. Return 8-10 prospects, best fit first."""),
     model=os.getenv("OPENAI_MODEL_DEFAULT"),
     tools=[WebSearchTool(search_context_size="low")],
     output_type=Prospects,
@@ -562,8 +564,9 @@ def run_icp(refresh: bool = False, precompute: bool = False) -> dict:
     """{generated_at, icp, prospects}. Cached unless refresh=True; a live run rewrites data/icp_cache.json.
 
     precompute=True (the --cache CLI, run before the demo) gives the searches a longer deadline.
+    A fictional persona always gets its SAMPLE pack: a live search would only find real organizations.
     """
-    if not refresh and ICP_CACHE.exists():
+    if (not refresh or persona.is_fictional()) and ICP_CACHE.exists():
         return read_cache()
     conn = db.connect()
     try:

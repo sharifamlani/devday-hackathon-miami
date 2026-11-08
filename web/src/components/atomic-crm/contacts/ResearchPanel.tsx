@@ -67,7 +67,16 @@ export const ResearchPanel = ({ donor }: { donor: DonorDetail }) => {
   );
 };
 
-export const SourceLink = ({ href }: { href: string }) => (
+/** A sample://<persona>/<slug> source is an invented SAMPLE fact: labelled, never linked. */
+export const SourceLink = ({ href }: { href: string }) =>
+  href.startsWith("sample://") ? (
+    <span
+      title="Invented sample fact for the demo: there is no source page."
+      className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand-soft-foreground"
+    >
+      sample
+    </span>
+  ) : (
   <a
     href={href}
     target="_blank"

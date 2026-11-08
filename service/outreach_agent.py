@@ -1,4 +1,5 @@
-"""Outreach agent: value-first drafts in The Miami Foundation's voice.
+"""Outreach agent: value-first drafts in the demo org's voice (written for The Miami Foundation; the
+active persona's wording is swapped in by persona.localize, see service/persona.py).
 
 Every draft leads with what the Foundation did recently ("here's what we did"), then the ask.
 Facts come only from org_facts (miamifoundation.org, via org_context) and the donor's
@@ -34,6 +35,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
+try:                                                  # imported as service.outreach_agent or as outreach_agent
+    from service import persona
+except ImportError:
+    import persona
+
 SERVICE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SERVICE_DIR.parent
 DEMO_AS_OF = date(2026, 11, 8)      # same pinned demo date as score.py
@@ -68,7 +74,7 @@ class Draft(BaseModel):
 
 class ModelDraft(BaseModel):
     subject: str = Field(description="Email subject line, under 70 characters")
-    body: str = Field(description="Email body, 120-200 words, signed by the Foundation's philanthropy team")
+    body: str = Field(description=persona.localize("Email body, 120-200 words, signed by the Foundation's philanthropy team"))
     call_script: str = Field(description="What a staff member says on a phone call: opener, the update, the ask, and one line for 'not this year'")
     fact_ids: list[str] = Field(description="Ids (O1, R2, ...) of every fact used in the body or call script")
 
@@ -90,6 +96,7 @@ Hard rules:
   text-to-give, or automated calls.
 - The call script is for a human staff member to read, in the same voice.
 - Make exactly the ask given on the "Ask:" line of the prompt. Never name a dollar amount to give."""
+INSTRUCTIONS = persona.localize(INSTRUCTIONS)
 
 
 # ----------------------------------------------------------------------------------------------
@@ -226,8 +233,8 @@ def describe_why(why, hide_gifts: bool = False) -> str:
 
 def ask_for(big: bool, today: date) -> str:
     if big:
-        return ("a personal conversation: a call or coffee with the philanthropy team about their "
-                "year-end giving. No link to give online.")
+        return persona.localize("a personal conversation: a call or coffee with the philanthropy team about their "
+                                "year-end giving. No link to give online.")
     when = (f"when early giving opens {long_date(EARLY_GIVING_OPENS)}" if today < EARLY_GIVING_OPENS
             else f"by Give Miami Day, {long_date(GIVE_MIAMI_DAY)}")
     return f"a Give Miami Day gift at givemiamiday.org {when}."
@@ -274,7 +281,7 @@ def build_prompt(donor, gifts, score_why, facts, big, today, hide_gifts: bool = 
     days_early = (EARLY_GIVING_OPENS - today).days
     days_gmd = (GIVE_MIAMI_DAY - today).days
 
-    return f"""Today is {long_date(today)}. Early giving for Give Miami Day opens {long_date(EARLY_GIVING_OPENS)} \
+    return persona.localize(f"""Today is {long_date(today)}. Early giving for Give Miami Day opens {long_date(EARLY_GIVING_OPENS)} \
 ({days_early} days away); Give Miami Day is {long_date(GIVE_MIAMI_DAY)} ({days_gmd} days away).
 
 Donor: {donor.get('full_name')}{' (organization: ' + donor['org_name'] + ')' if donor.get('org_name') else ''}
@@ -289,7 +296,7 @@ Gift history:
 
 Numbered facts you may use (O = Foundation accomplishment from miamifoundation.org, R = research on this donor).
 O1 was chosen to fit this donor: lead the "here's what we did" part with O1, and list it first in fact_ids.
-{fact_lines}"""
+""") + fact_lines
 
 
 def long_date(d: date) -> str:
@@ -456,6 +463,7 @@ Hard rules:
   exactly. Lead with O1 and list it first in fact_ids; list every fact id you used.
 - Write about the organization only from its R-facts; if an R-fact isn't needed, leave it out.
 - The call script is for a human staff member, same rules."""
+PROSPECT_INSTRUCTIONS = persona.localize(PROSPECT_INSTRUCTIONS)
 
 RELATIONSHIP_RE = re.compile(
     r"thank(?:s| you) for (?:your )?(?:continued |ongoing |past |generous )?(?:support|gifts?|giving|partnership|generosity)"
@@ -500,7 +508,7 @@ def draft_prospect(prospect: dict, profile: dict, org_facts: list[dict], today: 
     fact_lines = "\n".join(f"{k}: {v['fact']}" + (f" ({v['date']})" if v.get("date") else "")
                            for k, v in facts.items())
     traits = ", ".join(prospect.get("matched_traits") or []) or "none listed"
-    prompt = f"""Today is {long_date(today)}.
+    prompt = persona.localize(f"""Today is {long_date(today)}.
 
 Organization: {prospect.get('name')} ({prospect.get('org_type') or 'organization'}, {prospect.get('city') or 'South Florida'})
 Foundation priority it fits: {prospect.get('priority') or 'not set'}
@@ -508,7 +516,7 @@ Why it matches our current donors (internal, don't quote as fact): {traits}
 
 Numbered facts you may use (O = the Foundation's own work from miamifoundation.org, R = sourced facts about this organization).
 O1 was chosen to fit this organization: lead with O1, and list it first in fact_ids.
-{fact_lines}"""
+""") + fact_lines
 
     agent = Agent(
         name="ProspectOutreachAgent",

@@ -43,7 +43,7 @@ const snapshot: ApiSnapshot = {
           id: 41,
           donor_id: 0,
           channel: "email",
-          subject: "Hello from The Miami Foundation",
+          subject: "Hello from Tidepath",
           body: "First touch",
           status: "draft",
           approved_by: null,
@@ -81,7 +81,7 @@ describe("snapshotMethods: ICP + prospects", () => {
 
   it("reads drafts from prospect_details and falls back to the list row", async () => {
     expect((await snapshotMethods.getProspect(2)).draft?.subject).toBe(
-      "Hello from The Miami Foundation",
+      "Hello from Tidepath",
     );
     expect((await snapshotMethods.getProspect(1)).draft).toBeNull();
   });

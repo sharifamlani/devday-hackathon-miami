@@ -88,7 +88,7 @@ export const CampaignNew = () => {
     <PageShell
       eyebrow="NEW CAMPAIGN"
       title="One personal message per donor"
-      caption="The outreach agent drafts each message from that donor's record and the Foundation's own facts. You review every draft before anything goes out."
+      caption="The outreach agent drafts each message from that donor's record and your organization's own facts. You review every draft before anything goes out."
       actions={<LinkPill to="/campaigns">All campaigns</LinkPill>}
     >
       <form onSubmit={submit} className="space-y-5">

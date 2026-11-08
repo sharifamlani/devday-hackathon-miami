@@ -11,6 +11,8 @@ service/org_pages.json; each page fact is dated with the page's last-updated dat
 same quote check. Every fact is tagged with one of the five priorities (PRIORITIES).
 
 Results are cached to service/org_facts.json so the demo never depends on the site being up.
+All of this is the miami_foundation persona. Under a fictional persona (service/persona.py, the default
+tidepath) the org facts and context come from its SAMPLE pack and nothing is fetched.
 
     python service/org_context.py            # refresh news facts from the live feed (keeps page facts)
     python service/org_context.py --pages    # refresh page facts from org_pages.json (keeps news facts)
@@ -31,6 +33,11 @@ from typing import Literal
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+
+try:                                                  # imported as service.org_context or, by outreach_agent, as org_context
+    from service import persona
+except ImportError:
+    import persona
 
 SERVICE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SERVICE_DIR.parent
@@ -191,10 +198,13 @@ def is_grounded(quote: str, text: str) -> bool:
 # ----------------------------------------------------------------------------------------------
 
 def cached_facts() -> list[dict]:
-    if not CACHE_PATH.exists():
+    """The org's own cited facts: org_facts.json, or a fictional persona's SAMPLE facts.json (service/persona.py)."""
+    path = persona.pack_file("facts") if persona.is_fictional() else CACHE_PATH
+    if not path.exists():
         return []
-    facts = json.loads(CACHE_PATH.read_text(encoding="utf-8"))["facts"]
-    return [f | {"kind": f.get("kind", "news"), "priority": normalize_priority(f.get("priority"))} for f in facts]
+    facts = json.loads(path.read_text(encoding="utf-8"))["facts"]
+    return [f | {"kind": f.get("kind", "news"), "priority": normalize_priority(f.get("priority")) or f.get("priority")}
+            for f in facts]
 
 
 def write_cache(facts: list[dict]) -> None:
@@ -480,6 +490,11 @@ def build_context(urls: dict, refresh: bool = False, progress=None, write_cache:
     from datetime import date as _date
 
     progress = progress or (lambda source, status: None)
+    sample = persona.sample_context(urls)            # a fictional persona's own site: its SAMPLE pack, never read
+    if sample is not None:
+        for s, st in sample["sources"].items():
+            progress(s, sample["source_notes"].get(s, st))
+        return sample
     website = urls.get("website")
     host = site_host(website)
     socials = {k: urls.get(a) or urls.get(b) for k, (a, b) in SOCIALS.items()}
@@ -615,7 +630,9 @@ def context_as_org_facts() -> list[dict]:
             con.row_factory = sqlite3.Row
             if con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_context'").fetchone():
                 rows = [dict(r) for r in con.execute("SELECT * FROM org_context")]
-    if not rows:                                      # runtime file first, then the committed cache
+    if not rows and persona.is_fictional():           # never fall back to a real org's cached context
+        rows = (persona.sample_context() or {}).get("facts", [])
+    elif not rows:                                    # runtime file first, then the committed cache
         runs = read_runs(CONTEXT_CACHE) | read_runs(CONTEXT_LIVE)
         rows = [f for run in runs.values() for f in run["facts"]]
     return [{"date": r.get("posted_at"), "kind": r.get("source"), "fact": r["fact"], "quote": r.get("quote"),

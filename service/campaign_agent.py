@@ -27,12 +27,14 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 from service import outreach_agent as oa
+from service import persona
 
 INTENTS = ("thank_you", "re_engage", "check_in")
 CHANNELS = ("email", "text")
 INTENT_LABELS = {"thank_you": "Thank you", "re_engage": "Re-engage", "check_in": "Check in"}
 SMS_MAX = 320
-SIGN_OFF = "The Miami Foundation philanthropy team"
+SIGN_OFF = persona.sign_off()        # the active persona's (service/persona.py)
+ORG = persona.org_name()
 
 
 # ----------------------------------------------------------------------------------------------
@@ -211,7 +213,7 @@ def thanks_for(donor: dict, gifts: list[dict], facts: dict) -> str:
         return f"your {money(last['amount'])} gift on {oa.long_date(date.fromisoformat(last['gift_date'][:10])).split(', ', 1)[1]}"
     if donor.get("fund_type"):
         return f"your partnership through your {donor['fund_type']} fund"
-    return "your partnership with The Miami Foundation" if donor.get("donor_type") == "organization" else "your support"
+    return f"your partnership with {ORG}" if donor.get("donor_type") == "organization" else "your support"
 
 
 def shorten(text: str, limit: int) -> str:
@@ -235,7 +237,7 @@ def template_draft(donor: dict, gifts: list[dict], why: dict | None, facts: dict
         intent = "check_in"                      # people we help never get an ask
 
     if channel == "text":
-        greeting = f"Hi {name}, it's The Miami Foundation."
+        greeting = f"Hi {name}, it's {ORG}."
         opener = {"thank_you": f"Thank you for {thanks}.",
                   "re_engage": f"Thank you for {thanks}.",
                   "check_in": "Just checking in." if beneficiary else f"Thanks again for {thanks}."}[intent]
@@ -254,21 +256,21 @@ def template_draft(donor: dict, gifts: list[dict], why: dict | None, facts: dict
         body = " ".join(p for p in (head, news, tail) if p)
         return CampaignDraft(subject=None, body=shorten(body, SMS_MAX), facts_used=used, drafted_by="template", note=note)
 
-    news = f"From The Miami Foundation's work: {lead['fact']}" if lead else ""
+    news = f"From {ORG}'s work: {lead['fact']}" if lead else ""
     if intent == "thank_you":
         subject = f"Thank you, {name}"
-        opener = f"Thank you for {thanks}. Gifts like yours are how Miami's community foundation shows up for this city."
+        opener = f"Thank you for {thanks}. " + persona.localize("Gifts like yours are how Miami's community foundation shows up for this city.")
         closing = "There's no ask in this note. We simply wanted you to know your support matters."
     elif intent == "re_engage":
         subject = f"{name}, here's what we did this year"
         opener = f"Thank you for {thanks}. We've missed hearing from you, and we wanted to share an update."
-        closing = ("We'd love to catch up. Could we set up a short call or coffee with our philanthropy team "
-                   "about your year-end giving?" if big else
+        closing = (persona.localize("We'd love to catch up. Could we set up a short call or coffee with our philanthropy team "
+                                    "about your year-end giving?") if big else
                    f"Early giving for Give Miami Day opens {oa.long_date(oa.EARLY_GIVING_OPENS)}, and Give Miami Day "
                    f"is {oa.long_date(oa.GIVE_MIAMI_DAY)}. If you'd like to be part of it again, you can give at "
                    "givemiamiday.org.")
     else:
-        subject = "Checking in from The Miami Foundation"
+        subject = f"Checking in from {ORG}"
         opener = ("We wanted to check in and see how you're doing." if beneficiary else
                   f"We wanted to check in, and to thank you again for {thanks}.")
         closing = "If you have questions or ideas, simply reply to this email. We'd love to hear from you."
@@ -286,21 +288,21 @@ def model_available() -> bool:
     return bool(os.getenv("OPENAI_API_KEY")) and bool(os.getenv("OPENAI_MODEL_DEFAULT"))
 
 
-INTENT_BRIEFS = {
+INTENT_BRIEFS = {k: persona.localize(v) for k, v in {
     "thank_you": "Thank the donor warmly for their specific past giving, then share one thing the Foundation "
                  "did recently, leading with O1. Make no ask of any kind.",
     "re_engage": "Thank the donor for their past giving, lead with what the Foundation did recently (O1), then "
                  "make exactly the ask on the 'Ask:' line. Never open with the ask.",
     "check_in": "A friendly check-in: share one recent Foundation update, leading with O1, and invite them to reply "
                 "with questions. Make no money ask.",
-}
-CHANNEL_BRIEFS = {
+}.items()}
+CHANNEL_BRIEFS = {k: persona.localize(v) for k, v in {
     "email": "Write an email: subject under 70 characters, body 90-160 words, signed by The Miami Foundation's "
              "philanthropy team.",
     "text": f"Write a text message: at most {SMS_MAX - 20} characters, set subject to an empty string, plain words, "
             "start with 'Hi <first name>, it's The Miami Foundation.', end with 'Reply STOP to opt out.' No links "
             "except givemiamiday.org.",
-}
+}.items()}
 CAMPAIGN_INSTRUCTIONS = """You write campaign messages for The Miami Foundation's philanthropy team.
 
 Voice: upbeat, civic, plain, proudly local. Warm, never pushy, no guilt.
@@ -311,6 +313,7 @@ Hard rules:
 - Lead with O1 and list it first in fact_ids; list every fact id you used.
 - Gifts are made only at miamifoundation.org or givemiamiday.org. Never mention WhatsApp,
   text-to-give, or automated calls."""
+CAMPAIGN_INSTRUCTIONS = persona.localize(CAMPAIGN_INSTRUCTIONS)
 
 
 def model_write(donor: dict, gifts: list[dict], why: dict | None, research: list[dict], org_facts: list[dict],

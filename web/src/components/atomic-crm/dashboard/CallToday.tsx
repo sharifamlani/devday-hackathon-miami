@@ -30,6 +30,7 @@ import {
 import { DATA_MODE } from "../providers/local/config";
 import { useDonors, useSourceLabel } from "../providers/local/hooks";
 import type { DonorSummary } from "../providers/local/types";
+import { useOrgName } from "../layout/useOrgName";
 import { TargetsCard } from "./TargetsCard";
 import "./donor-inbox.css";
 
@@ -55,6 +56,7 @@ const filters = [
 export const CallToday = () => {
   const { data: donors, isPending, error } = useDonors();
   const { data: sourceLabel } = useSourceLabel();
+  const orgName = useOrgName();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [query, setQuery] = useState("");
@@ -104,7 +106,7 @@ export const CallToday = () => {
               <Heart size={18} aria-hidden="true" />
             </span>
             <span>
-              Donor Desk<small>The Miami Foundation</small>
+              Donor Desk<small>{orgName}</small>
             </span>
           </div>
           <p className="inbox-eyebrow">YOUR WORKSPACE</p>

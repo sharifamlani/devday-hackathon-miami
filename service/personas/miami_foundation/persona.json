@@ -1,0 +1,21 @@
+{
+  "_about": "The original demo persona: the REAL Miami Foundation, its real public website context, and real organization donors (9-12) with INVENTED gift histories. Kept so the team can flip back with org_config.json \"persona\": \"miami_foundation\" (or DONOR_DESK_PERSONA=miami_foundation). Its data stays where it was: \"files\" points at the existing caches instead of copying them. URLs moved here from org_config.json; socials verified from miamifoundation.org's own footer links (Sat Nov 7); it links no X account, so x_url stays null.",
+  "id": "miami_foundation",
+  "fictional": false,
+  "name": "The Miami Foundation",
+  "city": "Miami",
+  "state": "FL",
+  "fiscal_year": {"start_month": 1, "note": "The Miami Foundation's fiscal year ends in December, so quarters are calendar quarters"},
+  "website": "https://miamifoundation.org",
+  "x_url": null,
+  "linkedin_url": "https://www.linkedin.com/company/the-miami-foundation/",
+  "instagram_url": "https://www.instagram.com/miamifoundation/",
+  "sign_off": "The Miami Foundation philanthropy team",
+  "gift_sites": ["miamifoundation.org", "givemiamiday.org"],
+  "priorities": ["Youth & Families", "Prosperity", "Civic", "Climate & Resilience", "Inequities"],
+  "files": {
+    "facts": "service/org_facts.json",
+    "research": "data/research_cache.json",
+    "icp": "data/icp_cache.json"
+  }
+}

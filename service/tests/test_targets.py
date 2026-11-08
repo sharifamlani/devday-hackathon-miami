@@ -128,7 +128,7 @@ def client():
 
 
 def test_routes_on_the_seed(db_file):
-    """conftest seeds the 12 SAMPLE donors as of Nov 7: no gifts yet in November; Q4 has Knight + James Carter."""
+    """conftest seeds the 12 SAMPLE donors as of Nov 7: no gifts yet in November; Q4 has Palmetto Lantern + James Carter."""
     c = client()
     both = c.get("/targets").json()
     assert set(both) == {"month", "quarter"}
@@ -140,10 +140,10 @@ def test_routes_on_the_seed(db_file):
     assert c.get("/targets?period=year").status_code == 422
 
     rows = c.get("/targets/donors?period=quarter").json()
-    assert [r["full_name"] for r in rows] == ["John S. and James L. Knight Foundation", "James Carter"]
+    assert [r["full_name"] for r in rows] == ["Palmetto Lantern Foundation", "James Carter"]
     assert {"score", "status", "why", "is_sample"} <= rows[0].keys()
     assert c.get("/targets/donors").json() == []          # month default: nobody yet
-    assert c.get("/targets/donors?period=month&as_of=2026-10-31").json()[0]["full_name"].startswith("John S.")
+    assert c.get("/targets/donors?period=month&as_of=2026-10-31").json()[0]["full_name"] == "Palmetto Lantern Foundation"
 
 
 def test_merge_route_keeps_seed_totals(db_file):

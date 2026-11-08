@@ -257,7 +257,7 @@ const MessageCard = ({
 
       <p className="text-xs text-muted-foreground">
         {m.drafted_by === "model"
-          ? "Drafted by the outreach agent from this donor's record and the Foundation's facts."
+          ? "Drafted by the outreach agent from this donor's record and your organization's facts."
           : (m.draft_note ?? "Template draft (no AI).")}
       </p>
 

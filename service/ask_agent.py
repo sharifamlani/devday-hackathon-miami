@@ -116,7 +116,7 @@ class AskPlan(BaseModel):
 
 
 # ----------------------------------------------------------------------------------------------
-# The org's calendar (The Miami Foundation's fiscal year ends in December, so quarters are calendar)
+# The org's calendar (every persona's fiscal year ends in December, persona.json fiscal_year, so quarters are calendar)
 # ----------------------------------------------------------------------------------------------
 
 def quarter_of(day: date) -> tuple[int, date, date]:

@@ -6,22 +6,24 @@ import { useConfigurationContext } from "../root/ConfigurationContext";
 import { API_URL, DATA_MODE } from "../providers/local/config";
 import { useSourceLabel } from "../providers/local/hooks";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
+import { useOrgName } from "./useOrgName";
 
 const Header = () => {
   const { title } = useConfigurationContext();
+  const orgName = useOrgName();
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 pt-3 pb-6">
       <div className="flex min-w-0 items-baseline gap-3">
         <span className="text-xl font-semibold tracking-[-0.8px]">{title}</span>
         <span className="hidden text-[13px] text-muted-foreground lg:inline">
-          The Miami Foundation
+          {orgName}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <span
           className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-[11px] font-semibold text-brand-soft-foreground"
-          title="Individual donors are fictional; gift amounts and dates are invented."
+          title="Sample data: the organization, donors, gift amounts and dates are invented."
         >
           <span className="size-1.5 rounded-full bg-current" aria-hidden />
           SAMPLE DATA

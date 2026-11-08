@@ -1,0 +1,228 @@
+{
+  "_about": "SAMPLE seed for the tidepath persona: every donor is FICTIONAL (names, emails on example.com/example.org, 555-01xx phones, gift histories). Same ids, tiers, gift histories and planted cases as the miami_foundation pack, so scoring, duplicates, targets and Ask answers behave the same; donors 9-12 are invented organizations in place of the real ones. Give Miami Day dates: Thu Nov 16 2023, Thu Nov 21 2024, Thu Nov 20 2025 (2026 is Thu Nov 19). Gifts are [amount, date, channel].",
+  "donors": [
+    {
+      "full_name": "Maria Delgado",
+      "first_name": "Maria",
+      "last_name": "Delgado",
+      "donor_type": "individual",
+      "email": "maria.delgado@example.com",
+      "emails_all": ["maria.delgado@example.com"],
+      "phone": "+13055550101",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Donor Advised",
+      "notes": "SAMPLE: lapsing Give Miami Day giver",
+      "gifts": [
+        [2500, "2022-11-17", "Give Miami Day"],
+        [2500, "2023-11-16", "Give Miami Day"],
+        [3000, "2024-11-21", "Give Miami Day"],
+        [3000, "2025-11-20", "Give Miami Day"]
+      ]
+    },
+    {
+      "full_name": "María Delgado-Ruiz",
+      "first_name": "María",
+      "last_name": "Delgado-Ruiz",
+      "donor_type": "individual",
+      "email": "mdelgado@work.example.com",
+      "emails_all": ["mdelgado@work.example.com", "Maria.Delgado@example.com"],
+      "phone": "(305) 555-0101",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": null,
+      "notes": "SAMPLE: planted duplicate of Maria Delgado (name variant, shared email)",
+      "gifts": [
+        [250, "2021-06-02", "online"]
+      ]
+    },
+    {
+      "full_name": "James Carter",
+      "first_name": "James",
+      "last_name": "Carter",
+      "donor_type": "individual",
+      "email": "jcarter@example.com",
+      "emails_all": ["jcarter@example.com"],
+      "phone": "+13055550144",
+      "city": "Coral Gables",
+      "state": "FL",
+      "fund_type": "Designated",
+      "notes": "SAMPLE: on-track monthly donor",
+      "gifts": [
+        [50, "2026-01-15", "online"],
+        [50, "2026-02-15", "online"],
+        [50, "2026-03-15", "online"],
+        [50, "2026-04-15", "online"],
+        [50, "2026-05-15", "online"],
+        [50, "2026-06-15", "online"],
+        [50, "2026-07-15", "online"],
+        [50, "2026-08-15", "online"],
+        [50, "2026-09-15", "online"],
+        [50, "2026-10-15", "online"],
+        [50, "2025-01-15", "online"],
+        [50, "2025-02-15", "online"],
+        [50, "2025-03-15", "online"],
+        [50, "2025-04-15", "online"],
+        [50, "2025-05-15", "online"],
+        [50, "2025-06-15", "online"],
+        [50, "2025-07-15", "online"],
+        [50, "2025-08-15", "online"],
+        [50, "2025-09-15", "online"],
+        [50, "2025-10-15", "online"],
+        [50, "2025-11-15", "online"],
+        [50, "2025-12-15", "online"]
+      ]
+    },
+    {
+      "full_name": "Biscayne Harbor Family Foundation",
+      "org_name": "Biscayne Harbor Family Foundation",
+      "donor_type": "organization",
+      "email": "grants@biscayneharbor.example.org",
+      "emails_all": ["grants@biscayneharbor.example.org"],
+      "phone": "+13055550199",
+      "city": "Miami Beach",
+      "state": "FL",
+      "fund_type": "Endowment",
+      "notes": "SAMPLE: star fundholder ($1M+ lifetime), on track",
+      "gifts": [
+        [300000, "2023-09-12", "check"],
+        [400000, "2024-09-10", "check"],
+        [500000, "2025-09-09", "check"],
+        [450000, "2026-09-08", "check"]
+      ]
+    },
+    {
+      "full_name": "Robert Nguyen",
+      "first_name": "Robert",
+      "last_name": "Nguyen",
+      "donor_type": "individual",
+      "email": "rob.nguyen@example.com",
+      "emails_all": ["rob.nguyen@example.com"],
+      "phone": "+13055550177",
+      "city": "Doral",
+      "state": "FL",
+      "fund_type": "Designated",
+      "notes": "SAMPLE: quarterly donor, overdue",
+      "gifts": [
+        [500, "2025-01-10", "online"],
+        [500, "2025-04-10", "online"],
+        [500, "2025-07-10", "online"],
+        [500, "2025-10-10", "online"],
+        [500, "2026-01-12", "online"],
+        [500, "2026-04-09", "online"]
+      ]
+    },
+    {
+      "full_name": "Angela Brooks",
+      "first_name": "Angela",
+      "last_name": "Brooks",
+      "donor_type": "individual",
+      "email": "angela.brooks@example.com",
+      "emails_all": ["angela.brooks@example.com"],
+      "phone": "+13055550122",
+      "city": "Homestead",
+      "state": "FL",
+      "fund_type": null,
+      "notes": "SAMPLE: one gift long ago",
+      "gifts": [
+        [100, "2019-05-03", "event"]
+      ]
+    },
+    {
+      "full_name": "Luis Herrera",
+      "first_name": "Luis",
+      "last_name": "Herrera",
+      "donor_type": "individual",
+      "email": "luis.herrera@example.com",
+      "emails_all": ["luis.herrera@example.com"],
+      "phone": "+13055550155",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Donor Advised",
+      "notes": "SAMPLE: December giver, window next month",
+      "gifts": [
+        [1000, "2022-12-14", "online"],
+        [1000, "2023-12-12", "online"],
+        [1200, "2024-12-16", "online"],
+        [1200, "2025-12-15", "online"]
+      ]
+    },
+    {
+      "full_name": "Priya Shah",
+      "first_name": "Priya",
+      "last_name": "Shah",
+      "donor_type": "individual",
+      "email": "priya.shah@example.com",
+      "emails_all": ["priya.shah@example.com"],
+      "phone": "+13055550166",
+      "city": "Aventura",
+      "state": "FL",
+      "fund_type": null,
+      "notes": "SAMPLE: first gift this year",
+      "gifts": [
+        [200, "2026-08-20", "online"]
+      ]
+    },
+    {
+      "full_name": "Palmetto Lantern Foundation",
+      "org_name": "Palmetto Lantern Foundation",
+      "donor_type": "organization",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Field of Interest",
+      "source_row": "SAMPLE",
+      "notes": "SAMPLE: fictional family foundation; annual October grant",
+      "gifts": [
+        [50000, "2022-10-03", "check"],
+        [50000, "2023-10-02", "check"],
+        [50000, "2024-10-01", "check"],
+        [50000, "2025-10-01", "check"],
+        [50000, "2026-10-05", "check"]
+      ]
+    },
+    {
+      "full_name": "Seagrape Logistics Co.",
+      "org_name": "Seagrape Logistics Co.",
+      "donor_type": "organization",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Designated",
+      "source_row": "SAMPLE",
+      "notes": "SAMPLE: fictional company; September employee-match gift",
+      "gifts": [
+        [25000, "2024-09-16", "online"],
+        [50000, "2025-09-15", "online"],
+        [50000, "2026-09-14", "online"]
+      ]
+    },
+    {
+      "full_name": "Marlowe Tide Foundation",
+      "org_name": "Marlowe Tide Foundation",
+      "donor_type": "organization",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": "Field of Interest",
+      "source_row": "SAMPLE",
+      "notes": "SAMPLE: fictional foundation; star donor ($1M+ lifetime)",
+      "gifts": [
+        [400000, "2024-06-28", "check"],
+        [350000, "2025-06-30", "check"],
+        [300000, "2026-06-29", "check"]
+      ]
+    },
+    {
+      "full_name": "Quinterra & Vale Law Group",
+      "org_name": "Quinterra & Vale Law Group",
+      "donor_type": "organization",
+      "city": "Miami",
+      "state": "FL",
+      "fund_type": null,
+      "source_row": "SAMPLE",
+      "notes": "SAMPLE: fictional law firm; in-kind pro bono support valued in USD",
+      "gifts": [
+        [7500, "2024-03-12", "in-kind"],
+        [7500, "2025-03-11", "in-kind"]
+      ]
+    }
+  ]
+}

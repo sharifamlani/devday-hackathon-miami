@@ -1,0 +1,674 @@
+{
+  "_about": "Tidepath's SAMPLE ideal donor profile and prospects: every organization and fact is invented and cites sample://tidepath/... (never fetched). Stats, giving style, recent context and fit scores were computed by service/icp_agent.py's pure functions over the tidepath seed; traits and prospects are hand-written.",
+  "generated_at": "2026-11-07T18:00:00+00:00",
+  "icp": {
+    "traits": [
+      {
+        "trait": "sector",
+        "value": "SAMPLE: Family foundations, local companies with employee giving, and professional firms that give pro bono time.",
+        "evidence": [
+          {
+            "donor": "Palmetto Lantern Foundation",
+            "donor_id": 9,
+            "fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.",
+            "url": "sample://tidepath/research/palmetto-lantern-giving"
+          },
+          {
+            "donor": "Seagrape Logistics Co.",
+            "donor_id": 10,
+            "fact": "SAMPLE: Seagrape Logistics Co. matches employee donations to Miami family-support nonprofits each September.",
+            "url": "sample://tidepath/research/seagrape-employee-match"
+          },
+          {
+            "donor": "Quinterra & Vale Law Group",
+            "donor_id": 12,
+            "fact": "SAMPLE: Quinterra & Vale Law Group gives in-kind pro bono legal help to small Miami nonprofits.",
+            "url": "sample://tidepath/research/quinterra-vale-pro-bono"
+          }
+        ]
+      },
+      {
+        "trait": "causes",
+        "value": "SAMPLE: Youth mentoring, school success and summer learning, and practical help for families.",
+        "evidence": [
+          {
+            "donor": "Palmetto Lantern Foundation",
+            "donor_id": 9,
+            "fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.",
+            "url": "sample://tidepath/research/palmetto-lantern-giving"
+          },
+          {
+            "donor": "Marlowe Tide Foundation",
+            "donor_id": 11,
+            "fact": "SAMPLE: The Marlowe Tide Foundation makes multi-year grants for school success and summer learning in South Florida.",
+            "url": "sample://tidepath/research/marlowe-tide-grants"
+          },
+          {
+            "donor": "Marlowe Tide Foundation",
+            "donor_id": 11,
+            "fact": "SAMPLE: It also funds family coaching and parent education programs.",
+            "url": "sample://tidepath/research/marlowe-tide-families"
+          },
+          {
+            "donor": "Seagrape Logistics Co.",
+            "donor_id": 10,
+            "fact": "SAMPLE: Its employee volunteer days include packing food boxes and school supplies for local families.",
+            "url": "sample://tidepath/research/seagrape-volunteer-days"
+          }
+        ]
+      },
+      {
+        "trait": "geography",
+        "value": "SAMPLE: Miami-Dade first, then the rest of South Florida.",
+        "evidence": [
+          {
+            "donor": "Palmetto Lantern Foundation",
+            "donor_id": 9,
+            "fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.",
+            "url": "sample://tidepath/research/palmetto-lantern-giving"
+          },
+          {
+            "donor": "Seagrape Logistics Co.",
+            "donor_id": 10,
+            "fact": "SAMPLE: Seagrape Logistics Co. matches employee donations to Miami family-support nonprofits each September.",
+            "url": "sample://tidepath/research/seagrape-employee-match"
+          },
+          {
+            "donor": "Marlowe Tide Foundation",
+            "donor_id": 11,
+            "fact": "SAMPLE: The Marlowe Tide Foundation makes multi-year grants for school success and summer learning in South Florida.",
+            "url": "sample://tidepath/research/marlowe-tide-grants"
+          }
+        ]
+      },
+      {
+        "trait": "foundation_priorities",
+        "value": "SAMPLE: Their giving ties mostly to Empower Youth & Families, with some Generate Prosperity through volunteering.",
+        "evidence": [
+          {
+            "donor": "Palmetto Lantern Foundation",
+            "donor_id": 9,
+            "fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.",
+            "url": "sample://tidepath/research/palmetto-lantern-giving"
+          },
+          {
+            "donor": "Marlowe Tide Foundation",
+            "donor_id": 11,
+            "fact": "SAMPLE: The Marlowe Tide Foundation makes multi-year grants for school success and summer learning in South Florida.",
+            "url": "sample://tidepath/research/marlowe-tide-grants"
+          },
+          {
+            "donor": "Quinterra & Vale Law Group",
+            "donor_id": 12,
+            "fact": "SAMPLE: Its attorneys volunteer as mentors through a local business partners program.",
+            "url": "sample://tidepath/research/quinterra-vale-volunteers"
+          }
+        ]
+      },
+      {
+        "trait": "giving_style",
+        "value": "Lifetime giving $15,000–$1,650,000 (median $250,000), giving about every 364 days; 4 big-tier, 2 ★",
+        "evidence": [
+          {
+            "donor": "Biscayne Harbor Family Foundation",
+            "donor_id": 4,
+            "url": null,
+            "fact": "4 gifts, $1,650,000 lifetime, tier big (Tidepath gift records)"
+          },
+          {
+            "donor": "Palmetto Lantern Foundation",
+            "donor_id": 9,
+            "url": null,
+            "fact": "5 gifts, $250,000 lifetime, tier big (Tidepath gift records)"
+          },
+          {
+            "donor": "Seagrape Logistics Co.",
+            "donor_id": 10,
+            "url": null,
+            "fact": "3 gifts, $125,000 lifetime, tier big (Tidepath gift records)"
+          },
+          {
+            "donor": "Marlowe Tide Foundation",
+            "donor_id": 11,
+            "url": null,
+            "fact": "3 gifts, $1,050,000 lifetime, tier big (Tidepath gift records)"
+          },
+          {
+            "donor": "Quinterra & Vale Law Group",
+            "donor_id": 12,
+            "url": null,
+            "fact": "2 gifts, $15,000 lifetime, tier mid (Tidepath gift records)"
+          }
+        ]
+      }
+    ],
+    "stats": {
+      "org_donors": 5,
+      "researched": 4,
+      "lifetime_min": 15000.0,
+      "lifetime_median": 250000.0,
+      "lifetime_max": 1650000.0,
+      "median_cadence_days": 364,
+      "stars": 2,
+      "tier_big": 4,
+      "tier_mid": 1,
+      "tier_small": 0,
+      "priority: Empower Youth & Families": 3,
+      "priority: Generate Prosperity": 0,
+      "priority: Inspire Civic Involvement": 3,
+      "priority: Build Climate & Disaster Resilience": 0,
+      "priority: Eliminate Inequities": 0
+    },
+    "evidence": [
+      {
+        "trait": "sector",
+        "donor": "Palmetto Lantern Foundation",
+        "donor_id": 9,
+        "fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.",
+        "url": "sample://tidepath/research/palmetto-lantern-giving"
+      },
+      {
+        "trait": "sector",
+        "donor": "Seagrape Logistics Co.",
+        "donor_id": 10,
+        "fact": "SAMPLE: Seagrape Logistics Co. matches employee donations to Miami family-support nonprofits each September.",
+        "url": "sample://tidepath/research/seagrape-employee-match"
+      },
+      {
+        "trait": "sector",
+        "donor": "Quinterra & Vale Law Group",
+        "donor_id": 12,
+        "fact": "SAMPLE: Quinterra & Vale Law Group gives in-kind pro bono legal help to small Miami nonprofits.",
+        "url": "sample://tidepath/research/quinterra-vale-pro-bono"
+      },
+      {
+        "trait": "causes",
+        "donor": "Palmetto Lantern Foundation",
+        "donor_id": 9,
+        "fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.",
+        "url": "sample://tidepath/research/palmetto-lantern-giving"
+      },
+      {
+        "trait": "causes",
+        "donor": "Marlowe Tide Foundation",
+        "donor_id": 11,
+        "fact": "SAMPLE: The Marlowe Tide Foundation makes multi-year grants for school success and summer learning in South Florida.",
+        "url": "sample://tidepath/research/marlowe-tide-grants"
+      },
+      {
+        "trait": "causes",
+        "donor": "Marlowe Tide Foundation",
+        "donor_id": 11,
+        "fact": "SAMPLE: It also funds family coaching and parent education programs.",
+        "url": "sample://tidepath/research/marlowe-tide-families"
+      },
+      {
+        "trait": "causes",
+        "donor": "Seagrape Logistics Co.",
+        "donor_id": 10,
+        "fact": "SAMPLE: Its employee volunteer days include packing food boxes and school supplies for local families.",
+        "url": "sample://tidepath/research/seagrape-volunteer-days"
+      },
+      {
+        "trait": "geography",
+        "donor": "Palmetto Lantern Foundation",
+        "donor_id": 9,
+        "fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.",
+        "url": "sample://tidepath/research/palmetto-lantern-giving"
+      },
+      {
+        "trait": "geography",
+        "donor": "Seagrape Logistics Co.",
+        "donor_id": 10,
+        "fact": "SAMPLE: Seagrape Logistics Co. matches employee donations to Miami family-support nonprofits each September.",
+        "url": "sample://tidepath/research/seagrape-employee-match"
+      },
+      {
+        "trait": "geography",
+        "donor": "Marlowe Tide Foundation",
+        "donor_id": 11,
+        "fact": "SAMPLE: The Marlowe Tide Foundation makes multi-year grants for school success and summer learning in South Florida.",
+        "url": "sample://tidepath/research/marlowe-tide-grants"
+      },
+      {
+        "trait": "foundation_priorities",
+        "donor": "Palmetto Lantern Foundation",
+        "donor_id": 9,
+        "fact": "SAMPLE: The Palmetto Lantern Foundation funds youth mentoring and after-school reading programs in Miami-Dade.",
+        "url": "sample://tidepath/research/palmetto-lantern-giving"
+      },
+      {
+        "trait": "foundation_priorities",
+        "donor": "Marlowe Tide Foundation",
+        "donor_id": 11,
+        "fact": "SAMPLE: The Marlowe Tide Foundation makes multi-year grants for school success and summer learning in South Florida.",
+        "url": "sample://tidepath/research/marlowe-tide-grants"
+      },
+      {
+        "trait": "foundation_priorities",
+        "donor": "Quinterra & Vale Law Group",
+        "donor_id": 12,
+        "fact": "SAMPLE: Its attorneys volunteer as mentors through a local business partners program.",
+        "url": "sample://tidepath/research/quinterra-vale-volunteers"
+      }
+    ],
+    "recent_context": [
+      {
+        "source": "news",
+        "url": "sample://tidepath/fall-mentor-match",
+        "posted_at": "2026-11-02",
+        "fact": "Tidepath matched 42 kids with volunteer mentors this quarter, its largest fall match yet.",
+        "priority": "Inspire Civic Involvement",
+        "weight": 1.0
+      },
+      {
+        "source": "news",
+        "url": "sample://tidepath/weekend-meal-bags",
+        "posted_at": "2026-10-24",
+        "fact": "Tidepath volunteers packed 1,150 weekend meal bags for 96 families in October.",
+        "priority": "Empower Youth & Families",
+        "weight": 1.0
+      },
+      {
+        "source": "news",
+        "url": "sample://tidepath/reading-club-results",
+        "posted_at": "2026-10-15",
+        "fact": "Students in Tidepath's after-school reading club gained an average of 1.4 grade levels in reading over the past school year.",
+        "priority": "Empower Youth & Families",
+        "weight": 1.0
+      },
+      {
+        "source": "news",
+        "url": "sample://tidepath/mentor-academy-october",
+        "posted_at": "2026-10-03",
+        "fact": "Tidepath trained 28 new volunteer mentors at its October mentor academy in Little Haiti.",
+        "priority": "Inspire Civic Involvement",
+        "weight": 1.0
+      },
+      {
+        "source": "news",
+        "url": "sample://tidepath/back-to-school-2026",
+        "posted_at": "2026-09-12",
+        "fact": "Tidepath's back-to-school drive sent 310 kids to the first day of school with a full backpack and supplies.",
+        "priority": "Empower Youth & Families",
+        "weight": 1.0
+      },
+      {
+        "source": "news",
+        "url": "sample://tidepath/summer-2026",
+        "posted_at": "2026-08-20",
+        "fact": "Tidepath's six-week summer program served 120 kids with swim lessons, museum trips and daily reading time.",
+        "priority": null,
+        "weight": 1.0
+      },
+      {
+        "source": "website",
+        "url": "sample://tidepath/family-coaching",
+        "posted_at": "2026-07-30",
+        "fact": "Tidepath family coaches helped 64 parents set up budgets, apply for rent help or enroll in classes this year.",
+        "priority": "Empower Youth & Families",
+        "weight": 0.6
+      },
+      {
+        "source": "website",
+        "url": "sample://tidepath/mentoring-program",
+        "posted_at": "2026-07-15",
+        "fact": "Tidepath mentors meet their kids every week for at least a year, and 87% of last year's matches stayed together the full year.",
+        "priority": null,
+        "weight": 0.6
+      },
+      {
+        "source": "website",
+        "url": "sample://tidepath/neighborhood-partners",
+        "posted_at": "2026-06-30",
+        "fact": "Nineteen local businesses and firms support Tidepath with grants, volunteer hours and in-kind help.",
+        "priority": "Inspire Civic Involvement",
+        "weight": 0.6
+      },
+      {
+        "source": "website",
+        "url": "sample://tidepath/homework-help",
+        "posted_at": "2026-06-10",
+        "fact": "Tidepath's homework help nights run four evenings a week at two Miami library branches.",
+        "priority": null,
+        "weight": 0.6
+      }
+    ]
+  },
+  "prospects": [
+    {
+      "name": "Kestrel Bay Family Fund",
+      "org_type": "foundation",
+      "city": "Coral Gables",
+      "matched_traits": [
+        "causes",
+        "foundation_priorities",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "SAMPLE: The Kestrel Bay Family Fund gives multi-year grants for youth mentoring and education.",
+          "url": "sample://tidepath/prospects/kestrel-bay-mentoring",
+          "quote": "multi-year grants for youth mentoring",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        },
+        {
+          "fact": "SAMPLE: It funds parent coaching for families with school-age children.",
+          "url": "sample://tidepath/prospects/kestrel-bay-parents",
+          "quote": "parent coaching for families",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        }
+      ],
+      "priority": "Empower Youth & Families",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Tidepath volunteers packed 1,150 weekend meal bags for 96 families in October.",
+          "url": "sample://tidepath/weekend-meal-bags",
+          "posted_at": "2026-10-24"
+        },
+        {
+          "fact": "Students in Tidepath's after-school reading club gained an average of 1.4 grade levels in reading over the past school year.",
+          "url": "sample://tidepath/reading-club-results",
+          "posted_at": "2026-10-15"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 12,
+        "primary_priority": 20,
+        "matched_traits": 15,
+        "recent_focus": 20
+      },
+      "fit_score": 87
+    },
+    {
+      "name": "Lumen Shoals Foundation",
+      "org_type": "foundation",
+      "city": "Miami Beach",
+      "matched_traits": [
+        "causes",
+        "foundation_priorities",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "SAMPLE: The Lumen Shoals Foundation funds school reading programs for students in Miami-Dade.",
+          "url": "sample://tidepath/prospects/lumen-shoals-reading",
+          "quote": "funds school reading programs",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        },
+        {
+          "fact": "SAMPLE: It makes small first grants to youth mentoring nonprofits.",
+          "url": "sample://tidepath/prospects/lumen-shoals-mentors",
+          "quote": "small first grants to youth mentoring",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        }
+      ],
+      "priority": "Empower Youth & Families",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Tidepath volunteers packed 1,150 weekend meal bags for 96 families in October.",
+          "url": "sample://tidepath/weekend-meal-bags",
+          "posted_at": "2026-10-24"
+        },
+        {
+          "fact": "Students in Tidepath's after-school reading club gained an average of 1.4 grade levels in reading over the past school year.",
+          "url": "sample://tidepath/reading-club-results",
+          "posted_at": "2026-10-15"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 12,
+        "primary_priority": 20,
+        "matched_traits": 15,
+        "recent_focus": 20
+      },
+      "fit_score": 87
+    },
+    {
+      "name": "Cobalt Heron Swim School",
+      "org_type": "company",
+      "city": "Miami",
+      "matched_traits": [
+        "causes",
+        "geography"
+      ],
+      "facts": [
+        {
+          "fact": "SAMPLE: Cobalt Heron Swim School gives free summer swim lessons to children from local nonprofits.",
+          "url": "sample://tidepath/prospects/cobalt-heron-lessons",
+          "quote": "free summer swim lessons to children",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        },
+        {
+          "fact": "SAMPLE: Its staff run a family water-safety night every spring.",
+          "url": "sample://tidepath/prospects/cobalt-heron-families",
+          "quote": "family water-safety night",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        }
+      ],
+      "priority": "Empower Youth & Families",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Tidepath volunteers packed 1,150 weekend meal bags for 96 families in October.",
+          "url": "sample://tidepath/weekend-meal-bags",
+          "posted_at": "2026-10-24"
+        },
+        {
+          "fact": "Students in Tidepath's after-school reading club gained an average of 1.4 grade levels in reading over the past school year.",
+          "url": "sample://tidepath/reading-club-results",
+          "posted_at": "2026-10-15"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 12,
+        "primary_priority": 20,
+        "matched_traits": 8,
+        "recent_focus": 20
+      },
+      "fit_score": 80
+    },
+    {
+      "name": "Mangrove Mile Grocers",
+      "org_type": "company",
+      "city": "Homestead",
+      "matched_traits": [
+        "causes",
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "SAMPLE: Mangrove Mile Grocers donates weekly food for low-income families through school pantries.",
+          "url": "sample://tidepath/prospects/mangrove-mile-pantry",
+          "quote": "weekly food for low-income families",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        },
+        {
+          "fact": "SAMPLE: It matches customer round-up donations for local family programs.",
+          "url": "sample://tidepath/prospects/mangrove-mile-match",
+          "quote": "matches customer round-up donations",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        }
+      ],
+      "priority": "Eliminate Inequities",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Tidepath volunteers packed 1,150 weekend meal bags for 96 families in October.",
+          "url": "sample://tidepath/weekend-meal-bags",
+          "posted_at": "2026-10-24"
+        },
+        {
+          "fact": "Students in Tidepath's after-school reading club gained an average of 1.4 grade levels in reading over the past school year.",
+          "url": "sample://tidepath/reading-club-results",
+          "posted_at": "2026-10-15"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 12,
+        "primary_priority": 0,
+        "matched_traits": 11,
+        "recent_focus": 20
+      },
+      "fit_score": 63
+    },
+    {
+      "name": "Tamarisk Point Builders",
+      "org_type": "company",
+      "city": "Hialeah",
+      "matched_traits": [
+        "geography",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "SAMPLE: Tamarisk Point Builders runs a summer job training program for local teens.",
+          "url": "sample://tidepath/prospects/tamarisk-point-training",
+          "quote": "summer job training program",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        },
+        {
+          "fact": "SAMPLE: It gives year-end gifts to neighborhood youth and family nonprofits.",
+          "url": "sample://tidepath/prospects/tamarisk-point-gifts",
+          "quote": "year-end gifts to neighborhood youth",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        }
+      ],
+      "priority": "Generate Prosperity",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Tidepath volunteers packed 1,150 weekend meal bags for 96 families in October.",
+          "url": "sample://tidepath/weekend-meal-bags",
+          "posted_at": "2026-10-24"
+        },
+        {
+          "fact": "Students in Tidepath's after-school reading club gained an average of 1.4 grade levels in reading over the past school year.",
+          "url": "sample://tidepath/reading-club-results",
+          "posted_at": "2026-10-15"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 12,
+        "primary_priority": 0,
+        "matched_traits": 8,
+        "recent_focus": 20
+      },
+      "fit_score": 60
+    },
+    {
+      "name": "Halyard & Finch Accounting",
+      "org_type": "company",
+      "city": "Doral",
+      "matched_traits": [
+        "causes",
+        "sector"
+      ],
+      "facts": [
+        {
+          "fact": "SAMPLE: Halyard & Finch Accounting gives pro bono bookkeeping help to small nonprofits.",
+          "url": "sample://tidepath/prospects/halyard-finch-pro-bono",
+          "quote": "pro bono bookkeeping help",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        },
+        {
+          "fact": "SAMPLE: Its staff volunteer as job-readiness coaches for teens.",
+          "url": "sample://tidepath/prospects/halyard-finch-volunteers",
+          "quote": "job-readiness coaches for teens",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        }
+      ],
+      "priority": "Generate Prosperity",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Tidepath matched 42 kids with volunteer mentors this quarter, its largest fall match yet.",
+          "url": "sample://tidepath/fall-mentor-match",
+          "posted_at": "2026-11-02"
+        },
+        {
+          "fact": "Tidepath trained 28 new volunteer mentors at its October mentor academy in Little Haiti.",
+          "url": "sample://tidepath/mentor-academy-october",
+          "posted_at": "2026-10-03"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 20,
+        "priority_overlap": 12,
+        "primary_priority": 0,
+        "matched_traits": 8,
+        "recent_focus": 14
+      },
+      "fit_score": 54
+    },
+    {
+      "name": "Pelican Spur Community Fund",
+      "org_type": "foundation",
+      "city": "Fort Lauderdale",
+      "matched_traits": [
+        "causes",
+        "foundation_priorities"
+      ],
+      "facts": [
+        {
+          "fact": "SAMPLE: The Pelican Spur Community Fund supports housing help for vulnerable families.",
+          "url": "sample://tidepath/prospects/pelican-spur-housing",
+          "quote": "housing help for vulnerable families",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        },
+        {
+          "fact": "SAMPLE: It also funds after-school programs for youth in Broward and Miami-Dade.",
+          "url": "sample://tidepath/prospects/pelican-spur-youth",
+          "quote": "after-school programs for youth",
+          "via": "SAMPLE pack",
+          "retrieved_at": "2026-11-07T18:00:00+00:00"
+        }
+      ],
+      "priority": "Eliminate Inequities",
+      "status": "new",
+      "matched_context": [
+        {
+          "fact": "Tidepath volunteers packed 1,150 weekend meal bags for 96 families in October.",
+          "url": "sample://tidepath/weekend-meal-bags",
+          "posted_at": "2026-10-24"
+        },
+        {
+          "fact": "Students in Tidepath's after-school reading club gained an average of 1.4 grade levels in reading over the past school year.",
+          "url": "sample://tidepath/reading-club-results",
+          "posted_at": "2026-10-15"
+        }
+      ],
+      "fit_breakdown": {
+        "geography": 12,
+        "priority_overlap": 12,
+        "primary_priority": 0,
+        "matched_traits": 8,
+        "recent_focus": 20
+      },
+      "fit_score": 52
+    }
+  ]
+}

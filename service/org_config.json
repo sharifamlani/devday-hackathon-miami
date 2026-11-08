@@ -1,12 +1,8 @@
 {
-  "_comment": "Onboarding screen 2 for the demo org: the URLs the context stage reads. A null URL is skipped. Socials verified from miamifoundation.org's own footer links (Sat Nov 7); it links no X account, so x_url stays null.",
-  "name": "The Miami Foundation",
-  "website": "https://miamifoundation.org",
-  "x_url": null,
-  "linkedin_url": "https://www.linkedin.com/company/the-miami-foundation/",
-  "instagram_url": "https://www.instagram.com/miamifoundation/",
+  "_comment": "Demo org settings. \"persona\" picks the org the demo runs as: \"tidepath\" (FICTIONAL, the default; the hackathon rules ask for made-up data) or \"miami_foundation\" (the original real-org demo). Each persona's name, website and social URLs (onboarding screen 2) live in service/personas/<persona>/persona.json; DONOR_DESK_PERSONA overrides this key. See service/persona.py.",
+  "persona": "tidepath",
   "targets": {
-    "_comment": "SAMPLE goals for the demo, invented for Donor Desk: not The Miami Foundation's real targets. Edit freely. 'default' applies to every period; a key like '2026-11' (month) or '2026-Q4' (quarter) overrides one period. Read by service/targets.py; the context stage ignores this key.",
+    "_comment": "SAMPLE goals for the demo, invented for Donor Desk: not any real organization's targets. Edit freely. 'default' applies to every period; a key like '2026-11' (month) or '2026-Q4' (quarter) overrides one period. Read by service/targets.py; the context stage ignores this key.",
     "is_sample": true,
     "month": {
       "default": 10000

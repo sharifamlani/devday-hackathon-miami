@@ -203,7 +203,7 @@ export const whySentence = (why: ApiWhy | null): string => {
     }
   }
   if (why.reasons.includes("shack_society_level")) {
-    parts.push("Shack Society level: $1M+ lifetime.");
+    parts.push("Star donor: $1M+ lifetime.");
   }
   return parts.join(" ");
 };
