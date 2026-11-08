@@ -119,10 +119,13 @@ def test_a_slow_read_and_a_slower_search_answer_on_time_with_no_events(db_file, 
     monkeypatch.setattr(main.config, "ONBOARDING_EVENTS_GRACE_S", 0.2)
     monkeypatch.setattr(main, "start_events_search", events_after(5, EVENTS))
     monkeypatch.setattr(org_context, "build_context", slow_context)
+    scheduled = []                                                # indexing + tasks run after the response, not here
+    monkeypatch.setattr(main, "after_save_in_background", lambda ids: scheduled.append(True))
     t0 = time.monotonic()
     body = TestClient(main.app).post("/context/run", json={"website": "https://miamifoundation.org"}).json()
     assert time.monotonic() - t0 < 3                              # capped: the grace, not the search, sets the wait
     assert body["served_from"] == "fallback" and body["calendar"]["events"] == 0
+    assert scheduled == [True]                                    # the fallback still queues the after-save work
     conn = db.connect(db_file)
     assert conn.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 0
     conn.close()
