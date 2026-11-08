@@ -64,7 +64,10 @@ Rules:
   accept_enrichment(person_id, fact_ids, tags), passing the facts' ids and the tags' codes (the "tag" field, not
   the label). When the user agrees to all of them ("yes", "save them"), call accept_enrichment(person_id) with
   fact_ids and tags left out: it saves exactly what was shown; never run enrich_person again to save. Nothing is
-  saved before that. If it found nothing (an individual:
+  saved before that. If identity_match is "ambiguous" or "not_found", say in one sentence that you couldn't
+  confirm which <name> it is and ask for its city or website, suggesting e.g. "Search for <name> in New York".
+  When the user names a city or state ("... in New York"), save it first with update_person and pass it to
+  enrich_person(person_id, city, state). If it found nothing (an individual:
   no live web research; or an uncertain identity), say why in one line.
 - Call protocol: "call <person>", "phone <person>" or a call task -> call prep_call, and nothing that dials. Its
   sheet has the Call button; that button is how the user calls. Say in a line or two who they are and the
@@ -98,7 +101,8 @@ Rules:
 
 FIRST_TURN = """- This is the start of the conversation: before answering, call get_context and get_events. If any event
   starts within 14 days of {today}, end your reply with the offer "Plan outreach for N upcoming events?"
-  (N = how many), naming them with their dates.
+  (N = how many), naming them with their dates. Skip the offer when the user asked for a specific task (add,
+  call, enrich, draft, find): answer that and stop.
 """
 
 
@@ -645,6 +649,12 @@ def add_contact(ctx: RunContextWrapper[ChatContext], full_name: str,
     expanded to its exact name, and an ambiguous one comes back as a question to ask the user.
     Applies at once with Undo; an organization can then be researched with Enrich."""
     from service import agent_writes
+    from service.donor_summary import fold
+    # Saying "add X" twice must not make a second X: an exact (accent/case-insensitive) match is reused
+    same = [r for r in query("SELECT id, full_name FROM donors") if fold(r["full_name"]) == fold(full_name.strip())]
+    if same:
+        return {"person_id": same[0]["id"], "already": {"id": same[0]["id"], "full_name": same[0]["full_name"]},
+                "note": "already in your contacts; nothing was added"}
     return write(agent_writes.add_contact, full_name, donor_type, contact_type or "giver",
                  email, phone, city, notes, actor="agent")
 
@@ -715,7 +725,8 @@ def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_
 
 
 @function_tool
-def enrich_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
+def enrich_person(ctx: RunContextWrapper[ChatContext], person_id: int, city: str | None = None,
+                  state: str | None = None) -> dict:
     """Research a person or organization from public, professional sources (the donor page's Enrich): proposes
     facts with their sources and interest tags. Writes nothing; save the ones the user agrees to with
     accept_enrichment(person_id, fact_ids, tags). Individuals aren't researched live (D6); the note says so."""
@@ -728,8 +739,9 @@ def enrich_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
     # The research runs its own agent, which can't share this run's event loop: give it a worker thread. No
     # `with` block: leaving one waits for the thread, so a stalled search would hang the turn past the cap.
     pool = ThreadPoolExecutor(max_workers=1)
-    job = pool.submit(enrich_agent.enrich_full, d["full_name"], d["org_name"], d["city"], d["donor_type"],
-                      False, d["state"], d["email"])
+    # A city/state the user named ("... in New York") counts for the identity check even before it's saved
+    job = pool.submit(enrich_agent.enrich_full, d["full_name"], d["org_name"], city or d["city"], d["donor_type"],
+                      False, state or d["state"], d["email"])
     try:
         result = job.result(timeout=routes_interests.ENRICH_TIMEOUT_S)
     except Timeout:
@@ -1234,9 +1246,13 @@ def summarize(output) -> str:
         kept = len(data["saved"].get("skipped_staff_tags") or [])
         return (f"saved {f} fact{'s' if f != 1 else ''} and {i} interest tag{'s' if i != 1 else ''}"
                 + (f" ({kept} staff tag{'s' if kept != 1 else ''} kept as is)" if kept else ""))
+    if isinstance(data.get("already"), dict):                                    # add_contact, existing
+        return f"{data['already']['full_name']} is already in your contacts (person {data['already']['id']})"
     if "identity_match" in data and "facts" in data and "interests" in data:     # enrich_person
         nf, ni = len(data["facts"]), len(data["interests"])
         if not nf and not ni:
+            if data["identity_match"] in ("ambiguous", "not_found"):      # only the name matched: say what fixes it
+                return f"couldn't confirm which {data['full_name']}; add a city or website"
             return f"{data['full_name']}: nothing to propose" + (f" ({data['note']})" if data.get("note") else "")
         return (f"researched {data['full_name']}: {nf} fact{'s' if nf != 1 else ''}, {ni} interest tag"
                 f"{'s' if ni != 1 else ''} proposed (nothing saved yet)")

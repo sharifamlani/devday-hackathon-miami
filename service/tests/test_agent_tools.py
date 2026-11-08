@@ -871,3 +871,47 @@ def test_the_context_step_never_reads_for_none():
     assert ca.summarize({"profile": {"name": "The Miami Foundation"}, "facts": facts}) == \
         "5 facts for The Miami Foundation"
     assert ca.summarize({"profile": None, "facts": facts}) == "5 facts"
+
+
+def test_an_unconfirmed_identity_tells_the_user_what_to_add():
+    """Live, Rockefeller Foundation: only the name matched, and the step gave no hint what would fix it."""
+    from service import enrich_agent
+    out = {"person_id": 79, "full_name": "Rockefeller Foundation", "facts": [], "interests": [],
+           **{k: v for k, v in enrich_agent.empty_enrichment(enrich_agent.IDENTITY_NOTE, "ambiguous").items()
+              if k in ("identity_match",)}, "note": enrich_agent.IDENTITY_NOTE}
+    assert ca.summarize(out) == "couldn't confirm which Rockefeller Foundation; add a city or website"
+    individual = {**out, "identity_match": "not_researched", "note": "Individuals aren't researched live."}
+    assert ca.summarize(individual).endswith("nothing to propose (Individuals aren't researched live.)")
+    assert "in New York" in ca.INSTRUCTIONS
+
+
+def test_a_run_with_no_words_still_ends_with_a_sentence():
+    from service import chat_stream
+    assert chat_stream.fallback_line([{"summary": "added organization X (person 9, giver)"}]) == \
+        "Added organization X (person 9, giver)."
+    assert chat_stream.fallback_line([]) == "I didn't finish that. Try again."
+
+
+def test_a_specific_task_skips_the_events_offer():
+    assert "Skip the offer when the user asked for a specific task" in ca.FIRST_TURN
+
+
+def test_adding_someone_already_there_reuses_them(db_file):
+    """Live: "add the Rockefeller Foundation" twice made two rows (79 and 80)."""
+    first = invoke("add_contact", full_name="Rockefeller Foundation", donor_type="organization")
+    assert "error" not in first
+    n = one(db_file, "SELECT COUNT(*) AS n FROM donors")["n"]
+    again = invoke("add_contact", full_name="rockefeller foundation ", donor_type="organization")
+    assert again["already"]["full_name"] == "Rockefeller Foundation"
+    assert one(db_file, "SELECT COUNT(*) AS n FROM donors")["n"] == n
+    assert ca.summarize(again).endswith("is already in your contacts (person %d)" % again["already"]["id"])
+
+
+def test_a_city_the_user_names_reaches_the_identity_check(db_file, monkeypatch):
+    """Live: "... in New York" was ignored, so the record's empty city failed the identity check."""
+    from service import enrich_agent
+    seen = []
+    monkeypatch.setattr(enrich_agent, "enrich_full", lambda *a, **k: seen.append(a) or FAKE_ENRICHMENT)
+    pid = invoke("add_contact", full_name="Example Civic Fund", donor_type="organization")["person_id"]
+    invoke("enrich_person", person_id=pid, city="New York", state="NY")
+    assert seen[0][2] == "New York" and seen[0][5] == "NY"
