@@ -19,7 +19,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from service import tasks
+from service import agent_writes, tasks
 from service.routes_data import get_conn
 
 router = APIRouter(tags=["tasks"])
@@ -110,4 +110,4 @@ def get_artifacts(limit: int = Query(50, ge=1, le=500), conn: sqlite3.Connection
 
 @router.post("/undo/{token}")
 def post_undo(token: str, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    return _call(tasks.undo, conn, token)
+    return _call(agent_writes.undo, conn, token)   # any write: tasks, people, duplicates, merges, interests
