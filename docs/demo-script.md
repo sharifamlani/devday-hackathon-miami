@@ -58,7 +58,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      today. First up: Call Rafael Quintero** · **Start**; **5 usual gifts look late.** · **Show me**; **9 possible
      duplicates to review.** · **Review**; **Next event: Give Miami Day — Early Giving opens, in 6 days (Nov 14).** ·
      **Open calendar**;
-   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
+   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k) and the **Impact & story**
      card (e.g. **14 sourced facts · Copy for a grant report**; its panel also has **Refresh research**: don't click it
      on stage, and don't read its "Last refreshed" time aloud, it shows UTC);
    - the calendar tile (**November · Nov 8 – 14**): a week grid with coloured event blocks for the events the agent
@@ -73,17 +73,14 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      their badges (**Card failed**, **Skipped**, **Late**, **New**);
    - **Files & drafts** (campaigns and invites the agents drafted);
    - the greeting **Good afternoon, Denise.** (**Good evening, Denise.** after 6 PM; Denise is the demo staff persona);
-   - **Ask the agent…** with three suggestion chips above it (e.g. **Enrich <the newest donor>**, **Who's late on a
-     usual gift?**, **Plan next week**; for the first ~25 s they read **Add your first donors / Who should I thank this
-     week? / Plan next week**, then settle once the website read lands). A chip only fills the box; press **Send** to run it. Or type, or say it with
-     the mic.
+   - **Ask the agent…** (no suggestion chips above it): type a request and press **Send**, or say it with the mic.
    The tile headings open their panels beside the chat. The workspace controls hold **Live transcript** and the
    avatar menu; Home has no Ask button (the chat is on the page; other pages keep **Open Ask sidebar**).
 6. **Home chat agent.** First the duplicates, while the briefing is still on screen: on the briefing line **9
    possible duplicates to review.** click **Review** (it opens the inbox, with the duplicates banner), then **Ask the
    agent to fix**: the agent works the duplicates in the chat (about 6 s; 5.8 s in T1), and merging still waits for a
    click. (After "Plan next week" the briefing's **Review** scrolls out of reach; if it's gone, use the **CRM** tile's
-   banner → **Ask the agent to fix** instead.) Then click the chip **Plan next week** (it fills the box) and **Send**, or type (or say) it (about 6 s:
+   banner → **Ask the agent to fix** instead.) Then in **Ask the agent…** type (or say) *"Plan next week"* and **Send** (about 6 s:
    first text 4.9 s, done 6.4 s in T1). The agent's step
    cards appear about 2 s after you ask and the reply types out live, so there's always something to point at. The conversation
    shows the agent's tool steps (e.g. **Get context**, **Get events**, **Get calendar**, **Get tasks**), then a plan for
@@ -106,13 +103,13 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    agent…** type *"Search for the Gates Foundation in Seattle and add it to the CRM"*. Say the city: without it the
    identity check finds nothing. The agent finds it, adds it (**Add contact**, with **Undo**) and usually researches
    it in the same turn (about 22 s): the facts it found, each with a **Source** link, and the interest tags, asking
-   whether to save them. (If it only adds it, click the chip **Enrich Gates Foundation** → **Send**.) Type *"Yes, save all of them"*:
+   whether to save them. (If it only adds it, type *"Enrich Gates Foundation"* → **Send**.) Type *"Yes, save all of them"*:
    **Accept enrichment** with **Undo**. (#303 makes this save what was shown instead of researching again; until it
    merges, if it researches again, say yes once more.) "Nothing is saved until staff say so, and every fact shows
    where it came from."
    **Fallback: the Knight Foundation.** Type *"Add the Knight Foundation as a contact."* (about 3.5 s): **Add contact**
-   · added organization John S. and James L. Knight Foundation (person …, giver), with **Undo**. Click the chip
-   **Enrich John S. and James L. Knight Foundation** and **Send** (about 7 s): **Find people** and **Enrich person**
+   · added organization John S. and James L. Knight Foundation (person …, giver), with **Undo**. Type
+   *"Enrich John S. and James L. Knight Foundation"* and **Send** (about 7 s): **Find people** and **Enrich person**
    ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)"), then the facts with **Source** links (e.g.
    its local-journalism and arts funding in the 26 communities where the Knight brothers published newspapers) and the
    tags. Type *"Yes, save all of them"* (about 8 s): **Accept enrichment** ("saved 4 facts and 4 interest tags") with
