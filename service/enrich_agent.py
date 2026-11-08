@@ -4,6 +4,8 @@ Run from the repo root:
     python -m service.enrich_agent "Frederick A. DeLuca Foundation"
     python -m service.enrich_agent "Jane Doe" --org "Acme Corp" --city Miami --donor-id 7
     python -m service.enrich_agent "Amazon" --focus "Miami giving" --cache   # research live, store in the cache
+    python -m service.enrich_agent "Amazon" --interests          # facts + interest tags + contact (B1)
+    python -m service.enrich_agent "Amazon" --interests --cache  # research live, store in interest_cache.json
 
 Lookups read data/research_cache.json first (committed, so nothing slow runs live on stage);
 pass refresh=True / --refresh to research live anyway.
@@ -25,11 +27,15 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 from agents import Agent, ModelSettings, Runner, WebSearchTool
 from dotenv import load_dotenv
 from openai.types.shared import Reasoning
 from pydantic import BaseModel, Field
+
+from service.interests import (LABELS, SUBTAGS, TAGS, Confidence, SourceType, SubTagSlug, TagSlug,
+                               fact_id)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(REPO_ROOT / ".env")
@@ -201,6 +207,161 @@ def save_facts(donor_id: int, facts: list[Fact], agent_run_id: str) -> int:
     return len(new_rows)
 
 
+# --- Interest areas (B1, plan §21.2.6): facts + interest tags + public contact in one structured run ---
+
+# Precomputed interest proposals keyed by donor name (facts stay in research_cache.json)
+INTEREST_CACHE_JSON = REPO_ROOT / "data" / "interest_cache.json"
+IDENTITY_UNSAFE = ("ambiguous", "not_found")
+
+
+class FoundInterest(BaseModel):
+    tag: TagSlug
+    sub_tag: SubTagSlug | None = Field(description="A sub-tag of THIS tag, or null")
+    confidence: Confidence
+    evidence: str = Field(description="Short quote or paraphrase from the source, under 300 characters")
+    source_url: str = Field(description="The exact page that shows this evidence")
+    source_type: SourceType
+
+
+class Location(BaseModel):
+    city: str | None
+    region: str | None
+    country: str | None
+
+
+class Contact(BaseModel):
+    employer: str | None
+    title: str | None
+    linkedin_url: str | None
+    public_email: str | None
+    public_phone: str | None
+    website: str | None
+    location: Location
+    source_urls: list[str] = Field(description="Pages that show these contact values")
+
+
+class Enrichment(BaseModel):
+    identity_match: Literal["confirmed", "probable", "ambiguous", "not_found"]
+    identity_basis: list[str] = Field(description="What matched, e.g. name, employer, city")
+    facts: list[ResearchedFact]
+    interests: list[FoundInterest]
+    contact: Contact
+    notes: str | None
+
+
+TAXONOMY = "\n".join(f"- {slug} ({label}): {definition}. Sub-tags: {', '.join(subs)}"
+                     for slug, label, definition, subs, _, _ in TAGS)
+
+ENRICH_INSTRUCTIONS = f"""You research donors for a community foundation's philanthropy team. Use web search to find
+PUBLIC, PROFESSIONAL information about the donor named by the user, and return:
+1. facts: 2-5 short, specific facts useful to a fundraiser (what they fund, board roles, foundation ties, press),
+   each with the exact URL of the page it came from.
+2. interests: the causes this donor supports, tagged ONLY from this list (tag and sub-tag slugs exactly):
+{TAXONOMY}
+3. contact: public professional contact details (website, public email or phone, employer, title, city), each
+   shown on a page listed in source_urls; null when not found. Never guess a value.
+
+Evidence for an interest, strongest first: board or officer seat at a cause org > named gift or grant to a
+cause org > named fund > public statement > event sponsor or host > volunteer or advisory role > event
+attendance or professional focus > social follow (never enough alone).
+Confidence: high = a board seat, named gift or named fund (or two independent mid signals) with identity
+matched on two attributes; medium = one statement, sponsorship or volunteer role with identity matched on
+two attributes; low = a weak signal or identity matched on name only.
+
+Rules:
+- Every interest cites a source_url and a short evidence quote from that page. No URL, no tag.
+- Untagged beats guessed: return an empty interests list when evidence is thin.
+- Never infer an interest from who the donor appears to be: race, ethnicity or national origin (including
+  from a name), religion, sexual orientation, disability, health, age or politics. Tag immigrant services or
+  faith-based only for a documented gift, role or statement about that cause.
+- If two different people or organizations could match, set identity_match to "ambiguous" and return no
+  interests. If you find nothing about this donor, set "not_found".
+- Public professional information only: no home addresses, family members or personal social accounts.
+"""
+
+enrichment_agent = Agent(
+    name="Donor enrichment (interests)",
+    instructions=ENRICH_INSTRUCTIONS,
+    model=os.getenv("OPENAI_MODEL_DEFAULT"),
+    tools=[WebSearchTool(search_context_size="low")],
+    output_type=Enrichment,
+    model_settings=ModelSettings(reasoning=Reasoning(effort="low")),
+)
+
+CONFIDENCE_RANK = {"low": 0, "medium": 1, "high": 2}
+
+
+def empty_enrichment(reason: str | None = None, identity_match: str = "not_found") -> dict:
+    return {"identity_match": identity_match, "identity_basis": [], "facts": [], "interests": [],
+            "contact": {}, "notes": reason, "searched_at": None}
+
+
+def finalize(e: Enrichment, alive: dict[str, bool], searched_at: str) -> dict:
+    """Apply the rules in Python: dead links drop, unsafe identity means no tags, faith_based capped."""
+    if e.identity_match in IDENTITY_UNSAFE:
+        return {**empty_enrichment(e.notes, e.identity_match), "searched_at": searched_at}
+    facts = [{"id": fact_id(clean_fact(f.fact), f.source_url), "fact": clean_fact(f.fact),
+              "source_url": f.source_url, "retrieved_at": searched_at}
+             for f in e.facts if alive.get(f.source_url)]
+    best: dict[tuple, dict] = {}
+    for i in e.interests:
+        if not alive.get(i.source_url):
+            continue
+        confidence = i.confidence
+        if i.tag == "faith_based" and i.source_type not in ("board_seat", "named_gift") and confidence == "high":
+            confidence = "medium"            # never above medium without a named gift or role
+        sub_tag = i.sub_tag if i.sub_tag in SUBTAGS[i.tag] else None
+        item = {"id": i.tag, "tag": i.tag, "label": LABELS[i.tag], "sub_tag": sub_tag, "confidence": confidence,
+                "evidence": clean_fact(i.evidence)[:300], "source_url": i.source_url, "source_type": i.source_type}
+        key = (i.tag, sub_tag)
+        if key not in best or CONFIDENCE_RANK[confidence] > CONFIDENCE_RANK[best[key]["confidence"]]:
+            best[key] = item
+    sources = [u for u in e.contact.source_urls if alive.get(u)]
+    contact = {}
+    if sources:
+        contact = {**e.contact.model_dump(exclude={"source_urls"}), "source_urls": sources}
+    return {"identity_match": e.identity_match, "identity_basis": e.identity_basis, "facts": facts,
+            "interests": sorted(best.values(), key=lambda i: (-CONFIDENCE_RANK[i["confidence"]], i["tag"])),
+            "contact": contact, "notes": e.notes, "searched_at": searched_at}
+
+
+def read_interest_cache() -> dict[str, dict]:
+    return json.loads(INTEREST_CACHE_JSON.read_text(encoding="utf-8")) if INTEREST_CACHE_JSON.exists() else {}
+
+
+def write_interest_cache(name: str, result: dict) -> None:
+    cache = read_interest_cache()
+    cache[name] = result
+    INTEREST_CACHE_JSON.parent.mkdir(parents=True, exist_ok=True)
+    INTEREST_CACHE_JSON.write_text(json.dumps(cache, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def enrich_full(name: str, org_name: str | None = None, city: str | None = None,
+                donor_type: str | None = None, refresh: bool = False) -> dict:
+    """Facts, interest tags and public contact for one donor. Writes nothing (the caller decides).
+
+    Returns {identity_match, identity_basis, facts: [{id, fact, source_url, retrieved_at}],
+    interests: [{id, tag, label, sub_tag, confidence, evidence, source_url, source_type}], contact, notes,
+    searched_at}. Cached donors (data/interest_cache.json) come back with no model call unless refresh=True.
+    Individuals are never researched live (skip_reason): a made-up person gets no tags.
+    """
+    if not refresh:
+        cached = read_interest_cache().get(name)
+        if cached is not None:
+            return cached
+    reason = skip_reason(org_name, donor_type)
+    if reason:
+        return empty_enrichment(reason, "not_researched")
+
+    query = f"Donor: {name}" + (f"\nOrganization: {org_name}" if org_name else "") + (f"\nCity: {city}" if city else "")
+    e: Enrichment = Runner.run_sync(enrichment_agent, query).final_output
+    searched_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    urls = sorted({f.source_url for f in e.facts} | {i.source_url for i in e.interests} | set(e.contact.source_urls))
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        alive = dict(zip(urls, pool.map(url_loads, urls)))
+    return finalize(e, alive, searched_at)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Research a donor's public, professional facts.")
     parser.add_argument("name")
@@ -212,7 +373,20 @@ def main() -> int:
     parser.add_argument("--donor-id", type=int, help="also save the facts as research_facts rows")
     parser.add_argument("--refresh", action="store_true", help="ignore the cache and research live")
     parser.add_argument("--cache", action="store_true", help="research live and store the result in the cache")
+    parser.add_argument("--interests", action="store_true", help="facts + interest tags + contact (enrich_full)")
     args = parser.parse_args()
+
+    if args.interests:
+        sys.stdout.reconfigure(encoding="utf-8")
+        start = time.perf_counter()
+        result = enrich_full(args.name, args.org_name, args.city, args.donor_type, refresh=args.refresh or args.cache)
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        if args.cache and result["searched_at"]:
+            write_interest_cache(args.name, result)
+            print(f"cached under {args.name!r} in {INTEREST_CACHE_JSON.relative_to(REPO_ROOT)}")
+        print(f"{len(result['interests'])} interest tag(s), {len(result['facts'])} fact(s), "
+              f"identity {result['identity_match']}, {time.perf_counter() - start:.1f}s")
+        return 0
 
     start = time.perf_counter()
     facts = enrich_donor(args.name, args.org_name, args.city, args.focus,
