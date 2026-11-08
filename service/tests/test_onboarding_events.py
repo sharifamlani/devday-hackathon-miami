@@ -100,6 +100,19 @@ def test_a_slow_read_still_lands_with_events_and_prep_tasks(db_file, monkeypatch
     assert conn.execute("SELECT COUNT(*) FROM tasks WHERE kind = 'prep'").fetchone()[0] >= 1
     conn.close()
 
+    # the web's background read: the refresh skips these (already saved), so it drafts the handed-over invites
+    drafted = []
+    monkeypatch.setattr(main, "run_refresh", lambda: {"state": "done", "detail": None, "changes": {"facts": {"added": 3}}})
+    monkeypatch.setattr(refresh, "draft_invites_for",
+                        lambda conn, events, ids, stored, people=None, **k: drafted.append(len(events)) or
+                        {"drafts": {e["title"]: 4 for e in events}, "errors": []})
+    TestClient(main.app).post("/context/refresh")
+    job = wait_for_job()
+    assert job["status"] == "done" and drafted == [2]
+    assert job["changes"]["facts"] == {"added": 3}                  # the web still reads the refresh's own changes
+    assert job["changes"]["onboarding_invites"]["drafts"]["Give Miami Day"] == 4
+    assert main.PENDING_INVITES == []                               # handed over once
+
 
 def test_a_slow_read_and_a_slower_search_answer_on_time_with_no_events(db_file, monkeypatch):
     monkeypatch.setattr(main.config, "CONTEXT_DEADLINE_S", 0.2)

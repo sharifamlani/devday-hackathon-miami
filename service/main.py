@@ -576,7 +576,12 @@ async def onboarding_calendar(events_job, wait_s: float | None = None, invites: 
     if not events:
         return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": "no upcoming events found"}
     out, ids, stored = await run_in_threadpool(save_onboarding_calendar, events)
-    out["invites"] = start_invites_job(events, ids, stored)["status"] if invites else "with the background read"
+    if invites:
+        out["invites"] = start_invites_job(events, ids, stored)["status"]
+    else:   # the refresh only drafts for new/changed events, and these are now saved: hand them to its next pass
+        with REFRESH_LOCK:
+            PENDING_INVITES[:] = [(events, ids, stored)]
+        out["invites"] = "with the background read"
     return out
 
 
@@ -861,6 +866,29 @@ def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
                            finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
 
 
+# Onboarding events saved after a slow read, whose invites the next refresh pass drafts (it skips known events).
+PENDING_INVITES: list[tuple[list[dict], dict, bool]] = []
+
+
+def pending_invites(changes: dict | None) -> tuple[dict | None, str | None]:
+    """Draft the invites a slow onboarding left for this pass: (changes with "onboarding_invites", error or None)."""
+    with REFRESH_LOCK:
+        pending, PENDING_INVITES[:] = PENDING_INVITES[:], []
+    if not pending:
+        return changes, None
+    from service.refresh import draft_invites_for
+    events, ids, stored = pending[0]
+    conn = db.connect()
+    try:
+        out = draft_invites_for(conn, events, ids, stored)
+        return {**(changes or {}), "onboarding_invites": {"drafts": out["drafts"], "errors": out["errors"][:10]}}, None
+    except Exception as e:
+        log.warning("onboarding invites (after the refresh) failed: %s", e)
+        return changes, f"onboarding invites: {type(e).__name__}: {e}"
+    finally:
+        conn.close()
+
+
 def refresh_job() -> None:
     try:
         result = run_refresh()
@@ -868,6 +896,9 @@ def refresh_job() -> None:
     except Exception as e:  # a site or model error: report it, keep the saved context and calendar
         log.warning("context refresh failed: %s", e)
         status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
+    changes, invites_error = pending_invites(changes)     # still "refreshing" until these are drafted too
+    if invites_error and status != "failed":
+        status, detail = "failed", invites_error
     with REFRESH_LOCK:
         REFRESH_JOB.update(status=status, detail=detail, changes=changes,
                            finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
