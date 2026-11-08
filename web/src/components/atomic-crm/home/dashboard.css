@@ -543,3 +543,183 @@
 .home-overview > .home-tile[data-tour="crm"] > .tile-body {
   flex: 1 1 auto;
 }
+
+/* ---------- Overview calendar: week grid and day view (calendar-app style) ---------- */
+/* Event colors match the full calendar's type dots (calendar-v3.css): tinted fill, solid left edge. */
+.home-agenda {
+  --cal-gutter: 30px;
+}
+.home-cal-strip {
+  padding-left: var(--cal-gutter);
+}
+.home-cal-strip button[aria-pressed="true"]:not([aria-current="date"]) {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.home-cal-strip button[aria-pressed="true"][aria-current="date"] {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
+}
+.home-calendar-tools .home-cal-back {
+  width: auto;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+.home-calendar-tools .home-cal-back:hover {
+  background: var(--accent);
+}
+.home-cal-grid {
+  --ev-fundraising: #d1435b;
+  --ev-stewardship: #2f9e6f;
+  --ev-community: #3b82c4;
+  --ev-other: #8a63c9;
+}
+.home-cal-allday {
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(var(--cal-days), minmax(0, 1fr));
+  gap: 2px 0;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.home-cal-allday > div {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  min-width: 0;
+  padding: 0 1px;
+}
+.home-cal-gutter {
+  font-size: 8px;
+  line-height: 18px;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+.home-cal-scroll {
+  max-height: 210px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.home-cal-grid[data-detailed] .home-cal-scroll {
+  max-height: 300px;
+}
+.home-cal-hours {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(var(--cal-days), minmax(0, 1fr));
+  /* Hour lines across the day columns. */
+  background-image: linear-gradient(var(--border) 1px, transparent 1px);
+  background-size: 100% 30px;
+  background-position: var(--cal-gutter) 0;
+  background-repeat: repeat-y;
+  background-clip: content-box;
+}
+.home-cal-hour {
+  position: absolute;
+  left: 0;
+  width: calc(var(--cal-gutter) - 4px);
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: var(--muted-foreground);
+  text-align: right;
+}
+.home-cal-hour:first-child {
+  transform: none;
+}
+.home-cal-column {
+  position: relative;
+  grid-row: 1;
+  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+.home-cal-column[data-today] {
+  background: color-mix(in srgb, var(--brand, #f4d958) 8%, transparent);
+}
+.home-cal-slot {
+  position: absolute;
+  display: flex;
+}
+.home-cal-event {
+  --ev: var(--ev-other);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  overflow: hidden;
+  border-left: 3px solid var(--ev);
+  border-radius: 5px;
+  /* Separates cascaded blocks in the week view. */
+  box-shadow: 0 0 0 1px var(--background);
+  background: color-mix(in srgb, var(--ev) 18%, var(--background));
+  color: color-mix(in srgb, var(--ev) 70%, var(--foreground));
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-move, ease);
+}
+.home-cal-event:hover {
+  background: color-mix(in srgb, var(--ev) 28%, var(--background));
+}
+.home-cal-event[data-kind="fundraising"] {
+  --ev: var(--ev-fundraising);
+}
+.home-cal-event[data-kind="stewardship"] {
+  --ev: var(--ev-stewardship);
+}
+.home-cal-event[data-kind="community"] {
+  --ev: var(--ev-community);
+}
+.home-cal-event > span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-cal-event > time {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+.home-cal-allday .home-cal-event {
+  min-height: 18px;
+  padding: 1px 4px;
+  justify-content: center;
+}
+.home-cal-grid[data-detailed] .home-cal-event {
+  font-size: 12px;
+}
+.home-cal-grid[data-detailed] .home-cal-event > time {
+  font-size: 10px;
+}
+.home-cal-now {
+  position: absolute;
+  left: -3px;
+  right: 0;
+  height: 2px;
+  background: #e5484d;
+  pointer-events: none;
+}
+.home-cal-now::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e5484d;
+}
+.home-cal-plan {
+  margin-top: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
