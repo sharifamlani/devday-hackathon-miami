@@ -40,7 +40,7 @@ const toggled = (set: Set<string>, key: string) => {
   return next;
 };
 
-export const useEnrichReview = (donor: DonorDetail) => {
+export const useEnrichReview = (donor: Pick<DonorDetail, "id" | "full_name" | "donor_type">) => {
   const preview = useEnrichPreview();
   const accept = useAcceptEnrichment();
   const [facts, setFacts] = useState<Set<string>>(new Set());

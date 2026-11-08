@@ -101,27 +101,9 @@ export const donorTags = (d: TagInput, asOf: string): DonorTag[] => {
 };
 
 /* ---------- Contact details ----------
- * The live laptop app shows the full email and phone. The public snapshot build
- * (DATA_MODE "snapshot", Vercel) still masks them: its snapshot.json carries the
- * donor rows as GET /donors returns them, so this is its only privacy layer (#106). */
-
-const isMasked = (value: string) => /[*•]/.test(value);
-
-/** "maria.delgado@example.com" → "m•••@example.com". Snapshot build only. */
-const maskEmail = (email: string): string => {
-  if (isMasked(email)) return email;
-  const at = email.lastIndexOf("@");
-  if (at < 1) return "•••";
-  return `${email[0]}•••${email.slice(at)}`;
-};
-
-/** "+13055550101" → "•••-•••-0101". Snapshot build only. */
-const maskPhone = (phone: string): string => {
-  if (isMasked(phone)) return phone;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length < 4) return "•••";
-  return `•••-•••-${digits.slice(-4)}`;
-};
+ * Full email and phone in every build, the public snapshot included (its data is
+ * fictional). The server's PUBLIC_MODE still masks what the API sends; those
+ * already-masked values pass through here and render as text (ContactLinks). */
 
 /** "+13055550101" → "(305) 555-0101"; anything that is not a US number stays as stored. */
 export const formatPhone = (phone: string): string => {
@@ -132,24 +114,19 @@ export const formatPhone = (phone: string): string => {
   return `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}`;
 };
 
-/** The email to show: full on the laptop, masked in the public snapshot, null when there is none. */
+/** The email to show, as stored; null when there is none. The mode no longer changes it. */
 export const contactEmail = (
   email: string | null | undefined,
-  mode: DataMode = DATA_MODE,
-): string | null => {
-  const value = email?.trim();
-  if (!value) return null;
-  return mode === "snapshot" ? maskEmail(value) : value;
-};
+  _mode: DataMode = DATA_MODE,
+): string | null => email?.trim() || null;
 
-/** The phone to show: formatted on the laptop, masked in the public snapshot, null when there is none. */
+/** The phone to show, formatted; null when there is none. The mode no longer changes it. */
 export const contactPhone = (
   phone: string | null | undefined,
-  mode: DataMode = DATA_MODE,
+  _mode: DataMode = DATA_MODE,
 ): string | null => {
   const value = phone?.trim();
-  if (!value) return null;
-  return mode === "snapshot" ? maskPhone(value) : formatPhone(value);
+  return value ? formatPhone(value) : null;
 };
 
 /* ---------- Giving ---------- */
@@ -294,8 +271,8 @@ export interface DonorContact {
   donor_type: DonorType;
   company_id: number | null;
   company_name: string | null;
-  email: string | null; // full on the laptop, masked in the snapshot build
-  phone: string | null; // formatted on the laptop, masked in the snapshot build
+  email: string | null; // full in every build (PUBLIC_MODE masking arrives already applied)
+  phone: string | null; // formatted, in every build
   city: string | null;
   state: string | null;
   fund_type: string | null;

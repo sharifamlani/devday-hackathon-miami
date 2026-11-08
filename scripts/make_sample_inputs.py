@@ -121,9 +121,33 @@ donor("ostrander", "Ostrander-Pell Charitable Trust", "organization", None, None
       "trustees.ostranderpell@example.com", "Fort Lauderdale", "Scholarship", ["Ostrander-Pell Charitable Trust"])
 
 
+# --------------------------------------------------------------------------- contacts
+# Sharif (Nov 8): every person shows an email and a phone somewhere in the files. A person's own generator email and
+# phone fill a blank cell (deterministically: no extra random draws, so nothing else in the files moves). A planted
+# duplicate twin (a row the upload keeps as its own record, to be reviewed) gets its OWN values instead, never the
+# other record's: dedupe only adds evidence (a shared email or phone raises a pair's score), so every planted pair
+# keeps its exact evidence and score. All values are fictional (example.org / example.com, 305-555-01xx).
+TWIN_CHECK_ROWS = {   # check-log rows that stay a separate record: name as written -> (email, phone or None)
+    "D. Kowalczyk": ("dk.kowalczyk.home@example.org", "305-555-0134"),
+    "Liz Fontaine": ("lizf.miamibeach@example.org", "305-555-0135"),      # the "old address" in the margin note
+    "Bob Nguyen": ("bob.nguyen.home@example.com", "305-555-0102"),        # Robert's cell: the planted shared phone
+    "Marrow Lane Print Co.": ("orders.marrowlaneprint@example.com", "305-555-0136"),
+    "Lucia Ferrante": ("lucia.f.kidsprogram@example.org", "305-555-0137"),
+}
+TWIN_OLD_EMAIL_PHONE = {"priscilla.okafor@example.com": "305-555-0138"}   # Priscilla's pre-2026 address keeps its own record
+TWIN_VELORIA = ("info.veloriabayfdn@example.org", "305-555-0139")         # the Major-gifts row with no contact email
+OWNER = {}   # every email / phone shown -> the person it belongs to (verify: never two different people)
+
+
+def own(value, who):
+    if value:
+        OWNER.setdefault(value.strip().lower(), set()).add(who)
+
+
 def fmt_phone(d, style=None):
     p = d["phone"]
     d["phones"].add(p)
+    own(p, d["key"])
     style = style if style is not None else rng.randrange(3)
     a, b, c = p.split("-")
     return [p, f"({a}) {b}-{c}", f"{a}.{b}.{c}"][style]
@@ -132,6 +156,7 @@ def fmt_phone(d, style=None):
 def fmt_email(d, email=None, upper=False):
     e = email or d["email"]
     d["emails"].add(e.lower())
+    own(e, d["key"])
     return e.title().replace("@", "@") if upper else e
 
 
@@ -359,6 +384,8 @@ def write_xlsx():
         if rng.random() < 0.75:
             email = fmt_email(d, upper=(g["name"] == "María Delgado-Ruiz")) if g["donor"] != "delgado" else \
                 fmt_email(d, "Maria.Delgado@Example.com" if g["date"].year >= 2024 else None)
+        if email is None and not d["emails"]:
+            email = fmt_email(d)
         ws.append([g["name"], email, fmt_amt(g["amount"]), fmt_date(g["date"]),
                    g["fund"] if g["fund_stated"] else None])
         g["loc"] = f"sheet 'GMD gifts' row {ws.max_row}"
@@ -382,6 +409,12 @@ def write_xlsx():
         email = fmt_email(d, email) if rng.random() < 0.8 or g["email"] else None
         phone = fmt_phone(d, 1) if (g.get("with_phone") and not ex and rng.random() < 0.7) else None
         city = city_of(d) if rng.random() < 0.5 else None
+        if email and email.lower() in TWIN_OLD_EMAIL_PHONE:
+            phone = phone or TWIN_OLD_EMAIL_PHONE[email.lower()]
+            own(phone, d["key"])
+        elif not ex:
+            phone = phone or (fmt_phone(d, 1) if not d["phones"] else None)
+            email = email or (fmt_email(d) if not d["emails"] else None)
         note = (ex["note"] if ex else g["note"]) or None
         if g["channel"] == "event" and not ex and not note:
             note = "event"
@@ -406,13 +439,21 @@ def write_xlsx():
     # sheet 3: Major gifts -- note row, header on row 2, different headings
     ws = wb.create_sheet("Major gifts 22-25")
     ws.append(["Gifts of $2,500+ (some entered by hand - check against bank)"])
-    ws.append(["Donor / Organization", "Contact email", "Gift Amount", "Received", "Type", "Comments"])
+    ws.append(["Donor / Organization", "Contact email", "Gift Amount", "Received", "Type", "Comments", "Phone"])
     rows = [g for g in GIFTS if g["dest"] == "major"]
     tot = 0
     for g in sorted(rows, key=lambda g: g["date"]):
         d = D[g["donor"]]
-        ws.append([g["name"], fmt_email(d) if rng.random() < 0.8 else None, fmt_amt(g["amount"]), fmt_date(g["date"]),
-                   "check" if g["channel"] == "check" else g["channel"], g["note"] or None])
+        email = fmt_email(d) if rng.random() < 0.8 else None
+        phone = None
+        if email is None and g["donor"] == "veloria":
+            email, phone = TWIN_VELORIA
+            own(email, d["key"]), own(phone, d["key"])
+        else:
+            email = email or (fmt_email(d) if not d["emails"] else None)
+            phone = fmt_phone(d, 0) if not d["phones"] else None
+        ws.append([g["name"], email, fmt_amt(g["amount"]), fmt_date(g["date"]),
+                   "check" if g["channel"] == "check" else g["channel"], g["note"] or None, phone])
         g["loc"] = f"sheet 'Major gifts 22-25' row {ws.max_row}"
         src(g["donor"], F_XLSX, g["loc"], g["name"], "gift_row")
         tot += g["amount"]
@@ -439,7 +480,7 @@ def write_octnov():
     wb = Workbook()
     specs = [
         ("October", date(2026, 10, 1), date(2026, 10, 31), ["Donor Name", "Contact email", "Donation Amount", "Received", "Payment method", "Fund designation", "Phone", "Memo"]),
-        ("Nov 1-7", date(2026, 11, 1), date(2026, 11, 8), ["Donor", "E-mail", "Amt", "Date", "Type", "Fund", "Tel", "Notes"]),
+        ("Nov 1-7", date(2026, 11, 1), date(2026, 11, 8), ["Donor", "E-mail", "Amt", "Date", "Type", "Fund", "Phone", "Notes"]),
     ]
     for n, (title, lo, hi, header) in enumerate(specs):
         ws = wb.active if n == 0 else wb.create_sheet()
@@ -457,6 +498,8 @@ def write_octnov():
             # a variant spelling always carries the email, so the person links; a plain full name sometimes omits it
             email = fmt_email(d, g["email"]) if (g["email"] or g["name"] != d["name"] or r.random() < 0.8) else None
             phone = fmt_phone(d, 1) if r.random() < 0.35 else None
+            phone = phone or (fmt_phone(d, 1) if not d["phones"] else None)
+            email = email or (fmt_email(d) if not d["emails"] else None)
             ws.append([g["name"], email, amt_cell(g["amount"]), date_cell(g["date"]), g["method"],
                        g["fund"] if r.random() < 0.7 else None, phone, g["note"] or None])
             g["loc"] = f"sheet '{title}' row {ws.max_row}"
@@ -479,9 +522,9 @@ def write_check_log():
     doc.add_heading("Check Deposit Log - Q3 2026", 1)
     doc.add_paragraph("Development office. Checks received July-September 2026. Entered by hand, "
                       "bank deposit slips attached in the blue binder.")
-    t = doc.add_table(rows=1, cols=5)
+    t = doc.add_table(rows=1, cols=7)
     t.style = "Table Grid"
-    for c, h in zip(t.rows[0].cells, ["Donor", "Check #", "Amount", "Date", "Memo"]):
+    for c, h in zip(t.rows[0].cells, ["Donor", "Check #", "Amount", "Date", "Memo", "Phone", "Email"]):
         c.text = h
     n = 4450
     rows = sorted([g for g in GIFTS if g["dest"] == "check"], key=lambda g: g["date"])
@@ -493,6 +536,13 @@ def write_check_log():
         r[0].text, r[1].text, r[2].text = g["name"], str(n), money(g["amount"])
         r[3].text = g["date"].strftime("%m/%d/%Y") if s else g["date"].strftime("%B %d, %Y")
         r[4].text = g["note"] or ""
+        twin = TWIN_CHECK_ROWS.get(g["name"])
+        if twin:
+            for v in twin:
+                own(v, g["donor"])
+            r[5].text, r[6].text = twin[1] or "", twin[0]
+        else:
+            r[5].text = fmt_phone(D[g["donor"]], 0)
         g["loc"] = f"table 1 row {len(t.rows) - 1}"
         src(g["donor"], F_CHECK, g["loc"], g["name"], "gift_row")
     p1 = doc.add_paragraph()
@@ -525,9 +575,9 @@ def write_stock():
     doc.add_paragraph("Whitaker Family Charitable Fund is advised by Harold Whitaker (harold.whitaker@example.org). "
                       "Grants are recorded to the fund's advisor.")
     fmt_email(D["whitaker"])
-    t = doc.add_table(rows=1, cols=5)
+    t = doc.add_table(rows=1, cols=6)
     t.style = "Table Grid"
-    for c, h in zip(t.rows[0].cells, ["Source", "Type", "Value at receipt", "Date", "Details"]):
+    for c, h in zip(t.rows[0].cells, ["Source", "Type", "Value at receipt", "Date", "Details", "Phone"]):
         c.text = h
     for g in sorted([g for g in GIFTS if g["dest"] == "stock"], key=lambda g: g["date"]):
         r = t.add_row().cells
@@ -535,6 +585,8 @@ def write_stock():
             "DAF grant" if g["channel"] == "DAF grant" else "Stock"
         r[2].text, r[3].text = money(g["amount"]), g["date"].strftime("%Y-%m-%d")
         r[4].text = g["note"] or ("Grant check via fund sponsor" if g["channel"] == "DAF grant" else "")
+        d = D[g["donor"]]
+        r[5].text = fmt_phone(d, 0) if not d["phones"] else ""
         g["loc"] = f"table 1 row {len(t.rows) - 1}"
         src(g["donor"], F_STOCK, g["loc"], r[0].text, "gift_row")
     doc.add_paragraph("Stock values are the closing price on the date of transfer. Brokerage statements are in the shared drive.")
@@ -583,7 +635,7 @@ def notes_text():
 - Maria Delgado is our anchor: she has given on every single Give Miami Day since 2022. Jules will call her this
   week. She is now María Delgado-Ruiz on her new intake form - same person, same email, just hyphenated.
 - Pledges for the day (promised, NOT received yet, so do not enter as gifts): Lucia Ferrante says $1,000,
-  Annelise Moreau $500, and the hardware store (Tamarind Quay Hardware) $1,500 as a match challenge.
+  Annelise Moreau $500, and the hardware store (Tamarind Quay Hardware, LLC) $1,500 as a match challenge.
 - Tobias Lindqvist pledged $2,000 for year-end, nothing booked yet.
 
 ## Who is who (clean-up items)
@@ -603,12 +655,13 @@ def notes_text():
 
 ## Pantry and community notes
 
-- Dolores Quinones (Spanish speaker, picks up pantry boxes every other Friday) put $25 in the donation jar at the
+- Dolores Quinones (Spanish speaker, picks up pantry boxes every other Friday; 305-555-0145,
+  dolores.quinones@example.com) put $25 in the donation jar at the
   Oct 18 open house. Not sure whether she goes in as a donor or stays a client. Marisol to ask what she prefers.
 - Marcus Bell, one of our pantry regulars (he filled out an intake form in September), told Jules he wants to give
   $10 a month once his new job starts in December. Nothing received yet.
 - Tomas met Gabriela Rincon at the chamber mixer. She says she wants to "get involved and probably give" and mentioned
-  her mother gets senior meals from us. No form, no gift yet.
+  her mother gets senior meals from us. No form, no gift yet. Her card: gabriela.rincon@example.com, 305-555-0170.
 
 ## Action items
 
@@ -666,7 +719,7 @@ COMMUNITY = [
     ("C08", "Yolanda Cruz-Beltran", "Email", "yolanda.cruzbeltran@example.com", "305-555-0157", "4", "40-49", "Female", "33125",
      "Little Havana", "Spanish", ["After-school", "Food pantry"], True, "Dog: Coco (small, needs shots)", ""),
     ("C09", "Andre Lafleur", "Message via church", "", "", "3", "25-34", "Male", "33150", "Little Haiti", "Haitian Creole / French",
-     ["Food pantry"], None, "", "No phone or email; reach through his church office."),
+     ["Food pantry"], None, "", "Prefers messages through his church office."),
     ("C10", "Mildred Hayes", "Phone call", "", "305-555-0159", "1", "born 1944", "Female", "33133", "Coconut Grove", "English",
      ["Senior meals"], True, "Dog: Biscuit", "Lives alone; Biscuit is her main company."),
     ("C11", "Santiago Ortega", "Email", "santiago.ortega@example.org", "", "5", "35-44", "Male", "33174", "Sweetwater", "Spanish",
@@ -707,6 +760,35 @@ NEIGH = [
 NB = {n[0]: dict(id=n[0], name=n[1], email=n[2], phone=n[3], zip=n[4], interests=n[5], dog=n[6], dog_name=n[7],
                  rows=[], tab="neighbor", ambiguous=False, candidate_tabs=None, reason=None) for n in NEIGH}
 
+# Every community member and neighbor shows an email and a phone (Sharif, Nov 8). Originals are kept (email0 /
+# phone0) so the sign-in sheet's random formatting draws stay exactly as before.
+ADD_CONTACT = {
+    "C01": ("rosaelena.martinez@example.com", None), "C02": ("jr.toussaint@example.org", None),
+    "C03": (None, "305-555-0140"), "C04": ("dmitri.volkov@example.com", None), "C05": ("altagracia.pena@example.org", None),
+    "C06": (None, "305-555-0141"), "C07": ("lan.nguyen@example.com", None), "C09": ("andre.lafleur@example.org", "305-555-0142"),
+    "C10": ("mildred.hayes@example.org", None), "C11": (None, "305-555-0143"), "C12": ("fatima.alsayed@example.com", None),
+    "C13": (None, "305-555-0144"), "C15": ("dolores.quinones@example.com", "305-555-0145"),
+    "N01": (None, "305-555-0146"), "N02": ("jamal.pierce@example.com", None), "N03": (None, "305-555-0147"),
+    "N04": ("tyrone.gaines@example.org", "305-555-0148"), "N05": (None, "305-555-0149"), "N06": (None, "305-555-0152"),
+    "N07": ("nadia.haddad@example.com", None), "N08": (None, "305-555-0155"), "N09": (None, "305-555-0158"),
+    "N10": ("darnell.washington@example.org", None), "N11": (None, "305-555-0160"), "N12": (None, "305-555-0162"),
+    "N13": (None, "305-555-0163"), "N14": (None, "305-555-0165"), "N15": ("renata.silvacho@example.com", None),
+    "N16": (None, "305-555-0166"), "N17": (None, "305-555-0167"), "N18": ("gus.lindemann@example.org", "305-555-0168"),
+    "N19": (None, "305-555-0169"), "N20": ("gabriela.rincon@example.com", "305-555-0170"),
+}
+
+
+def fill_contacts():
+    for pid, (email, phone) in ADD_CONTACT.items():
+        p = (COMM if pid.startswith("C") else NB)[pid]
+        p["email0"], p["phone0"] = p["email"], p["phone"]
+        assert not (email and p["email"]) and not (phone and p["phone"]), pid
+        p["email"], p["phone"] = p["email"] or email, p["phone"] or phone
+    for p in list(COMM.values()) + list(NB.values()):
+        assert p["email"] and p["phone"], p["id"]
+        own(p["email"], p["id"]), own(p["phone"], p["id"])
+
+
 # Ambiguous people planted in the retreat notes (flag for review)
 NB["N20"] = dict(id="N20", name="Gabriela Rincon", email=None, phone=None, zip=None, interests=["giving"], dog=None, dog_name="",
                  rows=[], tab="neighbor", ambiguous=True, candidate_tabs=["neighbor", "giver"],
@@ -718,6 +800,8 @@ COMM["C15"] = dict(id="C15", name="Dolores Quinones", pref=None, email=None, pho
 COMM["C06"].update(ambiguous=True, candidate_tabs=["community", "giver"],
                    reason="Pantry client (intake form) who told staff he wants to give $10 a month once his new job starts. A stated intention, no gift yet; stays community, flag for review.")
 
+fill_contacts()
+
 # Existing people who show up again on the sign-in sheet (cross-file duplicates)
 SIGN_DONORS = [
     # donor key, name as written, contact, zip, interests, brought a dog, dog name
@@ -726,9 +810,9 @@ SIGN_DONORS = [
     ("ferrante", "Lucia F", "lucia.ferrante@example.com", "33130", ["volunteering"], None, ""),
 ]
 SIGN_COMM = [
-    ("C01", "Rosa E. Martinez", "(305) 555-0150", "33135", ["volunteering"], None, ""),
-    ("C03", "Keisha W.", "keisha.williams@example.com", "33142", ["newsletter", "pet_adoption"], True, "Duke"),
-    ("C10", "Millie Hayes", "305.555.0159", "33133", ["pet_adoption"], True, "Biscuit"),
+    ("C01", "Rosa E. Martinez", ("rosa.e.martinez@example.org", "(305) 555-0150"), "33135", ["volunteering"], None, ""),
+    ("C03", "Keisha W.", ("keisha.williams@example.com", ""), "33142", ["newsletter", "pet_adoption"], True, "Duke"),
+    ("C10", "Millie Hayes", ("millie.hayes@example.com", "305.555.0159"), "33133", ["pet_adoption"], True, "Biscuit"),
 ]
 # neighbors who signed twice (second name spelling, second contact spelling)
 SIGN_TWICE = {"N01": ("camila r.", "Camila.Restrepo@example.com"), "N08": ("F. Okonkwo", "felix.okonkwo@example.com")}
@@ -749,11 +833,12 @@ def fmt_style(ph):
 
 
 def _signin_contact(p):
-    if p["email"]:
-        return p["email"]
-    if p["phone"]:
-        return fmt_style(p["phone"])
-    return ""
+    """(email, phone) for the sheet's Email and Phone columns. The random phone style is drawn exactly when it was
+    before (a person who signed in with only a phone), so the rest of the sheet doesn't move."""
+    email0, phone0 = p.get("email0", p["email"]), p.get("phone0", p["phone"])
+    if not email0 and phone0:
+        return p["email"] or "", fmt_style(phone0)
+    return p["email"] or "", p["phone"] or ""
 
 
 def write_community():
@@ -788,9 +873,9 @@ def write_signin():
         entries.append(("neighbor", n["id"], n["name"], _signin_contact(n), n["zip"], n["interests"], n["dog"], n["dog_name"]))
     for nid, (nm, ct) in SIGN_TWICE.items():
         n = NB[nid]
-        entries.append(("neighbor", nid, nm, ct, n["zip"], n["interests"][:1], n["dog"], n["dog_name"]))
+        entries.append(("neighbor", nid, nm, (ct, ""), n["zip"], n["interests"][:1], n["dog"], n["dog_name"]))
     for dk, nm, ct, z, ints, dg, dn in SIGN_DONORS:
-        entries.append(("giver", D[dk]["id"], nm, ct, z, ints, dg, dn))
+        entries.append(("giver", D[dk]["id"], nm, (ct, fmt_phone(D[dk], 0) if not D[dk]["phones"] else ""), z, ints, dg, dn))
     for cid, nm, ct, z, ints, dg, dn in SIGN_COMM:
         entries.append(("community", cid, nm, ct, z, ints, dg, dn))
     rng2.shuffle(entries)
@@ -799,7 +884,7 @@ def write_signin():
     ws.title = SIGNIN_SHEET
     ws.append(["COMMUNITY OPEN HOUSE - Sat Nov 1 - sign in please!!"])
     ws.append([])
-    ws.append(["#", "Name", "Email or phone", "ZIP", "Interested in", "Brought a dog?", "Dog's name / notes", "Time in"])
+    ws.append(["#", "Name", "Email", "Phone", "ZIP", "Interested in", "Brought a dog?", "Dog's name / notes", "Time in"])
     for i, (kind, pid, nm, ct, z, ints, dg, dn) in enumerate(entries):
         mins = 10 * 60 + i * 7
         hh, mm = divmod(mins, 60)
@@ -807,7 +892,7 @@ def write_signin():
         raw_int = ", ".join(rng2.choice(INTEREST_RAW[x]) for x in ints)
         dog = rng2.choice(DOG_RAW_YES) if dg else rng2.choice(["", "", "no", "N"])
         note = dn if (dg and dn) else ("first time here" if kind == "neighbor" and i % 5 == 0 else "")
-        ws.append([i + 1, nm, ct, z if i % 6 else int(z), raw_int, dog, note, tm])
+        ws.append([i + 1, nm, ct[0], ct[1], z if i % 6 else int(z), raw_int, dog, note, tm])
         rec = dict(file=F_SIGNIN, location=f"sheet '{SIGNIN_SHEET}' row {ws.max_row}", name_as_written=nm, kind="signin_row")
         SIGN_ROWS.append(dict(person_kind=kind, pid=pid, **rec))
         if kind == "neighbor":
@@ -1213,6 +1298,11 @@ def main():
     write_notes()
     write_community()
     write_signin()
+    own("rosa.e.martinez@example.org", "C01"), own("millie.hayes@example.com", "C10")
+    missing = [d["key"] for d in D.values() if not d["phones"] or not d["emails"]]
+    assert not missing, f"donors with no phone or email shown: {missing}"
+    shared = {v: sorted(w) for v, w in OWNER.items() if len(w) > 1}
+    assert not shared, f"contact values shared by different people: {shared}"
     attach_notes_people()
     key = build_key()
     (OUT / "answer_key.json").write_text(json.dumps(key, indent=2, ensure_ascii=False), encoding="utf-8")

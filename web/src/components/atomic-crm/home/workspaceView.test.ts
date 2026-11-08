@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeWorkspace,
+  commitWorkspaceForTest,
   crmSubview,
+  handleWorkspaceEscape,
+  type WorkspaceView,
   openWorkspace,
   parseWorkspace,
   resetWorkspaceStateForTest,
@@ -77,5 +80,91 @@ describe("actions", () => {
     resetWorkspaceStateForTest(nav, null, false);
     toggleWorkspace("impact");
     expect(vtMock.calls).toEqual(["open"]);
+  });
+});
+
+describe("rapid toggles never strand the panel", () => {
+  /** A router whose commit lands later than the navigation, like react-router's transition. */
+  function asyncRouter() {
+    let url: WorkspaceView | null = null;
+    const pending: Array<() => void> = [];
+    const queue = () => pending.push(() => commitWorkspaceForTest(url));
+    const nav = {
+      push: (v: WorkspaceView) => {
+        url = v;
+        queue();
+      },
+      replace: (v: WorkspaceView) => {
+        url = v;
+        queue();
+      },
+      closeReplace: () => {
+        url = null;
+        queue();
+      },
+    };
+    const flush = async () => {
+      for (let i = 0; i < 10; i++) {
+        await Promise.resolve();
+        while (pending.length) {
+          pending.shift()!();
+          await Promise.resolve();
+          await Promise.resolve();
+        }
+      }
+    };
+    return { nav, flush, url: () => url };
+  }
+
+  it("double toggle 10x without awaiting ends closed every time", async () => {
+    const r = asyncRouter();
+    resetWorkspaceStateForTest(r.nav, null, false);
+    for (let i = 0; i < 10; i++) {
+      toggleWorkspace("tasks");
+      toggleWorkspace("tasks");
+      await r.flush();
+      expect(r.url()).toBeNull();
+    }
+    // never stuck: a later open still works and Esc/close can close it
+    expect(openWorkspace("crm")).toBe(true);
+    await r.flush();
+    expect(r.url()).toBe("crm");
+    expect(closeWorkspace()).toBe(true);
+    await r.flush();
+    expect(r.url()).toBeNull();
+  });
+  it("double toggle 10x awaiting each commit also ends closed", async () => {
+    const r = asyncRouter();
+    resetWorkspaceStateForTest(r.nav, null, false);
+    for (let i = 0; i < 10; i++) {
+      toggleWorkspace("tasks");
+      await r.flush();
+      expect(r.url()).toBe("tasks");
+      toggleWorkspace("tasks");
+      await r.flush();
+      expect(r.url()).toBeNull();
+    }
+  });
+  it("odd and mixed bursts settle on the last request", async () => {
+    const r = asyncRouter();
+    resetWorkspaceStateForTest(r.nav, null, false);
+    for (let i = 0; i < 10; i++) {
+      toggleWorkspace("tasks");
+      toggleWorkspace("tasks");
+      toggleWorkspace("calendar");
+      await r.flush();
+      expect(r.url()).toBe("calendar");
+      closeWorkspace();
+      await r.flush();
+      expect(r.url()).toBeNull();
+    }
+  });
+  it("Esc right after an open (before it commits) closes", async () => {
+    const r = asyncRouter();
+    resetWorkspaceStateForTest(r.nav, null, false);
+    openWorkspace("impact");
+    handleWorkspaceEscape({ key: "Escape", defaultPrevented: false });
+    await r.flush();
+    expect(r.url()).toBeNull();
   });
 });

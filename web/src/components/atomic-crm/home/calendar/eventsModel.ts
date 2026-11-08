@@ -107,10 +107,11 @@ export interface EventFormValues {
   notes: string;
 }
 
+/** A new event starts timed (09:00); tick "All day" for all-day events. */
 export const emptyForm = (date: string): EventFormValues => ({
   title: "",
   date,
-  allDay: true,
+  allDay: false,
   start: "09:00",
   end: "",
   place: "",

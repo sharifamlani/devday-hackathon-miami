@@ -15,3 +15,17 @@ export const takeCalendarFocus = (): Date | null => {
   const d = parseWhen(iso);
   return Number.isNaN(d.getTime()) ? null : d;
 };
+
+/** The small calendar tile's "+": the next calendar panel opens straight into "Add event". */
+let pendingAdd = false;
+
+export const requestAddEvent = () => {
+  pendingAdd = true;
+};
+
+/** True once after requestAddEvent (and clears it). */
+export const takeAddEventRequest = (): boolean => {
+  const add = pendingAdd;
+  pendingAdd = false;
+  return add;
+};

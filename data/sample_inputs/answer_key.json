@@ -320,7 +320,7 @@
         "priscilla.okafor.law@example.org",
         "priscilla.okafor@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0103",
       "city": "Miami",
       "state": "FL",
       "fund_type": "Field of Interest",
@@ -424,7 +424,7 @@
       "emails_all": [
         "harold.whitaker@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0105",
       "city": null,
       "state": null,
       "fund_type": "Donor Advised",
@@ -479,7 +479,7 @@
       "emails_all": [
         "teo.salinas@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0106",
       "city": "Hialeah",
       "state": "FL",
       "fund_type": "Unrestricted",
@@ -527,7 +527,7 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "line 41",
+          "location": "line 42",
           "name_as_written": "Teo Salinas",
           "kind": "mention"
         }
@@ -546,7 +546,7 @@
       "emails_all": [
         "gloria.pierrelouis@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0107",
       "city": "North Miami",
       "state": "FL",
       "fund_type": "Scholarship",
@@ -594,7 +594,7 @@
       "emails_all": [
         "priya.raman@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0108",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
@@ -650,7 +650,7 @@
       "emails_all": [
         "walter.brandt@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0109",
       "city": "Key Biscayne",
       "state": "FL",
       "fund_type": "Designated",
@@ -679,7 +679,7 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "line 41",
+          "location": "line 42",
           "name_as_written": "Walter Brandt",
           "kind": "mention"
         }
@@ -760,7 +760,7 @@
       "emails_all": [
         "lucia.ferrante@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0111",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
@@ -851,7 +851,7 @@
       "emails_all": [
         "dana.kowalczyk@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0113",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
@@ -900,7 +900,7 @@
       "emails_all": [
         "esperanza.villaverde@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0114",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
@@ -1038,7 +1038,7 @@
       "emails_all": [
         "jerome.baptiste@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0117",
       "city": "North Miami",
       "state": "FL",
       "fund_type": "Unrestricted",
@@ -1080,7 +1080,7 @@
       "emails_all": [
         "hyejin.park@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0118",
       "city": "Aventura",
       "state": "FL",
       "fund_type": "Unrestricted",
@@ -1152,7 +1152,7 @@
       "emails_all": [
         "rafael.quintero@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0119",
       "city": "Kendall",
       "state": "FL",
       "fund_type": "Unrestricted",
@@ -1236,7 +1236,7 @@
       "emails_all": [
         "annelise.moreau@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0120",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
@@ -1290,7 +1290,7 @@
       "emails_all": [
         "desmond.achebewells@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0121",
       "city": null,
       "state": null,
       "fund_type": "Designated",
@@ -1326,7 +1326,7 @@
       "emails_all": [
         "carmen.ibarra@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0122",
       "city": null,
       "state": null,
       "fund_type": "Field of Interest",
@@ -1374,7 +1374,7 @@
       "emails_all": [
         "victor.szymanski@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0123",
       "city": "Miami Beach",
       "state": "FL",
       "fund_type": "Unrestricted",
@@ -1422,7 +1422,7 @@
       "emails_all": [
         "imani.rutherford@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0124",
       "city": "Miami Gardens",
       "state": "FL",
       "fund_type": "Unrestricted",
@@ -1524,7 +1524,7 @@
       "emails_all": [
         "grants@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0127",
       "city": null,
       "state": null,
       "fund_type": "Designated",
@@ -1580,7 +1580,7 @@
       "emails_all": [
         "office.bellweather@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0128",
       "city": null,
       "state": null,
       "fund_type": "Organization Endowment",
@@ -1629,13 +1629,12 @@
       "emails_all": [
         "tamarindquay.accounts@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0129",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
       "notes": "Local business, Give Miami Day sponsor.",
       "names_as_written": [
-        "Tamarind Quay",
         "Tamarind Quay Hardware LLC",
         "Tamarind Quay Hardware, LLC",
         "Tamarind Quay Hdwe, L.L.C.",
@@ -1675,7 +1674,7 @@
         {
           "file": "board_retreat_notes.md",
           "location": "line 11",
-          "name_as_written": "Tamarind Quay",
+          "name_as_written": "Tamarind Quay Hardware, LLC",
           "kind": "mention"
         }
       ],
@@ -1693,7 +1692,7 @@
       "emails_all": [
         "frontdesk.halcyonreef@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0130",
       "city": null,
       "state": null,
       "fund_type": "Field of Interest",
@@ -2086,7 +2085,7 @@
         {
           "file": "board_retreat_notes.md",
           "location": "line 11",
-          "name_as_written": "Tamarind Quay",
+          "name_as_written": "Tamarind Quay Hardware, LLC",
           "kind": "mention"
         }
       ]
@@ -4379,7 +4378,7 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 33-34",
+          "location": "lines 34-35",
           "name_as_written": "Marcus Bell",
           "kind": "mention"
         }
@@ -4395,11 +4394,11 @@
         "giver"
       ],
       "reason": "Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.",
-      "has_contact": false,
+      "has_contact": true,
       "source_rows": [
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 31-32",
+          "location": "lines 31-33",
           "name_as_written": "Dolores Quinones",
           "kind": "mention"
         }
@@ -4415,11 +4414,11 @@
         "giver"
       ],
       "reason": "Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.",
-      "has_contact": false,
+      "has_contact": true,
       "source_rows": [
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 35-36",
+          "location": "lines 36-37",
           "name_as_written": "Gabriela Rincon",
           "kind": "mention"
         }
@@ -4769,7 +4768,7 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "line 41",
+          "location": "line 42",
           "name_as_written": "Teo Salinas",
           "kind": "mention"
         }
@@ -4875,7 +4874,7 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "line 41",
+          "location": "line 42",
           "name_as_written": "Walter Brandt",
           "kind": "mention"
         }
@@ -5560,7 +5559,7 @@
         {
           "file": "board_retreat_notes.md",
           "location": "line 11",
-          "name_as_written": "Tamarind Quay",
+          "name_as_written": "Tamarind Quay Hardware, LLC",
           "kind": "mention"
         }
       ]
@@ -5779,7 +5778,7 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 33-34",
+          "location": "lines 34-35",
           "name_as_written": "Marcus Bell",
           "kind": "mention"
         }
@@ -5822,7 +5821,7 @@
       "full_name": "Andre Lafleur",
       "tab": "community",
       "ambiguous": false,
-      "has_contact": false,
+      "has_contact": true,
       "source_rows": [
         {
           "file": "community_intake_forms_2026.docx",
@@ -5927,11 +5926,11 @@
         "giver"
       ],
       "reason": "Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.",
-      "has_contact": false,
+      "has_contact": true,
       "source_rows": [
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 31-32",
+          "location": "lines 31-33",
           "name_as_written": "Dolores Quinones",
           "kind": "mention"
         }
@@ -5995,7 +5994,7 @@
       "tab": "neighbor",
       "ambiguous": false,
       "has_dog": true,
-      "has_contact": false,
+      "has_contact": true,
       "source_rows": [
         {
           "file": "event_signin_sheet_nov1.xlsx",
@@ -6217,7 +6216,7 @@
       "full_name": "Gus Lindemann",
       "tab": "neighbor",
       "ambiguous": false,
-      "has_contact": false,
+      "has_contact": true,
       "source_rows": [
         {
           "file": "event_signin_sheet_nov1.xlsx",
@@ -6253,11 +6252,11 @@
         "giver"
       ],
       "reason": "Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.",
-      "has_contact": false,
+      "has_contact": true,
       "source_rows": [
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 35-36",
+          "location": "lines 36-37",
           "name_as_written": "Gabriela Rincon",
           "kind": "mention"
         }
@@ -6273,7 +6272,7 @@
       "candidate_tabs": null,
       "reason": null,
       "contact_preference": "Phone call",
-      "email": null,
+      "email": "rosaelena.martinez@example.com",
       "phone": "305-555-0150",
       "household_size": "5",
       "age_as_reported": "born 1984",
@@ -6310,7 +6309,7 @@
       "candidate_tabs": null,
       "reason": null,
       "contact_preference": "Phone call",
-      "email": null,
+      "email": "jr.toussaint@example.org",
       "phone": "305-555-0151",
       "household_size": "1",
       "age_as_reported": "70-79",
@@ -6341,7 +6340,7 @@
       "reason": null,
       "contact_preference": "Email",
       "email": "keisha.williams@example.com",
-      "phone": null,
+      "phone": "305-555-0140",
       "household_size": "4",
       "age_as_reported": "30-39",
       "gender_as_reported": "Female",
@@ -6376,7 +6375,7 @@
       "candidate_tabs": null,
       "reason": null,
       "contact_preference": "Phone call",
-      "email": null,
+      "email": "dmitri.volkov@example.com",
       "phone": "305-555-0153",
       "household_size": "2",
       "age_as_reported": "born 1948",
@@ -6406,7 +6405,7 @@
       "candidate_tabs": null,
       "reason": null,
       "contact_preference": "Text message",
-      "email": null,
+      "email": "altagracia.pena@example.org",
       "phone": "305-555-0154",
       "household_size": "6",
       "age_as_reported": "prefer not to say",
@@ -6440,7 +6439,7 @@
       "reason": "Pantry client (intake form) who told staff he wants to give $10 a month once his new job starts. A stated intention, no gift yet; stays community, flag for review.",
       "contact_preference": "Email",
       "email": "marcus.bell@example.org",
-      "phone": null,
+      "phone": "305-555-0141",
       "household_size": "1",
       "age_as_reported": "18-24",
       "gender_as_reported": "prefer not to say",
@@ -6461,7 +6460,7 @@
         },
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 33-34",
+          "location": "lines 34-35",
           "name_as_written": "Marcus Bell",
           "kind": "mention"
         }
@@ -6475,7 +6474,7 @@
       "candidate_tabs": null,
       "reason": null,
       "contact_preference": "Phone call",
-      "email": null,
+      "email": "lan.nguyen@example.com",
       "phone": "305-555-0156",
       "household_size": "2",
       "age_as_reported": "born 1951",
@@ -6536,8 +6535,8 @@
       "candidate_tabs": null,
       "reason": null,
       "contact_preference": "Message via church",
-      "email": null,
-      "phone": null,
+      "email": "andre.lafleur@example.org",
+      "phone": "305-555-0142",
       "household_size": "3",
       "age_as_reported": "25-34",
       "gender_as_reported": "Male",
@@ -6566,7 +6565,7 @@
       "candidate_tabs": null,
       "reason": null,
       "contact_preference": "Phone call",
-      "email": null,
+      "email": "mildred.hayes@example.org",
       "phone": "305-555-0159",
       "household_size": "1",
       "age_as_reported": "born 1944",
@@ -6603,7 +6602,7 @@
       "reason": null,
       "contact_preference": "Email",
       "email": "santiago.ortega@example.org",
-      "phone": null,
+      "phone": "305-555-0143",
       "household_size": "5",
       "age_as_reported": "35-44",
       "gender_as_reported": "Male",
@@ -6632,7 +6631,7 @@
       "candidate_tabs": null,
       "reason": null,
       "contact_preference": "Phone call",
-      "email": null,
+      "email": "fatima.alsayed@example.com",
       "phone": "305-555-0161",
       "household_size": "7",
       "age_as_reported": "30-39",
@@ -6663,7 +6662,7 @@
       "reason": null,
       "contact_preference": "Email",
       "email": "luis.paz@example.com",
-      "phone": null,
+      "phone": "305-555-0144",
       "household_size": "2",
       "age_as_reported": "55-64",
       "gender_as_reported": "Male",
@@ -6725,8 +6724,8 @@
       ],
       "reason": "Receives pantry boxes (community) but also put $25 in the donation jar at the Oct 18 open house. A client who gave once: community or giver? Flag for review. The $25 is NOT in the donor gift totals.",
       "contact_preference": null,
-      "email": null,
-      "phone": null,
+      "email": "dolores.quinones@example.com",
+      "phone": "305-555-0145",
       "household_size": null,
       "age_as_reported": null,
       "gender_as_reported": null,
@@ -6741,7 +6740,7 @@
       "source_rows": [
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 31-32",
+          "location": "lines 31-33",
           "name_as_written": "Dolores Quinones",
           "kind": "mention"
         }
@@ -6757,7 +6756,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "camila.restrepo@example.com",
-      "phone": null,
+      "phone": "305-555-0146",
       "zip": "33145",
       "interests": [
         "volunteering",
@@ -6787,7 +6786,7 @@
       "ambiguous": false,
       "candidate_tabs": null,
       "reason": null,
-      "email": null,
+      "email": "jamal.pierce@example.com",
       "phone": "305-555-0171",
       "zip": "33127",
       "interests": [
@@ -6812,7 +6811,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "ingrid.solheim@example.org",
-      "phone": null,
+      "phone": "305-555-0147",
       "zip": "33133",
       "interests": [
         "newsletter",
@@ -6836,8 +6835,8 @@
       "ambiguous": false,
       "candidate_tabs": null,
       "reason": null,
-      "email": null,
-      "phone": null,
+      "email": "tyrone.gaines@example.org",
+      "phone": "305-555-0148",
       "zip": "33142",
       "interests": [
         "volunteering"
@@ -6861,7 +6860,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "beatriz.almeida@example.com",
-      "phone": null,
+      "phone": "305-555-0149",
       "zip": "33156",
       "interests": [
         "pet_adoption"
@@ -6885,7 +6884,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "owen.castellan@example.org",
-      "phone": null,
+      "phone": "305-555-0152",
       "zip": "33129",
       "interests": [
         "volunteering",
@@ -6909,7 +6908,7 @@
       "ambiguous": false,
       "candidate_tabs": null,
       "reason": null,
-      "email": null,
+      "email": "nadia.haddad@example.com",
       "phone": "305-555-0177",
       "zip": "33131",
       "interests": [
@@ -6934,7 +6933,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "felix.okonkwo@example.com",
-      "phone": null,
+      "phone": "305-555-0155",
       "zip": "33137",
       "interests": [
         "giving",
@@ -6965,7 +6964,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "svetlana.petrova@example.org",
-      "phone": null,
+      "phone": "305-555-0158",
       "zip": "33160",
       "interests": [
         "volunteering"
@@ -6988,7 +6987,7 @@
       "ambiguous": false,
       "candidate_tabs": null,
       "reason": null,
-      "email": null,
+      "email": "darnell.washington@example.org",
       "phone": "305-555-0180",
       "zip": "33150",
       "interests": [
@@ -7013,7 +7012,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "lourdes.quesada@example.com",
-      "phone": null,
+      "phone": "305-555-0160",
       "zip": "33135",
       "interests": [
         "volunteering",
@@ -7038,7 +7037,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "mateo.bianchi@example.org",
-      "phone": null,
+      "phone": "305-555-0162",
       "zip": "33138",
       "interests": [
         "newsletter"
@@ -7062,7 +7061,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "jocelyn.fairweather@example.com",
-      "phone": null,
+      "phone": "305-555-0163",
       "zip": "33146",
       "interests": [
         "giving"
@@ -7086,7 +7085,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "anil.deshmukh@example.org",
-      "phone": null,
+      "phone": "305-555-0165",
       "zip": "33143",
       "interests": [
         "volunteering",
@@ -7110,7 +7109,7 @@
       "ambiguous": false,
       "candidate_tabs": null,
       "reason": null,
-      "email": null,
+      "email": "renata.silvacho@example.com",
       "phone": "305-555-0185",
       "zip": "33173",
       "interests": [
@@ -7135,7 +7134,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "elliot.brandvold@example.com",
-      "phone": null,
+      "phone": "305-555-0166",
       "zip": "33155",
       "interests": [
         "giving",
@@ -7160,7 +7159,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "yasmin.farouk@example.org",
-      "phone": null,
+      "phone": "305-555-0167",
       "zip": "33134",
       "interests": [
         "pet_adoption"
@@ -7183,8 +7182,8 @@
       "ambiguous": false,
       "candidate_tabs": null,
       "reason": null,
-      "email": null,
-      "phone": null,
+      "email": "gus.lindemann@example.org",
+      "phone": "305-555-0168",
       "zip": "33181",
       "interests": [
         "volunteering"
@@ -7208,7 +7207,7 @@
       "candidate_tabs": null,
       "reason": null,
       "email": "pilar.echeverria@example.com",
-      "phone": null,
+      "phone": "305-555-0169",
       "zip": "33165",
       "interests": [
         "newsletter",
@@ -7235,8 +7234,8 @@
         "giver"
       ],
       "reason": "Met at a chamber mixer; says she wants to 'get involved and probably give' but nothing is given yet, and her mother is a senior-meals client. Not a donor until a gift lands; flag for review.",
-      "email": null,
-      "phone": null,
+      "email": "gabriela.rincon@example.com",
+      "phone": "305-555-0170",
       "zip": null,
       "interests": [
         "giving"
@@ -7246,7 +7245,7 @@
       "source_rows": [
         {
           "file": "board_retreat_notes.md",
-          "location": "lines 35-36",
+          "location": "lines 36-37",
           "name_as_written": "Gabriela Rincon",
           "kind": "mention"
         }
@@ -7346,6 +7345,7 @@
       "C10",
       "C13",
       "N01",
+      "N04",
       "N06",
       "N08",
       "N11",
@@ -7354,15 +7354,13 @@
       "N17",
       "N19"
     ],
-    "target_count": 15,
+    "target_count": 16,
     "target_by_tab": {
       "giver": 1,
-      "neighbor": 8,
+      "neighbor": 9,
       "community": 6
     },
-    "has_dog_but_no_contact": [
-      "N04"
-    ],
+    "has_dog_but_no_contact": [],
     "interested_in_pet_adoption_not_necessarily_dog_owners": [
       "C03",
       "C10",

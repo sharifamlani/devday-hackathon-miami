@@ -5,6 +5,7 @@
     GET  /phone/calls/{id}               -> {status: calling_you|calling_donor|connected|processing|done|failed,
                                              detail, note_id, duration_sec, result: {summary, next_steps, actions}}
     POST /phone/calls/{id}/hangup        -> ends both legs; a connected call is still transcribed and saved
+    POST /phone/calls/{id}/retry         -> Try again: finish a recorded call whose transcript failed (result.retryable)
 
 Follow-ups in result.actions are applied with the existing POST /call-notes/{note_id}/apply.
 """
@@ -56,6 +57,16 @@ def get_call(call_id: str, conn: sqlite3.Connection = Depends(get_conn)) -> dict
 def hang_up(call_id: str, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
     try:
         return phone.hang_up(conn, call_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except phone.PhoneError as e:
+        raise HTTPException(409, str(e))
+
+
+@router.post("/phone/calls/{call_id}/retry")
+def retry_call(call_id: str, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    try:
+        return phone.retry_call(conn, call_id)
     except LookupError as e:
         raise HTTPException(404, str(e))
     except phone.PhoneError as e:

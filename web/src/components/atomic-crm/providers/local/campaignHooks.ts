@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import type {
   CreateCampaignInput,
@@ -34,6 +39,43 @@ export const useCampaign = (id: number | null) => {
     queryFn: () => dataProvider.getCampaign(id as number),
     enabled: id != null,
   });
+};
+
+/**
+ * The projects (campaigns) a donor is in: campaigns whose messages include them. Runs only
+ * while a donor is open (the drawer is mounted closed on several screens). There is no
+ * per-donor membership endpoint, so it reads campaign details, capped at the newest
+ * MAX_PROJECT_LOOKUPS and cached per campaign. A failed read is reported, never shown as "none".
+ */
+const MAX_PROJECT_LOOKUPS = 20;
+export const useDonorProjects = (donorId: number | null) => {
+  const dataProvider = useDonorDesk();
+  const open = donorId != null;
+  const list = useQuery({
+    queryKey: campaignKeys.list,
+    queryFn: () => dataProvider.getCampaigns(),
+    enabled: open,
+  });
+  const details = useQueries({
+    queries: (open ? (list.data ?? []) : [])
+      .slice(0, MAX_PROJECT_LOOKUPS)
+      .map((c) => ({
+        queryKey: campaignKeys.detail(c.id),
+        queryFn: () => dataProvider.getCampaign(c.id),
+      })),
+  });
+  const projects = details
+    .map((q) => q.data)
+    .filter(
+      (c): c is NonNullable<typeof c> =>
+        !!c && c.messages.some((m) => m.donor_id === donorId),
+    )
+    .map((c) => ({ id: c.id, name: c.name }));
+  return {
+    projects,
+    isPending: open && (list.isPending || details.some((q) => q.isPending)),
+    isError: list.isError || details.some((q) => q.isError),
+  };
 };
 
 /** One draft per donor; live with a key this is about 11 s per donor (4 at a time). */
