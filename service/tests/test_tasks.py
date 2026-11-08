@@ -230,8 +230,19 @@ def pair(conn, a, b, status="pending"):
 
 
 def reviews(conn):
-    return [dict(r) for r in conn.execute("SELECT id, title, chips, gen_key, deleted_at FROM tasks "
+    return [dict(r) for r in conn.execute("SELECT id, title, chips, gen_key, members, deleted_at FROM tasks "
                                           "WHERE kind = 'review' ORDER BY id")]
+
+
+def live_groups(conn):
+    """{frozenset(members): chips[0]} for every live review task."""
+    return {frozenset(json.loads(r["members"])): json.loads(r["chips"])[0]
+            for r in reviews(conn) if not r["deleted_at"]}
+
+
+def dismiss(conn, a, b):
+    conn.execute("UPDATE duplicate_suggestions SET status = 'dismissed' WHERE donor_a_id = ? AND donor_b_id = ?", (a, b))
+    conn.commit()
 
 
 def test_a_growing_duplicate_group_keeps_one_review_task(conn):
@@ -247,7 +258,7 @@ def test_a_growing_duplicate_group_keeps_one_review_task(conn):
     assert (grown["created"], grown["updated"]) == (0, 1)
     rows = reviews(conn)
     assert len(rows) == 1 and json.loads(rows[0]["chips"])[0] == "3 records"
-    assert rows[0]["gen_key"] == "duplicates:" + ",".join(map(str, sorted([a, b, c])))
+    assert json.loads(rows[0]["members"]) == sorted([a, b, c])
     assert "Robert Nguyen" in rows[0]["title"]
     assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
     assert "update_duplicate_review" in [x["action"] for x in actions(conn)]
@@ -263,6 +274,40 @@ def test_two_duplicate_groups_that_join_keep_the_older_task(conn):
     assert (result["created"], result["updated"]) == (0, 1)
     live = [r for r in reviews(conn) if not r["deleted_at"]]
     assert len(live) == 1 and json.loads(live[0]["chips"])[0] == "4 records"
+
+
+def test_a_joined_group_that_splits_gets_one_task_per_half(conn):
+    """c9's repro: (1,2),(3,4) -> join via (2,3) -> dismiss (2,3). Used to claim one task twice and hit UNIQUE gen_key."""
+    a, b, c, d = (person(conn, n) for n in ("S One", "S Two", "S Three", "S Four"))
+    pair(conn, a, b)
+    pair(conn, c, d)
+    tasks.generate(conn, AS_OF)
+    pair(conn, b, c)
+    tasks.generate(conn, AS_OF)
+    assert live_groups(conn) == {frozenset({a, b, c, d}): "4 records"}
+    dismiss(conn, b, c)
+    result = tasks.generate(conn, AS_OF)
+    assert live_groups(conn) == {frozenset({a, b}): "2 records", frozenset({c, d}): "2 records"}
+    assert (result["created"], result["updated"]) == (1, 1)
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+
+
+def test_join_split_rejoin_stays_one_task_per_group(conn):
+    a, b, c, d = (person(conn, n) for n in ("R One", "R Two", "R Three", "R Four"))
+    pair(conn, a, b)
+    pair(conn, c, d)
+    tasks.generate(conn, AS_OF)
+    for step in range(2):
+        pair(conn, b, c) if step == 0 else conn.execute(
+            "UPDATE duplicate_suggestions SET status = 'pending' WHERE donor_a_id = ? AND donor_b_id = ?", (b, c))
+        conn.commit()
+        tasks.generate(conn, AS_OF)
+        assert live_groups(conn) == {frozenset({a, b, c, d}): "4 records"}
+        dismiss(conn, b, c)
+        tasks.generate(conn, AS_OF)
+        assert live_groups(conn) == {frozenset({a, b}): "2 records", frozenset({c, d}): "2 records"}
+    keys = [r["gen_key"] for r in reviews(conn) if r["gen_key"]]
+    assert len(keys) == len(set(keys))
 
 
 def test_a_handled_duplicate_review_is_not_reopened_when_the_group_grows(conn):
@@ -362,3 +407,18 @@ def test_upload_hook_generates_tasks_once(tmp_path, monkeypatch):
     assert {(t["kind"], t["title"]) for t in made} == {("call", "Call Ann Lee"), ("email", "Welcome Hye Park")}
     assert all(t["source"] == "generator" for t in made)
     assert tasks.generate(conn, AS_OF)["created"] == 0
+
+
+def test_a_generator_failure_never_fails_an_upload(tmp_path, monkeypatch):
+    from service import ingest_adapter as ia
+    from service.tests.test_ingest_adapter import _events, _judgments
+
+    def boom(*_, **__):
+        raise RuntimeError("generator bug")
+
+    monkeypatch.setattr(tasks, "generate", boom)
+    conn = db.connect(tmp_path / "t.db")
+    db.create_schema(conn)
+    res = ia.ingest_events(_events(), "auto", conn, judgments=_judgments())
+    assert res["people_added"] == 5
+    assert conn.execute("SELECT COUNT(*) FROM donors").fetchone()[0] == 5

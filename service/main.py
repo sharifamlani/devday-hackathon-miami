@@ -574,7 +574,11 @@ def run_refresh() -> dict:
         if urls is None:
             return {"state": "failed", "detail": "no website saved yet: run onboarding first", "changes": None}
         changes = refresh(conn, urls)
-        tasks.generate(conn)   # §21 B11: new events -> prep tasks
+        try:   # §21 B11: new events -> prep tasks; never fails a refresh already saved
+            tasks.generate(conn)
+        except Exception:
+            conn.rollback()
+            log.exception("task generator failed after refresh")
         return {"state": "done", "detail": None, "changes": changes}
     finally:
         conn.close()

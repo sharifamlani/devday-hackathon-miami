@@ -20,6 +20,7 @@ import asyncio
 import json
 import os
 import re
+import logging
 import sqlite3
 import sys
 import time
@@ -608,7 +609,11 @@ def ingest_events(
     if not dry_run:
         score.run(conn)
         dups = dedupe.run(conn)
-        tasks.generate(conn)   # §21 B11: alerts/duplicates/new donors/events -> tasks
+        try:   # §21 B11: alerts/duplicates/new donors/events -> tasks; never fails an upload already saved
+            tasks.generate(conn)
+        except Exception:
+            conn.rollback()
+            logging.getLogger("service").exception("task generator failed after ingest")
     if own:
         conn.close()
     return {

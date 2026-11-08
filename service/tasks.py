@@ -123,11 +123,13 @@ def _actor(actor: str) -> str:
 # ---------- writes: each returns (task, undo_token) ----------
 
 def create_task(conn: sqlite3.Connection, *, kind: str, title: str, actor: str = "staff",
-                gen_key: str | None = None, **fields) -> tuple[dict, str] | None:
-    """Add a task. `source` defaults to the actor. With a gen_key that already exists, returns None."""
+                gen_key: str | None = None, _raw: dict | None = None, **fields) -> tuple[dict, str] | None:
+    """Add a task. `source` defaults to the actor. With a gen_key that already exists, returns None.
+    _raw: internal columns (members) set by the generator; never from callers."""
     actor = _actor(actor)
     values = _check({"kind": kind, "title": title, "source": fields.pop("source", actor), **fields})
     _require_person(conn, values.get("person_id"))
+    values.update(_raw or {})
     cols = list(values) + ["gen_key", "created_at", "updated_at"]
     now = _now()
     cur = conn.execute(
@@ -142,7 +144,8 @@ def create_task(conn: sqlite3.Connection, *, kind: str, title: str, actor: str =
 
 
 def update_task(conn: sqlite3.Connection, task_id: int, actor: str = "staff",
-                _action: str = "update_task", **fields) -> tuple[dict, str]:
+                _action: str = "update_task", _raw: dict | None = None, **fields) -> tuple[dict, str]:
+    """_raw: internal columns (members, gen_key) changed in the same logged write; never from callers."""
     actor = _actor(actor)
     before = _row(conn, task_id)
     if before is None:
@@ -154,6 +157,7 @@ def update_task(conn: sqlite3.Connection, task_id: int, actor: str = "staff",
     if done is not None:
         values["done"] = 1 if done else 0
         values["done_at"] = _now() if done else None
+    values.update(_raw or {})
     if not values:
         raise TaskError("nothing to change")
     values["updated_at"] = _now()
@@ -171,12 +175,13 @@ def complete_task(conn: sqlite3.Connection, task_id: int, done: bool = True,
 
 
 def delete_task(conn: sqlite3.Connection, task_id: int, actor: str = "staff",
-                _action: str = "delete_task") -> tuple[dict, str]:
+                _action: str = "delete_task", _raw: dict | None = None) -> tuple[dict, str]:
     actor = _actor(actor)
     before = _row(conn, task_id)
     if before is None:
         raise NotFound(f"task {task_id} not found")
-    conn.execute("UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?", (_now(), _now(), task_id))
+    raw = {"deleted_at": _now(), "updated_at": _now(), **(_raw or {})}
+    conn.execute(f"UPDATE tasks SET {', '.join(f'{k} = ?' for k in raw)} WHERE id = ?", [*raw.values(), task_id])
     after = _row(conn, task_id, include_deleted=True)
     token = _log(conn, actor, _action, task_id, before, after)
     conn.commit()
@@ -422,31 +427,40 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
             title=f"Call {names.get(a['donor_id'], 'donor')}", why=_alert_why(a),
             person_id=a["donor_id"], chips=_call_chips(facts.get(a["donor_id"])))
 
-    # 2. open duplicate groups -> one review each. A group can grow (A~B, later B~C) or two groups can join,
-    # so a group's task is whichever existing review task shares a member with it: an open one is updated
-    # in place (extra open ones are retired), and a done or deleted one means the group was handled.
-    reviews = [(r, set(map(int, r["gen_key"].split(":", 1)[1].split(","))))
-               for r in conn.execute("SELECT * FROM tasks WHERE gen_key LIKE 'duplicates:%' ORDER BY id")]
+    # 2. open duplicate groups -> one review each. Groups grow, join and split, so a review task has a stable
+    # gen_key ("duplicates:<random>") and keeps its group in `members`. Each pass, a group takes the unclaimed
+    # task sharing the most members with it, open tasks first; a task serves at most one group. Extra open tasks
+    # on a joined group are retired (members and gen_key cleared, so they never match again). A done or
+    # staff-deleted review means that group was handled and is not reopened.
+    reviews = [dict(r) for r in conn.execute(
+        "SELECT * FROM tasks WHERE kind = 'review' AND gen_key LIKE 'duplicates:%' AND members IS NOT NULL ORDER BY id")]
+    for r in reviews:
+        r["member_set"] = set(json.loads(r["members"]))
+    claimed: set[int] = set()
     for ids, reasons in _duplicate_groups(conn):
+        group = set(ids)
         people = [names.get(i, f"#{i}") for i in ids]
-        key = "duplicates:" + ",".join(map(str, ids))
         fields = {"title": f"Review possible duplicate: {', '.join(people)}",
                   "why": "; ".join(reasons) or "These records look like the same person.",
                   "person_id": ids[0], "chips": [f"{len(ids)} records"] + reasons[:2]}
-        mine = [r for r, members in reviews if members & set(ids)]
-        if not mine:
-            add(key, kind="review", **fields)
+        candidates = sorted((r for r in reviews if r["id"] not in claimed and r["member_set"] & group),
+                            key=lambda r: (bool(r["deleted_at"] or r["done"]), -len(r["member_set"] & group), r["id"]))
+        if not candidates:
+            add(f"duplicates:{uuid.uuid4().hex}", kind="review", _raw={"members": json.dumps(ids)}, **fields)
             continue
-        keep, *extra = mine
-        if keep["deleted_at"] or keep["done"] or keep["gen_key"] == key:
+        keep = candidates[0]
+        claimed.add(keep["id"])
+        if keep["deleted_at"] or keep["done"]:
             continue
-        for r in extra:
+        for r in candidates[1:]:
             if not (r["deleted_at"] or r["done"]):
-                delete_task(conn, r["id"], actor="generator", _action="retire_duplicate_review")
-        task, _ = update_task(conn, keep["id"], actor="generator", _action="update_duplicate_review", **fields)
-        conn.execute("UPDATE tasks SET gen_key = ? WHERE id = ?", (key, keep["id"]))
-        conn.commit()
-        updated.append(task)
+                claimed.add(r["id"])
+                delete_task(conn, r["id"], actor="generator", _action="retire_duplicate_review",
+                            _raw={"members": None, "gen_key": None})
+        if keep["member_set"] != group or keep["title"] != fields["title"]:
+            task, _ = update_task(conn, keep["id"], actor="generator", _action="update_duplicate_review",
+                                  _raw={"members": json.dumps(ids)}, **fields)
+            updated.append(task)
 
     # 3. first gift in the last 30 days -> welcome
     for donor_id, f in facts.items():

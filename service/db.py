@@ -414,6 +414,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     done_at     TEXT,
     source      TEXT NOT NULL DEFAULT 'staff' CHECK (source IN ('agent', 'staff', 'generator', 'call')),
     gen_key     TEXT UNIQUE,                  -- the generator's idempotency key; null for hand-made tasks
+    members     TEXT,                         -- duplicate reviews: JSON list of the group's donor ids
     deleted_at  TEXT,                         -- soft delete, so undo restores and the generator never re-adds
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
