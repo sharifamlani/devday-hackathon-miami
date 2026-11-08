@@ -291,3 +291,10 @@ Main 5ecf010 baseline: answer key unchanged; ingest_check cold + 2 warm, 0 FAIL,
 | #114 scripts/demo-reset (8b) | 17fef69 | busy port → exit 2 REFUSED, db untouched; --force → backup + empty; --warm primes the cache (77 people / 132 gifts / 9 suggestions) then resets; --check works on a copy (real db sha256 unchanged), exit 1 on empty; 10/10 tests | APPROVE (nits: no backup for an empty db; also exclude _README.md in the printed instructions) |
 
 #107 merged by the lead on the in-session reviewer's APPROVE (c05ecaa → f84f35b). QA's independent walk is repurposed as the post-merge regression on main.
+| #119 docs/claude-md-codex | 7c44fb0 → c3eb54f | at 7c44fb0, "README says so" was false (0 Codex mentions in README); clause dropped at c3eb54f | APPROVE (c3eb54f) |
+| #117 fix/dedupe-person-org | 0cda330 | full suite main 481 → main+#117 485 passed (an earlier 13F/33E run was contention); real upload + `demo_reset --check` PASS: 33/20/15 after approval, 131 / $1,367,535 before and after, 5 alerts, the real db unchanged; fuzzy stays pending; nits fixed | APPROVE |
+| #112 agent chat | 815be5d | Approve crashes: chat_agent.py:607-609 KeyError 'needs_individual_approval' → 404; card stays live; add/undo without reload, Decline, guardrail all PASS | CHANGES |
+| main post-#107 regression | 8f6aa51 | first run → dashboard (no landing loop), panels = API, Mark done persists, snapshot badge at 390; flags: a new browser re-shows onboarding over a filled db; snapshot dataset ≠ answer key | OK (flags assigned) |
+| #114 → #110/#113 | — | the calendar pair moved to reviewer db; my reviewer was stopped and its 3 processes ended by PID | — |
+
+Process incident: the #112 reviewer stopped another session's Vite on :5191 (it killed by port owner). Rule tightened to own recorded PIDs only. Disk hit 99%; QA node_modules (verified not junctions) deleted, C: free 7.9 GB.
