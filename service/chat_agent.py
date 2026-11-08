@@ -62,7 +62,9 @@ Rules:
 - Enrich protocol ("enrich / research <person>"): call enrich_person. List each proposed fact with its source and
   each proposed interest tag, then ask whether to save them; save only the ones the user agrees to, with
   accept_enrichment(person_id, fact_ids, tags), passing the facts' ids and the tags' codes (the "tag" field, not
-  the label). Nothing is saved before that. If it found nothing (an individual:
+  the label). When the user agrees to all of them ("yes", "save them"), call accept_enrichment(person_id) with
+  fact_ids and tags left out: it saves exactly what was shown; never run enrich_person again to save. Nothing is
+  saved before that. If it found nothing (an individual:
   no live web research; or an uncertain identity), say why in one line.
 - Call protocol: "call <person>", "phone <person>" or a call task -> call prep_call, and nothing that dials. Its
   sheet has the Call button; that button is how the user calls. Say in a line or two who they are and the
@@ -683,9 +685,10 @@ def remove_interest(ctx: RunContextWrapper[ChatContext], person_id: int, tag: st
 
 
 @function_tool
-def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_ids: list[str],
-                      tags: list[str]) -> dict:
-    """Save researched facts and interest tags from the person's latest enrichment proposal."""
+def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_ids: list[str] | None = None,
+                      tags: list[str] | None = None) -> dict:
+    """Save researched facts and interest tags from the person's latest enrichment proposal. Leave fact_ids and
+    tags out to save everything that proposal showed (the user said "yes, save them")."""
     i = interests_module()
     if i is None:
         return {"error": "enrichment review is not available yet"}
@@ -702,8 +705,11 @@ def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_
         # The model may pass a tag's label ("Climate & resilience") instead of its code; map it, case-insensitive
         codes = {str(x.get("label") or "").strip().lower(): x["tag"] for x in proposal.get("interests", [])}
         codes |= {t["label"].strip().lower(): t["slug"] for t in i.list_tags(conn)}
-        picked = [codes.get(str(t).strip().lower(), t) for t in tags]
-        return i.accept_enrichment(conn, person_id, proposal, fact_ids, picked,
+        # Omitted = the whole proposal the user saw: a later turn has only the chat text, not the ids
+        ids = [f["id"] for f in proposal.get("facts", [])] if fact_ids is None else fact_ids
+        chosen = [x["tag"] for x in proposal.get("interests", [])] if tags is None else tags
+        picked = [codes.get(str(t).strip().lower(), t) for t in chosen]
+        return i.accept_enrichment(conn, person_id, proposal, ids, picked,
                                    agent_run_id=f"chat-accept-{uuid.uuid4().hex[:12]}")
     return interest_write(accept)
 
