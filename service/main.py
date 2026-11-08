@@ -339,6 +339,20 @@ def persist_context(result: dict) -> dict | None:
         conn.close()
 
 
+def persist_urls(urls: dict) -> dict:
+    """Saves only the URLs the user typed into org_profile: facts, name, priorities and voice stay as they were.
+
+    For a run that timed out or hit a model error, so the background refresh (org_urls) can read them later.
+    """
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        saved = db.save_context(conn, {"profile": dict(urls), "sources": {}, "facts": []})
+        return {**saved, "urls_only": True}
+    finally:
+        conn.close()
+
+
 def source_progress(req: "ContextRun", result: dict | None, fallback: bool = False, stored: bool = True) -> dict:
     """{website|news|x|linkedin|instagram: {status, facts, detail}} for the screen's per-source rows.
 
@@ -414,8 +428,9 @@ async def context_run(req: ContextRun) -> dict:
 
     served_from: "live" (always: the site is read on every run; `refresh` is accepted and ignored) or
     "fallback" (the read timed out or failed: cached: true, every fact flagged cached, still 200, so the
-    screen moves on). The saved/committed context is used only in that failure branch. No website: state
-    "failed", detail "no website provided", served_from null, empty context, nothing saved.
+    screen moves on). The saved/committed context is used only in that failure branch, which still saves the
+    typed URLs (only the URLs) so a background refresh can read them. No website: state "failed", detail
+    "no website provided", served_from null, empty context, nothing saved.
     """
     try:
         from service.org_context import build_context
@@ -436,6 +451,7 @@ async def context_run(req: ContextRun) -> dict:
         state, cached, detail = "done", False, None
         served_from = "live"
     except Exception as e:  # timeout, model error, site error: fall back, never leave the screen hanging
+        keep_urls = not isinstance(e, ValueError)   # a timeout or model error, not a missing/invalid website
         if isinstance(e, asyncio.TimeoutError):
             detail = f"website read took longer than {config.CONTEXT_DEADLINE_S:.0f} s"
         else:
@@ -453,6 +469,10 @@ async def context_run(req: ContextRun) -> dict:
         # A failed run saves nothing: a typo'd URL must not wipe the saved profile or facts
         if state != "failed":
             saved = await run_in_threadpool(persist_context, savable(result, sources))
+    elif keep_urls:
+        # The site is still worth reading: keep what the user typed (never their facts) so
+        # POST /context/refresh can finish the job in the background on these URLs.
+        saved = await run_in_threadpool(persist_urls, urls)
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,

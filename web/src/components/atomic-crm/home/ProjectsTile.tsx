@@ -99,7 +99,11 @@ export const ProjectsTile = () => {
     ),
   }));
   return (
-    <section className={cn(tile, "home-shortcuts")} aria-labelledby={headingId}>
+    <section
+      data-tour="projects"
+      className={cn(tile, "home-shortcuts")}
+      aria-labelledby={headingId}
+    >
       <h2 id={headingId}>Projects</h2>
       <div className="home-shortcut-search">
         <Search size={14} aria-hidden="true" />

@@ -311,7 +311,7 @@ export const Composer = ({
   };
 
   return (
-    <div className="home-composer">
+    <div data-tour="composer" className="home-composer">
       <ul aria-label="Suggestions" className="mb-2.5 flex flex-wrap gap-2">
         {suggestions.map((question) => (
           <li key={question} className="max-w-full">

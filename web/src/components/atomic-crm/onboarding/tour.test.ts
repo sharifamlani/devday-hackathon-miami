@@ -13,14 +13,26 @@ describe("tour stops", () => {
   });
 
   it("skips targets that are missing or have no box", () => {
-    const present = new Set(["ask", "glance", "tasks"]);
+    const present = new Set(["ask", "progress", "tasks"]);
     const hidden = new Set(["tasks"]); // display:none → no client rects
     const found = availableStops(TOUR_STOPS, (id) =>
       present.has(id)
         ? { getClientRects: () => ({ length: hidden.has(id) ? 0 : 1 }) }
         : null,
     );
-    expect(found.map((s) => s.id)).toEqual(["ask", "glance"]);
+    expect(found.map((s) => s.id)).toEqual(["progress", "ask"]);
+  });
+
+  it("follows the homepage: left column, the agent, then the header buttons", () => {
+    expect(TOUR_STOPS.map((s) => s.id)).toEqual([
+      "progress",
+      "calendar",
+      "tasks",
+      "projects",
+      "composer",
+      "voice",
+      "ask",
+    ]);
   });
 });
 

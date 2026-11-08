@@ -93,7 +93,11 @@ export const WeekCalendarTile = ({
     </button>
   );
   return (
-    <section className={cn(tile, "home-calendar")} aria-labelledby={headingId}>
+    <section
+      data-tour="calendar"
+      className={cn(tile, "home-calendar")}
+      aria-labelledby={headingId}
+    >
       <div className="home-calendar-heading">
         <div>
           <h2 id={headingId}>{month}</h2>

@@ -80,7 +80,11 @@ export const Q4ProgressTile = ({
   const filled =
     percent == null ? 0 : Math.min(Math.max(percent, 0), 100) / 100;
   return (
-    <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
+    <section
+      data-tour="progress"
+      aria-labelledby={headingId}
+      className={cn(tile, "p-4")}
+    >
       <TileHead
         id={headingId}
         title={target ? `${target.label} outreach` : "Quarter progress"}
