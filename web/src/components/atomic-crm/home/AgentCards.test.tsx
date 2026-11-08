@@ -8,7 +8,7 @@ vi.mock("../providers/local/config", async (orig) => ({
   ...(await orig<object>()),
   DATA_MODE: "local",
 }));
-vi.mock("../voice/PhoneCallDialog", () => ({ PhoneCallDialog: () => null }));
+vi.mock("../voice/PhoneCallDialog", () => ({ PhoneCallDialog: () => null, PhoneCallInline: () => null }));
 
 const card = (tool: string) =>
   renderToString(

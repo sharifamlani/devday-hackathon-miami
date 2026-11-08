@@ -248,7 +248,74 @@ def test_chat_agent_is_read_only_in_public_mode(client, monkeypatch):
     assert all(s["status"] == "error" and "not available in the public preview" in s["summary"] for s in body["steps"])
     public_mode.set_enabled(False)
     assert "add_contact" in {t.name for t in chat_agent.tools_for_mode()}   # local mode keeps every tool
-    assert "get_call_notes" not in chat_agent.READ_ONLY_TOOLS              # transcripts never reach a public chat
+    assert "get_call_notes" in chat_agent.READ_ONLY_TOOLS                  # allowed, but masked: see the next test
+
+
+def test_agent_reads_are_masked_and_a_refused_read_does_not_block_the_answer(client, monkeypatch):
+    """S1 + S-neg (96's probe): "tell me about <donor>" made the agent call get_call_notes, which wasn't a read the
+    preview allowed, so the whole reply became the read-only refusal. Now reads answer (masked) and the model's
+    own answer comes back. A call note and staff notes seeded with a marker never reach the model or the reply."""
+    import json
+    from agents.models.interface import Model, ModelResponse
+    from agents.usage import Usage
+    from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
+
+    from service import chat_agent, config, db
+
+    marker, donor_id = "ZEBRA-TRANSCRIPT-8842", 3
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        db.save_call_note(conn, {
+            "id": "n-agent", "title": f"Call {marker}", "created_at": "2026-11-07T10:00:00", "duration_sec": 60,
+            "destinations": [{"kind": "donor", "id": donor_id, "label": "Donor"}],
+            "transcript": [{"speaker": "them", "name": "Donor", "text": f"{marker} card ends 4242", "at": 1}],
+            "notes": marker, "summary": [marker], "next_steps": [marker]})
+        conn.execute("UPDATE donors SET notes = ? WHERE id = ?", (marker, donor_id))
+        conn.commit()
+    finally:
+        conn.close()
+    seen = []
+
+    class StubModel(Model):
+        def __init__(self):
+            self.turn = 0
+
+        async def get_response(self, system_instructions, input, model_settings, tools, output_schema, handoffs,
+                               tracing, **kw):
+            self.turn += 1
+            if self.turn == 1:
+                out = [ResponseFunctionToolCall(type="function_call", call_id="r1", name="get_person",
+                                                arguments=json.dumps({"person_id": donor_id})),
+                       ResponseFunctionToolCall(type="function_call", call_id="r2", name="get_call_notes",
+                                                arguments=json.dumps({"person_id": donor_id})),
+                       ResponseFunctionToolCall(type="function_call", call_id="r3", name="get_call_list",
+                                                arguments=json.dumps({}))]
+            else:
+                seen.append(json.dumps(input, default=str))              # everything the tools handed the model
+                out = [ResponseOutputMessage(id="m", type="message", role="assistant", status="completed",
+                                             content=[ResponseOutputText(type="output_text", annotations=[],
+                                                                         text="Here is what the records show.")])]
+            return ModelResponse(output=out, usage=Usage(), response_id=None)
+
+        def stream_response(self, *a, **k):
+            raise NotImplementedError
+
+    stub = StubModel()
+    real_build = chat_agent.build_agent
+    monkeypatch.setattr(chat_agent, "build_agent", lambda *a, **k: (lambda ag: (setattr(ag, "model", stub), ag)[1])(real_build(*a, **k)))
+    monkeypatch.setattr(config, "HAS_OPENAI_KEY", True)
+    public_mode.set_enabled(True)
+    r = client.post("/chat", json={"message": "Tell me about this donor"}, headers={"Origin": VERCEL})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["reply"] == "Here is what the records show."            # the answer, not READ_ONLY_REPLY
+    assert [s["tool"] for s in body["steps"]] == ["get_person", "get_call_notes", "get_call_list"]
+    assert all(s["status"] == "done" for s in body["steps"])
+    assert seen and marker not in seen[0] and "4242" not in seen[0]      # never reached the model
+    assert marker not in r.text and "4242" not in r.text                 # nor the reply
+    notes_out = next(i["output"] for i in json.loads(seen[0]) if i.get("call_id") == "r2" and "output" in i)
+    assert "call_notes" in notes_out and "[]" in notes_out                 # get_call_notes answered empty
 
 
 def test_call_notes_and_staff_notes_never_appear_in_any_allowed_get(client):
@@ -298,3 +365,34 @@ def test_call_notes_and_staff_notes_never_appear_in_any_allowed_get(client):
     for method, rx in public_mode.ALLOW:
         if method == "GET":
             assert any(rx.match(p.split("?")[0]) for p in paths), rx.pattern
+
+
+def test_the_private_call_notes_note_only_shows_while_the_preview_redacts(db_file, monkeypatch):
+    """Under 22's PUBLIC_SHOW_ALL (public_mode.redacting() False) the notes are shown, so the agent mustn't be told
+    they're private; while redacting (the default) it is."""
+    import asyncio
+    import json
+
+    from agents.tool_context import ToolContext
+
+    from service import chat_agent
+
+    public_mode.set_enabled(True)
+    tool = next(t for t in chat_agent.tools_for_mode() if t.name == "get_call_notes")
+
+    def notes_output() -> dict:
+        payload = json.dumps({"person_id": 3})
+        out = asyncio.run(tool.on_invoke_tool(
+            ToolContext(context=chat_agent.ChatContext(tab="givers"), tool_name="get_call_notes",
+                        tool_call_id="t1", tool_arguments=payload), payload))
+        return out if isinstance(out, dict) else json.loads(out)
+
+    assert notes_output()["note"] == "call notes stay private in the public preview"   # default: redacting
+    monkeypatch.setattr(public_mode, "redacting", lambda: False, raising=False)
+    assert "note" not in notes_output()                                               # show-all: no such claim
+
+    # show-all re-hides nothing: the read's own output passes through untouched (no mask_json at all)
+    calls = []
+    monkeypatch.setattr(public_mode, "mask_json", lambda v, key="": calls.append(v) or v)
+    notes_output()
+    assert calls == []

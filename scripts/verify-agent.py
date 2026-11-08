@@ -164,6 +164,21 @@ def draft_from_the_prep(page: Page) -> str | None:
     return None
 
 
+def call_opens_in_the_card(page: Page) -> str | None:
+    """The call sheet's Call opens the call inside the card (Sharif): no dialog over the page. The inner Call is
+    never clicked here (and stays disabled with PHONE_CALLS off)."""
+    sheet = page.locator("[role=log] [data-testid=call-sheet]").last
+    sheet.get_by_role("button", name=re.compile(r"^Call$")).click()
+    try:
+        sheet.locator("[data-testid=inline-call]").wait_for(timeout=10000)
+    except Exception:
+        return "no inline call panel after clicking Call"
+    page.wait_for_timeout(1500)                          # let the setup check answer
+    if page.locator("[role=dialog]").count():
+        return "a dialog opened over the page"
+    return None
+
+
 def click_work_on_task(page: Page):
     """A click on a sidebar task hands it to the home agent (WorkspaceSidebar.workOn)."""
     page.get_by_role("button", name=re.compile("^Work on with the agent: Call Carmen Ibarra", re.I)).first.click()
@@ -173,7 +188,7 @@ CASES = [
     # Call protocol (#219): "call <person>" shows the call sheet with one Call button; nothing dials (the button
     # is never clicked here, and every test stack runs PHONE_CALLS=off).
     Case("call a donor", "Call Elizabeth Fontaine", tools_all={"prep_call"}, tools_none={"call_person"},
-         ui=r"^Call$", ui_count=1),
+         ui=r"^Call$", ui_count=1, after=call_opens_in_the_card),
     Case("CRM write", "Update Carmen Ibarra's city to Coral Gables", tools_all={"update_person"},
          probe=crm_probe),
     Case("events read", "What are the next events coming up?", tools_any={"get_events", "get_calendar"},

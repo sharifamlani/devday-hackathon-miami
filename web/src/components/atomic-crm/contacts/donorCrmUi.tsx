@@ -158,9 +158,9 @@ export const ProfileSection = ({
 
 /** One labeled value in a small grid (Lifetime $250, Gifts 1, ...). */
 export const Stat = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="rounded-xl bg-muted/60 px-3 py-2">
+  <div className="min-w-0 rounded-xl bg-muted/60 px-3 py-2">
     <dt className="text-xs text-muted-foreground">{label}</dt>
-    <dd className="mt-0.5 font-semibold tabular-nums">{value}</dd>
+    <dd className="mt-0.5 font-semibold break-words tabular-nums">{value}</dd>
   </div>
 );
 

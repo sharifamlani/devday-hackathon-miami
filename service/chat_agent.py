@@ -83,8 +83,8 @@ Rules:
   once: amount and date). Then, for EVERY pair in
   to_confirm, call merge_duplicate (one card per pair, all in this same turn; the person picks Merge or Keep
   separate) and give your findings for each in a short list: the evidence, both records' giving, and what makes it
-  uncertain. If a merge card comes back declined, the person said keep them separate: call dismiss_duplicate for
-  that pair. With nothing pending, say "No possible duplicates right now." Never call resolve_duplicates unless
+  uncertain. Keep separate on a card dismisses that pair by itself; don't call dismiss_duplicate after it. With
+  nothing pending, say "No possible duplicates right now." Never call resolve_duplicates unless
   the user asked.
 {first_turn}{selection}"""
 
@@ -698,7 +698,13 @@ def merge_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int, kee
 def dismiss_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int) -> dict:
     """Mark a suggested duplicate pair as not the same person."""
     from service import agent_writes
-    return write(agent_writes.dismiss_duplicate, suggestion_id, actor="agent")
+    row = query("SELECT status FROM duplicate_suggestions WHERE id = ?", (suggestion_id,))
+    if row and row[0]["status"] == "dismissed":     # Keep separate on its card already did it (keep_separate)
+        return {"suggestion_id": suggestion_id, "status": "dismissed", "note": "already kept separate"}
+    try:
+        return write(agent_writes.dismiss_duplicate, suggestion_id, actor="agent")
+    except LookupError as e:                        # not pending any more (merged, superseded) or unknown
+        return {"error": str(e)}
 
 
 # Sharif (Nov 8): a pair at or above this confidence the agent merges by itself when asked to fix duplicates;
@@ -1091,21 +1097,55 @@ APPROVAL_TOOLS = {t.name for t in TOOLS if getattr(t, "needs_approval", False)}
 # Public preview (PUBLIC_MODE=1): the agent's server-side tools bypass the HTTP allow-list, so every tool that
 # is not a plain read is swapped for one that refuses without touching the db.
 READ_ONLY_TOOLS = {"find_people", "get_person", "segment", "get_context", "search_context", "get_events", "get_alerts",
-                   "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats"}
+                   "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats", "get_call_notes"}
+READ_PREFIXES = ("get_", "find_", "search_", "list_")
 READ_ONLY_REPLY = "This is a read-only preview, so I can't make changes, draft or send anything. I can look things up for you."
 
 
 def refuse_in_preview(tool):
+    """A tool the preview doesn't allow. A write or send marks the run blocked (the reply becomes READ_ONLY_REPLY);
+    a read that isn't on the list just answers empty, so one refused lookup doesn't throw away the whole answer."""
+    is_read = tool.name.startswith(READ_PREFIXES)
+
     async def invoke(ctx, _input):
+        if is_read:
+            return json.dumps({"note": public_mode.NOT_AVAILABLE, "results": []})
         ctx.context.blocked = True
         return json.dumps({"error": public_mode.NOT_AVAILABLE})
     return dataclasses.replace(tool, on_invoke_tool=invoke, needs_approval=False)
 
 
+def redacting() -> bool:
+    """public_mode.redacting() (22: PUBLIC_MODE and not PUBLIC_SHOW_ALL); before that lands, public mode redacts."""
+    return getattr(public_mode, "redacting", lambda: True)()
+
+
+def masked_in_preview(tool):
+    """A read the preview allows, with its output masked before the model sees it (public_mode.mask_json, as for
+    every public JSON response): call notes and transcripts come back empty, staff notes blank, emails and phones
+    masked. The model can't repeat what it never got."""
+    run = tool.on_invoke_tool
+
+    async def invoke(ctx, input):
+        out = await run(ctx, input)
+        if not redacting():                         # PUBLIC_SHOW_ALL: the demo shows everything, nothing re-hidden
+            return out
+        try:
+            data = out if isinstance(out, (dict, list)) else json.loads(out)
+        except (TypeError, ValueError):
+            return out
+        masked = public_mode.mask_json(data)
+        # They exist, they're just not shown here (only reached while redacting; show-all returned above).
+        if isinstance(masked, dict) and "call_notes" in masked:
+            masked["note"] = "call notes stay private in the public preview"
+        return masked if isinstance(out, (dict, list)) else json.dumps(masked)
+    return dataclasses.replace(tool, on_invoke_tool=invoke)
+
+
 def tools_for_mode() -> list:
     if not public_mode.enabled():
         return TOOLS
-    return [t if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
+    return [masked_in_preview(t) if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
 
 
 def summarize(output) -> str:
@@ -1200,7 +1240,7 @@ def summarize(output) -> str:
         what = data.get("event_title") or f"event {data['event_id']}"
         return f"RSVP: {who} → {what}{when}, {answer}"
     if "suggestion_id" in data:
-        return data.get("label") or f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
+        return data.get("label") or data.get("note") or f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
     return json.dumps(data)[:160]
 
 
@@ -1269,6 +1309,8 @@ def steps_from(items) -> list[dict]:
                 args = json.loads(getattr(raw, "arguments", "") or "{}")
             except ValueError:
                 args = {}
+            if call_id in calls:      # a resumed run repeats a paused call: one step per call, filled in place
+                continue
             calls[call_id] = {"tool": getattr(raw, "name", "tool"), "args": args, "summary": None,
                               "status": "done", "undo_token": None, "call_id": call_id}
             steps.append(calls[call_id])
