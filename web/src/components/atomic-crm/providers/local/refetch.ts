@@ -44,6 +44,7 @@ export const SCOPE_KEYS: Record<RefetchScope, readonly (readonly unknown[])[]> =
 /** Which scopes each agent tool's write touches (plan.md §21.6.3 B10 tool names). */
 export const TOOL_SCOPES: Record<string, RefetchScope[]> = {
   update_person: ["people", "summary"],
+  update_donor_summary: ["people"],
   add_contact: ["people", "summary"],
   add_interest: ["interests", "people"],
   remove_interest: ["interests", "people"],
