@@ -677,7 +677,11 @@ def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_
 def merge_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int, keep_id: int | None = None) -> dict:
     """Merge a suggested duplicate pair into one person. Needs the user's approval; Undo splits them again."""
     from service import agent_writes
-    return write(agent_writes.merge_duplicate, suggestion_id, keep_id, ctx.context.approved_by, actor="agent")
+    line = approval_summary("merge_duplicate", {"suggestion_id": suggestion_id, "keep_id": keep_id})  # before the merge
+    out = write(agent_writes.merge_duplicate, suggestion_id, keep_id, ctx.context.approved_by, actor="agent")
+    if line and "error" not in out:
+        out["label"] = "merged " + re.sub(r" \(\d+% match: .*\)$", "", line.removeprefix("Merge "))
+    return out
 
 
 @function_tool
@@ -1109,7 +1113,7 @@ def summarize(output) -> str:
         what = data.get("event_title") or f"event {data['event_id']}"
         return f"RSVP: {who} → {what}{when}, {answer}"
     if "suggestion_id" in data:
-        return f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
+        return data.get("label") or f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
     return json.dumps(data)[:160]
 
 

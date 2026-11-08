@@ -731,3 +731,11 @@ def test_a_declined_delete_is_not_reported_as_deleted():
     out.output = "Tool execution was not approved."
     steps = ca.steps_from([call, out])
     assert steps[0]["summary"] == "declined"
+
+
+def test_an_approved_merge_step_names_the_pair(db_file):
+    nickname_pair(db_file)
+    sid = next(p["suggestion_id"] for p in invoke("resolve_duplicates", names=["Bill Hartwell", "William Hartwell"])["to_confirm"])
+    out = invoke("merge_duplicate", suggestion_id=sid)
+    # one gift each: dedupe.merge keeps the lower id (Bill), and the step says so
+    assert ca.summarize(out) == "merged William Hartwell into Bill Hartwell"
