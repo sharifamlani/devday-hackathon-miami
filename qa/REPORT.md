@@ -324,3 +324,7 @@ Live walk: onboarding → dashboard PASS; 33/20/15 → 68 / 131 / $1,367,535 PAS
 Top blockers (Givers first): (1) 10 "Review possible duplicate" tasks stay open after merges (and the agent recommends them); (2) the import summary says 132 gifts (#145 needs a rebase); (3) the Givers tab shows 11/12 auto-merge flags; (4) Enrich finds nothing for the fictional sample orgs; (5) CampaignReview duplicate React keys.
 Follow-up: blocker (3) withdrawn: the 12th flagged giver is on Givers page 2 (the #125/#134 run counted 12 + 2 + 1 = 15 across pages). (2) fixed by #145 (merged). (4) by design (fictional orgs; the demo adds the real Knight Foundation via chat). (5) → d1. (1) → 33, top priority.
 | #160 calendar Refresh now (e6) | b04d3bd | card S1/S2/S-neg PASS: Refreshing… → refetch with no reload, failure detail shown, hidden in snapshot (0 calls), 390 ok; nits: 0 ms double-click → 2 POSTs; unreachable site reports done | APPROVE |
+| #174 approval card names (+Undo) | 8cae595 | card names the recipient; mixed batch approve → dry run, orgs blocked; Undo greys and reverses; no-email → clear message; 390 ok | APPROVE |
+| #160 / #163 / #171 / #161 | — | #163, #171, #161 moved to other reviewers (my reviewers stopped, worktrees reset; one leftover tsc PID stopped) | — |
+
+Possible main bugs: (a) with two approval cards pending, approving one auto-declines the other (owner 90). (b) Blocker 1 baseline on main 8cdff72: after approve-all, 9 "Review possible duplicate" tasks stay open (#180 pending merge).
