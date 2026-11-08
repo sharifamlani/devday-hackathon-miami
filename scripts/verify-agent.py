@@ -88,7 +88,7 @@ def click_work_on_task(page: Page):
 
 
 CASES = [
-    Case("call a donor", "Call Carmen Ibarra", tools_any={"get_person", "find_people", "call_person"},
+    Case("call a donor", "Call Elizabeth Fontaine", tools_any={"get_person", "find_people", "call_person"},
          ui=r"^Call\b"),
     Case("CRM write", "Update Carmen Ibarra's city to Coral Gables", tools_all={"update_person"},
          probe=crm_probe),
