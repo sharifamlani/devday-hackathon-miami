@@ -1233,6 +1233,7 @@ browser-direct Gemini with a long-lived key.
 [4. Dashboard] gauge, today at a glance, CRM list, task card, calendar, artifacts, agent chat:
    every panel reads the context dataset + people/gifts; the agent answers from the same tables
 ```
+> **Superseded by §22 (onboarding after #264):** step 3 no longer has its own screen; step 2's Continue opens the dashboard and the site is read in the background.
 - Step 3 shows live progress (sources being read, facts found), then lands on the dashboard; no button press needed.
 - The daily refresh re-runs step 3 and re-generates tasks.
 - Build mapping: step 1 exists (ingest adapter); step 2 screen is Christian's (from draft #70); step 3 backend exists
@@ -1465,6 +1466,7 @@ then, in the agent chat (not in the mockup; added for the demo):
 ```
 
 #### 21.3.6 Onboarding
+> **Superseded by §22 (onboarding after #264):** step 3 no longer has its own screen; step 2's Continue opens the dashboard and the site is read in the background.
 ```
 Step 1 Upload                         Step 2 Your organization           Step 3 Building your context
 +-------------------------------+    +----------------------------+     +-------------------------------+
@@ -1857,21 +1859,24 @@ No UI or code changes: this section only orders what is already on main.
                                v
        +-----------------------------------------------+
        | LIVE service :8001 + web :5173 (local mode)    |  scripts\live_stack.ps1 (IT lane)
-       | smokes 1-4 (22.4)  ->  browser on Step 1 of 3  |
+       | smokes 1-4 (22.4)  ->  browser on Step 1 of 2  |
        +-----------------------+-----------------------+
                                v
  T-0   +-----------------------------------------------+
-  (1)  | EMPTY APP: "Donor Desk · Step 1 of 3"          |  "Nothing is preloaded."
+  (1)  | EMPTY APP: "Donor Desk · Step 1 of 2"          |  "Nothing is preloaded."
        +-----------------------+-----------------------+
                                v
   (2)  +-----------------------------------------------+
-       | ONBOARDING                                    |
-       |  drag 8 files -> Import 8 files (~10 s)       |
-       |  receipt: 77 people · 131 gifts · 40/22/15 ·  |
-       |           9 possible duplicates               |
+       | ONBOARDING (Step 1 of 2, Step 2 of 2)         |
+       |  drag 8 files -> Import 8 files               |
+       |  processing view: "Bringing your data         |
+       |  together." -> "Everything's in place."       |
+       |  results: "Your donor data is ready."         |
+       |  77 accounts · 19 removed · 9 to review       |
+       |  -> Create organization profile               |
        |  website miamifoundation.org -> Continue      |
-       |  Reading your website (~30 s) -> "Your desk   |--("Still reading your site.")--> Continue to the
-       |  is set up." -> Go to the dashboard           |                                  dashboard
+       |  -> dashboard at once; site read in the       |
+       |     background (~30 s)                        |
        +-----------------------+-----------------------+
                                v
   (3)  +-----------------------------------------------+
@@ -1904,10 +1909,10 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 
 | # | Step | Operator does | Screen shows |
 |---|---|---|---|
-| 1 | Empty app | Hard refresh http://localhost:5173 | **Donor Desk · Step 1 of 3**, **Drag in your files.** |
-| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | **Import finished: 77 people · 131 gifts (+1 declined charge on record)**, **40 Givers · 22 Neighbors · 15 Community**, **9 possible duplicates to review** |
-| 2b | Website | Type `miamifoundation.org`, **Continue** | **Reading your website · m:ss**, then **Your desk is set up.** (e.g. 15 facts) |
-| 3 | Dashboard | **Go to the dashboard**, **Not now** on the tour card | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
+| 1 | Empty app | Hard refresh http://localhost:5173 | **Donor Desk · Step 1 of 2**, **Drag in your files.** |
+| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | the processing view (**kindred**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **19 Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage), ~5 s after Import (4.3–6.4 s in 20's TEST walks) → **Create organization profile** |
+| 2b | Website | **Step 2 of 2** **Your organization.**: type `miamifoundation.org`, **Continue** | the dashboard opens in under 2 s (e.g. **15 tasks today**); the site and news are read in the background, and the 4 events, prep tasks and facts land ~30–40 s after **Continue** |
+| 3 | Dashboard | **Not now** on the tour card (it may read "We're still reading your website…") | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
 | 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
 | 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* (~10–13 s) → the card's **Call** → the panel's **Call** → answer the staff phone, **press any key** at the trial message; Christian answers and presses any key → once it says **Connected**, both talk clearly for about 20 s (Christian says something actionable, e.g. "send me the Give Miami Day link") → **Hang up** from the panel at about 0:20–0:25 | steps **Get context · Get events · Find people** ("1 people: Christian Gonzalez") → card **Call sheet: Christian Gonzalez** (Phone (the full number), **Call**, GIVING "No gifts on record.", TALKING POINTS) → panel **Call Christian Gonzalez** (description with (…) numbers, the notice line, **Cancel** / **Call**) → **Ringing your phone…** (0–4 s) → **Calling Christian Gonzalez…** (~4 s) → **Connected · recording · 0:03** (~12 s; ~15 s of trial preamble before anyone can talk) → after **Hang up**: **Getting the recording…** → **Transcribing…** → **Summarizing…** → **Suggesting follow-ups…** → **✓ Saved to the call notes · 0:39** with the **Summary** (1–3 short bullets) and **Close**, ~25 s after Hang up; **Suggested follow-ups** with **Apply** appear only if something actionable was said |
@@ -2000,7 +2005,7 @@ Live-call notes (19, from the real test call):
       apps (Dropbox sync paused, no other dev servers).
 - [ ] **T-5 (fallback):** the Vercel preview open in a second tab (https://devday-donor-desk.vercel.app); a hotspot
       ready as Wi-Fi backup.
-- [ ] **T-0:** hard refresh: the app shows **Donor Desk · Step 1 of 3** with nothing behind it.
+- [ ] **T-0:** hard refresh: the app shows **Donor Desk · Step 1 of 2** with nothing behind it.
 
 ### 22.4. Derisking: smokes in dependency order
 1. **What it proves:** the API key, the model tiers and the Agents SDK work.
@@ -2017,7 +2022,7 @@ Live-call notes (19, from the real test call):
    never in public mode).
    **If it fails →** restart the service from the reset's printout; a non-empty `/events` means rerun step 2.
 4. **What it proves:** the web talks to that service in local mode.
-   **Command:** open http://localhost:5173 · **Expected:** **Donor Desk · Step 1 of 3**, 0 errors in the DevTools
+   **Command:** open http://localhost:5173 · **Expected:** **Donor Desk · Step 1 of 2**, 0 errors in the DevTools
    console. **If it fails →** check `VITE_API_URL=http://localhost:8001` and `VITE_DATA_MODE=local`; restart the web
    (`scripts\live_stack.ps1 restart -Stack live -Only web`).
 5. **What it proves:** the public link serves the live laptop data (or, knowingly, the snapshot).
@@ -2039,8 +2044,8 @@ Live-call notes (19, from the real test call):
 | Criterion | Metric + threshold | How measured | Evidence |
 |---|---|---|---|
 | Stage numbers before going on | `PASS stage numbers: 77 people / 9` | `demo_reset.py --warm` output | the terminal line, kept on screen |
-| Import receipt matches the answer key | 77 people · 131 gifts · 40/22/15 · 9 duplicates on screen | read the receipt (step 2a) | rehearsal screenshot |
-| Setup is fast enough for a stage | import ≤ 15 s; context ≤ 45 s (or the "Still reading" path taken) | stopwatch from click to screen | rehearsal timing table |
+| Results view matches the upload | **77 Accounts recognized** and "**9 possible matches still need review.**" on screen | read the results view (step 2a) | rehearsal screenshot |
+| Setup is fast enough for a stage | **Import 8 files** → **Your donor data is ready.** ≤ 20 s; **Continue** → the 4 events on the dashboard ≤ 60 s | stopwatch from click to screen | rehearsal timing table |
 | All 4 events land | Sat 14 Early Giving, Sun 15 5K + Festival, Thu 19 Give Miami Day on the week strip | read the week strip / calendar | rehearsal screenshot |
 | Agents feel live | first step card ≤ 3 s; "Plan next week" done ≤ 15 s; call sheet ≤ 35 s | stopwatch | rehearsal timing table |
 | Calendar to campaign | **Open batch** opens the campaign page ≤ 5 s | stopwatch | rehearsal timing table |
@@ -2061,9 +2066,9 @@ fallback before T-30.
 ### 22.7. Fallbacks (if X fails → say/do Y)
 | Step | If | Say / do |
 |---|---|---|
-| 1 Empty app | **Step 1 of 3** isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
+| 1 Empty app | **Step 1 of 2** isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
 | 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: **Use the example files**, then continue. |
-| 2b Context | **Still reading your site.** | **Continue to the dashboard**: "It keeps reading in the background; the facts land in a minute." |
+| 2b Background read | the events or facts aren't on the dashboard yet | Keep touring: "The agent is still reading the site; the events land in a moment." If nothing lands after 2 min, carry on: the uploaded data carries every other moment. |
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
