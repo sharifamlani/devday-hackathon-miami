@@ -256,11 +256,18 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
 
 # ---------- reads ----------
 
+# The Donors tab's tasks are private staff records (routes_crm.py): a row it created, migrated or edited carries
+# tasks.crm. The public Vercel snapshot (export_snapshot.py) asks for public_only and never sees them.
+PUBLIC_ONLY = "crm IS NULL"
+
+
 def list_tasks(conn: sqlite3.Connection, *, due: str | None = None, from_: str | None = None,
-               to: str | None = None, person_id: int | None = None, as_of: date | None = None) -> list[dict]:
-    """due='today' → open tasks due today or overdue, plus today's done ones. from/to filter by due date."""
+               to: str | None = None, person_id: int | None = None, as_of: date | None = None,
+               public_only: bool = False) -> list[dict]:
+    """due='today' → open tasks due today or overdue, plus today's done ones. from/to filter by due date.
+    public_only leaves out the Donors tab's private tasks (for the public snapshot)."""
     today = (as_of or default_as_of()).isoformat()
-    where, args = ["deleted_at IS NULL"], []
+    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if public_only else []), []
     if due == "today":
         where.append("(due = ? OR (due < ? AND done = 0) OR (due IS NULL AND done = 0))")
         args += [today, today]
@@ -297,7 +304,7 @@ def _cols(conn: sqlite3.Connection, table: str) -> set[str]:
 
 
 def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None = None,
-             as_of: date | None = None) -> list[dict]:
+             as_of: date | None = None, public_only: bool = False) -> list[dict]:
     """Events merged with dated tasks: [{date, time, title, kind: event|task, source, ref}], by date then time."""
     start = date.fromisoformat(from_) if from_ else (as_of or default_as_of())
     end = date.fromisoformat(to) if to else start + timedelta(days=CALENDAR_DAYS)
@@ -310,7 +317,8 @@ def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None 
             items.append({"date": r["starts_at"][:10], "time": time, "title": r["title"], "kind": "event",
                           "source": r["source"] or "website", "ref": f"event:{r['id']}",
                           "source_url": r["source_url"], "status": r["status"]})
-    for r in conn.execute("SELECT * FROM tasks WHERE deleted_at IS NULL AND due BETWEEN ? AND ?", (lo, hi)):
+    private = f" AND {PUBLIC_ONLY}" if public_only else ""
+    for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL{private} AND due BETWEEN ? AND ?", (lo, hi)):
         items.append({"date": r["due"], "time": r["time"], "title": r["title"], "kind": "task",
                       "source": r["source"], "ref": f"task:{r['id']}", "task_kind": r["kind"],
                       "done": bool(r["done"])})
