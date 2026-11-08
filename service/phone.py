@@ -3,6 +3,7 @@
     start_call(conn, donor_id)  -> rings STAFF_PHONE; once answered, rings the donor; returns the phone_calls row
     get_call(conn, call_id)     -> the row (status, detail, note_id, result)
     hang_up(conn, call_id)      -> ends both legs
+    retry_call(conn, call_id)   -> Try again: finishes a recorded call whose transcript failed
 
 How a call runs (Twilio, no webhooks: every TwiML document goes inline, and a worker thread polls the REST API,
 so the service can stay on 127.0.0.1):
@@ -296,6 +297,22 @@ def hang_up(conn: sqlite3.Connection, call_id: str, client: Twilio | None = None
     return get_call(conn, call_id)
 
 
+def retry_call(conn: sqlite3.Connection, call_id: str, client: Twilio | None = None, background: bool = True) -> dict:
+    """Try again: finish a recorded call whose transcript failed, from the recording kept on Twilio."""
+    row = get_call(conn, call_id)
+    if row["status"] != "failed" or not row["result"].get("retryable") or row["note_id"]:
+        raise PhoneError("Only a recorded call whose transcript failed can be tried again")
+    client = client or twilio()
+    _set(conn, call_id, status="processing", detail="Getting the recording", result={})
+    log.info("phone %s: trying the transcript again", call_id)
+    if background:
+        worker = threading.Thread(target=run_call, args=(call_id, client), kwargs={"step": _finish}, daemon=True,
+                                  name=f"phone-retry-{call_id}")
+        _WORKERS[call_id] = worker
+        worker.start()
+    return get_call(conn, call_id)
+
+
 def _end_leg(client: Twilio, sid: str) -> None:
     try:
         status = client.fetch_call(sid)["status"]
@@ -306,12 +323,14 @@ def _end_leg(client: Twilio, sid: str) -> None:
 
 
 def run_call(call_id: str, client: Twilio, sleep: Callable[[float], None] = time.sleep,
-             connect: Callable[[], sqlite3.Connection] = db.connect, transcriber: Callable | None = None) -> None:
-    """The worker: one thread per call. Any error marks the call failed with the reason."""
+             connect: Callable[[], sqlite3.Connection] = db.connect, transcriber: Callable | None = None,
+             step: Callable | None = None) -> None:
+    """The worker: one thread per call (step = _drive for a new call, _finish for Try again). Any error marks
+    the call failed with the reason."""
     _WORKERS.setdefault(call_id, threading.current_thread())
     conn = connect()
     try:
-        _drive(conn, call_id, client, sleep, transcriber)
+        (step or _drive)(conn, call_id, client, sleep, transcriber)
     except Exception as e:
         log.exception("phone %s: worker error", call_id)
         _fail(conn, call_id, f"Something went wrong: {type(e).__name__}: {e}"[:300])
@@ -378,6 +397,25 @@ def _drive(conn: sqlite3.Connection, call_id: str, client: Twilio, sleep, transc
         waited += POLL_S
     duration = int(donor_leg.get("duration") or 0)
     _set(conn, call_id, status="processing", detail="Getting the recording", ended_at=now_iso(), duration_sec=duration)
+    _finish(conn, call_id, client, sleep, transcriber)
+
+
+def _finish(conn: sqlite3.Connection, call_id: str, client: Twilio, sleep, transcriber) -> None:
+    """Steps 4-5, after hang-up: recording -> transcript -> note -> follow-ups -> recording deleted. Shared by a
+    live call and Try again (retry_call). If any of it fails, the recording stays on Twilio and the call is
+    marked failed with result.retryable, so nothing said on the call is lost."""
+    try:
+        _transcribe_and_save(conn, call_id, client, sleep, transcriber)
+    except Exception as e:
+        log.exception("phone %s: processing failed; the recording is kept", call_id)
+        _set(conn, call_id, status="failed", ended_at=now_iso(), result={"retryable": True},
+             detail=(f"The call was recorded, but the transcript couldn't be finished ({type(e).__name__}: {e}). "
+                     "The recording is kept: click Try again.")[:400])
+
+
+def _transcribe_and_save(conn: sqlite3.Connection, call_id: str, client: Twilio, sleep, transcriber) -> None:
+    row = get_call(conn, call_id)
+    name, staff_sid, duration = row["donor_name"], row["staff_call_sid"], row["duration_sec"]
 
     # 4. The recording -> a transcript with "you" and "them" from the channels
     recording, waited = None, 0.0
@@ -456,13 +494,30 @@ def is_prompt(text: str, prompt: str) -> bool:
     return bool(words) and sum(w in prompt_words for w in words) / len(words) >= 0.6
 
 
+# Each transcription request is retried after these pauses (seconds): a live call (Sun Nov 8) lost its transcript to
+# one dropped connection ("[WinError 10054] ... forcibly closed by the remote host") from the speech service.
+RETRY_PAUSES = (2.0, 5.0)
+
+
+def with_retries(fn: Callable, *args):
+    """fn(*args), tried 1 + len(RETRY_PAUSES) times; the last error is raised."""
+    for pause in (*RETRY_PAUSES, None):
+        try:
+            return fn(*args)
+        except Exception as e:
+            if pause is None:
+                raise
+            log.warning("phone: %s failed (%s); retrying in %.0f s", getattr(fn, "__name__", "call"), type(e).__name__, pause)
+            time.sleep(pause)
+
+
 def transcript_from_recording(wav_bytes: bytes, donor_name: str, transcriber: Callable | None = None) -> list[dict]:
     """[{speaker: you|them, name, text, at}] in time order, the app's own prompt removed."""
     from service import transcribe
     transcriber = transcriber or transcribe.transcribe_file
     tracks = split_channels(wav_bytes)
     with ThreadPoolExecutor(max_workers=len(tracks)) as pool:
-        segments = list(pool.map(lambda audio: transcriber(audio, "audio/wav"), tracks))
+        segments = list(pool.map(lambda audio: with_retries(transcriber, audio, "audio/wav"), tracks))
     prompt = HOLD_PROMPT.format(name=donor_name)
     if len(tracks) == 1:   # a mono file: fall back to the model's speaker labels
         lines = transcribe.to_transcript_lines(segments[0], "you", "You", donor_name)
