@@ -53,6 +53,7 @@ API = "https://api.twilio.com/2010-04-01/Accounts/{sid}"
 POLL_S = float(os.getenv("PHONE_POLL_S", "1.5"))
 RING_S = int(os.getenv("PHONE_RING_TIMEOUT_S", "30"))     # how long each phone rings before giving up
 MAX_CALL_S = int(os.getenv("PHONE_MAX_CALL_S", "3600"))
+JOIN_S = int(os.getenv("PHONE_JOIN_TIMEOUT_S", "45"))       # answered -> in the room (the trial message runs ~10 s)
 RECORDING_WAIT_S = 90                                       # Twilio finishes a recording a few seconds after hang-up
 HOLD_PROMPT = "Calling {name}. Please hold."
 NOTICE = os.getenv("PHONE_NOTICE", "Hello. This call is recorded for our notes.")
@@ -153,6 +154,11 @@ class Twilio:
     def update_call(self, call_sid: str, twiml: str | None = None, status: str | None = None) -> dict:
         data = {"Twiml": twiml} if twiml else {"Status": status}
         return self._check(self.http.post(f"{self.base}/Calls/{call_sid}.json", data=data)).json()
+
+    def room_open(self, room: str) -> bool:
+        """True once a participant has joined the conference `room` (Twilio creates it on the first join)."""
+        r = self._check(self.http.get(f"{self.base}/Conferences.json", params={"FriendlyName": room}))
+        return any(c.get("status") in ("init", "in-progress") for c in r.json().get("conferences", []))
 
     def recordings(self, call_sid: str) -> list[dict]:
         r = self._check(self.http.get(f"{self.base}/Recordings.json", params={"CallSid": call_sid}))
@@ -359,6 +365,18 @@ def _drive(conn: sqlite3.Connection, call_id: str, client: Twilio, sleep, transc
         sleep(POLL_S)
         waited += POLL_S
 
+    # 1b. ...and joins the room. "in-progress" only means answered: on a Twilio trial the leg first plays "press any
+    # key to execute your code" and hangs up if nobody does (a live LIVE call, Sun Nov 8: leg 1 dropped at 13 s while
+    # the donor, already dialed, sat alone in the room for 42 s). The donor is dialed only once the room exists.
+    waited = 0.0
+    while not client.room_open(f"dd-{call_id}"):
+        if client.fetch_call(staff_sid)["status"] in ENDED or waited > JOIN_S:
+            _end_leg(client, staff_sid)
+            return _fail(conn, call_id, f"Your phone hung up before the call started, so we didn't call {name}. "
+                         "On a Twilio trial account, press any key when the trial message asks.")
+        sleep(POLL_S)
+        waited += POLL_S
+
     # 2. The donor's phone rings, showing the staff member's number
     _set(conn, call_id, status="calling_donor")
     leg2 = client.create_call(to=donor_phone, from_=staff_phone(), twiml=donor_twiml(f"dd-{call_id}"))
@@ -390,6 +408,10 @@ def _drive(conn: sqlite3.Connection, call_id: str, client: Twilio, sleep, transc
         donor_leg, staff = client.fetch_call(donor_sid), client.fetch_call(staff_sid)["status"]
         if donor_leg["status"] in ENDED and staff in ENDED:
             break
+        if staff in ENDED:                  # never leave the donor alone in the room (or the staff member)
+            _end_leg(client, donor_sid)
+        elif donor_leg["status"] in ENDED:
+            _end_leg(client, staff_sid)
         if waited > MAX_CALL_S:
             _end_leg(client, donor_sid)
             _end_leg(client, staff_sid)
