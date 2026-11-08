@@ -340,4 +340,20 @@ describe("home data: agent thread", () => {
         .headline,
     ).toBe("Try again");
   });
+
+  it("snapshot mode greets instead of saying it could not read the message", () => {
+    const miss = (q: string) => answer(q, [], { understood: false });
+    expect(answerSummary(miss("hello?"), 3, "snapshot").headline).toMatch(
+      /^Hi! This public preview/,
+    );
+    expect(answerSummary(miss("Good morning"), 3, "snapshot").headline).toMatch(
+      /^Hi! /,
+    );
+    expect(answerSummary(miss("what is the weather"), 3, "snapshot").headline).toBe(
+      "This preview can’t answer that one. The full agent runs on the laptop. Try one of these:",
+    );
+    expect(answerSummary(miss("hello?"), 3, "local").headline).toMatch(
+      /read that as a donor question/,
+    );
+  });
 });
