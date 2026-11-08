@@ -11,8 +11,9 @@ from service import db, dedupe, score
 from service.export_snapshot import build_snapshot
 from service.main import app
 from service.tests.conftest import AS_OF
+from service.tests.fixtures_seed import seed
 
-JAMES = 3       # seed donors (db.SEED_DONORS)
+JAMES = 3       # seed donors (service/tests/fixtures_seed.py)
 MARIA = 1
 SECRET = "prefers to give anonymously because of a family matter"
 
@@ -224,7 +225,7 @@ def crm_state(conn, donor_id):
 @pytest.fixture
 def merged_pair(conn):
     """A seeded duplicate pair (a kept, b dropped) with CRM records on both donors."""
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     dedupe.run(conn)
     s = conn.execute("SELECT * FROM duplicate_suggestions ORDER BY id").fetchone()
