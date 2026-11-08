@@ -24,6 +24,12 @@ VITE_APPROVER_NAME=Philanthropy team (demo)   # recorded as approved_by
 The service's CORS allows `localhost:5173` and `5174`, so run `npm run dev -- --port 5173` in local mode.
 Both modes use the same parser (`parse.ts`), so a screen that works on one works on the other.
 
+**Ask in snapshot mode** (`askHosted.ts`): the example questions and chip edits are answered in the
+browser. Any other question is POSTed to the Vercel Function `web/api/ask.ts` as `{question, as_of}`;
+it returns only a filter (the model never sees donor rows) and `applyAskFilter` runs it over the
+snapshot. Without `OPENAI_API_KEY` on the Vercel project it answers 503 and the page says live AI
+isn't configured. Under `vite dev` there is no `/api`, so free text gets a "couldn't answer" fallback.
+
 ## 2. Quick start
 
 The hooks use react-query plus the ra-core data provider, so call them from inside `<CRM>` (see
@@ -204,6 +210,8 @@ fits), `status` (`"new" \| "drafted" \| "dismissed"`), `facts: { fact, source_ur
 | Research before the context service is running (503) | `"Website research isn't available yet: …"` | The message |
 | Research ran but the live read failed or timed out | `served_from: "fallback"` | "Showing saved context", with `detail` as a tooltip |
 | Draft email on a dismissed prospect (409) | `"This prospect was dismissed, so no email is drafted."` | **Hide or disable "Draft email" when `prospect.status === "dismissed"`.** The message is only a backstop: Chromium logs the 409 as a console error, which fails QA's 0-console-error bar |
+| A Phase 5E route that hasn't landed (503, or the bare 404) | `"The calendar isn't available yet: …"` (likewise the people list, community stats, chat, sending) | The message. Until a route lands, calling it also logs a console error, so keep that screen behind a flag |
+| Send without an approver | `"Add who is approving before sending."`, before any request | The message |
 | Snapshot mode + research | Simulated, instantly done, `served_from: "cache"` | "Cached sample"; the website shows "no saved context" if the snapshot has none |
 
 Live timings: list < 2 s, research < 1 s (cached), outreach about 11 s, website context up to 30 s. Always show a busy state on agent buttons.
@@ -215,6 +223,85 @@ Live timings: list < 2 s, research < 1 s (cached), outreach about 11 s, website 
 3. **Every researched fact shows its source link** (`source_url`). No URL, no fact: the parser already drops them.
 4. **Never present a number the API didn't send.** Scores, fit scores, day counts and stats come from Python.
 5. **Prospects are organizations only**, never private individuals.
+
+## 6b. Three tabs, calendar, community stats and chat (plan.md §17, Phase 5E)
+
+Tabs are locked: **Givers · Neighbors · Community** (`Tab` = `"giver" | "neighbor" | "community"`; use
+`TAB_LABELS` for the words). Hooks live in `crmHooks.ts`:
+
+```tsx
+import {
+  usePeople, useSetTab, useEvents, useEvent, useCommunityStats, useChat, useApproveSendBatch,
+} from "@/components/atomic-crm/providers/local/crmHooks";
+import { TAB_LABELS, NOT_RECORDED } from "@/components/atomic-crm/providers/local";
+
+const { data } = usePeople("community");   // data.people, data.counts.{giver,neighbor,community}
+const move = useSetTab();                    // move.mutate({ personId, tab: "giver" })
+
+const chat = useChat({ screen: "giver" });   // or "neighbor" | "community" | "calendar"
+chat.send("Who should I call before Give Miami Day?");
+// chat.messages[i].steps → [{ label: "Found people", summary: "3 lapsing", status }]
+// chat.pendingBatch      → { id, items, bulk_approvable, needs_individual_approval, flagged }
+const approve = useApproveSendBatch();
+approve.mutate({ batchId: chat.pendingBatch!.id, approvedBy: "Philanthropy team (demo)" });
+// then chat.resolveBatch(batchId)
+```
+
+| Hook | Returns `data` | Notes |
+|---|---|---|
+| `usePeople(tab)` | `PeoplePage` = `{ people, counts, needs_review }` | `counts` feeds the tab badges; a count is `null` if the API didn't send it |
+| `useSetTab()` | mutation `{ personId, tab }` | One-click move between tabs |
+| `useUploadFiles()` | mutation `{ files, target? }` | `target`: `"giver" \| "neighbor" \| "community" \| "auto"` (default: the agent sorts) |
+| `useEvents()` | `CrmEvent[]` | Soonest first; each has `source_url` |
+| `useEvent(id \| null)` | `CrmEventDetail` | `recipients` (with `reason`, e.g. "tagged: has a dog") and pre-drafted `drafts` |
+| `useCommunityStats()` | `CommunityStats` | `breakdowns: [{ dimension, buckets: [{ label, count }] }]`, `trends`, `total` |
+| `useChat(context)` | `{ messages, send, isPending, error, pendingBatch, resolveBatch, reset }` | Conversation lives in component state |
+| `useApproveSendBatch()` | mutation `{ batchId, approvedBy, perItem? }` → `SendResult` | `{ sent, skipped, blocked: [{ id, reason }], simulated }` |
+| `usePlanEventOutreach()` | mutation `eventId` → `{ batch_id, total, bulk_approvable, needs_individual_approval, flagged }` | Calendar **"Review"**: drafts the event's invites as a batch (if not yet), then open the chat panel on `batch_id` |
+| `useSendBatch(batchId \| null)` | `SendBatch` | Load a batch by id (e.g. `event.batch_id`) for the chat panel's approval card |
+| `useContextStatus()` | `ContextStatus` | Show `data.label`: "Context updated today 7:00 AM · 2 new events" (also "Updating context…", "Context not updated yet") |
+| `useRefreshContext()` | mutation → `ContextStatus` | "Refresh now". Can take ~16 s like a live context run; use `isPending`. Context, events and status refetch after |
+
+**Types (`crmTypes.ts`):**
+- `Person`: `id`, `name`, `org_name`, `tab`, `email`/`phone` (raw from the local API: show them only inside the app), `city`, `tags` (the API's `interests`), `has_dog` (`null` = not recorded), `demographics: [{ label, value }]` (Community lists **every** field — age range, gender, household size, zip, language, programs — with "not recorded" for missing ones; other tabs list only recorded ones), `is_sample`, Givers' `score`/`tier`/`is_star`/`status`, `needs_review` + `review_reason` (the API's `tab_review`: an unclear sort or a cross-file duplicate; show it for one-click review). `last_touch`/`next_step` aren't sent yet (always `null`).
+- `CrmEvent`: `title`, `starts_at`, `ends_at`, `place`, `audience` (the API's `audience_hint`), `status` (`upcoming | changed | past`), `kind`, `rationale` (why this audience), `batch_id` (the event's pending batch, once planned), `source_url`, `audience_count`, `drafts_ready`. Lists keep the server's order: upcoming soonest first, then past.
+- `SendItem` (an invite or a chat draft): `name`, `tab`, `channel` (`"email" | "text"`), `to`, `subject`, `body`, `facts_used`, `needs_individual_approval` + `approval_reason`, `flags`, `status`.
+- `ChatMessage`: `{ role, text, steps, batch, demo }`. `demo: true` marks the canned snapshot run.
+
+**Approval rules (the data layer enforces them too):**
+- A bulk approval (no `perItem`) sends only items with `needs_individual_approval: false` and no `flags`.
+- ★, big-tier and organization items go only when listed in `perItem` as `{ id, approve: true }`.
+- Flagged items never go until a person edits them. `{ id, approve: false }` skips an item.
+- `approvedBy` is required; a blank name is rejected before any request.
+
+**Copy rules (non-negotiable, plan.md §17):**
+1. **Community never shows a donation ask.** No "give", "donate" or "support us" buttons, banners or draft
+   templates on the Community tab or in its messages; it's about programs and help.
+2. **Sends always need approval.** No screen sends on its own. Every send goes through `useApproveSendBatch`
+   with a named approver, and the button says what happens ("Approve and send 3").
+3. **Missing demographics read "not recorded".** Use `NOT_RECORDED`; never leave a blank, guess, or infer.
+   Stats already merge null, empty and "unknown" into one "not recorded" bucket, kept last.
+
+**Social posting is "Coming soon":** `SOCIAL_POSTING` (from `config.ts`, re-exported by the package) is
+`"coming_soon"`. Render "Post to Instagram / LinkedIn / X" as a **disabled** action labeled "Coming soon".
+Nothing in the data layer posts to any social network, and no hook exists for it yet.
+
+```tsx
+import { SOCIAL_POSTING } from "@/components/atomic-crm/providers/local";
+<Button disabled={SOCIAL_POSTING === "coming_soon"}>Post to Instagram · Coming soon</Button>
+```
+
+**Calendar → chat:** the Calendar's "Review" button calls `usePlanEventOutreach().mutate(event.id)` (skip it if
+`event.batch_id` is already set), then opens the chat panel on the returned `batch_id`; the panel loads it with
+`useSendBatch(batch_id)` and approves with `useApproveSendBatch` like any chat batch.
+
+**Snapshot mode:** reads `people` (`{counts, giver, neighbor, community}`), `events` + `event_details` and `community_stats`; "Review" builds a demo batch from the event's drafts (approve applies the rules in memory); the context status is the
+snapshot's own `context_status` key or its export time labeled "Cached sample" (never a live refresh), and
+"Refresh now" is refused (read-only). Until `people` exists, Givers
+falls back to the snapshot's donors and the other tabs are empty; a missing `events` key means an empty
+calendar, never invented events. Chat returns a **canned run labeled "Demo run (cached sample)"** built
+from the snapshot's real drafts (or a recorded `chat_demo` key). Approving it applies the same rules in
+memory, and nothing is sent. Tab moves are refused (read-only).
 
 ## 7. Files
 
@@ -228,6 +315,10 @@ Live timings: list < 2 s, research < 1 s (cached), outreach about 11 s, website 
 | `apiTypes.ts` | Raw API and snapshot shapes (`service/routes_data.py`, `export_snapshot.py`) |
 | `httpClient.ts` | Local mode: fetch calls, error and timeout handling |
 | `snapshotClient.ts` | Snapshot mode: reads `snapshot.json`, keeps writes in memory |
+| `validate.ts` | Client-side checks (website required) |
+| `crmTypes.ts` / `crmParse.ts` | Phase 5E types and parsers (tabs, events, stats, chat) |
+| `crmHttp.ts` / `crmSnapshot.ts` | Phase 5E methods for local and snapshot mode |
+| `crmHooks.ts` | Phase 5E hooks |
 
 Reference screens built on this layer (replace freely): `dashboard/CallToday.tsx`,
 `contacts/DonorDrawer.tsx` (+ `ScoreWhyPanel`, `ResearchPanel`, `OutreachPanel`),
@@ -242,6 +333,11 @@ With onboarding, `context` (`{profile, facts}` = GET /org-profile + GET /context
 without these keys give `null` / `[]`.
 
 ## 9. Open items
+
+- Phase 5E routes: `/people`, `/events`, `/community/stats`, `/context/status` are in 8b's PR #60 (this
+  layer matches its shapes); `/chat` and `/send` in 90's PR #58; `/events/{id}/plan` and `/context/refresh`
+  aren't built yet (guarded). Until a route is on :8000, its hook shows the friendly "isn't available
+  yet" message.
 
 - ICP + prospects: walked on 8b's populated snapshot (5 traits, 7 prospects). Prospect first-touch
   drafts are `null` until 86's draft_prospect lands, so design the "no draft yet" state.
