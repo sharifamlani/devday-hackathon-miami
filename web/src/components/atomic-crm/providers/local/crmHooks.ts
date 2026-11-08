@@ -17,6 +17,7 @@ const crmKeys = {
   event: (id: number) => [...donorDeskKeys.all, "event", id] as const,
   communityStats: [...donorDeskKeys.all, "community-stats"] as const,
   contextStatus: [...donorDeskKeys.all, "context-status"] as const,
+  batch: (id: string) => [...donorDeskKeys.all, "batch", id] as const,
 };
 
 const useInvalidateAll = () => {
@@ -169,5 +170,28 @@ export const useRefreshContext = () => {
   return useMutation({
     mutationFn: () => dataProvider.refreshContext(),
     onSettled: invalidateAll,
+  });
+};
+
+/**
+ * Calendar "Review": draft the event's invites as a batch (if it has none
+ * yet). Resolves to { batch_id, ... }; open that batch in the chat panel.
+ */
+export const usePlanEventOutreach = () => {
+  const dataProvider = useDonorDesk();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: (eventId: number) => dataProvider.planEventOutreach(eventId),
+    onSuccess: invalidateAll,
+  });
+};
+
+/** A send batch by id (e.g. event.batch_id), for the chat panel's review card. */
+export const useSendBatch = (batchId: string | null) => {
+  const dataProvider = useDonorDesk();
+  return useQuery({
+    queryKey: crmKeys.batch(batchId ?? ""),
+    queryFn: () => dataProvider.getSendBatch(batchId as string),
+    enabled: !!batchId,
   });
 };

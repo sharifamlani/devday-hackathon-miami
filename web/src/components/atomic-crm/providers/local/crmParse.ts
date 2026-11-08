@@ -1,6 +1,7 @@
 import type { ApiJson } from "./apiTypes";
 import type {
   ApiChatResponse,
+  ApiCampaign,
   ApiChatStep,
   ApiCommunityStats,
   ApiContextStatus,
@@ -8,6 +9,7 @@ import type {
   ApiEventDetail,
   ApiEventRecipient,
   ApiPeopleResponse,
+  ApiPlanResult,
   ApiPerson,
   ApiSendBatch,
   ApiSendItem,
@@ -22,6 +24,7 @@ import type {
   EventRecipient,
   PeoplePage,
   Person,
+  PlanResult,
   SendBatch,
   SendItem,
   SendResult,
@@ -65,32 +68,47 @@ const stringList = (raw: ApiJson<string[]>): string[] => {
   return Array.isArray(list) ? list.map(String).filter((s) => s.trim()) : [];
 };
 
+/** service/db.py DEMOGRAPHIC_FIELDS: every Community person shows all of them. */
+export const COMMUNITY_FIELDS = ["age_range", "gender", "household_size", "zip", "language", "programs"];
+
+/** {value, source_row}, a list, or a plain value → display text ("not recorded" if empty). */
+const demographicText = (entry: unknown): string => {
+  const value =
+    entry && typeof entry === "object" && !Array.isArray(entry) && "value" in entry
+      ? (entry as { value: unknown }).value
+      : entry;
+  const values = (Array.isArray(value) ? value : [value]).filter((v) => !isBlank(v));
+  return values.length ? values.map(String).join(", ") : NOT_RECORDED;
+};
+
 export const parsePerson = (raw: ApiPerson, fallbackTab: Tab): Person => {
-  const demographics = fromJson(raw.demographics);
+  const recorded = (fromJson(raw.demographics) ?? {}) as Record<string, unknown>;
+  const tab = toTab(raw.contact_type) ?? fallbackTab;
+  // Community shows every field; other tabs show only what was recorded.
+  const keys =
+    tab === "community"
+      ? [...COMMUNITY_FIELDS, ...Object.keys(recorded).filter((k) => !COMMUNITY_FIELDS.includes(k))]
+      : Object.keys(recorded);
   return {
     id: raw.id,
     name: raw.full_name,
     org_name: raw.org_name ?? null,
-    tab: toTab(raw.contact_type) ?? fallbackTab,
+    tab,
     email: raw.email ?? null,
     phone: raw.phone ?? null,
     city: raw.city ?? null,
-    tags: stringList(raw.tags),
-    demographics:
-      demographics && typeof demographics === "object"
-        ? Object.entries(demographics).map(([key, value]) => ({
-            label: humanize(key),
-            value: isBlank(value) ? NOT_RECORDED : String(value),
-          }))
-        : [],
+    tags: stringList(raw.interests ?? raw.tags),
+    has_dog: raw.has_dog ?? null,
+    demographics: keys.map((key) => ({ label: humanize(key), value: demographicText(recorded[key]) })),
+    is_sample: !!raw.is_sample,
     score: raw.score ?? null,
     tier: raw.tier ?? null,
     is_star: !!raw.is_star,
     status: raw.status ?? null,
     last_touch: raw.last_touch ?? null,
     next_step: raw.next_step ?? null,
-    needs_review: !!raw.needs_review,
-    review_reason: raw.review_reason ?? null,
+    needs_review: !!(raw.tab_review ?? raw.needs_review),
+    review_reason: raw.tab_review ?? raw.review_reason ?? null,
   };
 };
 
@@ -106,7 +124,12 @@ export const parsePeople = (raw: ApiPeopleResponse, tab: Tab): PeoplePage => {
       return [t, t === tab ? people.length : null];
     }),
   ) as Record<Tab, number | null>;
-  return { people, counts, needs_review: people.filter((p) => p.needs_review).length };
+  const reportedReview = (reported as Record<string, number | undefined>).needs_review;
+  return {
+    people,
+    counts,
+    needs_review: reportedReview ?? people.filter((p) => p.needs_review).length,
+  };
 };
 
 export const parseEvent = (raw: ApiEvent): CrmEvent => ({
@@ -115,7 +138,11 @@ export const parseEvent = (raw: ApiEvent): CrmEvent => ({
   starts_at: raw.starts_at,
   ends_at: raw.ends_at ?? null,
   place: raw.place ?? null,
-  audience: raw.audience_label ?? raw.audience ?? null,
+  audience: raw.audience_hint ?? raw.audience_label ?? raw.audience ?? null,
+  status: raw.status ?? null,
+  kind: raw.event_kind ?? null,
+  rationale: raw.rationale ?? null,
+  batch_id: raw.batch_id != null ? String(raw.batch_id) : null,
   source: raw.source ?? null,
   source_url: raw.source_url ?? raw.url ?? null,
   audience_count: raw.audience_count ?? null,
@@ -129,8 +156,14 @@ const parseRecipient = (raw: ApiEventRecipient): EventRecipient => ({
   reason: raw.reason ?? null,
 });
 
+/** Prospects are organizations we've never worked with: always one by one. */
+const isProspect = (raw: ApiSendItem) =>
+  raw.prospect_id != null || (raw.contact_type ?? "").toLowerCase() === "prospect";
+
 export const parseSendItem = (raw: ApiSendItem): SendItem => {
   const facts = fromJson(raw.facts_used);
+  // The client enforces the rule even if the server leaves the flag off.
+  const individual = !!raw.needs_individual_approval || isProspect(raw);
   return {
     id: raw.id,
     person_id: raw.person_id ?? null,
@@ -145,8 +178,9 @@ export const parseSendItem = (raw: ApiSendItem): SendItem => {
           .map((f) => ({ fact: String(f?.fact ?? ""), source_url: String(f?.source_url ?? f?.url ?? "") }))
           .filter((f) => f.fact && f.source_url)
       : [],
-    needs_individual_approval: !!raw.needs_individual_approval,
-    approval_reason: raw.approval_reason ?? null,
+    needs_individual_approval: individual,
+    approval_reason:
+      raw.approval_reason ?? (isProspect(raw) ? "Prospect organization" : null),
     flags: stringList(raw.flags),
     status: raw.status ?? "draft",
   };
@@ -283,10 +317,13 @@ export const relativeDay = (iso: string, now: Date = new Date()): string => {
 export const parseContextStatus = (raw: ApiContextStatus, now: Date = new Date()): ContextStatus => {
   const last = raw.last_refreshed_at ?? raw.refreshed_at ?? null;
   const change = raw.last_change ?? {};
-  const newEvents = change.new_events ?? raw.new_events ?? null;
-  const newFacts = change.new_facts ?? raw.new_facts ?? null;
+  const run = raw.last_run ?? {};
+  const newEvents = change.new_events ?? raw.new_events ?? run.events_added ?? null;
+  const changedEvents = run.events_changed ?? null;
+  const newFacts = change.new_facts ?? raw.new_facts ?? run.facts_added ?? null;
   const counts = [
     newEvents ? plural(newEvents, "event") : null,
+    changedEvents ? `${changedEvents} changed event${changedEvents === 1 ? "" : "s"}` : null,
     newFacts ? plural(newFacts, "fact") : null,
   ].filter(Boolean) as string[];
   const summary =
@@ -294,7 +331,7 @@ export const parseContextStatus = (raw: ApiContextStatus, now: Date = new Date()
     raw.summary ??
     (counts.length
       ? counts.join(", ")
-      : newEvents === 0 || newFacts === 0
+      : newEvents === 0 || newFacts === 0 || changedEvents === 0
         ? "no changes"
         : null);
   const refreshing = !!raw.refreshing;
@@ -306,9 +343,59 @@ export const parseContextStatus = (raw: ApiContextStatus, now: Date = new Date()
   return {
     last_refreshed_at: last,
     new_events: newEvents,
+    changed_events: changedEvents,
     new_facts: newFacts,
+    errors: run.errors ?? [],
     change_summary: summary,
     refreshing,
     label,
   };
+};
+
+/** GET /campaigns/{id} → a SendBatch (routes_campaigns names its people donor_*). */
+export const parseCampaignBatch = (raw: ApiCampaign): SendBatch =>
+  parseSendBatch({
+    id: raw.id,
+    title: raw.name ?? null,
+    channel: raw.channel ?? null,
+    counts: raw.counts ?? null,
+    items: raw.messages.map(({ donor_id, donor_name, ...m }) => ({
+      ...m,
+      person_id: donor_id ?? null,
+      full_name: donor_name ?? null,
+      contact_type: m.contact_type ?? "giver",
+    })),
+  });
+
+export const parsePlanResult = (raw: ApiPlanResult): PlanResult => ({
+  batch_id: String(raw.batch_id),
+  bulk_approvable: raw.counts?.bulk_approvable ?? null,
+  needs_individual_approval: raw.counts?.needs_individual_approval ?? null,
+  flagged: raw.counts?.flagged ?? null,
+  total: raw.counts?.total ?? null,
+});
+
+/**
+ * The per-item list for approveSendBatch, built from the plan.md §17 rule:
+ * - ordinary drafts are approved in bulk;
+ * - org / star / big-donor / prospect drafts go only if named in
+ *   `individuallyApproved` (a person ticked each one);
+ * - flagged drafts are never selected, and naming one is refused.
+ * Items left out stay drafts; the server reports them as blocked.
+ */
+export const buildApproval = (
+  batch: SendBatch,
+  individuallyApproved: number[] = [],
+): { id: number; approve: boolean }[] => {
+  const byId = new Map(batch.items.map((i) => [i.id, i]));
+  const flagged = individuallyApproved.filter((id) => byId.get(id)?.flags.length);
+  if (flagged.length) {
+    throw new Error(
+      `Flagged drafts can't be approved until a person edits them (${flagged.join(", ")}).`,
+    );
+  }
+  return batch.items
+    .filter((item) => item.status === "draft" && !item.flags.length)
+    .filter((item) => !item.needs_individual_approval || individuallyApproved.includes(item.id))
+    .map((item) => ({ id: item.id, approve: true }));
 };

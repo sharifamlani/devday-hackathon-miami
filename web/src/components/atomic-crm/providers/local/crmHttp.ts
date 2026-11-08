@@ -1,19 +1,23 @@
 import {
+  parseCampaignBatch,
   parseChatResponse,
   parseContextStatus,
   parseCommunityStats,
   parseEvent,
   parseEventDetail,
   parsePeople,
+  parsePlanResult,
   parseSendResult,
 } from "./crmParse";
 import type {
+  ApiCampaign,
   ApiChatResponse,
   ApiCommunityStats,
   ApiContextStatus,
   ApiEvent,
   ApiEventDetail,
   ApiPeopleResponse,
+  ApiPlanResult,
   ApiSendResult,
   CrmMethods,
 } from "./crmTypes";
@@ -79,9 +83,8 @@ export const crmHttpMethods: CrmMethods = {
     }),
   getEvents: () =>
     guard("The calendar", async () =>
-      (await request<ApiEvent[]>("/events"))
-        .map(parseEvent)
-        .sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+      // The server orders them: upcoming soonest first, then past.
+      (await request<ApiEvent[]>("/events")).map(parseEvent),
     ),
   getEvent: (id) =>
     guard("The calendar", async () =>
@@ -119,6 +122,16 @@ export const crmHttpMethods: CrmMethods = {
       }
       return parseContextStatus(await request<ApiContextStatus>("/context/status"));
     }),
+  planEventOutreach: (eventId) =>
+    guard("Planning event outreach", async () =>
+      parsePlanResult(
+        await request<ApiPlanResult>(`/events/${eventId}/plan`, { method: "POST" }),
+      ),
+    ),
+  getSendBatch: (batchId) =>
+    guard("Loading the batch", async () =>
+      parseCampaignBatch(await request<ApiCampaign>(`/campaigns/${encodeURIComponent(batchId)}`)),
+    ),
   // async, so a missing approver rejects the promise instead of throwing.
   approveSendBatch: async (batchId, approvedBy, perItem) => {
     const who = requireApprover(approvedBy);

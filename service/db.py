@@ -57,6 +57,24 @@ CREATE TABLE IF NOT EXISTS gifts (
 CREATE INDEX IF NOT EXISTS idx_gifts_donor ON gifts(donor_id);
 
 -- Written by others, never by ingest ----------------------------------------------------
+-- Every merge, with enough to undo it exactly (dedupe.merge / dedupe.undo_merge). The dropped
+-- donor row is deleted from donors but lives here whole, so no history is lost.
+CREATE TABLE IF NOT EXISTS merge_log (
+    id            INTEGER PRIMARY KEY,
+    suggestion_id INTEGER,
+    kept_id       INTEGER NOT NULL,
+    merged_id     INTEGER NOT NULL,
+    merged_at     TEXT NOT NULL,   -- ISO UTC
+    approved_by   TEXT,
+    kept_before   TEXT NOT NULL,   -- JSON: the kept donor row before the merge
+    merged_row    TEXT NOT NULL,   -- JSON: the dropped donor row
+    merged_score  TEXT,            -- JSON: its donor_scores row, or null
+    moved         TEXT NOT NULL,   -- JSON: {"gifts": [ids], "research_facts": [ids], "outreach_drafts": [ids]}
+    superseded    TEXT NOT NULL,   -- JSON: duplicate_suggestions ids this merge superseded
+    undone_at     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_merge_log_kept ON merge_log(kept_id);
+
 CREATE TABLE IF NOT EXISTS donor_scores (
     donor_id    INTEGER PRIMARY KEY REFERENCES donors(id) ON DELETE CASCADE,
     score       INTEGER NOT NULL,  -- 0-100
@@ -222,8 +240,87 @@ BEGIN
 END;
 """
 
-TABLES = ["outreach_drafts", "prospects", "icp_profile", "org_context", "org_profile", "research_facts", "duplicate_suggestions",
+TABLES = ["merge_log", "outreach_drafts", "prospects", "icp_profile", "org_context", "org_profile", "research_facts", "duplicate_suggestions",
           "donor_scores", "gifts", "donors"]
+
+# Campaigns (#38): bulk drafts -> human approval -> a SIMULATED outbox. Nothing leaves the laptop.
+# The outbox doubles as the contact log (who, when, which channel) until plan.md §16's text_log exists.
+# campaign_messages.outreach_draft_id is a plain nullable id (no FK), so outreach_drafts can be rebuilt.
+CAMPAIGN_SCHEMA = """
+CREATE TABLE IF NOT EXISTS campaigns (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,
+    intent      TEXT NOT NULL CHECK (intent IN ('thank_you', 're_engage', 'check_in', 'event_invite')),
+    channel     TEXT NOT NULL CHECK (channel IN ('email', 'text', 'mixed')),   -- mixed: each message has its own
+    event_id    INTEGER,                    -- the event an 'event_invite' batch is for (one batch per event)
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    created_by  TEXT,
+    status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent'))
+);
+
+CREATE TABLE IF NOT EXISTS campaign_messages (
+    id                INTEGER PRIMARY KEY,
+    campaign_id       INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    donor_id          INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+    outreach_draft_id INTEGER,
+    channel           TEXT NOT NULL CHECK (channel IN ('email', 'text')),
+    subject           TEXT,
+    body              TEXT NOT NULL,
+    facts_used        TEXT NOT NULL DEFAULT '[]',   -- JSON list of {fact, url, date}
+    flags             TEXT NOT NULL DEFAULT '[]',   -- JSON list: output-guardrail findings; non-empty blocks approval
+    drafted_by        TEXT NOT NULL DEFAULT 'template' CHECK (drafted_by IN ('model', 'template')),
+    draft_note        TEXT,
+    status            TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'approved', 'sent', 'skipped')),
+    needs_individual_approval INTEGER NOT NULL DEFAULT 0,   -- star, big tier or organization
+    approved_by       TEXT,
+    approved_via      TEXT CHECK (approved_via IN ('individual', 'bulk')),
+    approved_at       TEXT,
+    sent_at           TEXT,
+    UNIQUE (campaign_id, donor_id)
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_messages_campaign ON campaign_messages(campaign_id);
+
+CREATE TABLE IF NOT EXISTS outbox (
+    id                  INTEGER PRIMARY KEY,
+    campaign_message_id INTEGER REFERENCES campaign_messages(id) ON DELETE SET NULL,
+    donor_id            INTEGER REFERENCES donors(id) ON DELETE SET NULL,
+    channel             TEXT NOT NULL CHECK (channel IN ('email', 'text')),
+    to_address          TEXT NOT NULL,     -- stored in full locally; masked in every API response
+    subject             TEXT,
+    body                TEXT NOT NULL,
+    sent_at             TEXT NOT NULL DEFAULT (datetime('now')),
+    simulated           INTEGER NOT NULL DEFAULT 1 CHECK (simulated IN (0, 1)),  -- 1 = dry run, nothing left
+    provider            TEXT NOT NULL DEFAULT 'dryrun',             -- dryrun | gmail | twilio (outbound.deliver)
+    delivery_status     TEXT NOT NULL DEFAULT 'queued (dry run)',   -- 'queued (dry run)' | 'sent'
+    provider_id         TEXT                                        -- the provider's message id, when sent
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_donor ON outbox(donor_id);
+
+-- Nothing is sent without a named approver; flagged drafts are never approved or sent.
+CREATE TRIGGER IF NOT EXISTS campaign_message_needs_approver
+BEFORE UPDATE OF status ON campaign_messages
+WHEN NEW.status IN ('approved', 'sent') AND (NEW.approved_by IS NULL OR trim(NEW.approved_by) = '')
+BEGIN
+    SELECT RAISE(ABORT, 'campaign messages need a named human approver');
+END;
+
+-- Star, big and organization donors are approved one by one, never by the bulk button.
+CREATE TRIGGER IF NOT EXISTS campaign_message_no_bulk_for_big
+BEFORE UPDATE OF status, approved_via ON campaign_messages
+WHEN NEW.needs_individual_approval = 1 AND NEW.approved_via = 'bulk'
+BEGIN
+    SELECT RAISE(ABORT, 'star, big and organization donors need individual approval');
+END;
+
+CREATE TRIGGER IF NOT EXISTS campaign_message_flagged_blocked
+BEFORE UPDATE OF status ON campaign_messages
+WHEN NEW.status IN ('approved', 'sent') AND NEW.flags <> '[]'
+BEGIN
+    SELECT RAISE(ABORT, 'flagged campaign messages cannot be approved or sent');
+END;
+"""
+SCHEMA += CAMPAIGN_SCHEMA
+TABLES = ["outbox", "campaign_messages", "campaigns"] + TABLES
 
 
 def connect(path: str | Path | None = None) -> sqlite3.Connection:
@@ -244,9 +341,82 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
 
 
 # Nullable columns added after a table first shipped; create_schema adds any that are missing.
+# 5E: three tabs (Givers / Neighbors / Community) and the event calendar. Kept in its own block so
+# other branches editing db.py merge cleanly. People stay in `donors`; contact_type picks the tab.
+EVENTS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS events (
+    id            INTEGER PRIMARY KEY,
+    title         TEXT NOT NULL,
+    starts_at     TEXT NOT NULL,          -- YYYY-MM-DD or YYYY-MM-DDTHH:MM
+    ends_at       TEXT,
+    place         TEXT,
+    audience_hint TEXT,                   -- giving | community | pet (events_agent)
+    source_url    TEXT NOT NULL CHECK (source_url <> ''),   -- every event has a source
+    source        TEXT,                   -- website | news | search
+    verification  TEXT,                   -- e.g. page-verified
+    quote         TEXT,                   -- the page snippet the event rests on
+    captured_at   TEXT,                   -- when the agent read it
+    status        TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'changed', 'past')),
+    event_kind    TEXT,                   -- from suggest_audience
+    rationale     TEXT,                   -- why this audience (suggest_audience)
+    first_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- An event is the same event when title + date + source match (save_events); a time change is 'changed'.
+CREATE INDEX IF NOT EXISTS idx_events_match ON events(title, substr(starts_at, 1, 10), source);
+CREATE INDEX IF NOT EXISTS idx_events_starts ON events(starts_at);
+
+-- Who an event is for, across all three tabs, and why.
+CREATE TABLE IF NOT EXISTS event_audience (
+    event_id  INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    person_id INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+    reason    TEXT,
+    PRIMARY KEY (event_id, person_id)
+);
+
+-- An event invite is an ordinary outreach_drafts row (so the star/approval triggers apply), linked here.
+CREATE TABLE IF NOT EXISTS event_drafts (
+    event_id  INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    draft_id  INTEGER NOT NULL REFERENCES outreach_drafts(id) ON DELETE CASCADE,
+    PRIMARY KEY (event_id, draft_id)
+);
+CREATE INDEX IF NOT EXISTS idx_event_drafts_draft ON event_drafts(draft_id);
+
+-- One row per context refresh (onboarding step 2 and every rerun): what was read, what changed.
+CREATE TABLE IF NOT EXISTS context_refresh_log (
+    id             INTEGER PRIMARY KEY,
+    started_at     TEXT NOT NULL,
+    finished_at    TEXT,
+    sources_read   TEXT NOT NULL DEFAULT '{}',   -- JSON {source: ok|cached|blocked|skipped|error}
+    facts_added    INTEGER NOT NULL DEFAULT 0,
+    facts_removed  INTEGER NOT NULL DEFAULT 0,
+    events_added   INTEGER NOT NULL DEFAULT 0,
+    events_changed INTEGER NOT NULL DEFAULT 0,
+    events_removed INTEGER NOT NULL DEFAULT 0,
+    errors         TEXT NOT NULL DEFAULT '[]'    -- JSON list of strings
+);
+"""
+SCHEMA += EVENTS_SCHEMA
+TABLES = ["context_refresh_log", "event_drafts", "event_audience", "events"] + TABLES
+
+CONTACT_TYPES = ("giver", "neighbor", "community")
+# Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
+DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
+
 ADDED_COLUMNS = {
     "icp_profile": {"recent_context": "TEXT"},
     "prospects": {"fit_breakdown": "TEXT", "matched_context": "TEXT"},
+    "donors": {
+        "contact_type": "TEXT NOT NULL DEFAULT 'giver' CHECK (contact_type IN ('giver', 'neighbor', 'community'))",
+        "interests": "TEXT",            # JSON list of tags, e.g. ["dogs", "arts"]
+        "has_dog": "INTEGER CHECK (has_dog IN (0, 1))",   # null = not recorded
+        "demographics": "TEXT",         # JSON {field: {value, source_row}}, DEMOGRAPHIC_FIELDS only
+        "tab_review": "TEXT",           # null, or why the agent couldn't place this person
+    },
+    "outreach_drafts": {"sms": "TEXT"},  # text-message version of an invite (events_agent)
+    "org_profile": {"last_refreshed_at": "TEXT"},   # set by every successful save_context
+    # A declined or failed charge is kept on record but never counted in totals or scoring.
+    "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed'))"},
 }
 
 
@@ -365,6 +535,8 @@ def save_context(conn: sqlite3.Connection, result: dict) -> dict:
         list(values.values()))
 
     replaced = sorted(s for s, st in statuses.items() if st in ("ok", "cached") and s in CONTEXT_SOURCES)
+    before = {(r[0], r[1], r[2]) for r in conn.execute(
+        f"SELECT source, url, fact FROM org_context WHERE source IN ({', '.join('?' * len(replaced))})", replaced)}
     for source in replaced:
         conn.execute("DELETE FROM org_context WHERE source = ?", (source,))
     ids, skipped = [], 0
@@ -379,8 +551,127 @@ def save_context(conn: sqlite3.Connection, result: dict) -> dict:
             (f["source"], f.get("url"), f.get("posted_at"), f.get("fact"), f.get("quote"), f.get("priority")))
         if cur.rowcount:
             ids.append(cur.lastrowid)
+    after = {(r[0], r[1], r[2]) for r in conn.execute(
+        f"SELECT source, url, fact FROM org_context WHERE source IN ({', '.join('?' * len(replaced))})", replaced)}
+    if replaced:
+        conn.execute("UPDATE org_profile SET last_refreshed_at = datetime('now') WHERE id = 1")
     conn.commit()
-    return {"org_profile_id": 1, "context_ids": ids, "replaced_sources": replaced, "skipped_facts": skipped}
+    return {"org_profile_id": 1, "context_ids": ids, "replaced_sources": replaced, "skipped_facts": skipped,
+            "facts_added": len(after - before), "facts_removed": len(before - after)}
+
+
+
+# 5E writers: events_agent (86) stays pure; these are the only writers of events, event_audience,
+# event_drafts and context_refresh_log.
+EVENT_FIELDS = ("starts_at", "ends_at", "place", "audience_hint", "source_url", "verification", "quote", "captured_at")
+
+
+def _today() -> str:
+    from service.score import default_as_of             # the pinned demo date, like scoring
+    return default_as_of().isoformat()
+
+
+def save_events(conn: sqlite3.Connection, events: list[dict], complete: bool = False) -> dict:
+    """Upsert events. The same event = same title + date + source; if any field (e.g. the time or place)
+    differs, it's 'changed'. Events without a source URL are dropped. complete=True means this was a full,
+    successful refresh: only then are future events missing from it removed (cancelled). A partial or
+    failed run never deletes. Past events are marked 'past'. Returns {ids, added, changed, removed};
+    ids lines up with the input list by position (None where an event was dropped)."""
+    today = _today()
+    ids, added, changed = [], 0, 0
+    for e in events:
+        if not e.get("title") or not e.get("starts_at") or not (e.get("source_url") or "").strip():
+            ids.append(None)
+            continue
+        row = conn.execute(
+            "SELECT * FROM events WHERE title = ? AND substr(starts_at, 1, 10) = ? AND IFNULL(source, '') = ?",
+            (e["title"], e["starts_at"][:10], e.get("source") or "")).fetchone()
+        new = {k: e.get(k) for k in EVENT_FIELDS}
+        status = "past" if e["starts_at"][:10] < today else "upcoming"
+        if row is None:
+            ids.append(conn.execute(
+                f"INSERT INTO events (title, source, status, {', '.join(EVENT_FIELDS)}) "
+                f"VALUES (?, ?, ?, {', '.join('?' * len(EVENT_FIELDS))})",
+                (e["title"], e.get("source"), status, *new.values())).lastrowid)
+            added += 1
+            continue
+        differs = any((row[k] or None) != (new[k] or None) for k in EVENT_FIELDS
+                      if k not in ("captured_at", "verification", "quote"))   # a re-read snippet isn't a change
+        if differs and status != "past":
+            status = "changed"
+            changed += 1
+        elif status != "past" and row["status"] == "changed":
+            status = "changed"                           # stays flagged until someone looks
+        conn.execute(
+            f"UPDATE events SET {', '.join(f'{k} = ?' for k in EVENT_FIELDS)}, status = ?, "
+            f"updated_at = CASE WHEN ? THEN datetime('now') ELSE updated_at END WHERE id = ?",
+            (*new.values(), status, int(differs), row["id"]))
+        ids.append(row["id"])
+
+    removed = 0
+    kept = [i for i in ids if i is not None]
+    if complete:
+        stale = [r[0] for r in conn.execute(
+            f"SELECT id FROM events WHERE substr(starts_at, 1, 10) >= ? AND id NOT IN ({', '.join('?' * len(kept)) or 'NULL'})",
+            (today, *kept))]
+        for event_id in stale:                            # cancelled: drop it and its invites
+            conn.execute("DELETE FROM outreach_drafts WHERE id IN (SELECT draft_id FROM event_drafts WHERE event_id = ?)",
+                         (event_id,))
+            conn.execute("DELETE FROM events WHERE id = ?", (event_id,))
+        removed = len(stale)
+    conn.execute("UPDATE events SET status = 'past' WHERE substr(starts_at, 1, 10) < ? AND status != 'past'", (today,))
+    conn.commit()
+    return {"ids": ids, "added": added, "changed": changed, "removed": removed}
+
+
+def save_event_audience(conn: sqlite3.Connection, event_id: int, audience: dict) -> int:
+    """Store suggest_audience output ({event_kind, person_ids, why, rationale}): one event_audience row per
+    person (with the reason), event_kind and rationale on the event. Replaces the earlier audience."""
+    audience = audience or {}
+    if conn.execute("UPDATE events SET event_kind = ?, rationale = ? WHERE id = ?",
+                    (audience.get("event_kind"), audience.get("rationale"), event_id)).rowcount == 0:
+        raise LookupError(f"no event {event_id}")
+    conn.execute("DELETE FROM event_audience WHERE event_id = ?", (event_id,))
+    why = audience.get("why") or {}
+    n = 0
+    for pid in dict.fromkeys(audience.get("person_ids") or []):
+        if conn.execute("SELECT 1 FROM donors WHERE id = ?", (pid,)).fetchone():
+            conn.execute("INSERT INTO event_audience (event_id, person_id, reason) VALUES (?, ?, ?)",
+                         (event_id, pid, why.get(str(pid)) or why.get(pid)))
+            n += 1
+    conn.commit()
+    return n
+
+
+def log_context_refresh(conn: sqlite3.Connection, started_at: str, sources_read: dict | None = None,
+                        context: dict | None = None, events: dict | None = None,
+                        errors: list[str] | None = None) -> int:
+    """One context_refresh_log row. context = save_context's return, events = save_events' return."""
+    context, events = context or {}, events or {}
+    cur = conn.execute(
+        "INSERT INTO context_refresh_log (started_at, finished_at, sources_read, facts_added, facts_removed, "
+        "events_added, events_changed, events_removed, errors) VALUES (?, datetime('now'), ?, ?, ?, ?, ?, ?, ?)",
+        (started_at, json.dumps(sources_read or {}), context.get("facts_added", 0), context.get("facts_removed", 0),
+         events.get("added", 0), events.get("changed", 0), events.get("removed", 0), json.dumps(errors or [])))
+    conn.commit()
+    return cur.lastrowid
+
+
+def save_event_draft(conn: sqlite3.Connection, event_id: int, person_id: int, draft: dict) -> int:
+    """Save one invite (draft_event_invite output) as an outreach_drafts row linked to the event. A rerun
+    replaces that person's earlier invite for the event. The star/approval triggers apply as usual."""
+    for (old,) in conn.execute(
+            "SELECT d.id FROM outreach_drafts d JOIN event_drafts ed ON ed.draft_id = d.id "
+            "WHERE ed.event_id = ? AND d.donor_id = ?", (event_id, person_id)).fetchall():
+        conn.execute("DELETE FROM outreach_drafts WHERE id = ?", (old,))
+    draft_id = conn.execute(
+        "INSERT INTO outreach_drafts (donor_id, channel, subject, body, sms, facts_used, status) "
+        "VALUES (?, 'email', ?, ?, ?, ?, ?)",
+        (person_id, draft.get("subject"), draft.get("email_body") or draft.get("body") or "", draft.get("sms"),
+         json.dumps(draft.get("facts_used") or []), draft.get("status") or "draft")).lastrowid
+    conn.execute("INSERT INTO event_drafts (event_id, draft_id) VALUES (?, ?)", (event_id, draft_id))
+    conn.commit()
+    return draft_id
 
 
 # SAMPLE seed: fictional, hand-built histories so scoring/dedupe/UI aren't blocked on ingest.
@@ -482,6 +773,53 @@ SEED_DONORS = [
         "donor_type": "organization", "city": "Miami", "state": "FL", "fund_type": None,
         "source_row": "SAMPLE", "notes": "SAMPLE gift history (invented); real organization; in-kind support valued in USD",
         "gifts": [(7500, "2024-03-12", "in-kind"), (7500, "2025-03-11", "in-kind")],
+    },    # 5E: fictional Neighbors (met, not yet giving) and Community members (people the nonprofit serves).
+    # Demographics are self-reported intake fields, each citing its source row; nothing is inferred.
+    {
+        "full_name": "Danielle Okafor", "first_name": "Danielle", "last_name": "Okafor", "donor_type": "individual",
+        "contact_type": "neighbor", "email": "danielle.okafor@example.com", "phone": "+13055550211",
+        "city": "Miami", "state": "FL", "interests": ["dogs", "volunteering"], "has_dog": True,
+        "notes": "SAMPLE: met at the Give Miami 5K info table",
+    },
+    {
+        "full_name": "Marco Bellini", "first_name": "Marco", "last_name": "Bellini", "donor_type": "individual",
+        "contact_type": "neighbor", "email": "marco.bellini@example.com", "phone": "+13055550212",
+        "city": "Coral Gables", "state": "FL", "interests": ["arts"], "has_dog": False,
+        "notes": "SAMPLE: signed up at a community arts night",
+    },
+    {
+        "full_name": "Keisha Grant", "first_name": "Keisha", "last_name": "Grant", "donor_type": "individual",
+        "contact_type": "community", "phone": "+13055550221", "city": "Homestead", "state": "FL",
+        "interests": ["youth programs"], "has_dog": True,
+        "demographics": {"age_range": {"value": "25-34", "source_row": "intake_form_01.docx: Age range"},
+                         "household_size": {"value": "4", "source_row": "intake_form_01.docx: Household"},
+                         "zip": {"value": "33030", "source_row": "intake_form_01.docx: ZIP"},
+                         "language": {"value": "English", "source_row": "intake_form_01.docx: Language"},
+                         "programs": {"value": ["After-school tutoring"], "source_row": "intake_form_01.docx: Programs"}},
+        "notes": "SAMPLE: intake record",
+    },
+    {
+        "full_name": "Rosa Jimenez", "first_name": "Rosa", "last_name": "Jimenez", "donor_type": "individual",
+        "contact_type": "community", "phone": "+13055550222", "city": "Miami", "state": "FL",
+        "demographics": {"age_range": {"value": "45-54", "source_row": "intake_form_02.docx: Age range"},
+                         "gender": {"value": "Female", "source_row": "intake_form_02.docx: Gender"},
+                         "zip": {"value": "33125", "source_row": "intake_form_02.docx: ZIP"},
+                         "language": {"value": "Spanish", "source_row": "intake_form_02.docx: Language"},
+                         "programs": {"value": ["Food pantry", "After-school tutoring"],
+                                      "source_row": "intake_form_02.docx: Programs"}},
+        "notes": "SAMPLE: intake record",
+    },
+    {
+        "full_name": "Tomas Reyes", "first_name": "Tomas", "last_name": "Reyes", "donor_type": "individual",
+        "contact_type": "community", "city": "Miami", "state": "FL",
+        "demographics": {"zip": {"value": "33125", "source_row": "signin_sheet_oct.xlsx: row 7"}},
+        "notes": "SAMPLE: event sign-in only",
+    },
+    {
+        "full_name": "Jordan Lee", "first_name": "Jordan", "last_name": "Lee", "donor_type": "individual",
+        "contact_type": "neighbor", "email": "jordan.lee@example.com", "city": "Miami", "state": "FL",
+        "tab_review": "appears on the intake list and the volunteer sign-up sheet; Community or Neighbor?",
+        "notes": "SAMPLE: ambiguous tab, flagged for review",
     },
 ]
 
@@ -489,18 +827,24 @@ SEED_DONORS = [
 def insert_donor(conn: sqlite3.Connection, donor: dict) -> int:
     """Insert one donor dict (§13 fields + optional 'gifts' as (amount, date, channel)) and return its id."""
     fields = ["full_name", "first_name", "last_name", "org_name", "donor_type", "email",
-              "emails_all", "phone", "city", "state", "fund_type", "notes", "source_row"]
+              "emails_all", "phone", "city", "state", "fund_type", "notes", "source_row",
+              "contact_type", "interests", "has_dog", "demographics", "tab_review"]
     values = [donor.get(f) for f in fields]
     values[fields.index("emails_all")] = json.dumps(donor.get("emails_all") or [])
+    values[fields.index("contact_type")] = donor.get("contact_type") or "giver"
+    values[fields.index("interests")] = json.dumps(donor.get("interests") or [])
+    values[fields.index("demographics")] = json.dumps(donor.get("demographics") or {})
+    if donor.get("has_dog") is not None:
+        values[fields.index("has_dog")] = int(bool(donor["has_dog"]))
     if values[fields.index("source_row")] is None:
         values[fields.index("source_row")] = "SAMPLE"   # every seed row is sample data
     cur = conn.execute(
         f"INSERT INTO donors ({', '.join(fields)}) VALUES ({', '.join('?' * len(fields))})", values)
     donor_id = cur.lastrowid
-    for amount, gift_date, channel in donor.get("gifts", []):
+    for amount, gift_date, channel, *rest in donor.get("gifts", []):     # optional 4th item: status
         conn.execute(
-            "INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row) VALUES (?, ?, ?, ?, 'SAMPLE')",
-            (donor_id, amount, gift_date, channel))
+            "INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row, status) VALUES (?, ?, ?, ?, 'SAMPLE', ?)",
+            (donor_id, amount, gift_date, channel, rest[0] if rest else "ok"))
     return donor_id
 
 

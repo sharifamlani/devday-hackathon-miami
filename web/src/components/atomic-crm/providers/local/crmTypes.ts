@@ -32,9 +32,13 @@ export interface ApiPerson {
   email?: string | null; // masked by the API
   phone?: string | null; // masked by the API
   city?: string | null;
-  tags?: ApiJson<string[]>; // e.g. ["has a dog"]
-  // Community only: what the nonprofit recorded; null/absent = not recorded
-  demographics?: ApiJson<Record<string, string | number | null>>;
+  tags?: ApiJson<string[]>; // proposed name; PR #60 sends `interests`
+  interests?: ApiJson<string[]>; // e.g. ["dogs", "arts"]
+  has_dog?: boolean | null; // PR #60: true / false / null (not recorded)
+  // Community: what the nonprofit recorded. PR #60: {field: {value, source_row}};
+  // a field that wasn't recorded is absent. programs may be a list.
+  demographics?: ApiJson<Record<string, unknown>>;
+  is_sample?: boolean | null;
   // Givers only (from donor_scores)
   score?: number | null;
   tier?: string | null;
@@ -42,8 +46,9 @@ export interface ApiPerson {
   status?: string | null;
   last_touch?: string | null; // ISO date of the last gift, visit or message
   next_step?: string | null; // suggested by the agent
-  needs_review?: boolean | number | null; // unclear sort or cross-file duplicate
+  needs_review?: boolean | number | null; // proposed; PR #60 sends tab_review
   review_reason?: string | null;
+  tab_review?: string | null; // PR #60: null, or why the sort needs a person
 }
 
 /** GET /people?type=X: a list, or {items|people, counts}. */
@@ -52,7 +57,8 @@ export type ApiPeopleResponse =
   | {
       items?: ApiPerson[];
       people?: ApiPerson[];
-      counts?: Partial<Record<string, number>>;
+      counts?: Partial<Record<string, number>>; // PR #60 adds needs_review
+      type?: string | null;
     };
 
 export interface ApiEvent {
@@ -63,6 +69,11 @@ export interface ApiEvent {
   place?: string | null;
   audience?: string | null; // "Givers, lapsing first"
   audience_label?: string | null;
+  audience_hint?: string | null; // PR #60's name
+  status?: string | null; // upcoming | changed | past
+  event_kind?: string | null; // e.g. "donor", "community", "dog"
+  rationale?: string | null; // why this audience
+  batch_id?: number | string | null; // the event's pending send batch, once planned
   source?: string | null; // website | news | x | linkedin | instagram
   source_url?: string | null;
   url?: string | null;
@@ -81,6 +92,7 @@ export interface ApiEventRecipient {
 export interface ApiSendItem {
   id: number;
   person_id?: number | null;
+  prospect_id?: number | null; // a first-touch draft to a prospect organization
   full_name?: string | null;
   name?: string | null;
   contact_type?: string | null;
@@ -88,6 +100,7 @@ export interface ApiSendItem {
   to?: string | null; // masked address
   subject?: string | null;
   body: string;
+  sms?: string | null; // PR #60 event drafts: the text-message version
   facts_used?: ApiJson<{ fact: string; url?: string; source_url?: string }[]>;
   needs_individual_approval?: boolean | number | null; // ★, big tier, organizations
   approval_reason?: string | null;
@@ -100,6 +113,24 @@ export interface ApiEventDetail extends ApiEvent {
   recipients?: ApiEventRecipient[];
   audience_people?: ApiEventRecipient[];
   drafts?: ApiSendItem[];
+}
+
+/** GET /campaigns/{id}: a send batch as routes_campaigns stores it. */
+export interface ApiCampaign {
+  id: number;
+  name?: string | null;
+  channel?: string | null;
+  counts?: ApiSendBatch["counts"];
+  messages: (Omit<ApiSendItem, "person_id" | "full_name"> & {
+    donor_id?: number | null;
+    donor_name?: string | null;
+  })[];
+}
+
+/** POST /events/{id}/plan (proposed): pre-drafts the invites as a batch. */
+export interface ApiPlanResult {
+  batch_id: number | string;
+  counts?: ApiSendBatch["counts"];
 }
 
 export interface ApiStatBucket {
@@ -179,9 +210,11 @@ export interface Person {
   email: string | null;
   phone: string | null;
   city: string | null;
-  tags: string[];
-  /** Community: every recorded field; missing values are "not recorded". */
+  tags: string[]; // interests
+  has_dog: boolean | null; // null = not recorded
+  /** Community: every field, with "not recorded" for anything missing. */
   demographics: { label: string; value: string }[];
+  is_sample: boolean;
   score: number | null;
   tier: string | null;
   is_star: boolean;
@@ -196,7 +229,7 @@ export interface PeoplePage {
   people: Person[];
   /** People per tab. null when the API didn't report that tab's count. */
   counts: Record<Tab, number | null>;
-  needs_review: number; // people in this list flagged for review
+  needs_review: number; // people flagged for review (whole CRM when reported)
 }
 
 export interface CrmEvent {
@@ -206,6 +239,10 @@ export interface CrmEvent {
   ends_at: string | null;
   place: string | null;
   audience: string | null;
+  status: string | null; // upcoming | changed | past
+  kind: string | null;
+  rationale: string | null; // why this audience
+  batch_id: string | null; // open this batch in the chat panel ("Review")
   source: string | null;
   source_url: string | null; // every event has a source; null = show "no source"
   audience_count: number | null;
@@ -292,6 +329,14 @@ export interface SendResult {
   simulated: boolean; // the demo outbox: nothing leaves the laptop
 }
 
+export interface PlanResult {
+  batch_id: string; // pass to getSendBatch / the chat panel
+  bulk_approvable: number | null;
+  needs_individual_approval: number | null;
+  flagged: number | null;
+  total: number | null;
+}
+
 /** Per-item decisions; items needing individual approval must be listed. */
 export type PerItemApproval = { id: number; approve: boolean }[];
 
@@ -308,12 +353,24 @@ export interface ApiContextStatus {
   new_events?: number | null;
   new_facts?: number | null;
   refreshing?: boolean | null; // a refresh is running now
+  // PR #60: the newest context_refresh_log row
+  last_run?: {
+    started_at?: string | null;
+    finished_at?: string | null;
+    sources_read?: Record<string, string>;
+    facts_added?: number;
+    events_added?: number;
+    events_changed?: number;
+    errors?: string[];
+  } | null;
 }
 
 export interface ContextStatus {
   last_refreshed_at: string | null;
   new_events: number | null;
+  changed_events: number | null;
   new_facts: number | null;
+  errors: string[]; // sources that couldn't be read on the last run
   change_summary: string | null; // "2 new events", "no changes"
   refreshing: boolean;
   /** Ready to show: "Context updated today 7:00 AM · 2 new events". */
@@ -333,6 +390,10 @@ export interface CrmMethods {
     perItem?: PerItemApproval,
   ): Promise<SendResult>;
   getContextStatus(): Promise<ContextStatus>;
+  /** POST /events/{id}/plan: draft the event's invites as a send batch. */
+  planEventOutreach(eventId: number): Promise<PlanResult>;
+  /** GET /campaigns/{id}: load a send batch, e.g. an event's, for review. */
+  getSendBatch(batchId: string): Promise<SendBatch>;
   /** POST /context/refresh: re-read the Foundation's sources now. */
   refreshContext(): Promise<ContextStatus>;
 }

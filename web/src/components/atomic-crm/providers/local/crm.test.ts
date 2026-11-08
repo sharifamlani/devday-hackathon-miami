@@ -3,7 +3,9 @@ import { crmHttpMethods } from "./crmHttp";
 import { SOCIAL_POSTING } from "./config";
 import {
   NOT_RECORDED,
+  buildApproval,
   parseChatResponse,
+  parseSendBatch,
   parseContextStatus,
   parseCommunityStats,
   parseEventDetail,
@@ -23,34 +25,57 @@ describe("crmParse", () => {
     ]);
   });
 
-  it("reads counts for every tab and shows missing demographics as 'not recorded'", () => {
+  it("reads PR #60's people shape: counts, interests, tab_review, demographics", () => {
     const page = parsePeople(
       {
-        items: [
+        type: "community",
+        counts: { giver: 12, neighbor: 4, community: 9, needs_review: 2 },
+        people: [
           {
             id: 1,
             full_name: "Rosa P.",
-            contact_type: "beneficiary",
-            demographics: { age_group: "25-34", zip: null, household_size: "", language: "unknown" },
-            tags: '["has a dog"]',
-            needs_review: 1,
+            contact_type: "community",
+            interests: ["dogs"],
+            has_dog: true,
+            tab_review: "intake form and a gift: which tab?",
+            demographics: {
+              age_range: { value: "25-34", source_row: "intake row 4" },
+              programs: { value: ["Arts Access", "Zero Drownings"], source_row: "x" },
+              language: { value: "", source_row: "x" },
+            },
           },
         ],
-        counts: { donor: 12, neighbor: 4, beneficiary: 9 },
       },
       "community",
     );
     expect(page.counts).toEqual({ giver: 12, neighbor: 4, community: 9 });
-    expect(page.needs_review).toBe(1);
+    expect(page.needs_review).toBe(2); // the CRM-wide count the server reports
     const [rosa] = page.people;
-    expect(rosa.tab).toBe("community");
-    expect(rosa.tags).toEqual(["has a dog"]);
+    expect(rosa).toMatchObject({
+      tab: "community",
+      tags: ["dogs"],
+      has_dog: true,
+      needs_review: true,
+      review_reason: "intake form and a gift: which tab?",
+    });
+    // Every Community field is listed; missing or empty ones read "not recorded".
     expect(rosa.demographics).toEqual([
-      { label: "Age group", value: "25-34" },
-      { label: "Zip", value: NOT_RECORDED },
+      { label: "Age range", value: "25-34" },
+      { label: "Gender", value: NOT_RECORDED },
       { label: "Household size", value: NOT_RECORDED },
+      { label: "Zip", value: NOT_RECORDED },
       { label: "Language", value: NOT_RECORDED },
+      { label: "Programs", value: "Arts Access, Zero Drownings" },
     ]);
+  });
+
+  it("shows only recorded demographics outside Community", () => {
+    const page = parsePeople(
+      { people: [{ id: 2, full_name: "Luis", contact_type: "giver", demographics: { zip: { value: "33133" } } }] },
+      "giver",
+    );
+    expect(page.people[0].demographics).toEqual([{ label: "Zip", value: "33133" }]);
+    expect(page.people[0].has_dog).toBeNull();
   });
 
   it("counts only the current tab when the API sends a bare list", () => {
@@ -73,6 +98,29 @@ describe("crmParse", () => {
         ],
       },
     ]);
+  });
+
+  it("reads PR #60's event fields: audience_hint, status, kind, rationale, batch_id", () => {
+    const event = parseEventDetail({
+      id: 4,
+      title: "Puppy outreach day",
+      starts_at: "2026-11-21",
+      audience_hint: "People tagged with dogs, any tab",
+      status: "upcoming",
+      event_kind: "dog",
+      rationale: "Only people with has_dog = true",
+      batch_id: 9,
+      recipients: [],
+      drafts: [{ id: 1, body: "Bring your dog!", sms: "Bring your dog!", status: "draft" }],
+    });
+    expect(event).toMatchObject({
+      audience: "People tagged with dogs, any tab",
+      status: "upcoming",
+      kind: "dog",
+      rationale: "Only people with has_dog = true",
+      batch_id: "9",
+      drafts_ready: 1,
+    });
   });
 
   it("parses an event's audience and counts ready drafts", () => {
@@ -170,6 +218,57 @@ describe("crmHttpMethods", () => {
     expect(msg.steps).toEqual([{ tool: "find_people", label: "Found people", summary: "2 lapsing", status: "done" }]);
     expect(msg.batch).toMatchObject({ id: "12", bulk_approvable: 1, needs_individual_approval: 1, flagged: 0 });
     expect(msg.batch?.items[0]).toMatchObject({ to: "m***@example.com", tab: "giver", facts_used: [{ fact: "f", source_url: "https://example.org/f" }] });
+  });
+
+  it("keeps the server's event order (upcoming first, then past)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      respond(200, [
+        { id: 2, title: "Give Miami Day", starts_at: "2026-11-19" },
+        { id: 3, title: "Give Miami 5K", starts_at: "2026-11-15" },
+        { id: 1, title: "Past summit", starts_at: "2026-09-10" },
+      ]),
+    );
+    expect((await crmHttpMethods.getEvents()).map((e) => e.id)).toEqual([2, 3, 1]);
+  });
+
+  it("plans an event's outreach and loads the batch by id", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ batch_id: 21, counts: { total: 3, bulk_approvable: 2, needs_individual_approval: 1, flagged: 0 } })),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 21,
+            name: "Give Miami Day invites",
+            channel: "email",
+            counts: { bulk_approvable: 2, needs_individual_approval: 1, flagged: 0 },
+            messages: [
+              { id: 5, donor_id: 1, donor_name: "Maria Delgado", channel: "email", body: "b", status: "draft",
+                needs_individual_approval: false, flags: [] },
+            ],
+          }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const plan = await crmHttpMethods.planEventOutreach(2);
+    expect(plan).toEqual({ batch_id: "21", total: 3, bulk_approvable: 2, needs_individual_approval: 1, flagged: 0 });
+    const batch = await crmHttpMethods.getSendBatch(plan.batch_id);
+    expect(fetchMock.mock.calls.map((c) => [String(c[0]).replace(/^.*:\d+/, ""), c[1]?.method ?? "GET"])).toEqual([
+      ["/events/2/plan", "POST"],
+      ["/campaigns/21", "GET"],
+    ]);
+    expect(batch).toMatchObject({ id: "21", title: "Give Miami Day invites", bulk_approvable: 2 });
+    expect(batch.items[0]).toMatchObject({ person_id: 1, name: "Maria Delgado", tab: "giver" });
+  });
+
+  it("explains a plan route that hasn't landed", async () => {
+    vi.stubGlobal("fetch", respond(404, { detail: "Not Found" }));
+    await expect(crmHttpMethods.planEventOutreach(2)).rejects.toThrow(
+      "Planning event outreach isn't available yet",
+    );
   });
 
   it("keeps a real not-found message", async () => {
@@ -314,6 +413,18 @@ describe("context status (plan.md §17 amendment)", () => {
     );
   });
 
+  it("reads PR #60's last_run counts and errors", () => {
+    const status = parseContextStatus(
+      {
+        last_refreshed_at: at(7, 7),
+        last_run: { events_added: 2, events_changed: 1, facts_added: 0, errors: ["instagram: blocked"] },
+      },
+      now,
+    );
+    expect(status.label).toBe("Context updated today 7:00 AM · 2 new events, 1 changed event");
+    expect(status.errors).toEqual(["instagram: blocked"]);
+  });
+
   it("prefers the API's own summary, and covers never-run and running states", () => {
     expect(
       parseContextStatus({ last_refreshed_at: at(7, 7), last_change: { summary: "2 new events", new_events: 9 } }, now)
@@ -350,5 +461,41 @@ describe("context status (plan.md §17 amendment)", () => {
 
   it("keeps social posting behind a coming-soon flag", () => {
     expect(SOCIAL_POSTING).toBe("coming_soon");
+  });
+});
+
+describe("approval rules (plan.md §17)", () => {
+  // One batch with every kind of item the rule distinguishes.
+  const batch = parseSendBatch({
+    id: 1,
+    items: [
+      { id: 1, body: "ordinary giver", status: "draft" },
+      { id: 2, body: "organization", needs_individual_approval: true, approval_reason: "organization donor", status: "draft" },
+      { id: 3, body: "star donor", needs_individual_approval: true, approval_reason: "Shack Society level", status: "draft" },
+      { id: 4, body: "big donor", needs_individual_approval: true, approval_reason: "big tier", status: "draft" },
+      { id: 5, body: "prospect, server forgot the flag", contact_type: "prospect", status: "draft" },
+      { id: 6, body: "prospect by id", prospect_id: 9, status: "draft" },
+      { id: 7, body: "ordinary but flagged", flags: ["$5,000 not in record"], status: "draft" },
+      { id: 8, body: "org and flagged", needs_individual_approval: true, flags: ["date not in record"], status: "draft" },
+      { id: 9, body: "already sent", status: "sent" },
+    ],
+  });
+
+  it("approval: never bulk-approves org/★/big or prospect items and never selects flagged ones", () => {
+    // Prospects need individual approval even when the server leaves the flag off.
+    expect(batch.items.filter((i) => i.needs_individual_approval).map((i) => i.id)).toEqual([2, 3, 4, 5, 6, 8]);
+    expect(batch.items.find((i) => i.id === 5)?.approval_reason).toBe("Prospect organization");
+    // A bulk approval selects only the ordinary, unflagged draft.
+    expect(batch.bulk_approvable).toBe(1);
+    expect(buildApproval(batch)).toEqual([{ id: 1, approve: true }]);
+    // Restricted items go only when a person names each one.
+    expect(buildApproval(batch, [2, 5])).toEqual([
+      { id: 1, approve: true },
+      { id: 2, approve: true },
+      { id: 5, approve: true },
+    ]);
+    // Naming a flagged item is refused outright.
+    expect(() => buildApproval(batch, [8])).toThrow("Flagged drafts can't be approved");
+    expect(() => buildApproval(batch, [7])).toThrow("Flagged drafts can't be approved");
   });
 });

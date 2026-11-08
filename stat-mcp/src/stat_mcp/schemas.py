@@ -21,6 +21,7 @@ class DonorRecord(BaseModel):
     email_address: str = Field(default="", max_length=320)
     donation_amount: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     phone_number: str = Field(default="", max_length=40)
+    contact_type: str = Field(default="contact", pattern="^(donor|beneficiary|contact)$")
     date_of_last_donation: str = Field(default="", max_length=40)
     contact_preference: str | None = Field(default=None, max_length=200)
     organization: str | None = Field(default=None, max_length=200)
@@ -37,29 +38,72 @@ class DonorRecord(BaseModel):
         return " ".join(part for part in (self.first_name, self.last_name) if part)
 
 
-class ExtractedDonor(BaseModel):
-    """LLM extraction shape; optional blanks are normalized before storage."""
+class ContactType(StrEnum):
+    DONOR = "donor"
+    BENEFICIARY = "beneficiary"
+    CONTACT = "contact"
 
-    id: str | None = None
+
+class EventType(StrEnum):
+    GIFT = "gift"
+    PROFILE = "profile"
+    CONTACT = "contact"
+    BENEFIT = "benefit"
+
+
+class ImportedTransaction(BaseModel):
+    """One source event. A gift is a separate row; person attributes repeat for grouping."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    transaction_id: str = Field(default_factory=lambda: str(uuid4()), min_length=1, max_length=100)
+    source_transaction_id: str | None = Field(default=None, max_length=100)
+    person_source_id: str | None = Field(default=None, max_length=100)
+    person_group_key: str | None = Field(default=None, max_length=100)
+    contact_type: ContactType = ContactType.CONTACT
+    first_name: str = Field(default="", max_length=100)
+    last_name: str = Field(default="", max_length=100)
+    organization: str | None = Field(default=None, max_length=200)
+    email_address: str = Field(default="", max_length=320)
+    phone_number: str = Field(default="", max_length=40)
+    transaction_type: EventType = EventType.PROFILE
+    amount: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    transaction_date: str | None = Field(default=None, max_length=40)
+    channel: str | None = Field(default=None, max_length=200)
+    fund_type: str | None = Field(default=None, max_length=200)
+    notes: str | None = Field(default=None, max_length=4000)
+    source_name: str = Field(default="upload", max_length=200)
+    source_location: str | None = Field(default=None, max_length=300)
+
+    @property
+    def full_name(self) -> str:
+        return " ".join(part for part in (self.first_name, self.last_name) if part)
+
+
+class ExtractedTransaction(BaseModel):
+    """LLM extraction shape: one row for each explicit gift or non-gift source event."""
+
+    person_source_id: str | None = None
+    source_transaction_id: str | None = None
+    person_group_key: str | None = None
+    contact_type: ContactType = ContactType.CONTACT
     first_name: str | None = None
     last_name: str | None = None
     name: str | None = None
-    email_address: str | None = None
-    donation_amount: Decimal | None = None
-    phone_number: str | None = None
-    date_of_last_donation: str | None = None
-    contact_preference: str | None = None
     organization: str | None = None
-    giving_history: str | None = None
-    gift_count: int | None = None
-    engagement_notes: str | None = None
-    stated_interests: str | None = None
-    relationship_owner: str | None = None
-    source: str | None = None
+    email_address: str | None = None
+    phone_number: str | None = None
+    transaction_type: EventType = EventType.PROFILE
+    amount: Decimal | None = None
+    transaction_date: str | None = None
+    channel: str | None = None
+    fund_type: str | None = None
+    notes: str | None = None
+    source_location: str | None = None
 
 
-class DonorExtraction(BaseModel):
-    donors: list[ExtractedDonor]
+class TransactionExtraction(BaseModel):
+    transactions: list[ExtractedTransaction]
 
 
 class CriterionDefinition(BaseModel):
@@ -100,6 +144,7 @@ class UploadedDataset(BaseModel):
     source_name: str
     source_format: str
     records: list[DonorRecord]
+    transactions: list[ImportedTransaction] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
 

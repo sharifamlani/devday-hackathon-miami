@@ -1,4 +1,11 @@
-import { CalendarDays, HeartHandshake, PhoneCall, Users } from "lucide-react";
+import {
+  CalendarDays,
+  HeartHandshake,
+  PhoneCall,
+  Send,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import type { ComponentType } from "react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
@@ -12,6 +19,9 @@ export const Rail = () => {
   const onHome = !!matchPath("/", location.pathname);
   const onDonors = !!matchPath("/contacts/*", location.pathname);
   const onCalendar = !!matchPath("/calendar", location.pathname);
+  const onCampaigns =
+    !!matchPath("/campaigns/*", location.pathname) ||
+    !!matchPath("/outbox", location.pathname);
 
   return (
     <nav
@@ -37,6 +47,18 @@ export const Rail = () => {
           label={translate("resources.contacts.name", { smart_count: 2 })}
           icon={Users}
           active={onDonors}
+        />
+        <RailButton
+          to="/ask"
+          label="Ask"
+          icon={Sparkles}
+          active={!!matchPath("/ask", location.pathname)}
+        />
+        <RailButton
+          to="/campaigns"
+          label={translate("crm.campaigns.title", { _: "Campaigns" })}
+          icon={Send}
+          active={onCampaigns}
         />
         {/* Event calendar (feat/calendar-view) */}
         <RailButton

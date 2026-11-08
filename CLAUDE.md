@@ -74,7 +74,7 @@ uv run python -m stat_mcp.server
 
 # In a second terminal, from stat-mcp/, run the sample MCP client
 npm install @modelcontextprotocol/sdk
-STAT_MCP_URL=http://127.0.0.1:8000/mcp node examples/sample-call.mjs
+STAT_MCP_URL=http://127.0.0.1:8010/mcp node examples/sample-call.mjs
 
 # Prove key, all four model tiers, and an Agents SDK tool call + structured output (expect 7/7, exit 0)
 .venv/Scripts/python.exe scripts/smoke-openai.py

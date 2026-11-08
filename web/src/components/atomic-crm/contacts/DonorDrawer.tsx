@@ -15,6 +15,7 @@ import {
   statusLabel,
   tierLabel,
 } from "./donorFormat";
+import { MergeHistory } from "./MergeHistory";
 import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
@@ -110,6 +111,7 @@ export const DonorDrawer = ({
               <ScoreWhyPanel donor={donor} />
               <ResearchPanel donor={donor} />
               <OutreachPanel donor={donor} />
+              <MergeHistory merges={donor.merges} />
             </div>
           </>
         ) : (

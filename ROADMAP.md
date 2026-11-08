@@ -4,7 +4,7 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.9 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.10 · Sat Nov 7, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
@@ -203,6 +203,9 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5E.11 | Landing page (Faye's PR #41): decide the name (kindred vs Donor Desk) + the landing gate | Sharif | ⏸ | — | `plan.md` §17 |
 | 5E.12 | QA against plan §17 criteria + the overlap check on every PR | 98 | ⏳ | — | `plan.md` §17 |
 | 5E.13 | Backlog from Christian's issues: #37 targets, #40 merge history/undo (#36 Ask bar → covered by the chat agent; #38 → 5E.5) | — | ⏸ | — | `plan.md` §17 |
+| 5E.14 | One context database: org_profile + org_context + events (calendar) + event_audience + event_drafts + context_refresh_log | 8b | ⏸ | — | `plan.md` §17 amendment |
+| 5E.15 | Daily refresh agent: re-read website/news daily + "Refresh now"; update facts + calendar; re-draft invites for new/changed events; log changes; never wipe on failure | 86 (logic) · 90 (scheduler + route) | ⏸ | — | same |
+| 5E.16 | UI: "Context updated today …" + Refresh now; social posting shown as **Coming soon** | 80 · Christian | ⏸ | — | same |
 
 ### Phase 6 — Data and ingest
 **Goal:** the demo's donor data matches the challenge, and upload works. **Entry gate:** 1.6. **Exit gate:** upload → ranked list, 6/6 duplicates. **Status:** ⏸
@@ -283,8 +286,9 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 ## §6 Changelog
 
-- **Stat-MCP prototype:** `stat-mcp/` is a separate FastMCP donor-import and criteria-scoring prototype with its own field contract and integration guide. It is not connected to the primary FastAPI/SQLite service or web app; any adoption needs an explicit integration and data-contract decision.
+- **Stat-MCP transaction-first file import (feature branch):** CSV, JSON, XLSX, DOCX, Markdown, and text readers preserve explicit events and derive person summaries; batch MCP import added, server default moved to port 8010. Main-app `/ingest` adapter and SQLite persistence remain a separate integration step.
 
+- **v0.10 · Sat Nov 7, 2026 (night):** one context database (profile + facts + calendar + audiences + drafts + refresh log); daily refresh agent; social posting = Coming soon (5E.14–5E.16). Merged: #41 (Faye's landing), #43.
 - **v0.9 · Sat Nov 7, 2026 (night):** names locked Givers · Neighbors · Community; send gate = Christian's campaigns (no second log); 5E dispatched to 8b, 86, 90, 80, 42 + new ingest and sample-input agents; Christian's issues #36–#40 mapped (5E.5/5E.6/5E.8/5E.13); Faye's landing PR #41 awaiting naming. Merged since v0.7: #28–#35, #42.
 - **v0.8 · Sat Nov 7, 2026 (night):** Phase 5E: three CRMs in one (names locked: Givers · Neighbors · Community), upload with tab choice or agent sort, event calendar from website + social context with pre-drafted invites, chat agent with approval-gated email/SMS (Linq or Twilio). No iPhone app. Individual-giver research parked. `plan.md` §17.
 - **v0.7 · Sat Nov 7, 2026 (late evening):** Phase 5D added: three classes (donor / beneficiary / contact), donor briefs, beneficiary demographics (self-reported only); AI calls cut (`plan.md` §16). Merged on QA: #14, #15, #16, #17, #18, #19, #20, #21, #23, #24, #26, #27.
