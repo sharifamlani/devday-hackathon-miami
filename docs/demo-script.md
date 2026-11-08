@@ -3,7 +3,7 @@
 Challenge #2: duplicate donor records, and donors who quietly stop giving.
 Judges score fit to "what solved looks like", originality, use of Codex and OpenAI, feasibility, and presentation (each /10).
 
-**Run order:** the laptop is the demo surface (http://localhost:5173: service on :8000, web with
+**Run order:** the laptop is the demo surface (http://localhost:5173: LIVE's service on :8001, web with
 `VITE_DATA_MODE=local`). The Vercel link (https://devday-donor-desk.vercel.app) is a read-only preview of sample data,
 and the backup if the laptop or network fails. Org: **The Miami Foundation**. Scope: **Givers only**.
 
@@ -13,7 +13,7 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 
 ## The flow
 
-Demo surface: **the laptop**, http://localhost:5173 (service on :8000, web with `VITE_DATA_MODE=local`). The Vercel
+Demo surface: **the laptop**, http://localhost:5173 (LIVE's service on :8001, web with `VITE_DATA_MODE=local`). The Vercel
 link is a read-only **preview** of sample data, not the demo. Scope: **Givers only**. Upload still sorts everyone into
 Givers / Neighbors / Community, and the people page shows all three tabs (e.g. **Givers 40 · Neighbors 22 ·
 Community 15**), but the demo stays on **Givers**.
@@ -21,7 +21,8 @@ Community 15**), but the demo stays on **Givers**.
 Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run; the
 Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
 
-1. **Empty start.** The app opens straight on setup (**Donor Desk · Step 1 of 2**) with nothing behind it: no
+1. **Empty start.** Open **http://localhost:5173/** (the bare URL, not `#/welcome`: that's the marketing landing).
+   The app opens straight on setup (**Donor Desk · Step 1 of 2**) with nothing behind it: no
    people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–3): with
    people already uploaded, a reload could skip the website step (#193 should prevent it; keep the habit).
 2. **Step 1, "Drag in your files."** Drop the **8 input files** from `data/sample_inputs/` on **Drop your files here**
@@ -213,7 +214,7 @@ If the laptop or network fails, switch to the Vercel preview tab (read-only samp
       (… duplicate suggestions); exit 1 means run it again.
 - [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
 - [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
-- [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8000`; service
+- [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8001`; service
       `.env` has `OPENAI_API_KEY`, the `OPENAI_MODEL_*` tiers, `GEMINI_API_KEY` (voice), `SCORE_AS_OF=2026-11-08`.
       Leave `EMAIL_SEND` off and `SMS_PROVIDER` unset unless a send is part of the demo; `SEND_ALLOWLIST` only
       team numbers.
