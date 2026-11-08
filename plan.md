@@ -1960,7 +1960,10 @@ Live-call notes (19, from the real test call):
 - [ ] **T-30 (reset), OWNER: the IT lane (session 20).** The stage laptop runs LIVE: the service on :8001 (the
       writable one; :5173's `VITE_API_URL` points there) and the web on :5173. `demo_reset.py` resets the db of the
       folder it runs from, so it runs from `C:\Users\Shari\dd-live-main`, **never the Dropbox repo**.
-      1. Stop :8401 (the public copy: a second service with `PUBLIC_MODE=1` over LIVE's db; the IT lane owns it).
+      1. Session 22 runs `demo_off.sh` (local only, in session 22's scratchpad): it stops the QA-gated promote loop
+         (`follow_live.sh`) and then only the process on :8401, the writable public copy over LIVE's db. An empty
+         LIVE behind a writable public site would let visitors import before Sharif does, so the public link shows
+         its built-in snapshot until the demo ends. Check: `curl -s http://localhost:8401/health` gets no answer.
       2. Stop LIVE's service only: `scripts\live_stack.ps1 stop -Stack live -Only service`.
       3. From `C:\Users\Shari\dd-live-main`, with the repo venv's Python (the one `live_stack.ps1` uses; plain
          `python` may lack the deps), in PowerShell:
@@ -1968,31 +1971,26 @@ Live-call notes (19, from the real test call):
          **`PASS stage numbers: 77 people / 9 duplicate suggestions`**. Exit 1 means run it again.
       4. Start LIVE's service: `scripts\live_stack.ps1 start -Stack live -Only service`.
       5. Smokes 3–4 (22.4) on :8001 / :5173.
-      6. Restart :8401 (the IT lane), then the T-15 checks.
+      6. Leave :8401 off until the demo ends (**After the demo**, below), then the T-15 check.
       7. Clear site data for localhost:5173 in the demo browser (or open a fresh incognito window), then check that the bare URL shows the **gatherly** landing (**Upload donor data** / **Try sample data**): the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL shows the landing instead of setup.
 - [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
       key, and a busy key slows invites and agent replies (Nov 8: 429s).
 - [ ] **T-20:** smokes 1–4 (22.4), in order.
-- [ ] **T-15 (public site):** the public site stays live for the whole run (Sharif: no public-link switch during the
-      demo); T-15 only checks it. The public link (https://devday-donor-desk.vercel.app) shows the laptop's live data
-      through the tunnel (`docs/public-tunnel.md`). The tunnel runs on `--port 8401`: the public copy with
-      `PUBLIC_MODE=1` over LIVE's db. :8001 stays the writable laptop service and is never tunnelled.
-      1. `python scripts/public_tunnel.py status` must print the pid, the tunnel URL and `health: HTTP 200`, and
-         `curl -s http://localhost:8401/public-mode` must return `{"enabled": true}` (with #254 merged:
-         `"enabled": true, "redacted": false`, the show-all mode).
-      2. Open the public link in a fresh incognito window: no **Sample data** badge; the dashboard, the CRM and the
-         calendar (4 events) all load with the live data, and the DevTools console shows 0 errors.
-      **Fallback (the snapshot):** if `status` prints `off`, the health check fails, or the page shows **Sample
-      data**, the public link is serving the read-only snapshot, which is fine for judges: say "the public link
-      shows a snapshot of the same data". Only with 10+ minutes to spare, bring it back with
-      **`python scripts/public_tunnel.py on --port 8401`** (always with `--port 8401`: a bare `on` defaults to 8001 and
-      would tunnel LIVE's unrestricted, writable API), then the 3 steps it prints, in order:
-      (1) restart the public copy from `C:\Users\Shari\dd-live-main` (LIVE's db):
-      `PUBLIC_MODE=1 PUBLIC_ORIGINS=https://devday-donor-desk.vercel.app uvicorn service.main:app --host 127.0.0.1 --port 8401`;
-      (2) from `web/`, in Git Bash: `printf '%s' "<tunnel url>" | vercel env add VITE_API_URL production`, then
-      `local` for `VITE_DATA_MODE` (`vercel env rm` the old values first);
-      (3) `vercel --prod --yes`.
-      Write down which state it's in.
+- [ ] **T-15 (public site):** :8401 is off for the whole run (T-30 step 1), so the public link
+      (https://devday-donor-desk.vercel.app) loads its built-in snapshot with the **Sample data** badge (its 2 s
+      /health probe through the tunnel fails). Open it in a fresh incognito window and check the **Sample data** badge
+      (tabs opened earlier show request errors until reloaded). If a judge asks: "the public link shows a snapshot of
+      the same data; it goes back to live after the demo." Don't restart :8401, the promote loop or the tunnel during
+      the run, and never run a bare `python scripts/public_tunnel.py on` (it defaults to 8001 and would tunnel LIVE's
+      API).
+- [ ] **After the demo (session 22):** remove the stop-file and run `follow_live.sh` in the background. Within ~20 s
+      it starts :8401 on LIVE's commit, fully writable (rule 15: no `PUBLIC_MODE`; `SEND_ALLOWLIST`, phone calls and
+      Twilio come from LIVE's `.env`), from `C:\Users\Shari\dd-live-main` (its `data/donors.db` and `.env`):
+      `PUBLIC_MODE= PUBLIC_SHOW_ALL= CORS_ORIGINS=https://devday-donor-desk.vercel.app REFRESH_DAILY_AT= python -m uvicorn service.main:app --host 127.0.0.1 --port 8401`
+      (empty `REFRESH_DAILY_AT`: no second scheduler). It then keeps Vercel prod pinned to LIVE's build
+      (`vercel rollback`) and promotes only QA-gated builds. Check: `curl -s http://localhost:8401/public-mode`
+      returns `{"enabled":false,"redacted":false}`, and the public link in a fresh incognito window loads the live
+      data without the **Sample data** badge, with 0 console errors.
 - [ ] **T-15 (phone, IT lane):** LIVE's `.env` has the six call settings, checked without printing their values:
       `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^(PHONE_CALLS|TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|TWILIO_PHONE_NUMBER|STAFF_PHONE|SEND_ALLOWLIST)=' | % { $_.Line.Split('=')[0] }`
       must print all six names; `Select-String -Path C:\Users\Shari\dd-live-main\.env -Pattern '^PHONE_CALLS=on'`
@@ -2028,12 +2026,12 @@ Live-call notes (19, from the real test call):
    **Command:** open http://localhost:5173 · **Expected:** the **gatherly** landing (**Upload donor data** / **Try sample data**), 0 errors in the DevTools
    console. **If it fails →** check `VITE_API_URL=http://localhost:8001` and `VITE_DATA_MODE=local`; restart the web
    (`scripts\live_stack.ps1 restart -Stack live -Only web`).
-5. **What it proves:** the public link serves the live laptop data (or, knowingly, the snapshot).
-   **Command:** `python scripts/public_tunnel.py status`; `curl -s http://localhost:8401/public-mode`; then open
-   https://devday-donor-desk.vercel.app incognito · **Expected:** the pid + URL + `health: HTTP 200`;
-   `"enabled": true` (with #254: `"redacted": false` too); the page loads without the **Sample data** badge.
-   **If it fails →** the snapshot is the fallback (see T-15); restart the tunnel only with 10+ minutes to spare, and
-   only as `python scripts/public_tunnel.py on --port 8401` (never a bare `on`: it tunnels :8001).
+5. **What it proves:** during the run the public link can't write to the empty LIVE: :8401 is off and the link shows
+   the snapshot.
+   **Command:** `curl -s http://localhost:8401/health`; then open https://devday-donor-desk.vercel.app incognito ·
+   **Expected:** no answer from :8401; the page loads with the **Sample data** badge.
+   **If it fails →** :8401 still answers: ask session 22 to run `demo_off.sh` again before Sharif starts; never stop
+   it by process image name.
 6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
    **Command:** run 22.2 in the browser; right after step 2's import (before the IT lane adds Christian in step 3),
    the IT lane runs `scripts\demo_reset.py --check` from `dd-live-main` with the same venv Python (it approves the
