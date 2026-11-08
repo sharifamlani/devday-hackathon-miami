@@ -19,8 +19,8 @@ Givers / Neighbors / Community, and the people page shows all three tabs (e.g. *
 Community 15**), but the demo stays on **Givers**.
 
 Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run (the Vercel link
-shows the same while the tunnel is up). Its snapshot fallback (**Sample data** badge) shows different numbers (10
-duplicates, 19 tasks): don't read numbers off it.
+shows the same while the tunnel is up). Its snapshot fallback (**Sample data** badge) is an older cut: don't read
+numbers off it.
 
 1. **Empty start.** Open **http://localhost:5173/** (the bare URL). On an empty app, setup's first step is the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data** ("or drag and drop your files here (CSV, Excel, Word, notes)"), **Try sample data**, and Upload your list · Understand your donors · Reach out thoughtfully.
    Nothing is behind it: no people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during
@@ -73,7 +73,7 @@ duplicates, 19 tasks): don't read numbers off it.
    - the **CRM** tile (its heading opens the donor database): **Find a donor** and the donors needing attention with
      their badges (**Card failed**, **Skipped**, **Late**, **New**);
    - **Files & drafts** (campaigns and invites the agents drafted);
-   - the greeting **Good afternoon, Denise.** (**Good evening, Denise.** after 6 PM; Denise is the demo staff persona);
+   - the greeting **Good afternoon, Sharif.** (**Good evening, Sharif.** after 6 PM, by the laptop's clock);
    - **Ask the agent…** (no suggestion chips above it): type a request and press **Send**, or say it with the mic.
    The tile headings open their panels beside the chat. The workspace controls hold **Live transcript** and the
    avatar menu; Home has no Ask button (the chat is on the page; other pages keep **Open Ask sidebar**).
