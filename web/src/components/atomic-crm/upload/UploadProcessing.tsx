@@ -13,6 +13,10 @@ export const UploadProcessing = ({
   onBack,
   onReviewDuplicates,
   demo = false,
+  readyHeading = "Your donor data is ready.",
+  continueLabel = "Create organization profile",
+  continueIcon = true,
+  embedded = false,
 }: {
   pending: boolean;
   summary: FilesSummary | null;
@@ -22,6 +26,12 @@ export const UploadProcessing = ({
   onBack?: () => void;
   onReviewDuplicates?: () => void;
   demo?: boolean;
+  /** Optional overrides for reuse outside onboarding (the Add data dialog); defaults keep onboarding as is. */
+  readyHeading?: string;
+  continueLabel?: string;
+  continueIcon?: boolean;
+  /** Render inside a dialog: no full-screen frame or wordmark. */
+  embedded?: boolean;
 }) => {
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -85,21 +95,21 @@ export const UploadProcessing = ({
     value == null ? "Checked" : value.toLocaleString("en-US");
   return (
     <section
-      className="upload-processing"
+      className={`upload-processing${embedded ? " is-embedded" : ""}`}
       aria-labelledby={headingId}
       aria-busy={(!ready && !error) || undefined}
     >
       {demo && (
         <p className="upload-demo">Animation preview · sample results</p>
       )}
-      <p className="upload-wordmark">gatherly</p>
+      {!embedded && <p className="upload-wordmark">gatherly</p>}
       {ready && summary ? (
         <div className="upload-receipt">
           <span className="upload-success-mark">
             <Check size={20} strokeWidth={1.8} aria-hidden="true" />
           </span>
           <h1 id={headingId} ref={heading} tabIndex={-1}>
-            Your donor data is ready.
+            {readyHeading}
           </h1>
           <p className="upload-lede">A clearer picture of your people.</p>
           <ul className="upload-result-tiles" aria-label="Import results">
@@ -146,8 +156,8 @@ export const UploadProcessing = ({
             </p>
           )}
           <button type="button" className="upload-primary" onClick={onContinue}>
-            Create organization profile
-            <ArrowRight size={15} aria-hidden="true" />
+            {continueLabel}
+            {continueIcon && <ArrowRight size={15} aria-hidden="true" />}
           </button>
         </div>
       ) : (

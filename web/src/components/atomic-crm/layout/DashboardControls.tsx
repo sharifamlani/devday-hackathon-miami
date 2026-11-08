@@ -11,6 +11,7 @@ import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuIt
 import { MotionMenuItems } from "./MotionMenuItems";
 import { PublicLinkMenuItem } from "./PublicLinkMenuItem";
 import { avatarSlot } from "./shellState";
+import { AddDataButton } from "../upload/AddDataButton";
 
 export const DashboardControls = () => {
   const overview = useOverview();
@@ -62,6 +63,9 @@ export const DashboardControls = () => {
         />
       </button>
       <div className="home-utility-buttons">
+        <span data-tour="add-data">
+          <AddDataButton />
+        </span>
         <span data-tour="voice">
           <LiveTranscriptTrigger className="size-10 border-0 bg-transparent shadow-none" />
         </span>

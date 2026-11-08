@@ -1,0 +1,44 @@
+/* Add data dialog: UploadProcessing reused inside a dialog instead of the full-screen onboarding frame. */
+.upload-processing.is-embedded {
+  min-height: 0;
+  padding: 8px 0 0;
+  background: transparent;
+}
+.add-data-drop {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  text-align: center;
+  border: 1.5px dashed var(--muted-foreground);
+  border-radius: 12px;
+}
+.add-data-drop[data-active="true"] {
+  border-style: solid;
+  border-color: var(--foreground);
+}
+.add-data-files {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.add-data-files li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--muted);
+  font-size: 13px;
+}
+.add-data-files li span:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
