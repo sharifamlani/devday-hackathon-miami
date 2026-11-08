@@ -93,3 +93,35 @@ def test_live_streamed_event_cards_and_the_approved_delete(db_file):
     step = next(s for s in done["steps"] if s["call_id"] == card["call_id"])
     assert step["summary"] == "Deleted Board meeting (Nov 10)"
     assert done["reply"] and not ca.STILL_PENDING.search(done["reply"])
+
+
+def test_undoing_an_add_or_move_after_the_event_was_deleted_is_a_quiet_no_op(db_file):
+    """The add/move Undo buttons stay on earlier cards; once the event is deleted they explain, change nothing,
+    and aren't an error. Undo the delete first and the older Undo works again."""
+    from service import agent_writes
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        row, add_token = ev.add_event(conn, title="Board meeting", starts_at_="2026-11-10T15:00", source="agent",
+                                      actor="agent")
+        _, move_token = ev.move_event(conn, row["id"], day="2026-11-12", time="09:30", actor="agent")
+        _, delete_token = ev.delete_event(conn, row["id"], actor="agent")
+        for token in (add_token, move_token):
+            out = agent_writes.undo(conn, token)
+            assert out["undone"] is False and "deleted afterwards" in out["reason"]
+        assert conn.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 0                 # nothing came back
+        assert agent_writes.undo(conn, delete_token)["undone"] is True                         # the delete undoes
+        assert conn.execute("SELECT starts_at FROM events WHERE id = ?", (row["id"],)).fetchone()[0] == "2026-11-12T09:30"
+        assert agent_writes.undo(conn, move_token)["undone"] is True                           # then the move
+        assert conn.execute("SELECT starts_at FROM events WHERE id = ?", (row["id"],)).fetchone()[0] == "2026-11-10T15:00"
+    finally:
+        conn.close()
+
+
+def test_the_undo_route_answers_200_not_409_for_a_deleted_event(db_file):
+    from service.main import app
+    client = TestClient(app)
+    added = client.post("/events", json={"title": "Board meeting", "date": "2026-11-10", "time": "15:00"}).json()
+    client.delete(f"/events/{added['id']}")
+    r = client.post(f"/undo/{added['undo_token']}")
+    assert r.status_code == 200 and r.json()["undone"] is False

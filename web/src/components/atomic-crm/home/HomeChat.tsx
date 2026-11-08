@@ -333,7 +333,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
       )}
       {error && !pending && (
         <p role="alert" className="self-start text-sm text-alert-foreground">
-          The agent couldn’t answer: {error}
+          {error.startsWith("Couldn’t undo") ? error : `The agent couldn’t answer: ${error}`}
         </p>
       )}
       <div ref={endRef} />
