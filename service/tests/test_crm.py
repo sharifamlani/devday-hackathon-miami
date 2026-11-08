@@ -292,3 +292,20 @@ def test_snapshot_never_exports_crm_records(client, db_file):
     conn.close()
     for private in (SECRET, "Private follow-up", "Private background", "Board member"):
         assert private not in snap
+
+
+def test_snapshot_id_names_the_donors_behind_the_ids(client, db_file):
+    """The browser ties its saved notes to meta.snapshot_id (crmPersistence.ts)."""
+    from service.export_snapshot import snapshot_id
+
+    conn = db.connect(db_file)
+    first = build_snapshot(conn, rescore=False)["meta"]["snapshot_id"]
+    again = build_snapshot(conn, rescore=False)["meta"]["snapshot_id"]
+    conn.execute("UPDATE donors SET full_name = 'Someone Else' WHERE id = ?", (JAMES,))
+    conn.commit()
+    other = build_snapshot(conn, rescore=False)["meta"]["snapshot_id"]
+    conn.close()
+    assert first == again and len(first) == 16           # a re-export keeps the browser's notes
+    assert other != first                                # id 3 now names someone else
+    assert snapshot_id([{"id": 2, "full_name": "B"}, {"id": 1, "full_name": "A"}]) == \
+        snapshot_id([{"id": 1, "full_name": "A"}, {"id": 2, "full_name": "B"}])

@@ -9,6 +9,7 @@ import {
 import {
   DEFAULT_TAGS,
   createCrmResources,
+  overlayChanges,
   isCrmResource,
   withDonorCrm,
   type DonorSource,
@@ -550,5 +551,79 @@ describe("createCrmResources: records another tab saved (local mode)", () => {
     vi.setSystemTime(T0 + 60_000);
     await crm.getList("tasks", listAll);
     expect(load).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createCrmResources: donor edits from two tabs", () => {
+  it("overlayChanges keeps only the fields that changed", () => {
+    expect(
+      overlayChanges(
+        { tags: [1, 2], background: "New", last_seen: "x", score: 9 },
+        { tags: [1, 2], background: "Old", last_seen: "x" },
+      ),
+    ).toEqual({ background: "New" });
+    expect(overlayChanges({ tags: ["3"] })).toEqual({ tags: [3] });
+    expect(overlayChanges({ status: "warm" }, {})).toEqual({});
+  });
+
+  it("editing only the background doesn't send the cached tags", async () => {
+    const saved: unknown[] = [];
+    const inner = browserPersistence(null, DEFAULT_TAGS);
+    const crm = createCrmResources(source(), {
+      persistence: {
+        ...inner,
+        where: "server",
+        saveOverlay: async (id, changes) => {
+          saved.push([id, changes]);
+          return inner.saveOverlay(id, changes);
+        },
+      },
+    });
+    await crm.update("contacts", {
+      id: 2,
+      data: { tags: [1] },
+      previousData: {} as never,
+    });
+    const { data: record } = await crm.getOne("contacts", { id: 2 });
+    await crm.update("contacts", {
+      id: 2,
+      data: { ...record, background: "Bakery owner" }, // the whole form
+      previousData: record,
+    });
+    expect(saved).toEqual([
+      [2, { tags: [1] }],
+      [2, { background: "Bakery owner" }],
+    ]);
+    expect((await crm.getOne("contacts", { id: 2 })).data).toMatchObject({
+      tags: [1],
+      background: "Bakery owner",
+    });
+  });
+
+  it("a storage event from another tab makes the next read fresh", async () => {
+    const items = new Map<string, string>();
+    const shared: StorageLike = {
+      getItem: (k) => items.get(k) ?? null,
+      setItem: (k, v) => {
+        items.set(k, v);
+      },
+    };
+    const events = new EventTarget();
+    const tabA = createCrmResources(source(), {
+      persistence: browserPersistence(shared, DEFAULT_TAGS, { events: null }),
+    });
+    const tabB = createCrmResources(source(), {
+      persistence: browserPersistence(shared, DEFAULT_TAGS, { events }),
+    });
+    expect((await tabB.getList("contact_notes", listAll)).total).toBe(0);
+    await tabA.create("contact_notes", {
+      data: { contact_id: 1, text: "From A", date: "2026-11-07T18:00:00.000Z" },
+    });
+    expect((await tabB.getList("contact_notes", listAll)).total).toBe(0);
+    events.dispatchEvent(
+      Object.assign(new Event("storage"), { key: "donor-desk.crm.v1" }),
+    );
+    const { data } = await tabB.getList("contact_notes", listAll);
+    expect(data.map((n) => n.text)).toEqual(["From A"]);
   });
 });

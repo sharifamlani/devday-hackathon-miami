@@ -172,6 +172,33 @@ export interface CrmResourceOptions {
 /** See CrmResourceOptions.staleMs. */
 export const SERVER_STALE_MS = 20_000;
 
+/**
+ * The overlay fields an update actually edits: present in `data` and, when
+ * react-admin passes the record as it was, different from it.
+ */
+export const overlayChanges = (
+  data: Record<string, unknown>,
+  previous?: Record<string, unknown>,
+): ContactOverlay => {
+  const edited = (key: string, value: unknown) =>
+    !previous ||
+    !(key in previous) ||
+    JSON.stringify(previous[key]) !== JSON.stringify(value);
+  const changes: ContactOverlay = {};
+  if (Array.isArray(data.tags)) {
+    const tags = data.tags.map(Number);
+    if (edited("tags", tags)) changes.tags = tags;
+  }
+  if (typeof data.last_seen === "string" && edited("last_seen", data.last_seen))
+    changes.last_seen = data.last_seen;
+  if (
+    typeof data.background === "string" &&
+    edited("background", data.background)
+  )
+    changes.background = data.background;
+  return changes;
+};
+
 const isRecordResource = (name: string): name is CrmRecordResource =>
   name === "contact_notes" || name === "tasks" || name === "tags";
 
@@ -201,10 +228,16 @@ export const createCrmResources = (
   let reading: Promise<Loaded> | null = null;
   /** Counts saved writes, so a read that raced one doesn't hide it. */
   let writes = 0;
+  /** Another tab changed the saved records: read them again next time. */
+  let changedElsewhere = false;
+  persistence.subscribe?.(() => {
+    changedElsewhere = true;
+  });
 
   const read = (): Promise<Loaded> => {
     if (reading) return reading;
     const writesBefore = writes;
+    changedElsewhere = false;
     const attempt = persistence
       .load()
       .then((records): Loaded => {
@@ -244,7 +277,9 @@ export const createCrmResources = (
    * that fails is tried again next time.
    */
   const ready = async (): Promise<Loaded> => {
-    if (current && Date.now() - current.at < staleMs) return current.loaded;
+    if (current && !changedElsewhere && Date.now() - current.at < staleMs) {
+      return current.loaded;
+    }
     if (!current) return read();
     const last = current.loaded;
     return read().catch(() => last);
@@ -255,19 +290,27 @@ export const createCrmResources = (
     return current?.loaded ?? (await ready());
   };
   /** Adds or replaces one saved record in the in-memory copy. */
+  /** Whether the in-memory copy has this record (a list query: no console error). */
+  const has = async (
+    store: Loaded["store"],
+    name: CrmRecordResource,
+    id: unknown,
+  ) =>
+    (
+      await store.getList(name, {
+        filter: { id },
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+      })
+    ).total! > 0;
   const put = async (
     store: Loaded["store"],
     name: CrmRecordResource,
     saved: Record<string, any>,
-  ) => {
-    const has = await store
-      .getOne(name, { id: saved.id })
-      .then(() => true)
-      .catch(() => false);
-    return has
+  ) =>
+    (await has(store, name, saved.id))
       ? store.update(name, { id: saved.id, data: saved, previousData: saved })
       : store.create(name, { data: saved });
-  };
   /** The donor list still shows when notes and tasks can't be read. */
   const readyOrNull = () => ready().catch(() => null);
 
@@ -418,13 +461,19 @@ export const createCrmResources = (
     return { data: paginate(filtered, pagination), total: filtered.length };
   };
 
-  const updateContact = async (id: number, data: Record<string, unknown>) => {
-    const next: ContactOverlay = { ...(await ready()).overlays.get(id) };
-    if (Array.isArray(data.tags)) next.tags = data.tags.map(Number);
-    if (typeof data.last_seen === "string") next.last_seen = data.last_seen;
-    if (typeof data.background === "string") next.background = data.background;
-    await persistence.saveOverlay(id, next);
-    (await afterWrite()).overlays.set(id, next);
+  const updateContact = async (
+    id: number,
+    data: Record<string, unknown>,
+    previous?: Record<string, unknown>,
+  ) => {
+    await ready();
+    const changes = overlayChanges(data, previous);
+    if (Object.keys(changes).length) {
+      // Only the edited fields: another tab may have changed the others.
+      await persistence.saveOverlay(id, changes);
+      const { overlays } = await afterWrite();
+      overlays.set(id, { ...overlays.get(id), ...changes });
+    }
     return contactDetail(id);
   };
 
@@ -520,7 +569,11 @@ export const createCrmResources = (
       const name = baseName(resource);
       if (name === "contacts") {
         return {
-          data: (await updateContact(Number(params.id), params.data)) as any,
+          data: (await updateContact(
+            Number(params.id),
+            params.data,
+            params.previousData,
+          )) as any,
         };
       }
       if (name === "companies") throw new Error(READ_ONLY_ORGS);
@@ -562,9 +615,9 @@ export const createCrmResources = (
       await persistence.remove(name, params.id);
       const { store, overlays } = await afterWrite();
       // Already gone from a copy read after the delete was saved: fine.
-      const result = await store
-        .delete(name, params)
-        .catch(() => ({ data: params.previousData as any }));
+      const result = (await has(store, name, params.id))
+        ? await store.delete(name, params)
+        : { data: params.previousData as any };
       if (name === "tags") {
         const tagId = Number(params.id);
         for (const [id, overlay] of overlays) {

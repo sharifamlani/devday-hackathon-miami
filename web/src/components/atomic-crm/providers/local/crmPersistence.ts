@@ -3,6 +3,7 @@ import type { Identifier, RaRecord } from "ra-core";
 import { DATA_MODE } from "./config";
 import type { ContactOverlay } from "./crmDonors";
 import { request } from "./httpClient";
+import { loadSnapshot } from "./snapshotClient";
 
 /**
  * Where the Donors tab keeps its notes, tasks and tags (Atomic CRM's
@@ -48,7 +49,10 @@ export interface CrmPersistence {
     data: Record<string, unknown>,
   ): Promise<CrmRecord>;
   remove(resource: CrmRecordResource, id: Identifier): Promise<void>;
-  saveOverlay(contactId: number, overlay: ContactOverlay): Promise<void>;
+  /** Saves only the given fields of what the tab adds to a donor. */
+  saveOverlay(contactId: number, changes: ContactOverlay): Promise<void>;
+  /** Calls back when another tab changed the saved records; returns an unsubscribe. */
+  subscribe?(onChange: () => void): () => void;
 }
 
 /** The fields each resource keeps; anything else react-admin sends is computed or ignored. */
@@ -151,49 +155,72 @@ export type StorageLike = Pick<Storage, "getItem" | "setItem"> &
 
 interface StoredState {
   version: typeof STORAGE_VERSION;
+  /** The snapshot these records belong to (meta.snapshot_id), or null. */
+  snapshot_id: string | null;
   contact_notes: CrmRecord[];
   tasks: CrmRecord[];
   tags: CrmRecord[];
   overlays: Record<string, ContactOverlay>;
 }
 
-const freshState = (seedTags: readonly CrmRecord[]): StoredState => ({
+const freshState = (
+  seedTags: readonly CrmRecord[],
+  scope: string | null,
+): StoredState => ({
   version: STORAGE_VERSION,
+  snapshot_id: scope,
   contact_notes: [],
   tasks: [],
   tags: structuredClone([...seedTags]),
   overlays: {},
 });
 
+/**
+ * What `storage` holds now. Records saved for another snapshot (or in an
+ * older format) count as nothing; `stale` says such leftovers are there.
+ */
 const readState = (
-  storage: StorageLike | null,
+  storage: StorageLike,
   seedTags: readonly CrmRecord[],
-): StoredState => {
-  if (!storage) return freshState(seedTags);
+  scope: string | null,
+): { state: StoredState; stale: boolean } => {
+  const fresh = (stale: boolean) => ({
+    state: freshState(seedTags, scope),
+    stale,
+  });
   let raw: string | null = null;
   try {
     raw = storage.getItem(CRM_STORAGE_KEY);
   } catch {
     // storage blocked: start empty, and saving will say so
   }
-  if (!raw) return freshState(seedTags);
+  if (!raw) return fresh(false);
   try {
     const parsed = JSON.parse(raw) as Partial<StoredState>;
-    if (parsed.version !== STORAGE_VERSION) return freshState(seedTags);
+    if (
+      parsed.version !== STORAGE_VERSION ||
+      (parsed.snapshot_id ?? null) !== scope
+    ) {
+      return fresh(true);
+    }
     return {
-      version: STORAGE_VERSION,
-      contact_notes: Array.isArray(parsed.contact_notes)
-        ? parsed.contact_notes
-        : [],
-      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
-      tags: Array.isArray(parsed.tags) ? parsed.tags : [],
-      overlays:
-        parsed.overlays && typeof parsed.overlays === "object"
-          ? parsed.overlays
-          : {},
+      state: {
+        version: STORAGE_VERSION,
+        snapshot_id: scope,
+        contact_notes: Array.isArray(parsed.contact_notes)
+          ? parsed.contact_notes
+          : [],
+        tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+        tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+        overlays:
+          parsed.overlays && typeof parsed.overlays === "object"
+            ? parsed.overlays
+            : {},
+      },
+      stale: false,
     };
   } catch {
-    return freshState(seedTags);
+    return fresh(true);
   }
 };
 
@@ -212,17 +239,47 @@ const toOverlayMap = (
     ]),
   );
 
+type StorageEvents = Pick<
+  EventTarget,
+  "addEventListener" | "removeEventListener"
+>;
+
+export interface BrowserPersistenceOptions {
+  /**
+   * Which snapshot the records belong to (read once, on first use). Records
+   * saved for a different snapshot are dropped, so private notes never land
+   * on whoever has those donor ids in a newer snapshot.
+   */
+  scope?: () => Promise<string | null> | string | null;
+  /** Where other tabs' `storage` events arrive; window by default. */
+  events?: StorageEvents | null;
+}
+
 /**
  * Records kept in `storage` (this browser's localStorage), or only in memory
- * when `storage` is null. A write that the browser refuses (storage full or
- * blocked) throws, and nothing changes.
+ * when `storage` is null. Every write reads the stored value again and
+ * applies just its own change, so two open tabs don't overwrite each other.
+ * A write that the browser refuses (storage full or blocked) throws, and
+ * nothing changes.
  */
 export const browserPersistence = (
   storage: StorageLike | null,
   seedTags: readonly CrmRecord[],
+  options: BrowserPersistenceOptions = {},
 ): CrmPersistence => {
-  let state: StoredState | null = null;
-  const current = () => (state ??= readState(storage, seedTags));
+  let memory: StoredState | null = null;
+  let scoped: Promise<string | null> | null = null;
+  const scope = () =>
+    (scoped ??= Promise.resolve()
+      .then(() => options.scope?.() ?? null)
+      .catch(() => null));
+
+  /** The stored records as they are right now (memory: this object's copy). */
+  const current = async (): Promise<StoredState> => {
+    const id = await scope();
+    if (!storage) return (memory ??= freshState(seedTags, id));
+    return readState(storage, seedTags, id).state;
+  };
 
   const commit = (next: StoredState) => {
     if (storage) {
@@ -233,20 +290,47 @@ export const browserPersistence = (
           "This browser couldn't save it (its storage is full or turned off).",
         );
       }
+    } else {
+      memory = next;
     }
-    state = next;
   };
 
-  const find = (resource: CrmRecordResource, id: Identifier) => {
-    const record = current()[resource].find((r) => String(r.id) === String(id));
+  const find = (
+    s: StoredState,
+    resource: CrmRecordResource,
+    id: Identifier,
+  ) => {
+    const record = s[resource].find((r) => String(r.id) === String(id));
     if (!record) throw new Error(`That ${resourceLabel[resource]} is gone.`);
     return record;
   };
 
+  const events =
+    options.events !== undefined
+      ? options.events
+      : storage && typeof window !== "undefined"
+        ? window
+        : null;
+
+  // Each write reads, changes and saves in one synchronous step after
+  // `await current()`, so nothing from another tab lands in between.
   return {
     where: storage ? "browser" : "memory",
     load: async () => {
-      const s = current();
+      let s: StoredState;
+      if (storage) {
+        const read = readState(storage, seedTags, await scope());
+        if (read.stale) {
+          try {
+            storage.removeItem?.(CRM_STORAGE_KEY); // another snapshot's notes
+          } catch {
+            // blocked storage: nothing to clear
+          }
+        }
+        s = read.state;
+      } else {
+        s = await current();
+      }
       return {
         contact_notes: structuredClone(s.contact_notes),
         tasks: structuredClone(s.tasks),
@@ -255,7 +339,7 @@ export const browserPersistence = (
       };
     },
     create: async (resource, data) => {
-      const s = current();
+      const s = await current();
       const stamped = resource === "tags" ? {} : { created_at: now() };
       const record: CrmRecord = {
         ...pickFields(resource, data),
@@ -266,9 +350,9 @@ export const browserPersistence = (
       return structuredClone(record);
     },
     update: async (resource, id, data) => {
-      const s = current();
+      const s = await current();
       const record: CrmRecord = {
-        ...find(resource, id),
+        ...find(s, resource, id),
         ...pickFields(resource, data),
       };
       commit({
@@ -280,8 +364,8 @@ export const browserPersistence = (
       return structuredClone(record);
     },
     remove: async (resource, id) => {
-      const s = current();
-      find(resource, id);
+      const s = await current();
+      find(s, resource, id);
       const next: StoredState = {
         ...s,
         [resource]: s[resource].filter((r) => String(r.id) !== String(id)),
@@ -301,13 +385,24 @@ export const browserPersistence = (
       }
       commit(next);
     },
-    saveOverlay: async (contactId, overlay) => {
-      const s = current();
+    saveOverlay: async (contactId, changes) => {
+      const s = await current();
+      const key = String(contactId);
       commit({
         ...s,
-        overlays: { ...s.overlays, [String(contactId)]: { ...overlay } },
+        overlays: { ...s.overlays, [key]: { ...s.overlays[key], ...changes } },
       });
     },
+    subscribe: events
+      ? (onChange) => {
+          const listener = (event: Event) => {
+            const key = (event as StorageEvent).key;
+            if (key === CRM_STORAGE_KEY || key === null) onChange();
+          };
+          events.addEventListener("storage", listener);
+          return () => events.removeEventListener("storage", listener);
+        }
+      : undefined,
   };
 };
 
@@ -387,12 +482,13 @@ export const apiPersistence = (req: Requester = request): CrmPersistence => {
         method: "DELETE",
       });
     },
-    saveOverlay: async (contactId, overlay) => {
+    saveOverlay: async (contactId, changes) => {
+      // Only what was edited: another tab may have changed the rest.
       const body: Record<string, unknown> = {};
-      if (overlay.tags) body.tags = overlay.tags;
-      if (overlay.background !== undefined)
-        body.background = overlay.background;
-      if (overlay.last_seen !== undefined) body.last_seen = overlay.last_seen;
+      if (changes.tags !== undefined) body.tags = changes.tags;
+      if (changes.background !== undefined)
+        body.background = changes.background;
+      if (changes.last_seen !== undefined) body.last_seen = changes.last_seen;
       await req(`/crm/contacts/${contactId}`, { method: "PATCH", body });
     },
   };
@@ -444,6 +540,12 @@ export const usableStorage = (
   }
 };
 
+/** The deployed snapshot's identity; older snapshots fall back to their export time. */
+export const snapshotScope = async (): Promise<string | null> => {
+  const { meta } = await loadSnapshot();
+  return meta.snapshot_id ?? meta.generated_at ?? null;
+};
+
 /** The service in local mode, this browser in snapshot mode. */
 export const defaultPersistence = (
   seedTags: readonly CrmRecord[],
@@ -452,7 +554,7 @@ export const defaultPersistence = (
 ): CrmPersistence => {
   if (mode === "local") return apiPersistence();
   return storage
-    ? browserPersistence(storage, seedTags)
+    ? browserPersistence(storage, seedTags, { scope: snapshotScope })
     : unavailablePersistence(seedTags);
 };
 

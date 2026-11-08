@@ -159,6 +159,9 @@ export interface ApiSnapshot {
     label: string;
     donor_count: number;
     source: string;
+    // Which donors the ids stand for (export_snapshot.snapshot_id); absent
+    // on older snapshots. Browser-saved notes are tied to it.
+    snapshot_id?: string;
   };
   donors: ApiDonorRow[];
   donor_details: Record<string, ApiDonorDetail>;

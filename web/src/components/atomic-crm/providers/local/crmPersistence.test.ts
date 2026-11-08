@@ -125,6 +125,106 @@ describe("browserPersistence (snapshot mode)", () => {
   });
 });
 
+describe("browserPersistence: two tabs and snapshots", () => {
+  it("two tabs saving in turn keep each other's changes", async () => {
+    const storage = memoryStorage();
+    const tabA = browserPersistence(storage, TAGS);
+    const tabB = browserPersistence(storage, TAGS);
+    await tabA.load();
+    await tabB.load(); // both opened before either saved
+    const a = await tabA.create("contact_notes", {
+      contact_id: 1,
+      text: "From A",
+      date: "d",
+    });
+    const b = await tabB.create("contact_notes", {
+      contact_id: 1,
+      text: "From B",
+      date: "d",
+    });
+    await tabA.saveOverlay(1, { background: "Set in A" });
+    await tabB.saveOverlay(1, { tags: [2] });
+    await tabA.update("contact_notes", b.id, { text: "B, edited in A" });
+
+    const stored = await browserPersistence(storage, TAGS).load();
+    expect([a.id, b.id]).toEqual([1, 2]);
+    expect(stored.contact_notes.map((n) => n.text)).toEqual([
+      "From A",
+      "B, edited in A",
+    ]);
+    expect(stored.overlays.get(1)).toEqual({
+      background: "Set in A",
+      tags: [2],
+    });
+  });
+
+  it("tells the tab when another tab changed the saved records", async () => {
+    const events = new EventTarget();
+    const store = browserPersistence(memoryStorage(), TAGS, { events });
+    const onChange = vi.fn();
+    const stop = store.subscribe!(onChange);
+    const storageEvent = (key: string | null) =>
+      Object.assign(new Event("storage"), { key });
+    events.dispatchEvent(storageEvent(CRM_STORAGE_KEY));
+    events.dispatchEvent(storageEvent("something-else"));
+    events.dispatchEvent(storageEvent(null)); // localStorage.clear()
+    expect(onChange).toHaveBeenCalledTimes(2);
+    stop();
+    events.dispatchEvent(storageEvent(CRM_STORAGE_KEY));
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops notes saved for another snapshot instead of showing them", async () => {
+    const storage = memoryStorage();
+    const old = browserPersistence(storage, TAGS, {
+      scope: async () => "snap-1",
+    });
+    await old.create("contact_notes", {
+      contact_id: 3,
+      text: "Private",
+      date: "d",
+    });
+    expect(JSON.parse(storage.items.get(CRM_STORAGE_KEY)!).snapshot_id).toBe(
+      "snap-1",
+    );
+
+    const sameSnapshot = browserPersistence(storage, TAGS, {
+      scope: () => "snap-1",
+    });
+    expect((await sameSnapshot.load()).contact_notes).toHaveLength(1);
+
+    const newer = browserPersistence(storage, TAGS, {
+      scope: async () => "snap-2",
+    });
+    const loaded = await newer.load();
+    expect(loaded.contact_notes).toEqual([]);
+    expect(loaded.tags).toEqual(TAGS);
+    expect(storage.items.has(CRM_STORAGE_KEY)).toBe(false); // cleared
+    const saved = await newer.create("tasks", {
+      contact_id: 3,
+      text: "t",
+      due_date: "d",
+    });
+    expect(saved.id).toBe(1);
+    expect(JSON.parse(storage.items.get(CRM_STORAGE_KEY)!).snapshot_id).toBe(
+      "snap-2",
+    );
+  });
+
+  it("a snapshot it can't identify still works, with no snapshot id", async () => {
+    const storage = memoryStorage();
+    const store = browserPersistence(storage, TAGS, {
+      scope: async () => {
+        throw new Error("snapshot.json unreadable");
+      },
+    });
+    await store.create("tags", { name: "x", color: "#ffffff" });
+    expect(
+      JSON.parse(storage.items.get(CRM_STORAGE_KEY)!).snapshot_id,
+    ).toBeNull();
+  });
+});
+
 describe("apiPersistence (local mode)", () => {
   const fakeRequest = (pages: Record<string, unknown> = {}) => {
     const calls: {
@@ -182,6 +282,7 @@ describe("apiPersistence (local mode)", () => {
     await api.update("tasks", 7, { id: 7, done_date: null, text: "Done" });
     await api.remove("contact_notes", 3);
     await api.saveOverlay(2, { tags: [1], last_seen: "2026-11-07" });
+    await api.saveOverlay(2, { background: "Only this" });
     expect(calls).toEqual([
       {
         path: "/crm/tasks",
@@ -203,6 +304,10 @@ describe("apiPersistence (local mode)", () => {
       {
         path: "/crm/contacts/2",
         init: { method: "PATCH", body: { tags: [1], last_seen: "2026-11-07" } },
+      },
+      {
+        path: "/crm/contacts/2",
+        init: { method: "PATCH", body: { background: "Only this" } },
       },
     ]);
   });
