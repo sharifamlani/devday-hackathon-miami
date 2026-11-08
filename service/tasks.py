@@ -137,6 +137,9 @@ def create_task(conn: sqlite3.Connection, *, kind: str, title: str, actor: str =
         f"INSERT OR IGNORE INTO tasks ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
         list(values.values()))
     if cur.rowcount == 0:
+        # The ignored INSERT still opened a transaction: end it, or this connection keeps the write lock and the
+        # next writer on another connection gets "database is locked" (a generate rerun inside build_snapshot).
+        conn.commit()
         return None
     row = _row(conn, cur.lastrowid)
     token = _log(conn, actor, "create_task", row["id"], None, row)

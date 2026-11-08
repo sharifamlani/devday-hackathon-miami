@@ -863,3 +863,23 @@ def test_get_people_and_find_people_carry_the_givers_next_step(tmp_path, monkeyp
     # the chat agent's find_people reads people through list_people, so it sees the same step
     assert {p["id"]: p["next_step"] for p in list_people(conn)}[gina] == "Call Gina · Nov 12"
     conn.close()
+
+
+def test_a_generate_rerun_leaves_no_open_transaction(tmp_path):
+    """A rerun's ignored inserts used to leave a transaction open, so another connection's write then failed with
+    'database is locked' (test_icp_prospects' dismiss after build_snapshot)."""
+    path = tmp_path / "donors.db"
+    a = db.connect(path)
+    db.create_schema(a)
+    ana = person(a, "Ana Ruiz")
+    a.execute("INSERT INTO gifts (donor_id, amount, gift_date) VALUES (?, 250, '2026-10-20')", (ana,))
+    a.commit()
+    assert tasks.generate(a, AS_OF)["created"] == 1
+    assert tasks.generate(a, AS_OF)["created"] == 0
+    assert not a.in_transaction
+    b = db.connect(path)
+    b.execute("PRAGMA busy_timeout = 200")
+    b.execute("UPDATE donors SET city = 'Miami' WHERE id = ?", (ana,))   # would raise "database is locked"
+    b.commit()
+    a.close()
+    b.close()
