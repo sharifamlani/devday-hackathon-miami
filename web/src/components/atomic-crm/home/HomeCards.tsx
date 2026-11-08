@@ -1,8 +1,6 @@
 import { zoomClick } from "./workspaceView";
 import { useId, useState, type ReactNode } from "react";
 import {
-  ArrowRight,
-  ArrowUpRight,
   AudioLines,
   ChevronDown,
   Clock,
@@ -69,6 +67,12 @@ const TileHead = ({
 
 const roundIcon = cn(
   "grid size-8 shrink-0 place-items-center rounded-full border border-border hover:bg-accent",
+  focusRing,
+);
+
+/** A tile's name is its open button: underline on hover, ring on keyboard focus. */
+const headingLink = cn(
+  "-mx-1 inline-flex items-center rounded-sm px-1 hover:underline hover:underline-offset-4 hover:decoration-2",
   focusRing,
 );
 
@@ -347,19 +351,21 @@ export const CrmTile = ({
       aria-labelledby={headingId}
       className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
     >
-      <TileHead id={headingId} title="CRM" hint="Alt+M">
-        <Link
-          to="/contacts"
-          onClick={zoomClick("crm")}
-          className={cn(
-            "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
-            focusRing,
-          )}
-        >
-          Open database
-          <ArrowRight className="size-3.5" aria-hidden="true" />
-        </Link>
-      </TileHead>
+      <TileHead
+        id={headingId}
+        hint="Alt+M"
+        title={
+          <Link
+            to="/contacts"
+            onClick={zoomClick("crm")}
+            title="Open CRM"
+            aria-label="Open CRM"
+            className={headingLink}
+          >
+            CRM
+          </Link>
+        }
+      />
       <button
         type="button"
         onClick={onFind}
@@ -615,13 +621,10 @@ export const TasksTile = ({
             to="/?workspace=tasks"
             onClick={zoomClick("tasks")}
             title="Open all tasks"
-            className={cn(
-              "inline-flex items-center gap-1 rounded-sm hover:underline",
-              focusRing,
-            )}
+            aria-label="Open all tasks"
+            className={headingLink}
           >
             Tasks
-            <ArrowUpRight className="size-3.5" aria-hidden="true" />
           </Link>
         }
       >
