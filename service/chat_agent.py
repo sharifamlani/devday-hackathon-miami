@@ -1270,7 +1270,9 @@ def summarize(output) -> str:
     if "groups" in data:
         return data.get("note") or ", ".join(f"{k}: {v}" for k, v in data["groups"].items())
     if "facts" in data and "profile" in data:
-        return f"{len(data['facts'])} facts" + (f" for {data['profile']['name']}" if data["profile"] else "")
+        # A saved setup profile can have no name: say "your organization", never "None"
+        return f"{len(data['facts'])} facts" + (f" for {data['profile'].get('name') or 'your organization'}"
+                                                 if data["profile"] else "")
     if "events" in data and "givers_only" in data:
         made = [e for e in data["events"] if e.get("batch_id") is not None]
         return (f"{len(made)} event batch{'es' if len(made) != 1 else ''}: "

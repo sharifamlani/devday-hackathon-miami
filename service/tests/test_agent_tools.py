@@ -861,3 +861,13 @@ def test_yes_saves_the_proposal_shown_without_researching_again(db_file, monkeyp
     assert len(calls) == 1
     assert one(db_file, "SELECT COUNT(*) AS n FROM research_facts WHERE donor_id = ?", pid)["n"] == before + 1
     assert "never run enrich_person again to save" in ca.INSTRUCTIONS
+
+
+def test_the_context_step_never_reads_for_none():
+    """Live walk, duplicates step: "Get context · 5 facts for None" (the saved profile had no name)."""
+    facts = [{"fact": "x"}] * 5
+    assert ca.summarize({"profile": {"name": None, "website": "miamifoundation.org"}, "facts": facts}) == \
+        "5 facts for your organization"
+    assert ca.summarize({"profile": {"name": "The Miami Foundation"}, "facts": facts}) == \
+        "5 facts for The Miami Foundation"
+    assert ca.summarize({"profile": None, "facts": facts}) == "5 facts"
