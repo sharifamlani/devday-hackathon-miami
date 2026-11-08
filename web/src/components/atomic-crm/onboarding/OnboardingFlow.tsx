@@ -10,7 +10,8 @@ import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 
-import { OrganizationStep } from "./OnboardingSteps";
+import { FilesStep, OrganizationStep } from "./OnboardingSteps";
+import { DATA_MODE } from "../providers/local/config";
 import { KindredLanding } from "../landing/KindredLanding";
 import { useQueryClient } from "@tanstack/react-query";
 import { readOrganizationInBackground } from "./backgroundRead";
@@ -48,24 +49,30 @@ export const OnboardingFlow = () => {
 
   // Step 1 is the landing page itself (Upload donor data / Try sample data). Its import plays the
   // folder animation, and Continue there moves setup on to the organization step.
-  if (step === 0)
-    return createPortal(
-      <div
-        className="onb-landing-screen"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Set up Gatherly"
-      >
-        <KindredLanding onSkip={finishLater} />
-      </div>,
-      document.body,
-    );
+  // Live mode only: the read-only snapshot build keeps the files card, which can still go on to step 2.
+  if (step === 0 && DATA_MODE === "local")
+    return <LandingStep onFinishLater={finishLater} />;
 
   return (
     <StepsScreen step={step} busy={busy} onBack={back} onEscape={finishLater}>
       {(headingRef) => {
         const frame = { headingRef, onBusy };
         switch (step) {
+          case 0:
+            return (
+              <FilesStep
+                {...frame}
+                onContinue={(files) => {
+                  update({ files });
+                  next();
+                }}
+                onReviewDuplicates={() => {
+                  // Setup waits; "Finish setup" in the profile menu resumes it.
+                  finishLater();
+                  navigate("/contacts");
+                }}
+              />
+            );
           case 1:
             return (
               <OrganizationStep
@@ -198,6 +205,43 @@ const StepsScreen = ({
           {children(headingRef)}
         </div>
       </div>
+    </div>,
+    document.body,
+  );
+};
+
+/**
+ * Setup step 1 in live mode: the landing page, full screen. Like the other steps it locks the page
+ * scroll, takes focus, and Esc means "Finish later", except while one of its own dialogs is open.
+ */
+const LandingStep = ({ onFinishLater }: { onFinishLater: () => void }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    ref.current?.querySelector<HTMLElement>("h1")?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      // A nested upload / sample dialog handles its own Esc.
+      if (document.querySelector('[role="dialog"]:not(.onb-landing-screen)'))
+        return;
+      onFinishLater();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onFinishLater]);
+  return createPortal(
+    <div
+      ref={ref}
+      className="onb-landing-screen"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Set up Gatherly"
+    >
+      <KindredLanding onSkip={onFinishLater} />
     </div>,
     document.body,
   );

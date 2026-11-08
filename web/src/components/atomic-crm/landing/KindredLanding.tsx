@@ -186,7 +186,10 @@ export const KindredLanding = ({
     try {
       const sample = await loadSampleFiles(await loadSampleManifest());
       setFiles(sample);
-      setResult(await donorDeskMethods.uploadFiles(sample));
+      const done = await donorDeskMethods.uploadFiles(sample);
+      // Saved now, so a reload or "Review matches" doesn't send setup back to step 1.
+      onboarding.update({ files: ingestSummary(done, sample.length) });
+      setResult(done);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -203,7 +206,9 @@ export const KindredLanding = ({
     setPending(true);
     setError("");
     try {
-      setResult(await donorDeskMethods.uploadFiles(files));
+      const done = await donorDeskMethods.uploadFiles(files);
+      onboarding.update({ files: ingestSummary(done, files.length) });
+      setResult(done);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -252,7 +257,7 @@ export const KindredLanding = ({
           </div>
         )}
         <p className="kindred-wordmark">gatherly</p>
-        <h1 id="kindred-heading" className="kindred-headline">
+        <h1 id="kindred-heading" className="kindred-headline" tabIndex={-1}>
           <span>Less time on tasks.</span>
           <strong>More time for people.</strong>
         </h1>
