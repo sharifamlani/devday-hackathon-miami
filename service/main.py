@@ -507,6 +507,10 @@ async def context_run(req: ContextRun) -> dict:
         # The site is still worth reading: keep what the user typed (never their facts) so
         # POST /context/refresh can finish the job in the background on these URLs.
         saved = await run_in_threadpool(persist_urls, urls)
+        # The events search started with the read and is usually nearly done: give it a short grace so the
+        # dashboard lands with events and prep tasks. Invites wait for that background refresh (step 3), so
+        # this job never holds the refresh slot the web is about to ask for.
+        calendar = await onboarding_calendar(events_job, wait_s=config.ONBOARDING_EVENTS_GRACE_S, invites=False)
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,
@@ -557,22 +561,28 @@ def _safe_extract(ea, hints: list[dict], website: str) -> list[dict]:
         return []
 
 
-async def onboarding_calendar(events_job) -> dict | None:
+async def onboarding_calendar(events_job, wait_s: float | None = None, invites: bool = True) -> dict | None:
     """The first run's calendar, so the dashboard isn't empty after onboarding: save the events the search
     found and generate tasks (prep tasks for events within 14 days) before step 3 answers; then draft every
     event's invites in the background (GET /context/refresh shows that job). A search that failed or found
-    nothing leaves the calendar as it was."""
+    nothing leaves the calendar as it was. invites=False (a slow read) leaves the invites to the background
+    refresh the web starts next."""
     if events_job is None:
         return None
     try:
-        events = await asyncio.wait_for(events_job, config.CONTEXT_DEADLINE_S)
+        events = await asyncio.wait_for(events_job, config.CONTEXT_DEADLINE_S if wait_s is None else wait_s)
     except Exception as e:  # timeout or search error: the daily refresh (or "Refresh now") will pick events up
         log.warning("onboarding events search failed: %s", e)
         return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": f"{type(e).__name__}: {e}"[:200]}
     if not events:
         return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": "no upcoming events found"}
     out, ids, stored = await run_in_threadpool(save_onboarding_calendar, events)
-    out["invites"] = start_invites_job(events, ids, stored)["status"]
+    if invites:
+        out["invites"] = start_invites_job(events, ids, stored)["status"]
+    else:   # the refresh only drafts for new/changed events, and these are now saved: hand them to its next pass
+        with REFRESH_LOCK:
+            PENDING_INVITES[:] = [(events, ids, stored)]
+        out["invites"] = "with the background read"
     return out
 
 
@@ -846,11 +856,11 @@ def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
     from service.refresh import draft_invites_for, invites_failed
     conn = db.connect()
     try:
-        out = draft_invites_for(conn, events, ids, stored)
+        out = draft_invites_for(conn, events, ids, stored, per_event=config.SETUP_DRAFTS_PER_EVENT)
         detail = invites_failed(out)                         # never "done" with 0 of N invites
         status = "failed" if detail else "done"
         changes = {"drafts": out["drafts"], "attempted": out.get("attempted"), "drafted": out.get("drafted"),
-                   "errors": out["errors"][:10]}
+                   "errors": out["errors"][:10], "stats": out.get("stats")}
     except Exception as e:
         log.warning("onboarding invites failed: %s", e)
         status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
@@ -861,6 +871,32 @@ def invites_job(events: list[dict], ids: dict, stored: bool) -> None:
                            finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
 
 
+# Onboarding events saved after a slow read, whose invites the next refresh pass drafts (it skips known events).
+PENDING_INVITES: list[tuple[list[dict], dict, bool]] = []
+
+
+def pending_invites(changes: dict | None) -> tuple[dict | None, str | None]:
+    """Draft the invites a slow onboarding left for this pass: (changes with "onboarding_invites", error or None)."""
+    with REFRESH_LOCK:
+        pending, PENDING_INVITES[:] = PENDING_INVITES[:], []
+    if not pending:
+        return changes, None
+    from service.refresh import draft_invites_for, invites_failed
+    events, ids, stored = pending[0]
+    conn = db.connect()
+    try:
+        out = draft_invites_for(conn, events, ids, stored, per_event=config.SETUP_DRAFTS_PER_EVENT)
+        summary = {"drafts": out["drafts"], "attempted": out.get("attempted"), "drafted": out.get("drafted"),
+                   "errors": out["errors"][:10], "stats": out.get("stats")}
+        failed = invites_failed(out)                         # 0 of N handed-over invites is a failure, not done
+        return {**(changes or {}), "onboarding_invites": summary}, (f"onboarding invites: {failed}" if failed else None)
+    except Exception as e:
+        log.warning("onboarding invites (after the refresh) failed: %s", e)
+        return changes, f"onboarding invites: {type(e).__name__}: {e}"
+    finally:
+        conn.close()
+
+
 def refresh_job() -> None:
     try:
         result = run_refresh()
@@ -868,6 +904,9 @@ def refresh_job() -> None:
     except Exception as e:  # a site or model error: report it, keep the saved context and calendar
         log.warning("context refresh failed: %s", e)
         status, detail, changes = "failed", f"{type(e).__name__}: {e}", None
+    changes, invites_error = pending_invites(changes)     # still "refreshing" until these are drafted too
+    if invites_error and status != "failed":
+        status, detail = "failed", invites_error
     with REFRESH_LOCK:
         REFRESH_JOB.update(status=status, detail=detail, changes=changes,
                            finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))

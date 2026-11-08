@@ -20,6 +20,8 @@ import { isIsoDate, toIsoDate } from "../outreach/dates";
 import { FindDonorDialog } from "./FindDonorDialog";
 import { ArtifactsTile, CrmTile, Q4ProgressTile, TasksTile } from "./HomeCards";
 import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
+import { buildBriefing } from "./briefing";
+import { DailyBriefing } from "./DailyBriefing";
 import { sendToAgent, useAgentChat } from "./agentChat";
 import { useAgentRefetch } from "../providers/local/refetch";
 import { taskPrompt } from "./taskPrompt";
@@ -137,6 +139,12 @@ export const HomePage = () => {
   )?.staff_name;
   const name = firstName(staffName);
   const tasksPending = home.tasks.isPending;
+  const briefing = hasData ? buildBriefing(summary, tasks) : null;
+  const startTask = (key: string) => {
+    const task = tasks.find((t) => t.key === key);
+    if (live && task) workOn(task);
+    else openDetails(key);
+  };
 
   return (
     <div className="home-design @container h-full">
@@ -207,7 +215,13 @@ export const HomePage = () => {
               )}
             </h1>
           </div>
-          <AgentThread />
+          <AgentThread
+            intro={
+              briefing ? (
+                <DailyBriefing briefing={briefing} onStartTask={startTask} />
+              ) : undefined
+            }
+          />
           <Composer
             onUploadList={() => setImportOpen(true)}
             suggestions={
