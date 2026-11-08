@@ -4,7 +4,7 @@
     app.include_router(data_router)
 
 GET  /donors                     every donor with score fields, highest score first
-GET  /donors/{id}                one donor: gifts, score + why, research_facts, outreach_drafts, merges
+GET  /donors/{id}                one donor: gifts, score + why, research_facts, outreach_drafts, merges, call_notes (newest 5)
 GET  /duplicates                 pending duplicate suggestions with both donors
 POST /duplicates/{id}/merge      merge a suggested pair (optional body {"keep_id": n, "approved_by": "name"}) → includes merge_id
 POST /merges/{id}/undo           undo the newest merge into a donor → {kept_id, restored_id, donor, restored}
@@ -21,6 +21,7 @@ GET  /people                     people in one tab (?type=giver|neighbor|communi
 PATCH /people/{id}               move a person to another tab {"contact_type": ...}
 GET  /events                     the calendar, upcoming first, with audience and draft counts
 GET  /events/{id}                one event: recipients across the tabs (with why) + its drafted invites
+GET  /context/search             the context store: ?q=&kinds=&k= (cosine x recency, newest first on ties)
 GET  /context/status             when the context was last refreshed + the last refresh log row
 GET  /community/stats            counts by each recorded demographic field, with a "not recorded" bucket
 """
@@ -40,6 +41,7 @@ from service import db
 from service.db import connect, create_schema
 
 router = APIRouter(tags=["data"])
+DONOR_CALL_NOTES = 5   # newest saved call notes shown on GET /donors/{id}
 
 
 def get_conn() -> Iterator[sqlite3.Connection]:
@@ -96,6 +98,7 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
         "SELECT d.*, (SELECT ed.event_id FROM event_drafts ed WHERE ed.draft_id = d.id) AS event_id "
         "FROM outreach_drafts d WHERE d.donor_id = ? ORDER BY d.created_at DESC, d.id DESC", (donor_id,))]   # event_id: an invite
     donor["merges"] = dedupe.merges_for(conn, donor_id)
+    donor["call_notes"] = db.list_call_notes(conn, donor_id=donor_id, limit=DONOR_CALL_NOTES)   # routes_calls.py
     return donor
 
 
@@ -264,7 +267,8 @@ def list_context(conn: sqlite3.Connection, source: str | None = None) -> list[di
         rows = conn.execute("SELECT * FROM org_context WHERE source = ?" + CONTEXT_ORDER, (source,))
     else:
         rows = conn.execute("SELECT * FROM org_context" + CONTEXT_ORDER)
-    return [dict(r) for r in rows]
+    # the embedding is a binary vector for search only; it never goes out as JSON
+    return [{k: v for k, v in dict(r).items() if k != "embedding"} for r in rows]
 
 
 @router.get("/org-profile")
@@ -276,6 +280,17 @@ def get_org_profile(conn: sqlite3.Connection = Depends(get_conn)) -> dict | None
 def get_context(source: str | None = Query(None, pattern="^(website|x|linkedin|instagram|news)$"),
                 conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
     return list_context(conn, source)
+
+
+@router.get("/context/search")
+def search_context_route(q: str | None = Query(None, max_length=500),
+                         kinds: str | None = Query(None, description="comma-separated: success_story,use_of_funds,org_health,..."),
+                         k: int = Query(8, ge=1, le=50),
+                         conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+    """§21.5: [{id, kind, title, text, source_url, posted_at, score}], best first (cosine x recency, half-life
+    90 days; newest first on ties). No q: the newest items of the asked kinds."""
+    from service.org_context import search_context
+    return search_context(q, [x.strip() for x in (kinds or "").split(",") if x.strip()] or None, k, conn=conn)
 
 
 

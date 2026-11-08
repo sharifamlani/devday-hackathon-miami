@@ -20,6 +20,7 @@ POST /context/refresh        "Refresh now": starts a background context + calend
                              org_profile's URLs and returns {status: "refreshing"}; GET /context/refresh reports it;
                              the same pass runs daily at REFRESH_DAILY_AT (HH:MM) when set
      (campaign routes)       service/routes_campaigns.py: /campaigns, /outbox (the single send log)
+     (call notes)            service/routes_calls.py: POST /calls/summarize, POST /calls, GET /calls
 POST /agent/ping             one tiny Agents SDK call with structured output (proves key + SDK)
      (ingest routes)         service/ingest/router.py, mounted when Carlos's lane is present
 """
@@ -48,6 +49,7 @@ from pydantic import BaseModel, Field
 
 from service import db
 from service.routes_ask import router as ask_router
+from service.routes_calls import router as calls_router
 from service.routes_data import router as data_router
 from service.routes_targets import router as targets_router
 
@@ -67,6 +69,7 @@ app.include_router(home_router)
 from service.routes_campaigns import router as campaigns_router  # noqa: E402  (#38: simulated outbox only)
 app.include_router(campaigns_router)
 app.include_router(ask_router)  # POST /ask (issue #36)
+app.include_router(calls_router)  # live transcript call notes: /calls, /calls/summarize
 
 def module_present(name: str) -> bool:
     try:
@@ -318,7 +321,9 @@ def persist_context(result: dict) -> dict | None:
     conn = db.connect()
     try:
         db.create_schema(conn)
-        return db.save_context(conn, result)
+        saved = db.save_context(conn, result)
+        from service.org_context import after_context_saved; after_context_saved(conn)  # index the store, then tasks (86)
+        return saved
     finally:
         conn.close()
 

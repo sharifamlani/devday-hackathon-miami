@@ -1,0 +1,397 @@
+/* Guided onboarding in the Kindred look: white page, yellow-green glows,
+   light + bold headlines, dark pill buttons. Dark mode keeps the structure
+   with dimmer glows. */
+
+.onb-screen {
+  --onb-glow-y: rgba(244, 217, 88, 0.5);
+  --onb-glow-g: rgba(196, 220, 120, 0.45);
+  --onb-tglow-y: rgba(244, 217, 88, 0.17);
+  --onb-tglow-g: rgba(196, 220, 120, 0.2);
+  position: fixed;
+  inset: 0;
+  z-index: 50; /* same layer as dialogs; later in the DOM, so above the app chrome */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: var(--foreground);
+  background:
+    radial-gradient(55% 45% at 0% 100%, var(--onb-glow-y), transparent 70%),
+    radial-gradient(55% 45% at 100% 100%, var(--onb-glow-g), transparent 70%),
+    #fff;
+  outline: none;
+}
+
+.dark .onb-screen,
+.dark .onb-coach-card {
+  --onb-glow-y: rgba(244, 217, 88, 0.16);
+  --onb-glow-g: rgba(196, 220, 120, 0.13);
+  --onb-tglow-y: rgba(244, 217, 88, 0.08);
+  --onb-tglow-g: rgba(196, 220, 120, 0.08);
+}
+.dark .onb-screen {
+  background:
+    radial-gradient(55% 45% at 0% 100%, var(--onb-glow-y), transparent 70%),
+    radial-gradient(55% 45% at 100% 100%, var(--onb-glow-g), transparent 70%),
+    #151617;
+}
+
+.onb-tile {
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background:
+    radial-gradient(85% 55% at 0% 100%, var(--onb-tglow-y), transparent 72%),
+    radial-gradient(85% 55% at 100% 100%, var(--onb-tglow-g), transparent 72%),
+    var(--card);
+}
+
+.onb-card {
+  width: 100%;
+  max-width: 620px;
+  padding: 28px;
+  display: grid;
+  gap: 22px;
+}
+@media (max-width: 480px) {
+  .onb-card {
+    padding: 20px 16px;
+    gap: 18px;
+  }
+}
+
+.onb-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.onb-wordmark {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.onb-progress-text {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.onb-progress {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.onb-progress span {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.onb-progress span[data-done="true"] {
+  background: var(--foreground);
+  box-shadow: none;
+}
+.onb-progress span[data-current="true"] {
+  background: var(--brand);
+  box-shadow: inset 0 0 0 1px #8a7a1c;
+}
+
+.onb-headline {
+  margin: 0;
+  font-size: clamp(26px, 6vw, 34px);
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  outline: none;
+}
+.onb-headline strong {
+  font-weight: 700;
+}
+.onb-lede {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.onb-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.onb-status {
+  margin: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: var(--brand-soft);
+  color: var(--brand-soft-foreground);
+}
+.onb-status[data-tone="error"] {
+  background: var(--alert);
+  color: var(--alert-foreground);
+}
+.onb-status[data-tone="good"] {
+  background: var(--good);
+  color: var(--good-foreground);
+}
+
+.onb-fields {
+  display: grid;
+  gap: 14px;
+}
+@media (min-width: 640px) {
+  .onb-fields.two {
+    grid-template-columns: 1fr 1fr;
+  }
+  .onb-fields .wide {
+    grid-column: 1 / -1;
+  }
+}
+.onb-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.onb-field label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.onb-field input {
+  min-height: 44px;
+  border-radius: 14px;
+}
+.onb-error {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--destructive);
+}
+.dark .onb-error {
+  color: #f19a86;
+}
+.onb-money {
+  position: relative;
+}
+.onb-money > span {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+.onb-money input {
+  padding-inline-start: 28px;
+}
+
+.onb-choices {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .onb-choices {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.onb-choice {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  text-align: left;
+  padding: 18px;
+  min-height: 44px;
+  color: inherit;
+  cursor: pointer;
+}
+.onb-choice:hover {
+  border-color: var(--foreground);
+}
+.onb-choice[aria-pressed="true"] {
+  border-color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--foreground);
+}
+.onb-choice b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.onb-choice span {
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.onb-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.onb-actions .onb-spacer {
+  flex: 1;
+}
+@media (max-width: 480px) {
+  .onb-actions .onb-btn.primary {
+    flex: 1 1 100%;
+    order: -1;
+  }
+  .onb-actions .onb-spacer {
+    display: none;
+  }
+}
+
+.onb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--foreground);
+}
+.onb-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.onb-btn.primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.onb-btn.primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--primary) 88%, white);
+}
+.onb-btn.quiet {
+  background: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.onb-btn.quiet:hover:not(:disabled) {
+  background: var(--olive);
+}
+.onb-btn.text {
+  padding: 0 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.onb-btn.small {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+.onb-screen :focus-visible,
+.onb-coach :focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.onb-tour-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  counter-reset: onb-tour;
+}
+.onb-tour-list li {
+  counter-increment: onb-tour;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 2px 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+.onb-tour-list li::before {
+  content: counter(onb-tour);
+  grid-row: span 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--brand);
+  color: var(--brand-foreground);
+}
+.onb-tour-list b {
+  font-size: 14px;
+}
+.onb-tour-list span {
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+/* Coach marks over the real homepage */
+.onb-coach {
+  position: fixed;
+  inset: 0;
+  z-index: 50; /* same layer as dialogs; later in the DOM, so above the app chrome */
+}
+.onb-coach-scrim {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+}
+.onb-coach-spot {
+  position: fixed;
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 3px var(--brand),
+    0 0 0 9999px rgba(20, 22, 23, 0.55);
+  pointer-events: none;
+}
+.onb-coach-card {
+  --onb-tglow-y: rgba(244, 217, 88, 0.17);
+  --onb-tglow-g: rgba(196, 220, 120, 0.2);
+  position: fixed;
+  width: min(340px, calc(100vw - 32px));
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+  color: var(--foreground);
+  box-shadow: 0 18px 50px rgba(20, 22, 23, 0.25);
+}
+.onb-coach-card h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  outline: none;
+}
+.onb-coach-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.onb-coach-card .onb-progress-text {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .onb-coach-spot,
+  .onb-coach-card {
+    transition:
+      top 0.2s ease,
+      left 0.2s ease,
+      width 0.2s ease,
+      height 0.2s ease;
+  }
+}
+
+/* Headings get focus only so screen readers announce each step; they are not
+   controls, so no focus ring. */
+.onb-screen h2[tabindex="-1"]:focus-visible,
+.onb-coach h2[tabindex="-1"]:focus-visible {
+  outline: none;
+}

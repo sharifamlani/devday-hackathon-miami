@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console -- CLI script: it reports what it copied on stdout. */
 /**
  * Copy the fictional sample inputs (data/sample_inputs/) into web/public/sample/
  * so "Try sample data" on the landing page can pre-load them, and write

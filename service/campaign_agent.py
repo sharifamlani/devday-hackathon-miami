@@ -45,8 +45,9 @@ class CampaignDraft:
     body: str
     facts_used: list[dict]                       # [{fact, url, date}]
     drafted_by: str                              # "model" | "template"
-    note: str | None = None                      # why a template was used, when it was
+    note: str | None = None                      # why a template was used, and story kinds that were missing
     flags: list[str] = field(default_factory=list)
+    sources: list[dict] = field(default_factory=list)   # story facts cited (§21.2.4): [{id, kind, title, fact, url, date, context_id}]
 
 
 class CampaignModelDraft(BaseModel):
@@ -79,15 +80,31 @@ def is_beneficiary(donor: dict) -> bool:
     return (donor.get("contact_type") or "").lower() == "beneficiary"
 
 
-def numbered_facts(donor: dict, gifts: list[dict], research: list[dict], org_facts: list[dict]) -> dict:
-    """O1..O4 (org facts, best fit first) and R1.. (research), numbered as draft_outreach does."""
+def numbered_facts(donor: dict, gifts: list[dict], research: list[dict], org_facts: list[dict],
+                   story: dict | None = None) -> dict:
+    """O1..O4 (org facts, best fit first), S1.. (the story: success story, use of funds, org health from
+    the context store) and R1.. (research), numbered as draft_outreach does."""
     channels = " ".join(sorted({g.get("channel") or "" for g in gifts}))
     ranked = oa.rank_org_facts(donor | {"notes": f"{donor.get('notes') or ''} {channels}"}, research, org_facts)
     facts = {f"O{i}": {"fact": f["fact"], "url": f["url"], "date": f.get("date")}
              for i, f in enumerate(ranked[:oa.MAX_ORG_FACTS], 1)}
+    facts |= story or {}
     facts |= {f"R{i}": {"fact": f["fact"], "url": f.get("source_url") or f.get("url", ""), "date": None}
               for i, f in enumerate(research, 1)}
     return facts
+
+
+def story_of(facts: dict) -> dict:
+    """The first (newest) S-fact of each story kind present."""
+    first = {}
+    for k in sorted((k for k in facts if k.startswith("S")), key=lambda k: int(k[1:])):
+        first.setdefault(facts[k]["kind"], facts[k])
+    return first
+
+
+def sources_of(used: list[dict]) -> list[dict]:
+    return [{"kind": f.get("kind"), "title": f.get("title"), "fact": f["fact"], "url": f["url"], "date": f.get("date"),
+             "context_id": f.get("context_id")} for f in used if f.get("kind") in oa.STORY_KINDS]
 
 
 def allowed_facts(research: list[dict], org_facts: list[dict]) -> dict:
@@ -246,8 +263,9 @@ def template_draft(donor: dict, gifts: list[dict], why: dict | None, facts: dict
         tail = " ".join(p for p in (closing, "Reply STOP to opt out.") if p)
         head = f"{greeting} {opener}"
         room = SMS_MAX - len(head) - len(tail) - 2
-        org = [facts[k] for k in sorted(facts) if k.startswith("O")]
-        fits = next((f for f in org if len(f["fact"]) <= room), None)   # best-fit fact that fits whole
+        tale = story_of(facts).get("success_story")
+        org = ([tale] if tale else []) + [facts[k] for k in sorted(facts) if k.startswith("O")]
+        fits = next((f for f in org if len(f["fact"]) <= room), None)   # the success story if it fits whole
         pick = fits or lead
         news = (pick["fact"] if fits else shorten(pick["fact"], room)) if pick and room > 40 else ""
         used = [pick] if news else []
@@ -255,6 +273,12 @@ def template_draft(donor: dict, gifts: list[dict], why: dict | None, facts: dict
         return CampaignDraft(subject=None, body=shorten(body, SMS_MAX), facts_used=used, drafted_by="template", note=note)
 
     news = f"From The Miami Foundation's work: {lead['fact']}" if lead else ""
+    tale = story_of(facts)
+    told = [(label, tale[k]) for k, label in (("success_story", "A story we're proud of"),
+                                               ("use_of_funds", "Where gifts go"),
+                                               ("org_health", "How the Foundation is doing")) if k in tale]
+    story = "\n".join(f"{label}: {f['fact']}" for label, f in told)
+    used += [f for _, f in told if f is not lead]
     if intent == "thank_you":
         subject = f"Thank you, {name}"
         opener = f"Thank you for {thanks}. Gifts like yours are how Miami's community foundation shows up for this city."
@@ -272,7 +296,7 @@ def template_draft(donor: dict, gifts: list[dict], why: dict | None, facts: dict
         opener = ("We wanted to check in and see how you're doing." if beneficiary else
                   f"We wanted to check in, and to thank you again for {thanks}.")
         closing = "If you have questions or ideas, simply reply to this email. We'd love to hear from you."
-    body = "\n\n".join(p for p in (f"Dear {name},", opener, news, closing, f"With gratitude,\n{SIGN_OFF}") if p)
+    body = "\n\n".join(p for p in (f"Dear {name},", opener, news, story, closing, f"With gratitude,\n{SIGN_OFF}") if p)
     return CampaignDraft(subject=subject, body=body, facts_used=used, drafted_by="template", note=note)
 
 
@@ -323,6 +347,7 @@ def model_write(donor: dict, gifts: list[dict], why: dict | None, research: list
     from agents import Agent, ModelSettings, Runner
     from openai.types.shared import Reasoning
 
+    oa.load_dotenv(oa.REPO_ROOT / ".env")       # the model client needs the key, whoever called first
     big = needs_individual_approval(donor)
     hide = oa.hides_gifts(donor)
     ask = (oa.ask_for(big, today) if intent == "re_engage" and not is_beneficiary(donor) else "none: no ask of any kind.")
@@ -334,7 +359,10 @@ def model_write(donor: dict, gifts: list[dict], why: dict | None, research: list
     for _ in range(2):
         out: CampaignModelDraft = Runner.run_sync(agent, prompt).final_output
         problems = oa.check_draft(oa.ModelDraft(subject=out.subject, body=out.body, call_script="", fact_ids=out.fact_ids),
-                                  facts, gifts, lead_id="O1" if "O1" in facts else None, hide_gifts=hide)
+                                  oa.cited_facts(facts, out.fact_ids), gifts, lead_id="O1" if "O1" in facts else None,
+                                  hide_gifts=hide)
+        if channel == "email":                   # a 300-character text can't carry all three; it cites what it uses
+            problems += oa.check_story(out.fact_ids, facts)
         problems += check_message(f"{out.subject} {out.body}", donor, gifts, facts, channel, today)
         if not problems:
             break
@@ -352,7 +380,8 @@ def draft_message(donor: dict, gifts: list[dict], why: dict | None, research: li
     if intent not in INTENTS or channel not in CHANNELS:
         raise ValueError(f"unknown intent/channel {intent}/{channel}")
     today = today or oa.as_of_date(why)
-    facts = numbered_facts(donor, gifts, research, org_facts)
+    story, story_notes = oa.story_facts()
+    facts = numbered_facts(donor, gifts, research, org_facts, story)
     use_model = model_available() if use_model is None else use_model
 
     draft = None
@@ -367,5 +396,8 @@ def draft_message(donor: dict, gifts: list[dict], why: dict | None, research: li
         draft = template_draft(donor, gifts, why, facts, intent, channel, today,
                                note="Template draft: no OpenAI key on this build, so no AI was used.")
     draft.flags = check_message(f"{draft.subject or ''} {draft.body}", donor, gifts,
-                                allowed_facts(research, org_facts), channel, today)
+                                allowed_facts(research, org_facts) | story, channel, today)
+    draft.sources = sources_of(draft.facts_used)
+    if story_notes:                              # staff are told when a story kind is missing; nothing is invented
+        draft.note = " ".join(p for p in (draft.note, *story_notes) if p)
     return draft

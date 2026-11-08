@@ -1,64 +1,46 @@
-import { RefreshButton } from "@/components/admin/refresh-button";
-import { ThemeModeToggle } from "@/components/admin/theme-mode-toggle";
+import { ThemeToggleButton } from "@/components/admin/theme-mode-toggle";
 import { UserMenu } from "@/components/admin/user-menu";
 
-import { AskSidebarTrigger } from "../ask/AskSidebar";
+import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { useConfigurationContext } from "../root/ConfigurationContext";
-import { API_URL, DATA_MODE } from "../providers/local/config";
-import { useSourceLabel } from "../providers/local/hooks";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
 import { ProjectsSidebarToggle } from "./ProjectsSidebar";
+import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
+import { avatarSlot } from "./shellState";
 
+/**
+ * Top bar: Projects toggle and wordmark on the left; live transcript, theme,
+ * Ask and the account avatar on the right.
+ */
 const Header = () => {
   const { title } = useConfigurationContext();
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 pt-3 pb-6">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="flex h-[46px] shrink-0 items-center gap-2">
+      <span data-tour="projects" className="inline-flex">
         <ProjectsSidebarToggle />
-        <span className="text-xl font-semibold tracking-[-0.8px]">{title}</span>
-        <span className="hidden text-[13px] text-muted-foreground lg:inline">
-          The Miami Foundation
-        </span>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <span
-          className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-[11px] font-semibold text-brand-soft-foreground"
-          title="Individual donors are fictional; gift amounts and dates are invented."
-        >
-          <span className="size-1.5 rounded-full bg-current" aria-hidden />
-          SAMPLE DATA
-        </span>
-        <DataModeChip />
-        <div className="flex items-center">
-          <GlobalSearchButton />
-          <ThemeModeToggle />
-          <RefreshButton />
-          <AskSidebarTrigger />
-          <UserMenu />
-        </div>
-      </div>
+      </span>
+      <span className="ml-1 min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
+        {title}
+      </span>
+      <span className="flex-1" />
+      <span data-tour="voice" className="inline-flex">
+        <LiveTranscriptTrigger />
+      </span>
+      <ThemeToggleButton />
+      <span data-tour="ask" className="inline-flex">
+        <AskSidebarTrigger />
+      </span>
+      <span className={avatarSlot("size-10")}>
+        <UserMenu>
+          <RestartOnboardingMenuItem />
+        </UserMenu>
+      </span>
+      {/* No search field in the top bar; ⌘K / Ctrl+K still opens search. */}
+      <span className="hidden">
+        <GlobalSearchButton />
+      </span>
     </header>
-  );
-};
-
-const DataModeChip = () => {
-  const { data: sourceLabel } = useSourceLabel();
-  return DATA_MODE === "local" ? (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full bg-good px-3 py-1.5 text-[11px] font-semibold text-good-foreground"
-      title={`Live: reading the local API at ${API_URL}`}
-    >
-      <span className="size-1.5 rounded-full bg-current" aria-hidden />
-      LIVE · local API
-    </span>
-  ) : (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full bg-quiet px-3 py-1.5 text-[11px] font-semibold text-quiet-foreground"
-      title="Static snapshot of the local API. Merges, research and drafts are not saved."
-    >
-      {sourceLabel ?? "Snapshot"} · read-only
-    </span>
   );
 };
 
