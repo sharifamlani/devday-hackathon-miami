@@ -38,17 +38,61 @@ const usd = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-/** Newest first, and one row per distinct statement (the same fact is often read from two sources). */
+const STOPWORDS = new Set(
+  "a an and are as at be by for from has have in into is it its of on or that the their this to was were which with".split(
+    " ",
+  ),
+);
+const words = (text: string) =>
+  new Set(
+    text
+      .toLowerCase()
+      .replace(/(\d),(?=\d)/g, "$1")
+      .split(/[^a-z0-9$.%]+/)
+      .map((w) => w.replace(/^\.+|\.+$/g, ""))
+      .filter((w) => w && !STOPWORDS.has(w)),
+  );
+const jaccard = (a: Set<string>, b: Set<string>) => {
+  let both = 0;
+  for (const w of a) if (b.has(w)) both += 1;
+  const union = a.size + b.size - both;
+  return union === 0 ? 1 : both / union;
+};
+const domainOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+export const NEAR_DUPLICATE = 0.6;
+
+/**
+ * Newest first, one row per statement: exact repeats collapse, and so do near-repeats
+ * (same source domain and date, word overlap >= 0.6), keeping the longer wording.
+ */
 export const listFacts = (facts: ImpactFact[]): ImpactFact[] => {
-  const seen = new Set<string>();
-  return [...facts]
-    .sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""))
-    .filter((f) => {
-      const key = f.fact.trim().toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  const sorted = [...facts].sort((a, b) =>
+    (b.posted_at ?? "").localeCompare(a.posted_at ?? ""),
+  );
+  const kept: { fact: ImpactFact; words: Set<string> }[] = [];
+  for (const f of sorted) {
+    const w = words(f.fact);
+    const exact = f.fact.trim().toLowerCase();
+    const twin = kept.find(
+      (k) =>
+        k.fact.fact.trim().toLowerCase() === exact ||
+        (k.fact.posted_at === f.posted_at &&
+          domainOf(k.fact.source_url) === domainOf(f.source_url) &&
+          jaccard(k.words, w) >= NEAR_DUPLICATE),
+    );
+    if (!twin) kept.push({ fact: f, words: w });
+    else if (f.fact.length > twin.fact.fact.length) {
+      twin.fact = f;
+      twin.words = w;
+    }
+  }
+  return kept.map((k) => k.fact);
 };
 
 const monthShort = (m: string) =>

@@ -264,6 +264,8 @@ export interface ApiContextFact {
   fact: string;
   quote?: string | null;
   priority?: string | null;
+  kind?: string | null;
+  title?: string | null;
   captured_at?: string | null;
 }
 

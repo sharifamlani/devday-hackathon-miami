@@ -101,6 +101,40 @@ describe("ImpactPanel", () => {
     expect(html).toContain("Where the money goes");
   });
 
+  it("collapses near-duplicates from the same page and date, keeps different facts", () => {
+    const url =
+      "https://miamifoundation.org/news/foundation-newsletter-september-2026/";
+    const a = fact(21, "2026-10-01", {
+      source_url: url,
+      fact: "The Miami Foundation's partnership with McDermott Will & Schulte brought pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000.",
+    });
+    const b = fact(22, "2026-10-01", {
+      source_url: url,
+      source: "website",
+      fact: "The Miami Foundation partnered with McDermott Will & Schulte to bring pro bono legal counsel to 17 Miami nonprofits, resulting in 398 hours of service valued at more than $500,000.",
+    });
+    const other = fact(23, "2026-10-01", {
+      source_url: url,
+      fact: "Give Miami Day brought together 60,000+ donors who raised over $40 million for 1,000+ local nonprofits.",
+    });
+    const rows = listFacts([a, b, other]);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.id).sort()).toEqual([21, 23]);
+    expect(view({ facts: [a, b, other] }).match(/McDermott/g)).toHaveLength(1);
+    // near-twin wording from another domain and date is a separate row; exact repeats still collapse
+    const later = fact(24, "2026-10-02", {
+      source_url: url,
+      fact: a.fact + " ",
+    });
+    expect(
+      listFacts([
+        a,
+        later,
+        { ...b, source_url: "https://other.org/x", posted_at: "2026-09-01" },
+      ]),
+    ).toHaveLength(2);
+  });
+
   it("shows 8 facts, then Show all", () => {
     const many = Array.from({ length: 11 }, (_, i) =>
       fact(i + 1, `2026-10-${10 + i}`),

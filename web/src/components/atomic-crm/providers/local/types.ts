@@ -204,6 +204,8 @@ export interface ContextFact {
   fact: string;
   quote: string | null; // the exact words the fact was verified against
   priority: string | null; // which Foundation priority it supports
+  kind?: string | null; // success_story | use_of_funds | org_health | program_update | ...
+  title?: string | null; // the fact's short headline
 }
 
 export interface OrgContext {

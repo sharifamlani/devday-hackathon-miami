@@ -651,6 +651,8 @@ const parseContextFact = (raw: ApiContextFact): ContextFact => ({
   fact: raw.fact,
   quote: raw.quote ?? null,
   priority: raw.priority ?? null,
+  kind: raw.kind ?? null,
+  title: raw.title ?? null,
 });
 
 /** A list of facts, or {profile|org_profile, facts|org_context|items}. */
