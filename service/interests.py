@@ -249,7 +249,8 @@ def accept_enrichment(conn: sqlite3.Connection, donor_id: int, proposal: dict, f
                       tags: list[str], agent_run_id: str) -> dict:
     """Save the facts and tags staff picked from a proposal ({facts, interests}). Staff-owned tags are skipped.
 
-    Returns {saved: {facts, interests, skipped_staff_tags}, undo}.
+    Returns {saved: {facts, interests, contact, skipped_staff_tags}, undo}. contact echoes the proposal's
+    public contact for the UI and is never persisted (contact_persisted: False): donors is Carlos's table.
     """
     for t in tags:
         check_tag(t)
@@ -273,5 +274,6 @@ def accept_enrichment(conn: sqlite3.Connection, donor_id: int, proposal: dict, f
                 written += 1
             else:
                 skipped.append(i["tag"])
-    return {"saved": {"facts": len(new_fact_ids), "interests": written, "skipped_staff_tags": sorted(set(skipped))},
+    return {"saved": {"facts": len(new_fact_ids), "interests": written, "contact": proposal.get("contact") or {},
+                      "contact_persisted": False, "skipped_staff_tags": sorted(set(skipped))},
             "undo": _token("accept_enrichment", donor_id, touched, before, new_fact_ids)}

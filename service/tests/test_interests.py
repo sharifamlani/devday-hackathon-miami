@@ -71,7 +71,9 @@ def test_dry_run_writes_nothing_then_save_writes_only_the_picks(client):
 
     first_fact = body["facts"][0]["id"]
     saved = client.post(f"/people/{pid}/enrichment/accept", json={"fact_ids": [first_fact], "tags": ["education"]}).json()
-    assert saved["saved"] == {"facts": 1, "interests": 1, "skipped_staff_tags": []} and saved["undo"].startswith("int_")
+    assert saved["saved"] == {"facts": 1, "interests": 1, "contact": {"website": "https://ex.org"},
+                              "contact_persisted": False, "skipped_staff_tags": []}
+    assert saved["undo"].startswith("int_")
     assert counts() == (before[0] + 1, before[1] + 1)
     tags = client.get(f"/people/{pid}/interests").json()
     assert [(t["tag"], t["sub_tag"], t["set_by"], t["source_url"]) for t in tags] == [

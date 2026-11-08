@@ -116,3 +116,15 @@ def test_ticket_numbers_in_the_source_link_are_not_figures_but_foreign_links_are
 def test_clock_formats_times():
     from events_agent import clock
     assert clock("08:30") == "8:30 AM" and clock("12:00") == "12:00 PM" and clock("00:15") == "12:15 AM"
+
+
+def test_valid_when_rejects_impossible_calendar_dates():
+    from events_agent import valid_when
+
+    assert valid_when("2026-11-21")
+    assert valid_when("2026-11-21T18:30")
+    assert not valid_when("2026-02-31")
+    assert not valid_when("2026-13-01")
+    assert not valid_when("2026-11-21T25:00")
+    assert not valid_when("Nov 21")
+    assert not valid_when("")

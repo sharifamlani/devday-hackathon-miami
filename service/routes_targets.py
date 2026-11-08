@@ -5,6 +5,8 @@
 
 GET /targets                  {"month": {...}, "quarter": {...}}: raised vs. SAMPLE goal (service/targets.py)
 GET /targets?period=quarter   one period's object
+                              (every period object carries reached_today: distinct people contacted today)
+GET /targets/quarters         {"quarters": [{label "2026-Q3", start, end, raised}], "ytd": {year, raised}}
 GET /targets/donors?period=   donors who gave in the period, biggest giver first; rows shaped like GET /donors
                               (feeds the thank-you flow)
 
@@ -33,6 +35,11 @@ def get_targets(period: Period | None = Query(None), as_of: date | None = Query(
     if period is None:
         return targets.compute_all(conn, as_of)
     return targets.compute(conn, period, as_of)
+
+
+@router.get("/targets/quarters")
+def get_target_quarters(as_of: date | None = Query(None), conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    return targets.quarters(conn, as_of)
 
 
 @router.get("/targets/donors")

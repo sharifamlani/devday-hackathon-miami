@@ -64,9 +64,13 @@ app.add_middleware(
 )
 app.include_router(data_router)
 app.include_router(targets_router)
+from service.routes_home import router as home_router  # noqa: E402  (B13: home summary + attention list)
+app.include_router(home_router)
 from service.routes_campaigns import router as campaigns_router  # noqa: E402  (#38: simulated outbox only)
 app.include_router(campaigns_router)
 app.include_router(ask_router)  # POST /ask (issue #36)
+from service.routes_tasks import router as tasks_router  # noqa: E402  (§21 B11/B12)
+app.include_router(tasks_router)
 app.include_router(calls_router)  # live transcript call notes: /calls, /calls/summarize
 app.include_router(importlib.import_module("service.routes_interests").router)  # B1 interests; owns POST /enrich (dry_run)
 
@@ -320,7 +324,9 @@ def persist_context(result: dict) -> dict | None:
     conn = db.connect()
     try:
         db.create_schema(conn)
-        return db.save_context(conn, result)
+        saved = db.save_context(conn, result)
+        from service.org_context import after_context_saved; after_context_saved(conn)  # index the store, then tasks (86)
+        return saved
     finally:
         conn.close()
 
@@ -563,6 +569,7 @@ def org_urls(conn: sqlite3.Connection) -> dict | None:
 
 def run_refresh() -> dict:
     """One refresh pass on the saved org. 86's refresh never wipes good data on a failed source."""
+    from service import tasks
     from service.refresh import refresh
 
     conn = db.connect()
@@ -571,7 +578,13 @@ def run_refresh() -> dict:
         urls = org_urls(conn)
         if urls is None:
             return {"state": "failed", "detail": "no website saved yet: run onboarding first", "changes": None}
-        return {"state": "done", "detail": None, "changes": refresh(conn, urls)}
+        changes = refresh(conn, urls)
+        try:   # §21 B11: new events -> prep tasks; never fails a refresh already saved
+            tasks.generate(conn)
+        except Exception:
+            conn.rollback()
+            log.exception("task generator failed after refresh")
+        return {"state": "done", "detail": None, "changes": changes}
     finally:
         conn.close()
 
