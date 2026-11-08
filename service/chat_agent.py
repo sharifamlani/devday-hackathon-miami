@@ -8,6 +8,7 @@ orgs, star and big donors need per-item approval there. Community outreach never
 import asyncio
 import json
 import os
+import re
 import uuid
 from datetime import date
 from dataclasses import dataclass, field
@@ -84,13 +85,26 @@ def query(sql: str, args: tuple = ()) -> list[dict]:
 TAB_CONTACT = {"givers": "giver", "neighbors": "neighbor", "community": "community"}
 
 
+GAVE_VIA_ALIASES = ({"gmd", "givemiamiday"},)   # "GMD" and "Give Miami Day" are the same thing
+
+
+def _compact(text: str | None) -> str:
+    """'Give Miami Day' / 'give_miami_day_export_2022-2025.xlsx' -> letters and digits only, lowercase."""
+    return re.sub(r"[^a-z0-9]", "", (text or "").lower())
+
+
 def gave_via_ids(channel: str | None) -> set[int] | None:
-    """Donor ids with a gift through a matching channel (case-insensitive substring); None = no filter."""
-    if not channel:
+    """Donor ids with an ok gift through a matching channel; None = no filter. Matches gifts.channel or the
+    gift's source row (an upload often leaves channel empty: "Give Miami Day" lives only in the file name,
+    give_miami_day_export_2022-2025.xlsx), ignoring case, spaces and punctuation; "GMD" = "Give Miami Day"."""
+    if not channel or not _compact(channel):
         return None
-    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ? "
-                                         "AND COALESCE(status, 'ok') = 'ok'",       # a declined charge isn't a gift
-                                         (f"%{channel.strip().lower()}%",))}
+    wanted = _compact(channel)
+    needles = next((a for a in GAVE_VIA_ALIASES if wanted in a), {wanted})
+    rows = query("SELECT donor_id, channel, source_row FROM gifts "
+                 "WHERE COALESCE(status, 'ok') = 'ok'")                    # a declined charge isn't a gift
+    return {r["donor_id"] for r in rows
+            if any(n in _compact(r["channel"]) or n in _compact(r["source_row"]) for n in needles)}
 
 
 def tab_people(tab: str) -> list[dict] | None:
