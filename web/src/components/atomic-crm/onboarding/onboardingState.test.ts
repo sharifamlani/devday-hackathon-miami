@@ -27,6 +27,7 @@ import {
   onboardingStore,
   parseStored,
   readOnboardingParam,
+  shouldAdopt,
   shouldAutoShow,
   shouldOfferTour,
   validateLinks,
@@ -108,6 +109,27 @@ describe("onboardingReducer", () => {
     expect(state.completedAt).toBe(NOW);
     expect(state.tourOffer).toBe("dismissed");
     expect(shouldAutoShow(state, "/", null)).toBe(false);
+  });
+
+  it("adopts only a browser that never started setup (a fresh browser on a filled service, #128)", () => {
+    const fresh = initialOnboarding();
+    expect(shouldAdopt(fresh, true)).toBe(true);
+    expect(shouldAdopt(fresh, false)).toBe(false); // empty service: run setup
+  });
+
+  it("never adopts mid-setup: a reload after the upload step resumes at the saved step", () => {
+    // Step 1 uploaded people (so the service has them), then the page reloaded before steps 2-3
+    const midway = reduce(reduce(initialOnboarding(), { type: "start", step: 0 }), { type: "next" });
+    expect(midway.status).toBe("in_progress");
+    expect(midway.step).toBe(1);
+    expect(shouldAdopt(midway, true)).toBe(false);
+    expect(shouldAutoShow(midway, "/", null)).toBe(true); // the gate reopens it at midway.step
+  });
+
+  it("a completed setup stays done after a reload (no overlay, no adopt needed)", () => {
+    const done = reduce(initialOnboarding(), { type: "adopt" });
+    expect(shouldAdopt(done, true)).toBe(false);
+    expect(shouldAutoShow(done, "/", null)).toBe(false);
   });
 
   it("finish completes and offers the tour once", () => {

@@ -449,7 +449,8 @@ def declined_for(donor_id) -> list[dict]:
         if not any(r[1] == "status" for r in con.execute("PRAGMA table_info(gifts)")):
             return []
         return [{"amount": r[0], "gift_date": r[1], "status": r[2]} for r in con.execute(
-            "SELECT amount, gift_date, status FROM gifts WHERE donor_id = ? AND status != 'ok'", (donor_id,))]
+            "SELECT amount, gift_date, status FROM gifts WHERE donor_id = ? AND status IN ('declined', 'failed')",
+            (donor_id,))]
 
 
 MONTHS_LONG = ("January February March April May June July August September October November December").split()

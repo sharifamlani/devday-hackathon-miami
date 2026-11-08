@@ -1,5 +1,6 @@
 import type { ApiDonorDetail, ApiIcpProfile, ApiProspect } from "./apiTypes";
 import {
+  parseContext,
   parseDonorDetail,
   parseIcp,
   parseProspect,
@@ -65,7 +66,8 @@ const maria: ApiDonorDetail = {
       approved_at: null,
       created_at: "2026-11-07T21:18:11+00:00",
       call_script: "Opener: Hi Maria",
-      facts_used: '[{"fact": "398 pro bono hours", "url": "https://example.org/a"}, {"fact": "no url"}]',
+      facts_used:
+        '[{"fact": "398 pro bono hours", "url": "https://example.org/a"}, {"fact": "no url"}]',
     },
   ],
 };
@@ -101,7 +103,12 @@ describe("parseDonorDetail", () => {
       ...maria,
       score: 0,
       status: "no_gifts",
-      why: { status: "no_gifts", reasons: ["no_gifts"], gift_count: 0, as_of: "2026-11-08" },
+      why: {
+        status: "no_gifts",
+        reasons: ["no_gifts"],
+        gift_count: 0,
+        as_of: "2026-11-08",
+      },
       outreach_drafts: [],
     });
     expect(donor.why_short).toBe("no gifts on record");
@@ -146,7 +153,11 @@ describe("parseDonorDetail", () => {
 
 describe("parseIcp", () => {
   const evidence = [
-    { donor: "Amazon", fact: "Committed $1M to South Dade", url: "https://example.org/amazon" },
+    {
+      donor: "Amazon",
+      fact: "Committed $1M to South Dade",
+      url: "https://example.org/amazon",
+    },
   ];
 
   it("accepts traits as a list of objects with evidence", () => {
@@ -164,7 +175,11 @@ describe("parseIcp", () => {
         label: "Causes funded",
         value: "youth, climate",
         evidence: [
-          { donor: "Amazon", fact: "Committed $1M to South Dade", source_url: "https://example.org/amazon" },
+          {
+            donor: "Amazon",
+            fact: "Committed $1M to South Dade",
+            source_url: "https://example.org/amazon",
+          },
         ],
       },
     ]);
@@ -182,7 +197,14 @@ describe("parseIcp", () => {
         {
           trait: "Geography",
           value: "Miami-Dade, South Dade",
-          evidence: [{ donor: "Amazon", donor_id: 10, fact: "South Dade grants", url: "https://example.org/sd" }],
+          evidence: [
+            {
+              donor: "Amazon",
+              donor_id: 10,
+              fact: "South Dade grants",
+              url: "https://example.org/sd",
+            },
+          ],
         },
       ],
       stats: { org_donors: 6 },
@@ -192,7 +214,13 @@ describe("parseIcp", () => {
       {
         label: "Geography",
         value: "Miami-Dade, South Dade",
-        evidence: [{ donor: "Amazon", fact: "South Dade grants", source_url: "https://example.org/sd" }],
+        evidence: [
+          {
+            donor: "Amazon",
+            fact: "South Dade grants",
+            source_url: "https://example.org/sd",
+          },
+        ],
       },
     ]);
   });
@@ -201,7 +229,10 @@ describe("parseIcp", () => {
     const icp = parseIcp({
       id: 2,
       created_at: "2026-11-07T22:00:00Z",
-      traits: JSON.stringify({ giving_style: "multi-year grants", geography: "Miami-Dade" }),
+      traits: JSON.stringify({
+        giving_style: "multi-year grants",
+        geography: "Miami-Dade",
+      }),
       stats: "not json",
       evidence: JSON.stringify(evidence),
     });
@@ -223,7 +254,10 @@ describe("parseProspect", () => {
     fit_score: 82,
     matched_traits: '["Causes funded", "Geography"]',
     facts: [
-      { fact: "Funds financial literacy in Miami-Dade", url: "https://example.org/bank" },
+      {
+        fact: "Funds financial literacy in Miami-Dade",
+        url: "https://example.org/bank",
+      },
       { fact: "unsourced claim" },
     ],
     priority: "Generate Prosperity",
@@ -236,7 +270,10 @@ describe("parseProspect", () => {
     const p = parseProspect(prospect);
     expect(p.matched_traits).toEqual(["Causes funded", "Geography"]);
     expect(p.facts).toEqual([
-      { fact: "Funds financial literacy in Miami-Dade", source_url: "https://example.org/bank" },
+      {
+        fact: "Funds financial literacy in Miami-Dade",
+        source_url: "https://example.org/bank",
+      },
     ]);
     expect(p.status).toBe("new");
   });
@@ -247,8 +284,16 @@ describe("parseProspect", () => {
       matched_traits: ["foundation_priorities", "geography"],
       fit_breakdown: { geography: 12, priority_overlap: 22 },
       matched_context: [
-        { fact: "Older", url: "https://example.org/o", posted_at: "2026-08-01" },
-        { fact: "Newer", url: "https://example.org/n", posted_at: "2026-10-01" },
+        {
+          fact: "Older",
+          url: "https://example.org/o",
+          posted_at: "2026-08-01",
+        },
+        {
+          fact: "Newer",
+          url: "https://example.org/n",
+          posted_at: "2026-10-01",
+        },
         { fact: "No URL" },
       ],
     });
@@ -262,5 +307,33 @@ describe("parseProspect", () => {
 
   it("returns null draft when there are no outreach drafts", () => {
     expect(parseProspectDetail(prospect).draft).toBeNull();
+  });
+});
+
+describe("parseContext", () => {
+  it("passes the fact's kind and title through to the panel", () => {
+    const ctx = parseContext([
+      {
+        id: 5,
+        source: "news",
+        url: "https://example.org/n",
+        posted_at: "2026-10-01",
+        fact: "Pro bono counsel for 17 nonprofits.",
+        priority: "Inequities",
+        kind: "success_story",
+        title: "Nonprofits receive free legal expertise",
+      },
+      {
+        id: 6,
+        source: "news",
+        url: "https://example.org/m",
+        posted_at: "2026-09-01",
+        fact: "Older.",
+      },
+    ]);
+    expect(ctx.facts[0].kind).toBe("success_story");
+    expect(ctx.facts[0].title).toBe("Nonprofits receive free legal expertise");
+    expect(ctx.facts[1].kind).toBeNull();
+    expect(ctx.facts[1].title).toBeNull();
   });
 });

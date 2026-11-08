@@ -44,6 +44,21 @@ describe("GivingPanel with a declined charge", () => {
     expect(html).toContain("not a gift");
   });
 
+  it("labels a gift recorded on both people 'Counted once', not 'Declined'", () => {
+    const html = renderToString(
+      <GivingPanel
+        donor={donor([
+          gift(1, "2026-10-10", 40, "duplicate"),
+          gift(2, "2026-09-10", 40),
+          gift(3, "2025-11-20", 400),
+        ])}
+      />,
+    );
+    expect(html).toContain("Counted once");
+    expect(html).not.toContain("Declined");
+    expect(html).not.toContain("not a gift");
+  });
+
   it("a donor with no declined charges is unchanged", () => {
     const html = renderToString(
       <GivingPanel
