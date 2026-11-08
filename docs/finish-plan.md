@@ -75,7 +75,7 @@ If the store has none of a kind, the draft says so to staff and leaves it out; i
 | **B2/B13** | Money by quarter + reached today; home summary; CRM badges | **48** | 1 |
 | **B3** | Voice: live relay (calls + dictation), file pass for speaker names, call notes + summary | **Agent Phone** | 1 |
 | **B9** | Web hooks for every new endpoint (mocked until each lands), dictation hook, refresh-after-agent helper | **80** | 1 |
-| — | Deploy monitor: auto-deploy of main (if Sharif keeps it) + browser walk per merge | **12** | 1 |
+| — | Deploy monitor: **auto-deploys every main commit to Vercel (kept, Sharif)** + browser walk per merge; the lead never deploys separately | **12** | running |
 | **B6** | After-call agent: proposes tasks, RSVP, pledge, context → Apply | **90 [58e3c2]** (reserve session) | 2 |
 | **B10** | Agent tools: read + write CRM, calendar, tasks, call notes, context search; Undo; approval cards | **90 [113a1a]** | 2 |
 | — | Close #49 / #57 | 86 + 98 | 2 |
@@ -177,6 +177,7 @@ tasks, voice, after-call, agent write tools.
 
 ## 8. Decisions needed
 1. **Approve this plan.**
-2. **Auto-deploy watcher (session 12):** keep it deploying every main commit, or stop it.
-3. **Q4 fix in the example files** (fictional Oct–Nov 2026 gifts sheet): yes / no.
-4. **Agent Phone:** deny my first message ("Wave 1: B3") in that session when it asks.
+2. **Q4 fix in the example files** (fictional Oct–Nov 2026 gifts sheet): yes / no.
+
+Decided: Vercel auto-deploy of main stays on (session 12). Agent Phone never received the recalled wave-1 brief (it
+expired undelivered), so nothing is pending there; its brief goes out fresh on approval.
