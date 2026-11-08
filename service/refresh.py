@@ -17,7 +17,9 @@ tables of its own.
 
 import argparse
 import json
+import logging
 import os
+import random
 import sqlite3
 import sys
 import time
@@ -33,7 +35,11 @@ from events_agent import (EVENTS_CACHE, EVENTS_LIVE, draft_event_invite, extract
 from org_context import FOUNDATION_URLS, build_context, site_host  # noqa: E402
 
 MAX_DRAFTS_PER_EVENT = 50
-INVITE_WORKERS = 16                                   # concurrent invite model calls
+# Concurrent invite model calls. 16 at once drew rate-limit errors (0 drafts, Nov 8) when several sessions
+# shared the key; 6 plus backoff retries holds up under that load.
+INVITE_WORKERS = int(os.getenv("INVITE_WORKERS", "6"))
+INVITE_RETRY_DELAYS_S = (2.0, 5.0, 12.0)             # backoff before each retry of a 429 / 5xx / timeout
+log = logging.getLogger(__name__)
 EVENT_FIELDS = ("starts_at", "ends_at", "place")      # what makes an event "changed"; a new citing page doesn't
 
 
@@ -183,10 +189,55 @@ def save_found_events(conn, events: list[dict]) -> tuple[dict, bool]:
     return {event_key(e): i for e, i in zip(events, saved.get("ids") or [])}, True
 
 
+def api_status(ex: BaseException) -> str | None:
+    """The API error behind an invite failure, as a short label ("429", "500", "timeout", "connection"), or
+    None when it isn't one (a failed content check, a bad event). Walks the cause chain: the Agents SDK can
+    wrap the OpenAI error."""
+    seen = 0
+    while ex is not None and seen < 5:
+        code = getattr(ex, "status_code", None)
+        if isinstance(code, int):
+            return str(code)
+        name = type(ex).__name__
+        if name in ("APITimeoutError", "TimeoutError", "ReadTimeout"):
+            return "timeout"
+        if name in ("APIConnectionError", "ConnectError", "ConnectionError"):
+            return "connection"
+        ex, seen = ex.__cause__ or ex.__context__, seen + 1
+    return None
+
+
+def retryable(status: str | None) -> bool:
+    return status in ("429", "timeout", "connection") or (status is not None and status.isdigit() and int(status) >= 500)
+
+
+def with_retries(invite, event: dict, person: dict, delays=None):
+    """One invite, retried with backoff (plus jitter) on a rate limit, server error or timeout; any other
+    error (e.g. the draft failed its checks twice) is final at once."""
+    delays = INVITE_RETRY_DELAYS_S if delays is None else delays
+    for attempt in range(len(delays) + 1):
+        try:
+            return invite(event, person)
+        except Exception as ex:
+            status = api_status(ex)
+            if attempt == len(delays) or not retryable(status):
+                raise
+            wait = delays[attempt] * (1 + random.random() / 2)
+            log.info("invite %s -> %s: %s, retry %d in %.1f s", event.get("title"), person.get("id"), status,
+                     attempt + 1, wait)
+            time.sleep(wait)
+
+
+def invite_error(ex: BaseException) -> str:
+    status = api_status(ex)
+    return f"{type(ex).__name__}" + (f" [{status}]" if status else "") + f": {str(ex)[:120]}"
+
+
 def draft_invites_for(conn, events: list[dict], event_ids: dict, stored_in_db: bool, people: list[dict] | None = None,
                       *, audience=suggest_audience, invite=draft_event_invite, save=save_invite) -> dict:
-    """Audience + invite drafts (never sent) for these events: {drafts: {title: n}, errors: [...]}. Shared by
-    the daily refresh (new or changed events) and onboarding (every event the first read found)."""
+    """Audience + invite drafts (never sent) for these events: {drafts: {title: n}, attempted, drafted,
+    errors: [...]}. Shared by the daily refresh (new or changed events) and onboarding (every event the first
+    read found). Each model call is retried on a rate limit / server error (with_retries)."""
     from concurrent.futures import ThreadPoolExecutor
     w = data_writers(conn)
     errors = []
@@ -210,7 +261,7 @@ def draft_invites_for(conn, events: list[dict], event_ids: dict, stored_in_db: b
 
     # every invite for every event in one pool of model calls; writes stay on this thread
     with ThreadPoolExecutor(max_workers=INVITE_WORKERS) as pool:
-        jobs = [(e, eid, pid, pool.submit(invite, e, by_id[pid])) for e, eid, pid in work]
+        jobs = [(e, eid, pid, pool.submit(with_retries, invite, e, by_id[pid])) for e, eid, pid in work]
     for e, eid, pid, job in jobs:
         try:
             inv = job.result()
@@ -220,10 +271,20 @@ def draft_invites_for(conn, events: list[dict], event_ids: dict, stored_in_db: b
                 save(e, by_id[pid], inv)
             drafts[e["title"]] += 1
         except Exception as ex:
-            errors.append(f"invite {e.get('title')} -> {pid}: {type(ex).__name__}")
+            errors.append(f"invite {e.get('title')} -> {pid}: {invite_error(ex)}")
+            log.warning("invite %s -> %s failed: %s", e.get("title"), pid, invite_error(ex))
     if conn is not None:
         conn.commit()
-    return {"drafts": drafts, "errors": errors}
+    drafted = sum(drafts.values())
+    return {"drafts": drafts, "attempted": len(work), "drafted": drafted, "errors": errors}
+
+
+def invites_failed(out: dict) -> str | None:
+    """A batch that tried invites and drafted none is a failure, never "done" with 0 invites: the reason, else None."""
+    if out.get("attempted") and not out.get("drafted"):
+        first = next((e for e in out.get("errors") or [] if e.startswith("invite ")), "no error recorded")
+        return f"0 of {out['attempted']} invites drafted (first error: {first})"
+    return None
 
 
 def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: list[dict] | None = None,
@@ -288,6 +349,7 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
                             stored_in_db, people, audience=audience, invite=invite, save=save)
     drafts = out["drafts"]
     errors += out["errors"]
+    invites = {"attempted": out["attempted"], "drafted": out["drafted"], "failed": invites_failed(out)}
 
     return {
         "as_of": as_of,
@@ -301,6 +363,7 @@ def refresh(conn, urls: dict | None = None, as_of: str | None = None, people: li
                                for c in events["changed"]],
                    "removed": [e["title"] for e in events["removed"]]},
         "drafts": drafts,
+        "invites": invites,
         "errors": errors,
     }
 
