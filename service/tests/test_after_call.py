@@ -1,0 +1,138 @@
+"""B6 after-call agent: propose writes nothing; Apply writes each action once; tasks undo; events are
+never invented; pledges never count as money raised. No network (rules path, or a stood-in model)."""
+
+import json
+from datetime import date
+
+import pytest
+
+from service import after_call_agent as aca, db
+
+TODAY = date(2026, 11, 8)
+# Christian's demo script (web/.../voice/transcriptSource.ts), with Rosa Delgado as the supporter
+SCRIPT = [
+    ("you", "Staff", "Hi Rosa, I'm calling from the foundation. Do you have a minute?"),
+    ("them", "Rosa", "Of course. Is everything okay?"),
+    ("you", "Staff", "Everything's fine. Your monthly gift didn't go through in October, so I wanted to check in."),
+    ("them", "Rosa", "Oh, I got a new card last month. I forgot to update it."),
+    ("them", "Rosa", "I still want to keep giving $50 a month."),
+    ("you", "Staff", "No problem. I can text you a secure link to update your card."),
+    ("them", "Rosa", "Perfect. And put me down for the beach cleanup on the 21st."),
+    ("you", "Staff", "Will do. Thank you for sticking with us since 2021."),
+    ("them", "Rosa", "Thank you for calling. Talk soon!"),
+]
+EFFECT_TABLES = ("tasks", "pledges", "research_facts")
+
+
+@pytest.fixture
+def env(tmp_path, monkeypatch):
+    path = tmp_path / "donors.db"
+    monkeypatch.setenv("DONORS_DB", str(path))
+    monkeypatch.setenv("SCORE_AS_OF", TODAY.isoformat())
+    monkeypatch.setenv("AFTER_CALL_DRAFTER", "rules")
+    monkeypatch.setattr(aca, "PROPOSALS_FILE", tmp_path / "proposals.json")
+    aca._PROPOSALS.clear()
+    conn = db.connect(path)
+    db.create_schema(conn)
+    rosa = conn.execute("INSERT INTO donors (full_name, first_name, last_name, donor_type) "
+                        "VALUES ('Rosa Delgado', 'Rosa', 'Delgado', 'individual')").lastrowid
+    conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 50, '2026-09-01', 'online')", (rosa,))
+    beach = conn.execute("INSERT INTO events (title, starts_at, place, source_url) VALUES "
+                         "('Beach Cleanup (SAMPLE)', '2026-11-21', 'Crandon Park', 'https://example.org/beach')").lastrowid
+    conn.execute("INSERT INTO events (title, starts_at, source_url) VALUES ('Give Miami Day', '2026-11-19', 'https://www.givemiamiday.org/')")
+    conn.execute("INSERT INTO call_notes (id, title, created_at, transcript, destinations) VALUES (?, ?, ?, ?, ?)",
+                 ("note-1", "Call with Rosa", "2026-11-08T10:00:00",
+                  json.dumps([{"speaker": s, "name": n, "text": t, "at": i} for i, (s, n, t) in enumerate(SCRIPT)]),
+                  json.dumps([{"kind": "donor", "id": rosa, "label": "Rosa Delgado"}])))
+    conn.commit()
+    yield conn, rosa, beach
+    conn.close()
+
+
+def counts(conn):
+    c = {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in EFFECT_TABLES}
+    c["rsvp"] = conn.execute("SELECT COUNT(*) FROM event_audience WHERE rsvp IS NOT NULL").fetchone()[0]
+    return c
+
+
+def test_demo_call_proposes_the_expected_actions_and_writes_nothing(env):
+    conn, rosa, beach = env
+    before = counts(conn)
+    got = aca.propose(conn, "note-1", TODAY)
+    types = [a["type"] for a in got["actions"]]
+    assert types.count("create_task") == 1 and "record_pledge" in types and "rsvp_event" in types
+    assert types.count("add_context_note") == 2
+    pledge = next(a for a in got["actions"] if a["type"] == "record_pledge")["payload"]
+    assert (pledge["amount"], pledge["frequency"], pledge["person_id"]) == (50.0, "monthly", rosa)
+    rsvp = next(a for a in got["actions"] if a["type"] == "rsvp_event")["payload"]
+    assert rsvp == {"event_id": beach, "person_id": rosa, "rsvp": "yes"}       # "the 21st" -> the beach cleanup, not GMD
+    assert counts(conn) == before == {"tasks": 0, "pledges": 0, "research_facts": 0, "rsvp": 0}
+
+
+def test_apply_writes_every_action_once_and_tasks_undo(env):
+    from service import tasks
+    conn, rosa, beach = env
+    got = aca.propose(conn, "note-1", TODAY)
+    ids = [a["id"] for a in got["actions"]]
+    out = aca.apply(conn, "note-1", ids)
+    assert len(out["applied"]) == len(ids) and out["skipped"] == []
+    assert counts(conn) == {"tasks": 1, "pledges": 1, "research_facts": 2, "rsvp": 1}
+    assert conn.execute("SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = ?", (beach, rosa)).fetchone()[0] == "yes"
+    task = conn.execute("SELECT source, person_id, due FROM tasks").fetchone()
+    assert tuple(task) == ("call", rosa, TODAY.isoformat())
+    again = aca.apply(conn, "note-1", ids)                                        # second click: nothing new
+    assert again["applied"] == [] and all(s["why"] == "already applied" for s in again["skipped"])
+    token = next(a["ref"]["undo_token"] for a in out["applied"] if a["type"] == "create_task")
+    tasks.undo(conn, token)
+    assert conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 0
+
+
+def test_pledges_never_count_as_money_raised(env):
+    conn, rosa, _ = env
+    raised = conn.execute("SELECT COALESCE(SUM(amount), 0) FROM gifts").fetchone()[0]
+    got = aca.propose(conn, "note-1", TODAY)
+    aca.apply(conn, "note-1", [a["id"] for a in got["actions"] if a["type"] == "record_pledge"])
+    assert conn.execute("SELECT COALESCE(SUM(amount), 0) FROM gifts").fetchone()[0] == raised
+    assert [(p["amount"], p["frequency"], p["status"]) for p in aca.list_pledges(conn, rosa)] == [(50.0, "monthly", "pledged")]
+
+
+def test_an_event_that_isnt_on_the_calendar_becomes_a_review_task(env):
+    conn, _, _ = env
+    conn.execute("DELETE FROM events WHERE title LIKE 'Beach%'")
+    conn.commit()
+    got = aca.propose(conn, "note-1", TODAY)
+    assert "rsvp_event" not in [a["type"] for a in got["actions"]]
+    review = [a for a in got["actions"] if a["type"] == "create_task" and a["payload"]["kind"] == "review"]
+    assert review and "beach cleanup on the 21st" in review[0]["payload"]["title"]
+
+
+def test_model_actions_are_checked_against_the_transcript_and_calendar(env, monkeypatch):
+    conn, rosa, beach = env
+    P = aca.ProposedAction
+    fake = aca.CallProposal(steps=["Do things."], actions=[
+        P(type="record_pledge", label="Pledge $500", evidence="I still want to keep giving $50 a month.", amount=500, frequency="monthly"),
+        P(type="create_task", label="Invented", evidence="Rosa asked for a tote bag.", task_kind="other", task_title="Mail a tote"),
+        P(type="rsvp_event", label="RSVP GMD", evidence="put me down for the beach cleanup on the 21st", event_id=999, rsvp="yes"),
+        P(type="tag_interest", label="Tag", evidence="beach cleanup", tag="environment"),
+    ])
+    monkeypatch.setattr(aca, "model_proposal", lambda *a, **k: fake)
+    got = aca.propose(conn, "note-1", TODAY, use_model=True)
+    assert [a["type"] for a in got["actions"]] == ["rsvp_event"]                  # the made-up id re-resolved by its date
+    assert got["actions"][0]["payload"]["event_id"] == beach
+    why = {d["label"]: d["why"] for d in got["dropped"]}
+    assert "amount isn't said" in why["Pledge $500"] and "isn't in the transcript" in why["Invented"]
+    assert "interest tags" in why["Tag"]
+
+
+def test_routes(env):
+    from fastapi.testclient import TestClient
+    from service.main import app
+    conn, rosa, _ = env
+    c = TestClient(app)
+    assert c.post("/call-notes/nope/actions").status_code == 404
+    prop = c.post("/call-notes/note-1/actions").json()
+    assert {"steps", "actions"} <= set(prop) and prop["actions"]
+    assert c.post("/call-notes/note-1/apply", json={"action_ids": [prop["actions"][0]["id"]]}).json()["applied"]
+    pledge_id = next(a["id"] for a in prop["actions"] if a["type"] == "record_pledge")
+    c.post("/call-notes/note-1/apply", json={"action_ids": [pledge_id]})
+    assert c.get(f"/people/{rosa}/pledges").json()[0]["amount"] == 50.0

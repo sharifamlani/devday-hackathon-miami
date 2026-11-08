@@ -530,6 +530,25 @@ CRM_DEFAULT_TAGS = [
     (6, "Legacy society", "#eddcd2"),
 ]
 
+# B6 after-call agent (86): a pledge is a promise, never money raised; it lives apart from gifts and no total
+# or score reads it.
+PLEDGES_SCHEMA = """
+CREATE TABLE IF NOT EXISTS pledges (
+    id           INTEGER PRIMARY KEY,
+    person_id    INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+    amount       REAL NOT NULL CHECK (amount > 0),
+    frequency    TEXT NOT NULL DEFAULT 'one_time' CHECK (frequency IN ('one_time', 'monthly', 'annual')),
+    expected_by  TEXT,                          -- YYYY-MM-DD when the donor named a date
+    status       TEXT NOT NULL DEFAULT 'pledged' CHECK (status IN ('pledged', 'fulfilled', 'cancelled')),
+    note         TEXT,                          -- the words from the call it rests on
+    call_note_id TEXT REFERENCES call_notes(id) ON DELETE SET NULL,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_pledges_person ON pledges(person_id);
+"""
+SCHEMA += PLEDGES_SCHEMA
+TABLES = ["pledges"] + TABLES
+
 CONTACT_TYPES = ("giver", "neighbor", "community")
 # Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
 DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
@@ -551,6 +570,7 @@ ADDED_COLUMNS = {
     # A declined or failed charge is kept on record but never counted in totals or scoring.
     "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed'))"},
     # §21.2.3 context store (86): what each fact is, a short title, its embedding, and whether it came from cache
+    "event_audience": {"rsvp": "TEXT CHECK (rsvp IN ('yes', 'no', 'maybe'))"},   # B6: said on a call
     "org_context": {
         "kind": "TEXT CHECK (kind IN ('success_story', 'program_update', 'use_of_funds', 'org_health', 'event', 'news', 'other'))",
         "title": "TEXT",
