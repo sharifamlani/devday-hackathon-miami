@@ -39,7 +39,7 @@ export type AgentApproval = {
   call_id: string;
   tool: string;
   args: Record<string, unknown>;
-  /** One plain line from the service ("Call Maria Delgado at ***-***-0101"); absent = show the args. */
+  /** One plain line from the service ("Call Maria Delgado at +1 (305) 555-0101"); absent = show the args. */
   summary?: string | null;
 };
 

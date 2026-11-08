@@ -748,8 +748,7 @@ AUTO_MERGE_AT = float(os.getenv("AUTO_MERGE_AT", "0.8"))
 
 def duplicate_pairs(conn) -> list[dict]:
     """Pending duplicate pairs, surest first, each side with its giving (gifts that went through), so the
-    agent and the user can judge. Addresses are masked."""
-    from service.routes_campaigns import mask_address
+    agent and the user can judge. Email and phone are shown in full (Sharif, rule 15)."""
     out = []
     for s in conn.execute("SELECT * FROM duplicate_suggestions WHERE status = 'pending' ORDER BY confidence DESC, id"):
         sides = {}
@@ -760,7 +759,7 @@ def duplicate_pairs(conn) -> list[dict]:
             g = conn.execute("SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total, MAX(gift_date) AS last FROM gifts "
                              "WHERE donor_id = ? AND COALESCE(status, 'ok') = 'ok'", (pid,)).fetchone()
             sides[side] = None if d is None else {
-                **dict(d), "email": mask_address(d["email"], "email"), "phone": mask_address(d["phone"], "text"),
+                **dict(d),                                    # full email and phone (Sharif, rule 15)
                 "gifts": g["n"], "total_given": round(g["total"], 2), "last_gift": g["last"]}
         out.append({"suggestion_id": s["id"], "confidence": s["confidence"], "reasons": json.loads(s["reasons"]),
                     "a": sides["a"], "b": sides["b"]})
@@ -1377,12 +1376,12 @@ def build_agent(tab: str, selection: list[int], event_id: int | None, first_turn
 
 
 def approval_summary(tool: str, args: dict) -> str | None:
-    """One plain line for an approval card ("Call Maria Delgado at ***-***-0101"); None = show the arguments."""
-    from service.routes_campaigns import mask_address
+    """One plain line for an approval card ("Call Maria Delgado at +1 (305) 555-0101"); None = show the arguments."""
+    from service.phone import shown
     if tool == "call_person" and args.get("person_id") is not None:
         rows = query("SELECT full_name, phone FROM donors WHERE id = ?", (args["person_id"],))
         if rows:
-            phone = mask_address(rows[0]["phone"], "text")
+            phone = shown(rows[0]["phone"])
             return f"Call {rows[0]['full_name']}" + (f" at {phone}" if phone else " (no phone number on file)")
     if tool == "send" and args.get("batch_id") is not None:
         return send_summary(args["batch_id"], args.get("message_ids"))

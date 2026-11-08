@@ -47,7 +47,8 @@ export type CallSheet = {
   org_name?: string | null;
   location?: string | null;
   has_phone: boolean;
-  phone_masked: string | null;
+  /** The full number (Sharif, rule 15). */
+  phone: string | null;
   relationship: {
     gift_count: number;
     total: number;
@@ -88,7 +89,7 @@ export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
             {[sheet.org_name, sheet.location].filter(Boolean).join(" · ")}
           </p>
           <p data-testid="call-sheet-phone" className="mt-0.5">
-            {sheet.has_phone ? `Phone ${sheet.phone_masked}` : "No phone number on file"}
+            {sheet.has_phone ? `Phone ${sheet.phone}` : "No phone number on file"}
           </p>
         </div>
         {canCall && !calling && (

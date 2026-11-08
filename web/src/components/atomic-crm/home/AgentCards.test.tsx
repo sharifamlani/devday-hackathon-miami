@@ -31,13 +31,13 @@ describe("ApprovalCard", () => {
   it("shows the service's plain summary instead of raw arguments", () => {
     const html = renderToString(
       <ApprovalCard
-        approval={{ call_id: "c1", tool: "call_person", args: { person_id: 17 }, summary: "Call Elizabeth Fontaine at ***-***-0104" }}
+        approval={{ call_id: "c1", tool: "call_person", args: { person_id: 17 }, summary: "Call Elizabeth Fontaine at +1 (305) 555-0104" }}
         decided={false}
         disabled={false}
         onDecide={() => {}}
       />,
     );
-    expect(html).toContain("Call Elizabeth Fontaine at ***-***-0104");
+    expect(html).toContain("Call Elizabeth Fontaine at +1 (305) 555-0104");
     expect(html).not.toContain("person id");
   });
 
@@ -55,7 +55,7 @@ describe("StepCard call sheet", () => {
     person_id: 7,
     name: "Elizabeth Fontaine",
     has_phone: true,
-    phone_masked: "***-***-0104",
+    phone: "+1 (305) 555-0104",
     relationship: {
       gift_count: 2,
       total: 350,
@@ -76,7 +76,7 @@ describe("StepCard call sheet", () => {
 
   it("renders the sheet with her masked phone, giving, a declined charge and talking points", () => {
     const html = renderToString(<StepCard step={step(sheet)} />).replace(/<!-- -->/g, "");
-    expect(html).toContain("***-***-0104");
+    expect(html).toContain("+1 (305) 555-0104");
     expect(html).toContain("$350 across 2 gifts");
     expect(html).toContain("was declined");
     expect(html).toContain("Thank Elizabeth Fontaine");
@@ -84,7 +84,7 @@ describe("StepCard call sheet", () => {
   });
 
   it("says No phone number on file and shows no Call button when there is none", () => {
-    const html = renderToString(<StepCard step={step({ ...sheet, has_phone: false, phone_masked: null })} />);
+    const html = renderToString(<StepCard step={step({ ...sheet, has_phone: false, phone: null })} />);
     expect(html).toContain("No phone number on file");
     expect(html).not.toContain("Call</button>");
   });
@@ -108,9 +108,9 @@ describe("StepCard: pairs the agent merged by itself", () => {
             kind: "merged_pairs",
             pairs: [
               { suggestion_id: 1, kept: "Rosa Elena Martinez", merged_in: "Rosa E. Martinez", confidence: 0.9,
-                evidence: "similar name + same phone: ***-***-0150", undo_token: "u1" },
+                evidence: "similar name + same phone: +1 (305) 555-0150", undo_token: "u1" },
               { suggestion_id: 2, kept: "Mildred Hayes", merged_in: "Millie Hayes", confidence: 0.9,
-                evidence: "similar name + same phone: ***-***-0159", undo_token: "u2", undone: true },
+                evidence: "similar name + same phone: +1 (305) 555-0159", undo_token: "u2", undone: true },
             ],
           },
         }}
@@ -119,7 +119,7 @@ describe("StepCard: pairs the agent merged by itself", () => {
     );
     expect(html).toContain("Rosa E. Martinez → Rosa Elena Martinez");
     expect(html).toContain("90% match");
-    expect(html).toContain("similar name + same phone: ***-***-0150");
+    expect(html).toContain("similar name + same phone: +1 (305) 555-0150");
     expect(html).toContain('aria-label="Undo merge of Rosa E. Martinez and Rosa Elena Martinez"');
     expect(html).not.toContain('aria-label="Undo merge of Millie Hayes and Mildred Hayes"');   // already undone
     expect(html).toContain("Undone · back in the review list");
