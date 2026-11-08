@@ -180,6 +180,10 @@
     box-shadow 150ms ease;
 }
 
+.kindred-start {
+  margin-block-start: 28px;
+}
+
 .kindred-upload:hover {
   background: #343936;
   box-shadow: 0 5px 18px 1px rgb(244 217 88 / 12%);

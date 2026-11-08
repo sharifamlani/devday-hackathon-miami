@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -33,53 +32,12 @@ const subscribeToHash = (onChange: () => void) => {
 };
 const getHash = () => window.location.hash;
 
-/** Keep existing workspace deep links; the bare app URL opens the landing page. */
+/** Keep workspace hash routes; the bare app URL is always the landing page. */
 export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
   const hash = useSyncExternalStore(subscribeToHash, getHash, () => "");
-  // Live mode: the bare URL shows the landing only while the app has no people
-  // and first-run setup is done or skipped; otherwise it goes straight to the
-  // board (where onboarding opens when it is still to do). "#/welcome" always
-  // shows the landing. The read-only snapshot build always has people, so it
-  // keeps the landing as its front door.
-  const hasPeople = useHasPeople();
-  // One front door: while first-run setup is still to do, the empty app goes
-  // straight into it (onboarding step 1 is where files are uploaded, once).
-  // The landing is for an empty app whose setup was already finished or skipped.
-  const { data: onboarding } = useOnboarding();
-  const setupPending = DATA_MODE === "local" && !onboarding.completedAt;
-  // useHasPeople reads /donors once, on mount: for an app that started empty it
-  // stays false. When setup finishes in this page load its files have been
-  // imported, so the board stays; the landing is never the next screen.
-  const sawSetupPending = useRef(false);
-  if (setupPending) sawSetupPending.current = true;
-  const justFinishedSetup = sawSetupPending.current && !setupPending;
   if (hash === "#/welcome") return <KindredLanding />;
   if (hash !== "") return children;
-  if (hasPeople === null) return null;
-  return hasPeople || setupPending || justFinishedSetup ? (
-    children
-  ) : (
-    <KindredLanding />
-  );
-};
-
-/** null while the live service is being asked; always false in snapshot mode. */
-const useHasPeople = (): boolean | null => {
-  const [hasPeople, setHasPeople] = useState<boolean | null>(
-    DATA_MODE === "local" ? null : false,
-  );
-  useEffect(() => {
-    if (DATA_MODE !== "local") return;
-    let live = true;
-    donorDeskMethods
-      .getDonors()
-      .then((donors) => live && setHasPeople(donors.length > 0))
-      .catch(() => live && setHasPeople(false));
-    return () => {
-      live = false;
-    };
-  }, []);
-  return hasPeople;
+  return <KindredLanding />;
 };
 
 /**
@@ -139,6 +97,11 @@ export const KindredLanding = () => {
   const [error, setError] = useState("");
   const [result, setResult] = useState<IngestResult | null>(null);
   const canUpload = DATA_MODE === "local";
+  const startOnboarding = () => {
+    // React Admin uses a hash router. The force flag starts at step one even
+    // when this browser completed setup during an earlier demo run.
+    window.location.hash = "#/?onboarding=1";
+  };
   const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
     accept: ACCEPTED_TYPES,
     multiple: true,
@@ -204,6 +167,13 @@ export const KindredLanding = () => {
         <p className="kindred-subtitle">
           Your mission deserves more of your time.
         </p>
+        <button
+          className="kindred-upload kindred-start"
+          type="button"
+          onClick={startOnboarding}
+        >
+          Get started
+        </button>
         <div
           {...getRootProps({
             className: `kindred-dropzone${isDragActive ? " is-dragging" : ""}`,

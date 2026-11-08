@@ -1,12 +1,12 @@
 # Kindred landing design
 
-The primary React app now opens on the approved Kindred landing page at its bare URL. The existing workspace remains at `#/`, and existing hash deep links still work. `#/welcome` returns to the landing.
+The primary React app opens on the Kindred landing page at its bare URL, regardless of saved onboarding state or whether donor records already exist. **Get started** opens the CRM home route with the forced first-run flag, so onboarding opens from the landing. The existing workspace remains directly available at `#/`, and existing hash deep links still work. `#/welcome` returns to the landing.
 
 **Headline:** Less time on tasks. More time for people.
 
 **Supporting line:** Your mission deserves more of your time.
 
-The layout centers all information in one screen at the checked desktop and phone sizes. It uses white, charcoal, yellow and muted olive, with a crisp upload button and a faint outlined drop area. Both app entry points use the shared `DonorDesk` component, so the normal and Vercel demo builds receive the same design.
+The layout centers all information in one screen at the checked desktop and phone sizes. It uses white, charcoal, yellow and muted olive, with a crisp primary action and a faint outlined drop area. Both app entry points use the shared `DonorDesk` component, so the normal and Vercel demo builds receive the same design.
 
 The selected upload still uses a slightly roomier, 432px-wide drop area with a 25%-opacity hairline, transparent interior, and smaller 44px-high charcoal button. It accepts one CSV through drag-and-drop or the file chooser, highlights on drag/focus, and shows the selected filename before confirmation. Invalid file types are rejected.
 

@@ -33,7 +33,8 @@ features for those two tabs beyond that.
 
 | Feature | What it does | Where |
 |---|---|---|
-| **Onboarding** (3 steps) | **"Drag in your files."** → **"Tell us about your organization."** (the website) → **"Building your context."** → the dashboard. Step 1's receipt for the sample files reads "77 people · 131 gifts (+1 declined charge on record) from 8 files", then "9 possible duplicates to review": a declined card charge is kept on record but never counted as a gift. | `web/.../onboarding/`, `service/ingest_adapter.py` |
+| **Demo journey** | The bare app URL opens the landing page. **Get started** opens onboarding: upload/structure files → confirm the organization → research context → populated dashboard. Direct workspace hash routes remain available. | `web/.../landing/KindredLanding.tsx`, `web/.../onboarding/`, `service/main.py` |
+| **Onboarding** (3 steps) | **"Drag in your files."** → **"Tell us about your organization."** → **"Building your context."** → the dashboard. Step 1's receipt for the sample files reads "77 people · 131 gifts (+1 declined charge on record) from 8 files", then "9 possible duplicates to review": a declined card charge is kept on record but never counted as a gift. | `web/.../onboarding/`, `service/ingest_adapter.py` |
 | **Duplicates, with approval** | Fuzzy matches are suggestions: **Review merges →** opens "We found this donor twice", with **Merge ✓** or **Keep separate**. The gift history moves to the kept record; **Merge history → Undo merge** reverses it. | `web/.../contacts/DuplicateMerge.tsx`, `service/dedupe.py` |
 | **Automatic merges, reviewable** | Exact matches (same email, or the same name with nothing contradicting it) merge on upload and get a **"!"** marker: "Merged automatically, review", then **Keep merged** or **Split back**. | `web/.../contacts/AutoMergeFlag.tsx` |
 | **Home chat agent** | **"Ask the agent…"**: finds people, edits tasks and the calendar, drafts email and texts, plans event outreach, applies after-call actions, and shows each tool step. Writes have **Undo**. Sends, calls, merges and deletes wait on an approval card (**Send / Don't send**, **Call / Not now**, **Approve / Decline**). Sends are a **dry run** unless keys are set (below). "Who should I call today?" answers in the order of Home's attention list (failed → late → new, then lapsing) with each giver's saved next step. | `web/.../home/HomeChat.tsx`, `service/chat_agent.py` (`get_call_list`) |
@@ -107,7 +108,7 @@ On Windows (PowerShell or cmd), put the two `VITE_` lines in `web/.env.local` in
 set `VITE_DATA_MODE=local`), then run `npm run dev`. The service accepts the browser from `localhost:5173`/`5174`;
 add others with `CORS_ORIGINS` in `.env`.
 
-4. Open the app. **Step 1, "Drag in your files.":** drag in the 8 input files from `data/sample_inputs/`
+4. Open the app at `http://localhost:5173`. The landing page is the entry point; choose **Get started**. In **Step 1, "Drag in your files.":** drag in the 8 input files from `data/sample_inputs/`
    (`give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`,
    `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`,
    `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`; not `answer_key.json` or `_README.md`), or click
