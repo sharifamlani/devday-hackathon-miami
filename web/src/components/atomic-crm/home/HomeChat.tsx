@@ -25,7 +25,7 @@ import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
 import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
 import { ApprovalCard, StepCard } from "./AgentCards";
-import { DictationButton } from "../voice/DictationButton";
+import { DictationButton, DictationHint } from "../voice/DictationButton";
 import { useDictationInput } from "../voice/useDictationInput";
 import {
   answerSummary,
@@ -491,6 +491,7 @@ export const Composer = ({
           <ArrowRight className="size-5" aria-hidden="true" />
         </button>
       </form>
+      <DictationHint error={dictation.error} className="px-2" />
     </div>
   );
 };
