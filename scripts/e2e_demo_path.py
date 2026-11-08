@@ -114,7 +114,7 @@ def ask(page: Page, text: str, settle_s: int = 6, timeout_s: int = 150) -> tuple
     before = chat_text(page)
     box = page.get_by_placeholder("Ask the agent…")
     box.fill(text)
-    page.get_by_role("button", name="Send", exact=True).click()
+    page.locator("button[aria-label='Send']").last.click()   # the composer's Send (cards can carry a "Send" too, #150)
     t0, last, stable_since = time.time(), "", time.time()
     while time.time() - t0 < timeout_s:
         page.wait_for_timeout(1000)
@@ -269,14 +269,14 @@ def s5_home(page: Page, api: Api, web: str, shots: Path):
     page.screenshot(path=str(shots / "5_home.png"))
     s = api.get("/home/summary")
     alerts_expected = len(KEY["gift_alerts_expected"])
-    open_tasks = api.open_tasks()
+    open_tasks = [t for t in api.open_tasks() if (t.get("due") or "") <= KEY.get("as_of", "2026-11-08")]   # the tile counts today's
     task_rows = page.get_by_role("button", name=re.compile(r"^Work on with the agent: ")).count()
     side = page.get_by_role("complementary").first if page.get_by_role("complementary").count() else page.locator("body")
     side_text = side.inner_text()
     # Faye's home (#152): no glance tiles; the Tasks tile heading carries the open-task count
     tasks_head = re.search(r"Tasks\s*\n?\s*(\d+)", side_text)
     events_seen = [t for t in ("Give Miami Day", "Early Giving") if t in side_text]
-    record("5 home", f"API at risk = {alerts_expected} (answer key); Tasks tile count = open tasks; task rows; events in the agenda",
+    record("5 home", f"API at risk = {alerts_expected} (answer key); Tasks tile count = open tasks due today; task rows; events in the agenda",
            f"API risk {s['gifts_at_risk']} dup {s['duplicates']}; Tasks tile {tasks_head.group(1) if tasks_head else '-'} vs open "
            f"{len(open_tasks)}; rows {task_rows}; agenda {events_seen}",
            ok(s["gifts_at_risk"] == alerts_expected and bool(tasks_head) and int(tasks_head.group(1)) == len(open_tasks)
@@ -318,7 +318,7 @@ def s6_chat(page: Page, api: Api, shots: Path):
         record("6c send -> approval", "approval card (data-decision=pending) for a send",
                f"no approval card after {secs + round(time.time() - t0)}s; agent replied: '{' '.join(reply.split())[:160]}'", "FAIL")
         return
-    card.first.get_by_role("button", name="Approve", exact=True).click()
+    card.first.get_by_role("button").first.click()   # the yes button; its label depends on the tool ("Approve", "Send", ...)
     page.wait_for_timeout(4000)
     txt = chat_text(page)
     decided = chat_log(page).locator("[data-decision='approved']").count()
