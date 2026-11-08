@@ -156,20 +156,31 @@ export const undoStep = async (msgIndex: number, stepIndex: number, refetch: Ref
  */
 export const WAITING_PREFIX = "Waiting for you: ";
 
+/** True once every card in this message has an answer (or the run was already handled). */
+export const allDecided = (m: Extract<AgentMessage, { role: "assistant" }>) =>
+  Boolean(m.handled) || m.approvals.every((a) => m.decisions?.[a.call_id] !== undefined);
+
+/**
+ * Decide some of a message's cards (usually the one clicked). Only those go to /chat/approve; the service
+ * keeps the others pending and pauses on them again under a new run_id (same call_ids), so the cards left
+ * stay where they are, now pointing at that run. Approving one card never declines another.
+ */
 export const decide = async (msgIndex: number, decisions: Record<string, boolean>, refetch: Refetch) => {
   const m = state.messages[msgIndex];
-  if (m?.role !== "assistant" || !m.runId || m.decided || state.pending) return;
-  set({
-    messages: state.messages.map((x, i) =>
-      i === msgIndex
-        ? {
-            ...m,
-            text: m.text.startsWith(WAITING_PREFIX) ? "" : m.text,
-            decided: true,
-            decisions: Object.fromEntries(m.approvals.map((a) => [a.call_id, Boolean(decisions[a.call_id])])),
-          }
-        : x,
+  if (m?.role !== "assistant" || !m.runId || m.handled || state.pending) return;
+  const fresh = Object.fromEntries(
+    Object.entries(decisions).filter(
+      ([id]) => m.approvals.some((a) => a.call_id === id) && m.decisions?.[id] === undefined,
     ),
+  );
+  if (!Object.keys(fresh).length) return;
+  const answered = (x: typeof m): typeof m => {
+    const next = { ...x, decisions: { ...x.decisions, ...fresh } };
+    const done = allDecided(next);
+    return { ...next, decided: done, text: done && x.text.startsWith(WAITING_PREFIX) ? "" : x.text };
+  };
+  set({
+    messages: state.messages.map((x, i) => (i === msgIndex ? answered(m) : x)),
     pending: true,
     error: null,
   });
@@ -177,9 +188,28 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
     const r = await post<ChatResponse>("/chat/approve", {
       run_id: m.runId,
       approved_by: APPROVER_NAME,
-      approvals: m.approvals.map((a) => ({ call_id: a.call_id, approve: Boolean(decisions[a.call_id]) })),
+      approvals: Object.entries(fresh).map(([call_id, approve]) => ({ call_id, approve })),
     });
-    set({ messages: [...state.messages, toAssistant(r)], pending: false });
+    const again = new Set((r.approvals ?? []).map((a) => a.call_id));
+    const onScreen = new Set<string>();
+    // Cards still waiting anywhere in the thread follow the run to its new id.
+    const messages = state.messages.map((x) => {
+      if (x.role !== "assistant" || allDecided(x)) return x;
+      const waiting = x.approvals.filter((a) => x.decisions?.[a.call_id] === undefined && again.has(a.call_id));
+      waiting.forEach((a) => onScreen.add(a.call_id));
+      return waiting.length ? { ...x, runId: r.run_id } : x;
+    });
+    const reply = toAssistant(r);
+    // A card already on screen isn't shown twice (nor its "waiting for your approval" step); the reply keeps
+    // only what's new.
+    const extra = {
+      ...reply,
+      approvals: reply.approvals.filter((a) => !onScreen.has(a.call_id)),
+      steps: reply.steps.filter((st) => !(st.status === "awaiting_approval" && st.call_id && onScreen.has(st.call_id))),
+    };
+    if (!extra.approvals.length && extra.text.startsWith(WAITING_PREFIX)) extra.text = "";
+    const show = extra.text || extra.steps.length || extra.approvals.length;
+    set({ messages: show ? [...messages, extra] : messages, pending: false });
     const scopes = scopesOf(r.steps ?? []);
     if (scopes.length) refetch(scopes);
   } catch (e) {

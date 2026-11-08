@@ -665,7 +665,8 @@ class ApproveRequest(BaseModel):
     run_id: str
     approved_by: str = Field(min_length=1, max_length=120)
     approvals: list[ApprovalDecision] = Field(default_factory=list,
-                                              description="One per pending call; any left out is declined")
+                                              description="The calls decided now; any left out stays pending (the response "
+                                                          "pauses on it again under a new run_id)")
 
 
 @app.post("/chat/approve")

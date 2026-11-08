@@ -996,7 +996,9 @@ def run_chat(message: str, tab: str, selection: list[int] | None = None, history
 
 
 def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> dict:
-    """A person approved or declined the paused calls (call_id -> approve). Unanswered calls are declined."""
+    """A person approved or declined some of the paused calls (call_id -> approve). Only those are decided:
+    a call left out stays pending, so the run pauses on it again (same call_id, new run_id) and its card still
+    works. Approving one of two cards must never decline the other."""
     spec = PENDING.pop(run_id, None)
     if spec is None:
         raise KeyError(f"no paused run {run_id}")
@@ -1004,6 +1006,7 @@ def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> di
     agent = build_agent(spec["tab"], spec["selection"], spec["event_id"], spec["first_turn"])
     state = asyncio.run(RunState.from_string(agent, spec["state"], context_override=ctx))
     for item in state.get_interruptions():
-        (state.approve if decisions.get(item.call_id) else state.reject)(item)
+        if item.call_id in decisions:
+            (state.approve if decisions[item.call_id] else state.reject)(item)
     result = Runner.run_sync(agent, state, context=ctx, max_turns=12)
     return respond(result, ctx, spec, spec["steps"])
