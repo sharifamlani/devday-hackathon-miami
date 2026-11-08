@@ -1,16 +1,12 @@
 /**
- * The Kindred tile: thin border, card fill and a soft yellow (bottom-left)
- * and yellow-green (bottom-right) glow. Local stand-in until the shared
- * `tile` utility lands in index.css; swap this one constant for it then.
+ * The Kindred tile: the shared `tile` utility in index.css (thin border,
+ * card fill, yellow-green glow at the bottom corners).
  */
-export const tile =
-  "rounded-[18px] border border-border bg-card " +
-  "bg-[image:radial-gradient(85%_55%_at_0%_100%,color-mix(in_oklab,var(--brand)_17%,transparent),transparent_72%),radial-gradient(85%_55%_at_100%_100%,color-mix(in_oklab,color-mix(in_oklab,var(--brand),var(--chart-2)_45%)_20%,transparent),transparent_72%)] " +
-  "dark:bg-[image:radial-gradient(85%_55%_at_0%_100%,color-mix(in_oklab,var(--brand)_8%,transparent),transparent_72%),radial-gradient(85%_55%_at_100%_100%,color-mix(in_oklab,color-mix(in_oklab,var(--brand),var(--chart-2)_45%)_8%,transparent),transparent_72%)]";
+export const tile = "tile";
 
 /** The dark focus card: same glow, stronger, on the primary (ink) fill. */
 export const focusCard =
-  "rounded-2xl bg-primary text-primary-foreground dark:bg-secondary dark:text-secondary-foreground " +
+  "rounded-2xl bg-strong text-strong-foreground " +
   "bg-[image:radial-gradient(80%_70%_at_0%_100%,color-mix(in_oklab,var(--brand)_22%,transparent),transparent_70%),radial-gradient(80%_70%_at_100%_100%,color-mix(in_oklab,color-mix(in_oklab,var(--brand),var(--chart-2)_45%)_18%,transparent),transparent_70%)]";
 
 /** Section heading inside a tile. */

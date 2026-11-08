@@ -49,7 +49,7 @@ import { tile } from "./tile";
  * Board height at three columns: the viewport under the header and the
  * shell's 16px padding. Adjust here if the shell header changes height.
  */
-const BOARD_HEIGHT = "@min-[1081px]:h-[calc(100dvh-6.5rem)]";
+const BOARD_HEIGHT = "@min-[1081px]:h-full";
 
 /**
  * Home ("/"): a three-column board. Left: quarter progress, today at a
@@ -188,7 +188,7 @@ export const HomePage = () => {
   const loading = donors.isPending || targets.isPending;
 
   return (
-    <div className="@container">
+    <div className="@container h-full">
       <p role="status" aria-live="polite" className="sr-only">
         {status}
       </p>
