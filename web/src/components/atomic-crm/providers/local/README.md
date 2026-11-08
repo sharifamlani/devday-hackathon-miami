@@ -24,6 +24,12 @@ VITE_APPROVER_NAME=Philanthropy team (demo)   # recorded as approved_by
 The service's CORS allows `localhost:5173` and `5174`, so run `npm run dev -- --port 5173` in local mode.
 Both modes use the same parser (`parse.ts`), so a screen that works on one works on the other.
 
+**Ask in snapshot mode** (`askHosted.ts`): the example questions and chip edits are answered in the
+browser. Any other question is POSTed to the Vercel Function `web/api/ask.ts` as `{question, as_of}`;
+it returns only a filter (the model never sees donor rows) and `applyAskFilter` runs it over the
+snapshot. Without `OPENAI_API_KEY` on the Vercel project it answers 503 and the page says live AI
+isn't configured. Under `vite dev` there is no `/api`, so free text gets a "couldn't answer" fallback.
+
 ## 2. Quick start
 
 The hooks use react-query plus the ra-core data provider, so call them from inside `<CRM>` (see

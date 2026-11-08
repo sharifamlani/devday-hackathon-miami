@@ -8,7 +8,8 @@ import type {
   ApiWhy,
 } from "./apiTypes";
 import { campaignSnapshotMethods } from "./campaigns";
-import { askSnapshot, type ApiSnapshotWithAsk } from "./ask";
+import type { ApiSnapshotWithAsk } from "./ask";
+import { askHosted } from "./askHosted";
 import { APPROVER_NAME, SNAPSHOT_URL } from "./config";
 import { requireWebsite } from "./validate";
 import {
@@ -545,8 +546,9 @@ export const snapshotMethods: BaseDonorDeskMethods = {
     };
   },
   getContext: async () => contextOf(await loadSnapshot()),
+  // Examples and chip edits stay in the browser; free text asks /api/ask for a filter.
   ask: async (question, filter, intent) =>
-    askSnapshot(
+    askHosted(
       (await loadSnapshot()) as ApiSnapshotWithAsk,
       question,
       filter,

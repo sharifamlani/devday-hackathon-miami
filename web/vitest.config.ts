@@ -77,6 +77,8 @@ export default defineConfig({
             // Harness hook tests are Node-only (they import node:fs / node:path
             // and spawn subprocesses); they run under the "claude" project below.
             ".claude/**",
+            // Vercel Function tests set Origin/Host headers; they run under "api".
+            "api/**",
           ],
           server: {
             deps: {
@@ -95,6 +97,15 @@ export default defineConfig({
           // so they need more headroom than the default 5s.
           testTimeout: 30000,
           hookTimeout: 30000,
+        },
+      },
+      {
+        // Vercel Functions in api/ (POST /api/ask): plain Node, no browser.
+        test: {
+          name: "api",
+          globals: true,
+          environment: "node",
+          include: ["api/**/*.test.ts"],
         },
       },
       {
