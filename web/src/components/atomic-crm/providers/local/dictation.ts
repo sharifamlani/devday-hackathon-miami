@@ -64,6 +64,18 @@ export const applyMessage = (
 /** No audio frame from the microphone this long after it started: report it. */
 export const NO_AUDIO_MS = 4000;
 export const NO_AUDIO_MESSAGE = "No audio is reaching dictation. Check your microphone.";
+export const MIC_BLOCKED_MESSAGE =
+  "Microphone access is blocked for this site. Allow it in the browser's address bar, then press the mic again.";
+
+/** True when the browser says this site may not use the microphone (no prompt will appear). */
+const micBlocked = async (): Promise<boolean> => {
+  try {
+    const status = await navigator.permissions?.query({ name: "microphone" as PermissionName });
+    return status?.state === "denied";
+  } catch {
+    return false; // the browser can't tell (Firefox, Safari): the no-audio watchdog still catches it
+  }
+};
 
 const MOCK_SCRIPT: { after: number; message: ServerMessage }[] = [
   { after: 300, message: { type: "interim", text: "Who gave on" } },
@@ -112,6 +124,14 @@ const useLiveTranscription = (purpose: TranscribePurpose) => {
     setState({ interim: "", finals: [], error: null });
     startedAt.current = performance.now();
     setStatus("connecting");
+
+    // A blocked microphone never prompts and never errors (the recorder just hears nothing):
+    // say so now rather than after the 4 s no-audio watchdog.
+    if (await micBlocked()) {
+      setState((s) => ({ ...s, error: MIC_BLOCKED_MESSAGE }));
+      setStatus("error");
+      return;
+    }
 
     if (!(await voiceServed())) {
       if (MOCK_ENDPOINTS) {

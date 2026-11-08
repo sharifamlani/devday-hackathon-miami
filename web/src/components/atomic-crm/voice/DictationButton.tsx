@@ -67,16 +67,48 @@ export const DictationButton = ({
 };
 
 /**
- * One visible line under the box when dictation fails (no service, no key, no
- * audio), so the reason isn't only in a tooltip. Announced as it appears.
+ * One visible line under the box: why dictation failed (no service, no key, blocked mic, no
+ * audio), or, while listening, the words being recognized. Without the second, a single-line box
+ * that already holds text showed nothing until the speaker paused, which reads as "it doesn't
+ * work". Announced as it changes.
  */
-export const DictationHint = ({ error, className }: { error: string | null; className?: string }) => (
-  <p role="status" aria-live="polite" className={cn(error ? "mt-2 flex items-center gap-1.5 text-xs text-[#c62a2f]" : "sr-only", className)}>
-    {error && (
-      <>
-        <MicOff className="size-3.5 shrink-0" aria-hidden />
-        {error}
-      </>
-    )}
-  </p>
-);
+export const DictationHint = ({
+  error,
+  listening = false,
+  interim = "",
+  className,
+}: {
+  error: string | null;
+  listening?: boolean;
+  interim?: string;
+  className?: string;
+}) => {
+  const showListening = !error && listening;
+  return (
+    <p
+      role="status"
+      aria-live="polite"
+      data-dictation-hint={error ? "error" : showListening ? "listening" : "idle"}
+      className={cn(
+        error
+          ? "mt-2 flex items-center gap-1.5 text-xs text-[#c62a2f]"
+          : showListening
+            ? "mt-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
+            : "sr-only",
+        className,
+      )}
+    >
+      {error ? (
+        <>
+          <MicOff className="size-3.5 shrink-0" aria-hidden />
+          {error}
+        </>
+      ) : showListening ? (
+        <>
+          <Mic className="size-3.5 shrink-0 text-[#e5484d]" aria-hidden />
+          <span className="truncate italic">{interim ? `Listening… ${interim}` : "Listening… speak, then pause."}</span>
+        </>
+      ) : null}
+    </p>
+  );
+};
