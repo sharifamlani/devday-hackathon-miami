@@ -58,8 +58,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      Desmond Achebe-Wells"*).
    **Open database** and the calendar tile (**Open full calendar**) open a panel beside the chat. The icon rail on
    the left holds **Live transcript** and **Open Ask sidebar**.
-6. **Home chat agent.** In **Ask the agent…** type (or say) *"Plan next week"* (about 10 s; **Thinking…** shows
-   meanwhile). The conversation
+6. **Home chat agent.** In **Ask the agent…** type (or say) *"Plan next week"* (about 10 s in all). The agent's step
+   cards appear about 2 s after you ask and the reply types out live, so there's always something to point at. The conversation
    shows the agent's tool steps (e.g. **Get context**, **Get events**, **Get calendar**, **Get tasks**), then a plan for
    **November 9–15** with a priority per day, and it says it hasn't changed your calendar. (The wording varies run to
    run; say "a suggested week, built from the events and tasks, and nothing changed until you say so".) A step that
@@ -118,7 +118,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
 
 ### If it's slow (what to say)
 
-Timings are from the Nov 8 dress rehearsal on the laptop (warm cache). Every agent step shows **Thinking…** while it works.
+Timings are from the Nov 8 dress rehearsals on the laptop (warm cache). Agent replies stream: the step cards show
+within about 2 s and the answer types out live, so narrate the steps as they appear.
 
 | Step | Can vary because | If it's slow or off, say |
 |---|---|---|
