@@ -175,7 +175,218 @@ def test_grouping_is_exact_email_or_exact_name():
     assert len(ia.build_people(ev, [])) == 2
 
 
-# ------------------------------------------------------------------ end to end vs the answer key
+# ------------------------------------------------------------------ same person, written differently (offline)
+
+
+def _names(people):
+    return sorted(ia.best_name(p) for p in people)
+
+
+def test_variants_of_one_person_collapse():
+    ev = {
+        "gmd.xlsx": [
+            _ev("Robert", "Nguyen", "robert.nguyen@example.org", 100, "2024-01-01", "r:1"),
+            _ev("Mildred", "Hayes", "", None, None, "r:2", ctype="beneficiary"),
+            _ev("Rosa Elena", "Martinez", "", None, None, "r:3"),
+            _ev("Elizabeth", "Fontaine", "liz.fontaine@example.com", 50, "2024-02-02", "r:4"),
+            _ev("Dana", "Kowalczyk", "", 25, "2024-03-03", "r:5"),
+            _ev("Marcus", "Bell", "", None, None, "r:6"),
+            _ev("Marcus", "Oyelaran", "marcus@example.org", 10, "2024-04-04", "r:7"),
+        ],
+        "log.docx": [
+            _ev("Bob", "Nguyen", "", 40, "2024-05-05", "t:1"),  # nickname, no email on this side
+            _ev("Liz", "Fontaine", "", 20, "2024-06-06", "t:2"),
+            _ev("D.", "Kowalczyk", "", 15, "2024-07-07", "t:3"),  # initial
+            _ev("R.", "Nguyen", "", None, None, "t:4"),
+        ],
+        "signin.xlsx": [
+            _ev("Millie", "Hayes", "", None, None, "s:1"),
+            _ev("Rosa E.", "Martinez", "", None, None, "s:2"),
+        ],
+    }
+    ev["gmd.xlsx"][1].phone_number = ev["signin.xlsx"][0].phone_number = "305-555-0159"
+    ev["gmd.xlsx"][2].phone_number = ev["signin.xlsx"][1].phone_number = "(305) 555-0150"
+    people = ia.prepare_people(ev, [])
+    assert _names(people) == [
+        "Dana Kowalczyk",
+        "Elizabeth Fontaine",
+        "Marcus Bell",
+        "Marcus Oyelaran",
+        "Mildred Hayes",
+        "Robert Nguyen",
+        "Rosa Elena Martinez",
+    ]
+    rob = next(p for p in people if ia.best_name(p) == "Robert Nguyen")
+    assert len(rob["gifts"]) == 2  # both gifts stay on the one person
+
+
+def test_contradicting_contact_details_are_not_collapsed():
+    ev = {
+        "a.md": [
+            _ev("Dana", "Lee", "dana@one.example.com", 10, "2024-01-01", "r:1"),
+            _ev("D.", "Lee", "dee@two.example.com", 10, "2024-02-01", "r:2"),  # a different address: could be someone else
+        ]
+    }
+    assert len(ia.prepare_people(ev, [])) == 2
+
+
+def test_same_exact_name_with_two_emails_is_one_person_with_both_addresses():
+    ev = {
+        "a.md": [
+            _ev("Priscilla", "Okafor", "priscilla.okafor@example.com", 10, "2024-01-01", "r:1"),
+            _ev("Priscilla", "Okafor", "priscilla.okafor.law@example.org", 20, "2025-01-01", "r:2"),
+        ]
+    }
+    (p,) = ia.prepare_people(ev, [])
+    assert sorted(p["emails"]) == ["priscilla.okafor.law@example.org", "priscilla.okafor@example.com"]
+    assert len(p["gifts"]) == 2
+
+
+def test_name_fragments_are_dropped_unless_they_match_contact_or_carry_a_gift():
+    warnings = []
+    ev = {
+        "a.md": [
+            _ev("Ann", "Lee", "ann@example.com", 10, "2024-01-01", "r:1"),
+            _ev("Dwayne", "", "", None, None, "line:1", org="the hardware place"),  # no surname, nothing to match: drop
+            _ev("Bob", "N.", "", None, None, "line:2"),
+            _ev("Anna", "", "ann@example.com", None, None, "line:3"),  # no surname but Ann's email: same email, same person
+            _ev("Cy", "", "", 30, "2024-02-02", "line:4"),  # carries a gift and matches no one: kept, no money is lost
+        ]
+    }
+    people = ia.prepare_people(ev, warnings)
+    assert _names(people) == ["Ann Lee", "Cy"]
+    assert any("dropped name fragment 'Dwayne'" in w for w in warnings)
+    assert sum(len(p["gifts"]) for p in people) == 2
+
+
+def test_totals_row_is_not_a_person():
+    ev = {
+        "gmd.xlsx": [
+            _ev("", "", "", 8640, "2024-01-01", "row:58", org="Grand total"),
+            _ev("Ann", "Lee", "", 5, "2024-01-01", "row:2"),
+        ]
+    }
+    warnings = []
+    assert _names(ia.prepare_people(ev, warnings)) == ["Ann Lee"]
+    assert any("totals row" in w for w in warnings)
+
+
+def test_organization_variants_their_contact_and_family_fund_collapse():
+    ev = {
+        "major.xlsx": [
+            _ev("", "", "grants@example.org", 100, "2022-01-01", "r:1", org="Veloria Bay Fdn"),
+            _ev("", "", "", 100, "2023-01-01", "r:2", org="Veloria Bay Foundation Inc"),
+            _ev("", "", "harold@example.org", 50, "2022-12-15", "r:3", org="Harold Whitaker"),
+        ],
+        "memo.docx": [_ev("", "", "", 10000, "2024-12-20", "r:4", org="Whitaker Family Charitable Fund")],
+        "check.docx": [_ev("", "", "", 500, "2026-07-01", "t:1", org="Marrow Lane Print Co.")],
+        "intake.docx": [_ev("Bernard", "Okoye", "billing@marrow.example.org", None, None, "f:1", org="Marrow Lane Print Co.")],
+    }
+    people = ia.prepare_people(ev, [])
+    assert _names(people) == ["Harold Whitaker", "Marrow Lane Print Co.", "Veloria Bay Foundation Inc"]
+    harold = next(p for p in people if ia.best_name(p) == "Harold Whitaker")
+    assert len(harold["gifts"]) == 2
+
+
+def test_two_people_with_one_surname_do_not_get_the_family_fund():
+    ev = {
+        "a.xlsx": [
+            _ev("Harold", "Whitaker", "h@example.org", 5, "2024-01-01", "r:1"),
+            _ev("Jane", "Whitaker", "j@example.org", 5, "2024-01-01", "r:2"),
+            _ev("", "", "", 9, "2024-02-02", "r:3", org="Whitaker Family Charitable Fund"),
+        ]
+    }
+    assert len(ia.prepare_people(ev, [])) == 3
+
+
+def test_same_files_in_any_order_give_same_people():
+    a = {"a.md": [_ev("Ann", "Lee", "", 1, "2024-01-01", "r:1")], "b.md": [_ev("Bo", "Ray", "", 2, "2024-01-01", "r:1")]}
+    b = {"b.md": a["b.md"], "a.md": a["a.md"]}
+    assert _names(ia.prepare_people(a, [])) == _names(ia.prepare_people(b, []))
+
+
+# ------------------------------------------------------------------ cache: same input, same model answer
+
+
+def test_model_answers_are_cached_by_content(tmp_path, monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    monkeypatch.setenv("INGEST_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.delenv("INGEST_CACHE", raising=False)
+    calls = []
+
+    async def fake_run(agent, prompt):
+        calls.append(prompt)
+        out = ia.Judgments(people=[ia.Judgment(key="p0", contact_type="giver", reason=f"v{len(calls)}")])
+        return SimpleNamespace(final_output=out)
+
+    monkeypatch.setattr("agents.Runner.run", staticmethod(fake_run))
+    first = asyncio.run(ia._run_cached("judge", ia._judge_agent(), "same prompt", ia.Judgments))
+    again = asyncio.run(ia._run_cached("judge", ia._judge_agent(), "same prompt", ia.Judgments))
+    other = asyncio.run(ia._run_cached("judge", ia._judge_agent(), "another prompt", ia.Judgments))
+    assert len(calls) == 2 and first == again and other.people[0].reason == "v2"
+    monkeypatch.setenv("INGEST_CACHE", "off")
+    asyncio.run(ia._run_cached("judge", ia._judge_agent(), "same prompt", ia.Judgments))
+    assert len(calls) == 3  # cache off: a fresh model answer
+
+
+# ------------------------------------------------------------------ demographics: JSON the readers can parse
+
+
+def test_demographics_are_stored_as_json_per_field():
+    d = ia.Demographics(age_range="born 1984", gender="female", language="Spanish", programs=["pantry"], summary="Self-reported: born 1984")
+    where = "community.docx: section 'Intake Form 6'"
+    stored = json.loads(ia.demographics_json(d, where))
+    assert stored["age_range"] == {"value": "born 1984", "source_row": where}
+    assert stored["programs"]["value"] == ["pantry"] and stored["summary"]["value"].startswith("Self-reported")
+    assert "household_size" not in stored and ia.demographics_json(ia.Demographics(), "x") is None
+    assert ia.Judgment(key="p0", contact_type="community", reason="r", demographics="born 1984").demographics.summary == "born 1984"
+
+
+def _client(tmp_path, monkeypatch):
+    monkeypatch.setenv("DONORS_DB", str(tmp_path / "r.db"))
+    db.rebuild(with_seed=False)
+    from service.main import app
+
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_routes_survive_free_text_demographics(tmp_path, monkeypatch):
+    """Rows written by an older import hold plain text in donors.demographics; the readers must not 500."""
+    c = _client(tmp_path, monkeypatch)
+    conn = db.connect()
+    texts = ["Self-reported: born 1984; female; Spanish at home", json.dumps({"zip": {"value": "33125", "source_row": "x"}}), None, "[1, 2]"]
+    for n, demo in enumerate(texts):
+        conn.execute(
+            "INSERT INTO donors (full_name, donor_type, contact_type, demographics, interests) "
+            "VALUES (?, 'individual', 'community', ?, '[]')",
+            (f"Pat Person{n}", demo),
+        )
+    conn.commit()
+    ids = [r[0] for r in conn.execute("SELECT id FROM donors")]
+    conn.close()
+    for route in ("/people?type=community", "/community/stats", "/duplicates", "/donors"):
+        assert c.get(route).status_code == 200, route
+    for i in ids:
+        assert c.get(f"/donors/{i}").status_code == 200
+    body = c.get("/people?type=community").json()
+    rows = body["people"] if isinstance(body, dict) else body
+    assert any(str(r["demographics"].get("summary", {}).get("value", "")).startswith("Self-reported") for r in rows)
+
+def test_intake_files_place_people_without_the_model():
+    # community / client intake file, no gift: community, whatever the model guessed
+    assert ia.decide_tab("auto", False, "neighbor", "", served=True) == ("community", None)
+    assert ia.decide_tab("auto", False, "giver", "", served=True, ambiguous=True)[0] == "neighbor"  # model doubts: flagged
+    assert ia.decide_tab("auto", True, "community", "", served=True)[0] == "giver"  # a gift on record wins
+    # donor intake form, no gift yet, model not in doubt: a new donor
+    assert ia.decide_tab("auto", False, "neighbor", "", ambiguous=False, new_donor=True) == ("giver", None)
+    assert ia.decide_tab("auto", False, "giver", "pledge", ambiguous=True, new_donor=True)[0] == "neighbor"
+    assert ia.served_by_file(["community_intake_forms_2026.docx"]) and not ia.served_by_file(["donor_intake_forms_2026.docx"])
+    assert ia.new_donor_by_file(["donor_intake_forms_2026.docx"]) and not ia.new_donor_by_file(["community_intake_forms_2026.docx"])
+
+
+# ------------------------------------------------------------------ end to end vs the answer key (real model calls)
 
 
 def _ascii(s: str) -> str:
@@ -185,64 +396,103 @@ def _ascii(s: str) -> str:
 needs_key = pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="needs OPENAI_API_KEY")
 
 
-@needs_key
-def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
-    path = tmp_path / "e2e.db"
-    monkeypatch.setenv("DONORS_DB", str(path))
-    app = FastAPI()
-    app.include_router(ingest_router.router)
-    c = TestClient(app)
-    files = [("files", (n, (SAMPLES / n).read_bytes(), "application/octet-stream")) for n in FILES]
-    r = c.post("/ingest", files=files, data={"target": "auto"})
-    assert r.status_code == 200, r.text
-    body = r.json()
-    print("\nRESPONSE:", json.dumps({k: v for k, v in body.items() if k not in ("flagged_for_review", "assigned")}))
+def _post_ingest(db_path, files, monkeypatch):
+    monkeypatch.setenv("DONORS_DB", str(db_path))
+    db.rebuild(with_seed=False)
+    from service.main import app
 
-    t = KEY["totals"]
+    c = TestClient(app, raise_server_exceptions=False)
+    r = c.post("/ingest", files=[("files", (n, (SAMPLES / n).read_bytes(), "application/octet-stream")) for n in files], data={"target": "auto"})
+    assert r.status_code == 200, r.text
+    return c, r.json()
+
+
+def _people_rows(path):
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
-    n_people = conn.execute("SELECT COUNT(*) FROM donors").fetchone()[0]
-    has_status = "status" in {x[1] for x in conn.execute("PRAGMA table_info(gifts)")}
-    ok = " WHERE status = 'ok'" if has_status else ""  # declined/failed charges are excluded from totals
-    n_gifts, total = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM gifts" + ok).fetchone()
-    rows = [dict(x) for x in conn.execute("SELECT * FROM donors")]
-    assigned = {a["donor_id"]: a["tab"] for a in body["assigned"]}
+    rows = [dict(x) for x in conn.execute("SELECT * FROM donors ORDER BY full_name")]
+    conn.close()
+    return rows
 
+
+@needs_key
+def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
+    """data/sample_inputs through POST /ingest, graded against whatever answer_key.json is checked in
+    (no totals hard-coded here). A second, cache-replayed run must give the identical people."""
+    monkeypatch.setenv("INGEST_CACHE_DIR", str(tmp_path / "cache"))  # a cold first run: real model answers
+    monkeypatch.delenv("INGEST_CACHE", raising=False)
+    c, body = _post_ingest(tmp_path / "run1.db", FILES, monkeypatch)
+    rows = _people_rows(tmp_path / "run1.db")
+    assigned = {a["donor_id"]: a["tab"] for a in body["assigned"]}
+    t = KEY["totals"]
+
+    conn = sqlite3.connect(tmp_path / "run1.db")
+    n_gifts, total = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM gifts WHERE status = 'ok'").fetchone()
+    scored = conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0]
+    failed_in = conn.execute(
+        "SELECT COUNT(*) FROM gifts g JOIN donors d ON d.id=g.donor_id "
+        "WHERE d.full_name LIKE 'Hye-jin%' AND g.gift_date='2026-10-10' AND g.status = 'ok'"
+    ).fetchone()[0]
+    conn.close()
+
+    # people: one row per key person, none left over
     def matches(p):
         em = {e.lower() for e in p.get("emails_all", [])}
         nm = {_ascii(x) for x in p.get("names_as_written", []) + [p["full_name"]]}
-        return [
-            d
-            for d in rows
-            if _ascii(d["full_name"]) in nm or (em and em & {e.lower() for e in json.loads(d["emails_all"] or "[]")})
-        ]
+        return [d for d in rows if _ascii(d["full_name"]) in nm or (em and em & {e.lower() for e in json.loads(d["emails_all"] or "[]")})]
 
     canon = {d["donor_id"]: d for d in KEY["canonical_donors"]}
     people = [{**canon.get(p["person_id"], {}), **p} for p in KEY["people"]]
-    found = [p for p in people if matches(p)]
-    right = [p for p in found if any(assigned[d["id"]] == p["tab"] for d in matches(p))]
-    per_tab = {
-        tb: (sum(1 for p in right if p["tab"] == tb), sum(1 for p in found if p["tab"] == tb))
-        for tb in ("giver", "neighbor", "community")
-    }
-    flagged_names = {_ascii(f["name"]) for f in body["flagged_for_review"]}
-    amb = [p for p in KEY["people"] if p["ambiguous"]]
-    amb_hit = [p["full_name"] for p in amb if _ascii(p["full_name"]) in flagged_names]
-    failed_in = conn.execute(
-        "SELECT COUNT(*) FROM gifts g JOIN donors d ON d.id=g.donor_id "
-        "WHERE d.full_name LIKE 'Hye-jin%' AND g.gift_date='2026-10-10'" + (" AND g.status = 'ok'" if has_status else "")
-    ).fetchone()[0]
-    print(
-        f"people in db {n_people} vs key {len(KEY['people'])} persons; key persons found {len(found)}/{len(people)}; "
-        f"gifts {n_gifts} vs {t['unique_gifts']}; total {total:,.0f} vs {t['total_amount']:,}; "
-        f"tab accuracy {len(right)}/{len(found)} per tab {per_tab}; ambiguous flagged {amb_hit} of "
-        f"{[p['full_name'] for p in amb]}; declined charge counted as ok gift: {failed_in}; seconds {body['seconds']}"
-    )
-    assert len(found) / len(people) >= 0.9
-    assert abs(n_gifts - t["unique_gifts"]) <= 0.02 * t["unique_gifts"]
-    assert abs(total - t["total_amount"]) <= 0.02 * t["total_amount"]
-    assert failed_in == 0
-    assert len(right) / len(found) >= 0.95
-    assert len(amb_hit) == len(amb)
-    assert conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0] == n_people
-    assert sum(body["by_tab"].values()) == n_people
+    hit = {p["person_id"]: matches(p) for p in people}
+    extra = [d["full_name"] for d in rows if not any(d in m for m in hit.values())]
+    assert len(rows) == len(KEY["people"]), (len(rows), extra)
+    assert all(len(m) == 1 for m in hit.values()), {k: [d["full_name"] for d in m] for k, m in hit.items() if len(m) != 1}
+    by_tab = {tb: sum(1 for d in rows if assigned[d["id"]] == tb) for tb in ("giver", "neighbor", "community")}
+    assert by_tab == KEY["tab_counts"]
+    wrong = [p["full_name"] for p in people if assigned[hit[p["person_id"]][0]["id"]] != p["tab"]]
+    assert not wrong, wrong
+
+    # the ambiguous few are flagged for review, nobody else
+    flagged = {_ascii(f["name"]) for f in body["flagged_for_review"]}
+    assert flagged == {_ascii(p["full_name"]) for p in KEY["people"] if p["ambiguous"]}
+
+    # money: exact, with the declined charge left out
+    assert n_gifts == t["unique_gifts"] and round(total) == t["total_amount"] and failed_in == 0
+    assert scored == by_tab["giver"]  # only Givers are scored
+
+    # the routes the demo opens next all answer, and the gift alerts are the key's five
+    for route in ("/duplicates", "/people?type=community", "/community/stats", "/donors"):
+        assert c.get(route).status_code == 200, route
+    for r in rows:
+        if r["contact_type"] == "community":
+            assert c.get(f"/donors/{r['id']}").status_code == 200
+    alerts = c.get("/alerts")
+    assert alerts.status_code == 200
+    assert sorted((a["donor"], a["kind"]) for a in alerts.json()) == sorted((e["donor"], e["kind"]) for e in KEY["gift_alerts_expected"])
+
+    # determinism: the same files again give the same people, in the same tabs, with the same flags
+    _, body2 = _post_ingest(tmp_path / "run2.db", list(reversed(FILES)), monkeypatch)  # even dragged in another order
+    again = _people_rows(tmp_path / "run2.db")
+    assert [d["full_name"] for d in again] == [d["full_name"] for d in rows]
+    assert body2["by_tab"] == body["by_tab"] and body2["gifts_added"] == body["gifts_added"]
+    assert sorted(f["name"] for f in body2["flagged_for_review"]) == sorted(f["name"] for f in body["flagged_for_review"])
+
+
+@needs_key
+def test_five_file_upload_keeps_every_gift(tmp_path, monkeypatch):
+    """The UI's gift-only path (notes, check log, donor intake, GMD export, stock/DAF memo): every key gift that
+    lives in those files must arrive, matched on amount and date."""
+    five = [
+        "board_retreat_notes.md",
+        "check_deposit_log_q3_2026.docx",
+        "donor_intake_forms_2026.docx",
+        "give_miami_day_export_2022-2025.xlsx",
+        "stock_and_daf_grants.docx",
+    ]
+    monkeypatch.setenv("INGEST_CACHE_DIR", str(tmp_path / "cache"))
+    _post_ingest(tmp_path / "five.db", five, monkeypatch)
+    conn = sqlite3.connect(tmp_path / "five.db")
+    got = sorted((round(a, 2), d) for a, d in conn.execute("SELECT amount, gift_date FROM gifts WHERE status = 'ok'"))
+    conn.close()
+    want = sorted((float(g["amount"]), g["gift_date"]) for g in KEY["gifts"] if g["source"]["file"] in five)
+    assert got == want
