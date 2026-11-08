@@ -41,6 +41,7 @@ import {
   tileClass,
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
+import { AutoMergeFlag } from "./AutoMergeFlag";
 import { DuplicateBanner } from "./DuplicateMerge";
 import { AlsoFound, PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
 import { usePeopleTab } from "./usePeopleTab";
@@ -506,6 +507,12 @@ const DonorRows = () => {
                   )}
                   {donor.full_name}
                 </Link>
+                <AutoMergeFlag
+                  personId={donor.id}
+                  name={donor.full_name}
+                  autoMerged={donor.auto_merged}
+                  mergedFrom={donor.merged_from}
+                />
                 <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
                   {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
                     <DonorTagBadge key={tag} tag={tag} />
