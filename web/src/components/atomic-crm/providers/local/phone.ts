@@ -10,6 +10,7 @@ import { request } from "./httpClient";
  *   POST /phone/calls               ring the staff phone, then the donor
  *   GET  /phone/calls/{id}          status while the call runs and is processed
  *   POST /phone/calls/{id}/hangup   end both legs
+ *   POST /phone/calls/{id}/retry    Try again: finish a recorded call whose transcript failed
  *   POST /call-notes/{id}/apply     apply suggested follow-ups (after_call_agent)
  */
 
@@ -56,6 +57,8 @@ export interface PhoneCall {
     steps?: string[];
     actions?: PhoneAction[];
     actions_detail?: string | null;
+    /** Set when the call was recorded but its transcript failed: the recording is kept for Try again. */
+    retryable?: boolean;
   };
 }
 
@@ -98,6 +101,9 @@ export const getPhoneCall = (callId: string) =>
 
 export const hangUpPhoneCall = (callId: string) =>
   request<PhoneCall>(`/phone/calls/${encodeURIComponent(callId)}/hangup`, { method: "POST" });
+
+export const retryPhoneCall = (callId: string) =>
+  request<PhoneCall>(`/phone/calls/${encodeURIComponent(callId)}/retry`, { method: "POST" });
 
 export const applyCallActions = (noteId: string, actionIds: string[]) =>
   request<{ applied: unknown[]; skipped: unknown[] }>(
