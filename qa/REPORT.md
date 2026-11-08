@@ -273,3 +273,9 @@ Ingest on #87's dataset: 132 gifts = $1,367,575 vs the key's 131 = $1,367,535 �
 | #98 feat/snapshot-home (final, stacked with #95) | f850d83 | snapshot home = snapshot.json (Nov 8, 2 at risk, 1 dup, 6 tasks, 6 days, $50.1k/$150k); "Sample data" badge + tooltip at 1280; Mark done → one refusal toast, 0 writes; no crm data exported; live mode reads live routes; badge missing at 390 (follow-up) | APPROVE |
 
 Process note: the #98 review agent ran `taskkill /IM node.exe` (ended all Node processes machine-wide); reported to the lead. Reviewer briefs now forbid image-name kills (stop by owned PID or port only).
+| #88 feat/interest-tags (final) | 5f444aa | merge clean on f8329f6; router order crm → interests → voice, interests before /enrich; 63 targeted tests pass; full suite only fails test_crm snapshot test (fails on plain main) | APPROVE |
+| #90 feat/after-call (final) | 009e670 | RSVP via agent_writes.rsvp_event with undo; staff undo sticks across a lost store; smoke #11 1/1/2/1; only failure = main's test_crm snapshot test | APPROVE |
+| #95 feat/home-integration | e93e231 | re-grade parked mid first-run walk (Sharif pause) | PARKED |
+
+Open on main (not from a PR under review): test_crm.py::test_snapshot_never_exports_crm_records fails on plain main f8329f6 (#98 × #100 privacy leak); the lead assigned it to 3a.
+PAUSED Sun Nov 8 at Sharif's request; all review agents and their servers stopped.
