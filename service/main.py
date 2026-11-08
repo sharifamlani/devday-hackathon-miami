@@ -664,6 +664,21 @@ def daily_refresh_loop(hh_mm: str) -> None:
 
 
 @app.on_event("startup")
+def migrate_crm_tasks() -> None:
+    """One task store: copy any Donors-tab tasks saved in crm_tasks into tasks (idempotent; routes_crm also does it)."""
+    from service import tasks
+
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        copied = tasks.migrate_crm_tasks(conn)
+        if copied:
+            log.info("moved %d Donors-tab tasks into the tasks table", copied)
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
 def start_daily_refresh() -> None:
     """In-process scheduler: off unless REFRESH_DAILY_AT is set, and never under pytest.
     For a laptop that isn't always serving, use Windows Task Scheduler instead (service/README.md)."""
