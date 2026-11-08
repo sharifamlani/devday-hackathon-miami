@@ -170,3 +170,10 @@ def test_plain_enrich_still_saves_research_facts(client, monkeypatch):
     monkeypatch.setattr(enrich_agent, "enrich_donor", lambda *a, **k: [fact])
     body = client.post(f"/enrich/{pid}").json()
     assert body["saved"] == 1 and body["facts"][0]["source_url"] == "https://ex.org/a" and "dry_run" not in body
+
+
+def test_only_shared_mailboxes_are_kept_as_public_email():
+    assert enrich_agent.generic_mailbox("info@ex.org") == "info@ex.org"
+    assert enrich_agent.generic_mailbox("grants@ex.org") == "grants@ex.org"
+    assert enrich_agent.generic_mailbox("jsmith@ex.org") is None          # a named person's address
+    assert enrich_agent.generic_mailbox(None) is None

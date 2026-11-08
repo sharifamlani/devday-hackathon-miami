@@ -289,6 +289,14 @@ enrichment_agent = Agent(
 )
 
 CONFIDENCE_RANK = {"low": 0, "medium": 1, "high": 2}
+# An organization's public email is kept only when it's a shared mailbox, never a named person's address
+GENERIC_MAILBOXES = ("info", "contact", "hello", "grants", "giving", "media", "press", "communications",
+                     "office", "admin", "general", "inquiries", "community", "foundation", "philanthropy")
+
+
+def generic_mailbox(email: str | None) -> str | None:
+    local = (email or "").split("@")[0].lower()
+    return email if email and any(local.startswith(m) for m in GENERIC_MAILBOXES) else None
 
 
 def empty_enrichment(reason: str | None = None, identity_match: str = "not_found") -> dict:
@@ -320,6 +328,7 @@ def finalize(e: Enrichment, alive: dict[str, bool], searched_at: str) -> dict:
     contact = {}
     if sources:
         contact = {**e.contact.model_dump(exclude={"source_urls"}), "source_urls": sources}
+        contact["public_email"] = generic_mailbox(contact["public_email"])
     return {"identity_match": e.identity_match, "identity_basis": e.identity_basis, "facts": facts,
             "interests": sorted(best.values(), key=lambda i: (-CONFIDENCE_RANK[i["confidence"]], i["tag"])),
             "contact": contact, "notes": e.notes, "searched_at": searched_at}
