@@ -1,5 +1,6 @@
 """Walk the main (home) agent in a real browser: type each prompt, read the agent's steps and reply, approve
-cards when the case says so, then check the local database through the API that the write really landed.
+cards when the case says so (all at once, or one at a time to check the others stay pending), then check the
+local database through the API that the write really landed.
 
     python scripts/verify-agent.py http://127.0.0.1:5733 http://127.0.0.1:8733 --shots <dir> [--only 1,4]
 
@@ -45,7 +46,7 @@ class Case:
     tools_any: set[str] = field(default_factory=set)     # at least one of these tools ran
     tools_all: set[str] = field(default_factory=set)     # every one of these ran (across approve too)
     reply: str | None = None                             # regex the reply must match (case-insensitive)
-    approve: bool = False                                # click every Approve card, then wait for the resume
+    approve: bool | str = False                          # True: approve every card; "each": one card per resume
     ui: str | None = None                                # role=button name regex that must be on screen
     probe: Callable[[str], tuple[bool, str]] | None = None
     setup: Callable[[str], None] | None = None
@@ -67,6 +68,36 @@ def calendar_probe(base):
     rows = api(base, "/calendar", **{"from": FRIDAY.isoformat(), "to": FRIDAY.isoformat()})
     hit = [i for i in rows if "lunch" in json.dumps(i).lower()]
     return bool(hit), f"{len(hit)} lunch item(s) on {FRIDAY}"
+
+
+SEEN: dict[str, int] = {}
+
+
+def note_last_batch(base):
+    SEEN["batch"] = max((c["id"] for c in api(base, "/campaigns")), default=0)
+
+
+def gmd_probe(base):
+    """This case's batch drafts Give Miami Day givers (e6: after a real upload GMD lives only in source_row,
+    ~30 givers). Batches from earlier cases don't count."""
+    new = [c for c in api(base, "/campaigns") if c["id"] > SEEN.get("batch", 0)]
+    n = sum(c["counts"]["total"] for c in new)
+    return n >= 10, f"{n} draft(s) in {len(new)} new batch(es)"
+
+
+WALK_TASKS = ("Walk test task A", "Walk test task B")
+
+
+def two_tasks(base):
+    """Two tasks due today for the two-pending-cards case (each delete waits on its own approval card)."""
+    for title in WALK_TASKS:
+        r = httpx.post(base + "/tasks", json={"kind": "other", "title": title, "due": TODAY.isoformat()}, timeout=30)
+        r.raise_for_status()
+
+
+def both_deleted_probe(base):
+    left = [t["title"] for t in api(base, "/tasks", due="today") if t["title"] in WALK_TASKS]
+    return not left, f"still open after approving both cards: {left or 'none'}"
 
 
 def outbox_probe(base):
@@ -105,6 +136,10 @@ CASES = [
          tools_any={"get_context", "search_context"}, reply=r"\w{20,}|\."),
     Case("task -> agent", "(home task card: Work on it with the agent)", tools_all={"get_task"},
          setup=today_task, start=click_work_on_task),
+    Case("GMD thank-you", "Draft a thank-you to Give Miami Day donors", tools_all={"draft_email"},
+         setup=note_last_batch, probe=gmd_probe),
+    Case("two pending cards", "Delete both of today's tasks 'Walk test task A' and 'Walk test task B'.",
+         tools_all={"delete_task"}, approve="each", setup=two_tasks, probe=both_deleted_probe),
 ]
 
 
@@ -128,7 +163,23 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
     data = r.json()
     tools += [s["tool"] for s in data.get("steps", [])]
     replies.append(data.get("reply") or "")
-    if case.approve:
+    if case.approve == "each":
+        notes.append(f"{len(data.get('approvals') or [])} card(s) pending at once")
+        yes = re.compile(r"^(Approve|Send|Call)$")
+        for _ in range(4):                                   # one card per round trip; the others must stay pending
+            pending = page.locator("[data-testid=agent-approval][data-decision=pending]")
+            if pending.count() == 0:
+                break
+            with page.expect_response(lambda r: r.url.endswith("/chat/approve"), timeout=CHAT_TIMEOUT_MS) as resp:
+                pending.first.get_by_role("button", name=yes).click()
+            data = resp.value.json()
+            tools += [s["tool"] for s in data.get("steps", [])]
+            replies.append(data.get("reply") or "")
+            page.wait_for_timeout(500)
+        declined = page.locator("[data-testid=agent-approval][data-decision=declined]").count()
+        if declined:
+            notes.append(f"{declined} card(s) declined without a click")
+    elif case.approve:
         for _ in range(3):                                   # a resumed run can pause again (e.g. a second send)
             if not data.get("approvals"):
                 break
@@ -144,7 +195,7 @@ def run_case(page: Page, web: str, base: str, case: Case, shots: Path, n: int) -
     secs = time.time() - started
     page.screenshot(path=str(shots / f"{n:02d}-{re.sub(r'[^a-z0-9]+', '-', case.name)}.png"), full_page=True)
 
-    ok = True
+    ok = not any("without a click" in n for n in notes)
     if case.tools_any and not (case.tools_any & set(tools)):
         ok, _ = False, notes.append(f"none of {sorted(case.tools_any)} ran")
     if case.tools_all - set(tools):
