@@ -188,3 +188,29 @@ def test_a_failed_site_says_why_at_the_top(db_file, monkeypatch):
     body = TestClient(main.app).post("/context/run", json={"website": "https://no-such-org-qa.invalid"}).json()
     assert body["state"] == "failed" and body["detail"].startswith("We couldn't read https://no-such-org-qa.invalid")
     assert "DNS" in body["detail"] and body["calendar"] is None
+
+
+def test_onboarding_rerun_that_misses_an_event_keeps_it(db_file, monkeypatch):
+    """S-neg: a second setup (or a re-read) whose search misses an event already found never drops it."""
+    monkeypatch.setattr(org_context, "build_context", context_ok)
+    monkeypatch.setattr(org_context, "embed_texts", lambda texts: [None] * len(texts))
+    monkeypatch.setattr(refresh, "draft_invites_for",
+                        lambda conn, events, ids, stored, people=None, **k: {"drafts": {}, "attempted": 0,
+                                                                            "drafted": 0, "errors": []})
+    monkeypatch.setenv("SCORE_AS_OF", "2026-11-08")
+    with main.REFRESH_LOCK:
+        main.REFRESH_JOB.update(status="idle")
+    monkeypatch.setattr(main, "start_events_search", events_found(EVENTS))
+    TestClient(main.app).post("/context/run", json={"website": "https://miamifoundation.org"})
+    wait_for_job()
+    monkeypatch.setattr(main, "start_events_search", events_found(EVENTS[1:]))      # this read misses Early Giving
+    TestClient(main.app).post("/context/run", json={"website": "https://miamifoundation.org"})
+    wait_for_job()
+    conn = db.connect(db_file)
+    titles = sorted(r[0] for r in conn.execute("SELECT title FROM events WHERE COALESCE(status, '') != 'cancelled'"))
+    conn.close()
+    assert titles == ["Give Miami Day", "Give Miami Day Early Giving"]
+
+
+def test_onboarding_runs_three_searches():
+    assert main.ONBOARDING_SEARCHES == 3

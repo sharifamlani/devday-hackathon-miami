@@ -91,8 +91,8 @@ describe("automatic-merge flag (#125)", () => {
       "(305) 555-0104",
     ]);
     expect(sourceContacts(src, "snapshot")).toEqual([
-      "l•••@example.com",
-      "•••-•••-0104",
+      "liz.f@example.com",
+      "(305) 555-0104",
     ]);
     expect(sourceContacts({ email: null, phone: "305-555-0104" }, "local")).toEqual([
       "(305) 555-0104",

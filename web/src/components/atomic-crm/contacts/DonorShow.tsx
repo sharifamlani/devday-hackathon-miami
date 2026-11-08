@@ -8,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NoteCreate, NotesIterator } from "../notes";
-import { DATA_MODE } from "../providers/local/config";
 import { reasonLabel } from "../providers/local/crmDonors";
 import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
@@ -333,11 +332,6 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
         <Row label="Fund" value={record.fund_type ?? "Not recorded"} />
         <Row label="Source list" value={record.source} />
       </dl>
-      {DATA_MODE === "snapshot" ? (
-        <p className="text-xs text-muted-foreground">
-          Contact details are masked in this public demo.
-        </p>
-      ) : null}
     </ProfileSection>
 
     <ProfileSection

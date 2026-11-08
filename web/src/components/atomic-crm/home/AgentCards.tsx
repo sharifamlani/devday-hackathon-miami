@@ -1,8 +1,11 @@
-import { Check, CircleAlert, Clock, Loader2, Undo2, X } from "lucide-react";
+import { useState } from "react";
+import { Check, CircleAlert, Clock, Loader2, Phone, Undo2, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { AgentApproval, AgentStep, MergedPair } from "./agentChat";
-import { PhoneCallButton } from "../voice/PhoneCallButton";
+import { Button } from "@/components/ui/button";
+import { DATA_MODE } from "../providers/local/config";
+import { PhoneCallInline } from "../voice/PhoneCallDialog";
 import { focusRing } from "./tile";
 
 /** "create_task" → "Create task". */
@@ -26,6 +29,10 @@ export const APPROVAL_BUTTONS: Record<string, { yes: string; no: string }> = {
   merge_duplicate: { yes: "Merge", no: "Keep separate" },
 };
 const DEFAULT_BUTTONS = { yes: "Approve", no: "Decline" };
+
+/** A decided card's title: a merge reads Merged / Kept separate; anything else Approved / Declined. */
+const decidedTitle = (tool: string, approved: boolean) =>
+  tool === "merge_duplicate" ? (approved ? "Merged" : "Kept separate") : approved ? "Approved" : "Declined";
 
 const chip = cn(
   "inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-[13px] font-semibold transition-colors",
@@ -69,6 +76,9 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 /** The agent's call sheet: who they are, their giving, and what to say, with the Call button (or why there is none). */
 export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
   const r = sheet.relationship;
+  // The call runs inside this card, not in a dialog over the page (Sharif). Local mode only: the laptop places it.
+  const [calling, setCalling] = useState(false);
+  const canCall = sheet.has_phone && DATA_MODE === "local";
   return (
     <li data-testid="call-sheet" className="rounded-xl border border-border bg-card px-3 py-2 text-[13px]">
       <div className="flex items-start gap-2">
@@ -81,8 +91,14 @@ export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
             {sheet.has_phone ? `Phone ${sheet.phone_masked}` : "No phone number on file"}
           </p>
         </div>
-        {sheet.has_phone && <PhoneCallButton donorId={sheet.person_id} />}
+        {canCall && !calling && (
+          <Button size="sm" className="rounded-full" onClick={() => setCalling(true)}>
+            <Phone aria-hidden />
+            Call
+          </Button>
+        )}
       </div>
+      {calling && <PhoneCallInline donorId={sheet.person_id} onClose={() => setCalling(false)} />}
       <Section title="Giving">
         {r.gift_count === 0 ? (
           <p>No gifts on record.</p>
@@ -255,7 +271,7 @@ export const ApprovalCard = ({
     )}
   >
     <p className="font-semibold">
-      {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}
+      {handled ?? (!decided ? "Needs your approval" : decidedTitle(approval.tool, Boolean(decision)))}
       {/* the summary already says what ("Send thank-you email to …"); the bare tool name only without one */}
       {!approval.summary && `: ${toolLabel(approval.tool)}`}
     </p>

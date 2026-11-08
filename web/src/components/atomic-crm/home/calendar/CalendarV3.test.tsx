@@ -9,7 +9,7 @@ import type { CrmEvent } from "../../providers/local/crmTypes";
 import { runMock, type Method } from "../../providers/local/endpoint";
 import "../../providers/local/mocks";
 import { resetMockTasks } from "../../providers/local/mocks";
-import { focusCalendarOn } from "../../calendar/calendarFocus";
+import { focusCalendarOn, requestAddEvent } from "../../calendar/calendarFocus";
 import { CalendarV3 } from "./CalendarV3";
 
 vi.mock("../../providers/local/config", async (importOriginal) => ({
@@ -69,8 +69,7 @@ describe("CalendarV3 (live, against the contract mocks)", () => {
 
     await ui.getByLabelText("Title *").fill("Board coffee");
     await ui.getByLabelText("Date *").fill("2026-11-12");
-    await ui.getByLabelText("All day").click();
-    await ui.getByLabelText("Start").fill("08:00");
+    await ui.getByLabelText("Start").fill("08:00"); // a new event starts timed
     await ui.getByLabelText("Place").fill("Coral Room");
     await ui.getByRole("button", { name: "Save event" }).click();
     await expect.element(ui.getByText("Board coffee").first()).toBeVisible();
@@ -101,5 +100,11 @@ describe("CalendarV3 (live, against the contract mocks)", () => {
     const ui = await mount();
     await expect.element(ui.getByText("Nov 15 – 21")).toBeVisible();
     await expect.poll(() => document.querySelector("[data-day='2026-11-19'][data-flash]") !== null).toBe(true);
+  });
+
+  it("opens straight into Add event when the small tile's + asked for it", async () => {
+    requestAddEvent();
+    const ui = await mount();
+    await expect.element(ui.getByRole("button", { name: "Save event" })).toBeVisible();
   });
 });

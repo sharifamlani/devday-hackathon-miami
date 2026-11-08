@@ -1,0 +1,14 @@
+/* Call note destination tiles (DestinationChips.tsx): a 38px square that widens to fit its
+   name when filled and shrinks back when cleared, on the shared motion variables
+   (src/index.css, "Motion"). Browsers without interpolate-size switch widths instantly. */
+.dest-tile {
+  width: 38px;
+  overflow: hidden;
+  interpolate-size: allow-keywords;
+  transition:
+    width var(--motion-base) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
+}
+.dest-tile[data-filled] {
+  width: auto;
+}

@@ -23,7 +23,7 @@ import {
 import { useTargets } from "../../providers/local/hooks";
 import { parseWhen } from "../../providers/local/parseWhen";
 import { useCreateTask } from "../../providers/local/tasks";
-import { takeCalendarFocus } from "../../calendar/calendarFocus";
+import { takeAddEventRequest, takeCalendarFocus } from "../../calendar/calendarFocus";
 import { weekRange, weekStrip } from "../AgendaList";
 import { focusRing } from "../tile";
 import { EventForm } from "./EventForm";
@@ -61,8 +61,14 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
   const listRef = useRef<HTMLElement>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null); // details row key
-  const [form, setForm] = useState<{ event: CalendarEvent | null } | null>(null);
   const readOnly = EVENTS_READ_ONLY;
+  // The tile's "+" asks for the form (calendarFocus.ts); the read-only sample explains instead.
+  const [addRequested] = useState(takeAddEventRequest);
+  const [form, setForm] = useState<{ event: CalendarEvent | null } | null>(
+    addRequested && !readOnly ? { event: null } : null,
+  );
+  const [addNote, setAddNote] = useState(addRequested && readOnly);
+  const startAdd = () => (readOnly ? setAddNote(true) : setForm({ event: null }));
   const crmEvents = useEvents().data;
 
   useEffect(() => {
@@ -91,12 +97,16 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
           <h3 className="cal3-title">Calendar · Events</h3>
           {readOnly && <p className="cal3-note">Read-only sample</p>}
         </div>
-        {!readOnly && (
-          <Button type="button" size="sm" onClick={() => setForm({ event: null })}>
-            <Plus size={14} aria-hidden="true" /> Add event
-          </Button>
-        )}
+        <Button type="button" size="sm" onClick={startAdd}>
+          <Plus size={14} aria-hidden="true" /> Add event
+        </Button>
       </header>
+      {addNote && (
+        <p role="status" className="cal3-add-note">
+          This is the read-only sample, so events can't be saved here. On your Donor Desk, Add event
+          saves it to your calendar.
+        </p>
+      )}
       <div className="cal3-nav">
         <p className="cal3-month">
           {monthName} {year}

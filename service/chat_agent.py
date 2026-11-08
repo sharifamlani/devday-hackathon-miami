@@ -78,8 +78,8 @@ Rules:
   once: amount and date). Then, for EVERY pair in
   to_confirm, call merge_duplicate (one card per pair, all in this same turn; the person picks Merge or Keep
   separate) and give your findings for each in a short list: the evidence, both records' giving, and what makes it
-  uncertain. If a merge card comes back declined, the person said keep them separate: call dismiss_duplicate for
-  that pair. With nothing pending, say "No possible duplicates right now." Never call resolve_duplicates unless
+  uncertain. Keep separate on a card dismisses that pair by itself; don't call dismiss_duplicate after it. With
+  nothing pending, say "No possible duplicates right now." Never call resolve_duplicates unless
   the user asked.
 {first_turn}{selection}"""
 
@@ -682,14 +682,24 @@ def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_
 def merge_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int, keep_id: int | None = None) -> dict:
     """Merge a suggested duplicate pair into one person. Needs the user's approval; Undo splits them again."""
     from service import agent_writes
-    return write(agent_writes.merge_duplicate, suggestion_id, keep_id, ctx.context.approved_by, actor="agent")
+    line = approval_summary("merge_duplicate", {"suggestion_id": suggestion_id, "keep_id": keep_id})  # before the merge
+    out = write(agent_writes.merge_duplicate, suggestion_id, keep_id, ctx.context.approved_by, actor="agent")
+    if line and "error" not in out:
+        out["label"] = "merged " + re.sub(r" \(\d+% match: .*\)$", "", line.removeprefix("Merge "))
+    return out
 
 
 @function_tool
 def dismiss_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int) -> dict:
     """Mark a suggested duplicate pair as not the same person."""
     from service import agent_writes
-    return write(agent_writes.dismiss_duplicate, suggestion_id, actor="agent")
+    row = query("SELECT status FROM duplicate_suggestions WHERE id = ?", (suggestion_id,))
+    if row and row[0]["status"] == "dismissed":     # Keep separate on its card already did it (keep_separate)
+        return {"suggestion_id": suggestion_id, "status": "dismissed", "note": "already kept separate"}
+    try:
+        return write(agent_writes.dismiss_duplicate, suggestion_id, actor="agent")
+    except LookupError as e:                        # not pending any more (merged, superseded) or unknown
+        return {"error": str(e)}
 
 
 # Sharif (Nov 8): a pair at or above this confidence the agent merges by itself when asked to fix duplicates;
@@ -772,8 +782,12 @@ def resolve_duplicates(ctx: RunContextWrapper[ChatContext], names: list[str] | N
                 counted_once = [{"amount": r["amount"], "date": r["gift_date"]} for r in conn.execute(
                     f"SELECT amount, gift_date FROM gifts WHERE id IN ({', '.join('?' * len(once))}) ORDER BY gift_date",
                     once)] if once else []
+                kept_name, gone_name = kept["full_name"], gone["full_name"]
+                if kept_name == gone_name:   # same name on both records: tell them apart by their giving
+                    label = lambda x: f"{x['full_name']} ({x['gifts']} gift{'s' if x['gifts'] != 1 else ''})"   # noqa: E731
+                    kept_name, gone_name = label(kept), label(gone)
                 merged.append({"suggestion_id": p["suggestion_id"], "confidence": p["confidence"],
-                               "reasons": p["reasons"], "kept": kept["full_name"], "merged_in": gone["full_name"],
+                               "reasons": p["reasons"], "kept": kept_name, "merged_in": gone_name,
                                "counted_once": counted_once, "undo_token": token,
                                "undo_merge_id": result.get("merge_id")})
             score.run(conn)
@@ -1066,21 +1080,55 @@ APPROVAL_TOOLS = {t.name for t in TOOLS if getattr(t, "needs_approval", False)}
 # Public preview (PUBLIC_MODE=1): the agent's server-side tools bypass the HTTP allow-list, so every tool that
 # is not a plain read is swapped for one that refuses without touching the db.
 READ_ONLY_TOOLS = {"find_people", "get_person", "segment", "get_context", "search_context", "get_events", "get_alerts",
-                   "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats"}
+                   "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats", "get_call_notes"}
+READ_PREFIXES = ("get_", "find_", "search_", "list_")
 READ_ONLY_REPLY = "This is a read-only preview, so I can't make changes, draft or send anything. I can look things up for you."
 
 
 def refuse_in_preview(tool):
+    """A tool the preview doesn't allow. A write or send marks the run blocked (the reply becomes READ_ONLY_REPLY);
+    a read that isn't on the list just answers empty, so one refused lookup doesn't throw away the whole answer."""
+    is_read = tool.name.startswith(READ_PREFIXES)
+
     async def invoke(ctx, _input):
+        if is_read:
+            return json.dumps({"note": public_mode.NOT_AVAILABLE, "results": []})
         ctx.context.blocked = True
         return json.dumps({"error": public_mode.NOT_AVAILABLE})
     return dataclasses.replace(tool, on_invoke_tool=invoke, needs_approval=False)
 
 
+def redacting() -> bool:
+    """public_mode.redacting() (22: PUBLIC_MODE and not PUBLIC_SHOW_ALL); before that lands, public mode redacts."""
+    return getattr(public_mode, "redacting", lambda: True)()
+
+
+def masked_in_preview(tool):
+    """A read the preview allows, with its output masked before the model sees it (public_mode.mask_json, as for
+    every public JSON response): call notes and transcripts come back empty, staff notes blank, emails and phones
+    masked. The model can't repeat what it never got."""
+    run = tool.on_invoke_tool
+
+    async def invoke(ctx, input):
+        out = await run(ctx, input)
+        if not redacting():                         # PUBLIC_SHOW_ALL: the demo shows everything, nothing re-hidden
+            return out
+        try:
+            data = out if isinstance(out, (dict, list)) else json.loads(out)
+        except (TypeError, ValueError):
+            return out
+        masked = public_mode.mask_json(data)
+        # They exist, they're just not shown here (only reached while redacting; show-all returned above).
+        if isinstance(masked, dict) and "call_notes" in masked:
+            masked["note"] = "call notes stay private in the public preview"
+        return masked if isinstance(out, (dict, list)) else json.dumps(masked)
+    return dataclasses.replace(tool, on_invoke_tool=invoke)
+
+
 def tools_for_mode() -> list:
     if not public_mode.enabled():
         return TOOLS
-    return [t if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
+    return [masked_in_preview(t) if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
 
 
 def summarize(output) -> str:
@@ -1170,8 +1218,54 @@ def summarize(output) -> str:
         what = data.get("event_title") or f"event {data['event_id']}"
         return f"RSVP: {who} → {what}{when}, {answer}"
     if "suggestion_id" in data:
-        return f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
+        return data.get("label") or data.get("note") or f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
     return json.dumps(data)[:160]
+
+
+DECLINED = {"merge_duplicate": "kept separate", "send": "not sent", "call_person": "not called",
+            "delete_event": "kept (not deleted)", "delete_calendar_item": "kept (not deleted)"}
+
+
+def nice_when(starts_at: str, with_time: bool = True) -> str:
+    """'2026-11-10T15:00' -> 'Tue Nov 10, 3:00 PM'; a date alone -> 'Tue Nov 10'."""
+    day = date.fromisoformat(starts_at[:10])
+    out = f"{day:%a} {day:%b} {day.day}"
+    clock = starts_at[11:16]
+    if with_time and len(clock) == 5:
+        h, m = int(clock[:2]), int(clock[3:])
+        out += f", {h % 12 or 12}:{m:02d} {'AM' if h < 12 else 'PM'}"
+    return out
+
+
+def event_line(tool: str, data: dict) -> str | None:
+    """The step line for an event write (add_event / move_event / delete_event and the calendar-item versions),
+    or None when the output isn't an event."""
+    if not (isinstance(data, dict) and data.get("title") and data.get("starts_at") and "source" in data
+            and "kind" not in data):
+        return None
+    try:
+        if tool.startswith("delete_"):
+            day = date.fromisoformat(data["starts_at"][:10])
+            return f"Deleted {data['title']} ({day:%b} {day.day})"
+        when = nice_when(data["starts_at"])
+    except ValueError:
+        return None
+    return f"Moved {data['title']} to {when}" if tool.startswith("move_") else f"Added {data['title']} · {when}"
+
+
+def step_summary(tool: str, output) -> str:
+    """The step card's line. A card the person declined comes back as the SDK's "Tool execution was not
+    approved."; say what that meant instead. Event writes read as a sentence ("Added Board meeting · Tue Nov 10,
+    3:00 PM"); other deletes say "deleted: ..." (tasks' public shape has no deleted_at)."""
+    if isinstance(output, str) and "not approved" in output.lower():
+        return DECLINED.get(tool, "declined")
+    line = event_line(tool, output_data(output))
+    if line:
+        return line
+    summary = summarize(output)
+    if tool.startswith("delete_") and not summary.startswith("error"):
+        summary = "deleted: " + summary.split(": ", 1)[-1]
+    return summary
 
 
 def output_data(output) -> dict:
@@ -1193,6 +1287,8 @@ def steps_from(items) -> list[dict]:
                 args = json.loads(getattr(raw, "arguments", "") or "{}")
             except ValueError:
                 args = {}
+            if call_id in calls:      # a resumed run repeats a paused call: one step per call, filled in place
+                continue
             calls[call_id] = {"tool": getattr(raw, "name", "tool"), "args": args, "summary": None,
                               "status": "done", "undo_token": None, "call_id": call_id}
             steps.append(calls[call_id])
@@ -1200,9 +1296,7 @@ def steps_from(items) -> list[dict]:
             raw = item.raw_item
             call_id = raw.get("call_id") if isinstance(raw, dict) else getattr(raw, "call_id", None)
             if call_id in calls:
-                summary = summarize(item.output)
-                if calls[call_id]["tool"].startswith("delete_") and not summary.startswith("error"):
-                    summary = "deleted: " + summary.split(": ", 1)[-1]     # tasks' public shape has no deleted_at
+                summary = step_summary(calls[call_id]["tool"], item.output)
                 calls[call_id]["summary"] = summary
                 calls[call_id]["status"] = "error" if summary.startswith("error") else "done"
                 calls[call_id]["undo_token"] = output_data(item.output).get("undo_token")
@@ -1254,6 +1348,10 @@ def approval_summary(tool: str, args: dict) -> str | None:
             pair = next((p for p in with_conn(duplicate_pairs) if p["suggestion_id"] == args["suggestion_id"]), None)
             if pair is None:
                 return f"Merge {merged} into {kept}"
+            if kept == merged:             # same name on both records: tell them apart by their giving
+                n = lambda x: f"{x['gifts']} gift{'s' if x['gifts'] != 1 else ''}"           # noqa: E731
+                k, m = (pair["a"], pair["b"]) if keep_a else (pair["b"], pair["a"])
+                kept, merged = f"{kept} ({n(k)})", f"{merged} ({n(m)})"
             giving = " vs ".join(f"{x['gifts']} gift{'s' if x['gifts'] != 1 else ''} · ${x['total_given']:,.0f}"
                                  for x in (pair["a"], pair["b"]) if x)
             evidence = pair["reasons"][0] if pair["reasons"] else "similar records"
@@ -1410,4 +1508,33 @@ def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> di
         if item.call_id in decisions:
             (state.approve if decisions[item.call_id] else state.reject)(item)
     result = Runner.run_sync(agent, state, context=ctx, max_turns=12)
-    return respond(result, ctx, spec, spec["steps"])
+    return with_outcome(respond(result, ctx, spec, spec["steps"]), decisions, spec["steps"])
+
+
+# A reply written as if the card were still waiting ("pending deletion", "approve on the card").
+STILL_PENDING = re.compile(r"\b(pending|waiting for (your )?approval|ready for (your )?approval|approve (it )?on the card)\b",
+                           re.I)
+
+
+def with_outcome(out: dict, decisions: dict[str, bool], shown: list[dict]) -> dict:
+    """After the person decides, the reply says what happened. When the resumed run says nothing, or still talks
+    as if the card were waiting, the reply becomes the decided steps' own lines ("Deleted Board meeting (Nov 10).",
+    "Kept Board meeting (2026-11-10)."). A run that paused again keeps its reply."""
+    if out.get("approvals") or (out.get("reply") and not STILL_PENDING.search(out["reply"])):
+        return out
+    args = {s["call_id"]: (s["tool"], s.get("args") or {}) for s in shown if s.get("call_id") in decisions}
+    lines = []
+    for step in out.get("steps") or []:
+        if step.get("call_id") not in decisions or step.get("status") == "error":
+            continue
+        tool, a = args.get(step["call_id"], (step.get("tool") or "", step.get("args") or {}))
+        if decisions[step["call_id"]]:
+            lines.append(step["summary"][:1].upper() + step["summary"][1:])
+        else:
+            card = approval_summary(tool, a) or ""
+            what = card.split(": ", 1)[1] if ": " in card else ""
+            lines.append(f"Kept {what}" if tool.startswith("delete_") and what else
+                         (DECLINED.get(tool, "declined")[:1].upper() + DECLINED.get(tool, "declined")[1:]))
+    if lines:
+        out["reply"] = " ".join(line.rstrip(".") + "." for line in lines)
+    return out

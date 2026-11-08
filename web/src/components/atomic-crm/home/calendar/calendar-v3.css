@@ -3,6 +3,7 @@
 .cal3-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cal3-title { font-size: 16px; font-weight: 700; }
 .cal3-note { font-size: 11px; color: var(--muted-foreground); }
+.cal3-add-note { margin: 4px 0 8px; border-radius: 10px; background: var(--muted); padding: 8px 12px; font-size: 13px; }
 .cal3-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .cal3-month { font-size: 20px; font-weight: 700; }
 .cal3-nav-tools { display: flex; align-items: center; gap: 6px; }
@@ -45,6 +46,12 @@
 .cal3-add:disabled { opacity: .7; }
 @media (max-width: 767px) {
   .cal3-body { grid-template-columns: minmax(0, 1fr); }
-  .cal3-strip { grid-template-columns: repeat(7, 84px); }
+  /* Phone: all seven days fit; a day with events shows a dot (the list below has the titles). */
+  .cal3-strip { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; overflow-x: visible; }
+  .cal3-cell { padding: 6px 0; border-radius: 10px; }
+  .cal3-wd { font-size: 9px; letter-spacing: .02em; }
+  .cal3-day { width: 26px; height: 26px; font-size: 13px; }
+  .cal3-count { font-size: 0; line-height: 1; min-height: 8px; }
+  .cal3-count[data-on]::after { content: "•"; font-size: 14px; }
   .cal3-row { grid-template-columns: 56px 10px minmax(0, 1fr) 28px 28px; }
 }

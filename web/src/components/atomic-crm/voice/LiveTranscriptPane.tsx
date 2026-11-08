@@ -32,6 +32,7 @@ import {
   type TranscriptLine,
 } from "./callNotes";
 import { DestinationChips, type DestinationOption } from "./DestinationChips";
+import { donorOptions } from "./destinationOptions";
 import { DONOR_GROUPS, findCardFailedDonor } from "./donorGroups";
 import {
   MIC_ERROR_MESSAGES,
@@ -440,18 +441,18 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
 
   const options = useMemo<Record<NoteDestinationKind, DestinationOption[]>>(
     () => ({
-      donor: (donors.data ?? []).map((d) => ({
-        id: String(d.id),
-        label: d.full_name,
-        detail: d.city ?? undefined,
-      })),
-      group: DONOR_GROUPS.map((g) => ({
-        id: g.id,
-        label: g.label,
-        detail: donors.data
-          ? String(donors.data.filter(g.matches).length)
-          : undefined,
-      })),
+      donor: donorOptions(donors.data ?? []),
+      group: DONOR_GROUPS.map((g) => {
+        const count = donors.data?.filter(g.matches).length;
+        return {
+          id: g.id,
+          label: g.label,
+          // A group no one is in yet is greyed out instead of offering "0".
+          detail:
+            count === undefined ? undefined : count ? String(count) : "none yet",
+          disabled: count === 0,
+        };
+      }),
       project: (campaigns.data ?? []).map((c) => ({
         id: String(c.id),
         label: c.name,

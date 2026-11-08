@@ -46,3 +46,22 @@ def test_campaign_drafts_cover_every_giver_and_only_givers(db_file):
     reachable = {str(d["id"]) for d in client().get("/donors").json()}
     assert reachable <= set(demo["drafts"]) or len(reachable) > 60   # every pickable donor has its drafts
     assert all(len(v) == 6 for v in demo["drafts"].values())  # all intent x channel combinations kept
+
+
+def test_the_written_file_blanks_staff_text_but_keeps_contacts(db_file, tmp_path):
+    """The public preview reads this file: no transcript, call notes or staff notes (#137/#189); emails and phones
+    stay in full because the sample data is fictional (Sharif, Nov 8)."""
+    from service.export_snapshot import public_snapshot
+    conn = db.connect(db_file)
+    snap = build_snapshot(conn, rescore=False)
+    conn.close()
+    snap["donor_details"]["x"] = {"email": "maria.delgado@example.com", "phone": "305-555-0101",
+                                  "notes": "met at gala", "transcript": "she said yes",
+                                  "call_notes": [{"text": "wants a call"}], "summary": None}
+    out = tmp_path / "snapshot.json"
+    write_snapshot(public_snapshot(snap), out)
+    text = out.read_text(encoding="utf-8")
+    assert "she said yes" not in text and "met at gala" not in text and "wants a call" not in text
+    x = json.loads(text)["donor_details"]["x"]
+    assert (x["email"], x["phone"], x["notes"], x["transcript"], x["call_notes"]) ==         ("maria.delgado@example.com", "305-555-0101", "", "", [])
+    assert snap["donor_details"]["x"]["notes"] == "met at gala"                    # the mirror itself is untouched
