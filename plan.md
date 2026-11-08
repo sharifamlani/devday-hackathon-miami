@@ -1883,7 +1883,8 @@ No UI or code changes: this section only orders what is already on main.
   (4)  +-----------------------------------------------+
        | DEMO MOMENTS (in this order)                  |
        |  a agent chat streams ("Plan next week")      |
-       |  b duplicates in chat (briefing: Review)      |
+       |  b duplicates in chat (Review -> inbox ->     |
+       |    Ask the agent to fix)                      |
        |  c call sheet (task row: Call Hye-jin Park)   |
        |  d calendar v3 (next week -> 5K ⓘ -> batch)   |
        |  e Impact & story (Copy for a grant report)   |
@@ -1907,7 +1908,7 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | 2b | Website | Type `miamifoundation.org`, **Continue** | **Reading your website · m:ss**, then **Your desk is set up.** (e.g. 15 facts) |
 | 3 | Dashboard | **Go to the dashboard**, **Not now** on the tour card | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
-| 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** | the agent works the first duplicate pair in the chat; merging still waits for a click |
+| 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
 | 4c | Call sheet | Click the **Call Hye-jin Park** task row | steps incl. **Prep call**, a call sheet + a draft, **Mark done?** (~28 s). The call sheet's **Call** opens the call controls inside that chat card, not a pop-up (#248); **Call** stays disabled until the phone setup is ready, so don't press it unless the phone call is part of the run |
 | 4d | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
 | 4e | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
@@ -1990,7 +1991,7 @@ fallback before T-30.
 | 2b Context | **Still reading your site.** | **Continue to the dashboard**: "It keeps reading in the background; the facts land in a minute." |
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
-| 4b Duplicates | the agent stalls | **CRM** heading → **Review merges →**: show the pair and **Merge ✓** there instead. |
+| 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
 | 4c Call sheet | over 40 s | "It's writing a call sheet and a draft from her record." Move on when the draft shows. |
 | 4d Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
 | 4e Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
