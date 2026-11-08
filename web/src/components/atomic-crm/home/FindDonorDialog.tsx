@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { ArrowLeft, Check, Search, Sparkles } from "lucide-react";
+import { ArrowLeft, Search, Sparkles } from "lucide-react";
 
 import {
   Dialog,
@@ -14,13 +14,9 @@ import { SourceLink } from "../contacts/ResearchPanel";
 import { formatUsd } from "../contacts/donorFormat";
 import { DATA_MODE } from "../providers/local/config";
 import { useDonor } from "../providers/local/hooks";
-import {
-  type EnrichPreview,
-  useAcceptEnrichment,
-  useEnrichPreview,
-  usePersonInterests,
-} from "../providers/local/interests";
+import { usePersonInterests } from "../providers/local/interests";
 import { InterestChip, tagLabel, useTagLabels } from "../contacts/InterestChips";
+import { ENRICH_COPY, EnrichProposal, enrichBox, useEnrichReview } from "../contacts/EnrichReview";
 import type { DonorDetail, DonorSummary } from "../providers/local/types";
 import {
   donorMeta,
@@ -242,7 +238,7 @@ const DonorSummaryView = ({
   );
 };
 
-const box = "rounded-xl border-l-4 border-brand bg-surface px-3.5 py-2.5 text-sm";
+const box = enrichBox;
 
 /** What's already on the profile: saved research facts and interest areas. */
 const Saved = ({ donor, live }: { donor: DonorDetail; live: boolean }) => {
@@ -286,16 +282,7 @@ const Saved = ({ donor, live }: { donor: DonorDetail; live: boolean }) => {
   );
 };
 
-const contactLine = (contact: EnrichPreview["contact"]) => {
-  const c = contact as Record<string, unknown>;
-  const website = typeof c.website === "string" ? c.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : null;
-  return [website, c.public_phone, c.public_email].filter((v): v is string => typeof v === "string" && v.length > 0);
-};
-
-/**
- * Enrich profile → the agent proposes (dry run, nothing written) → staff tick what to keep →
- * Save to profile writes only those facts and tags. Individuals aren't researched.
- */
+/** Enrich → review → Save to profile (organizations only); the flow lives in contacts/EnrichReview. */
 const Enrich = ({
   donor,
   live,
@@ -305,141 +292,17 @@ const Enrich = ({
   live: boolean;
   onOpenRecord: () => void;
 }) => {
-  const preview = useEnrichPreview();
-  const accept = useAcceptEnrichment();
-  const labels = useTagLabels();
-  const [facts, setFacts] = useState<Set<string>>(new Set());
-  const [tags, setTags] = useState<Set<string>>(new Set());
-  const [saved, setSaved] = useState<string | null>(null);
-  const isOrg = donor.donor_type === "organization";
-  const proposal = preview.data;
-  const found = proposal && (proposal.facts.length > 0 || proposal.interests.length > 0);
-
-  const run = () => {
-    setSaved(null);
-    accept.reset();
-    preview.mutate(donor.id, {
-      onSuccess: (p) => {
-        setFacts(new Set(p.facts.map((f) => String(f.id))));
-        setTags(new Set(p.interests.map((i) => i.tag)));
-      },
-    });
-  };
-
-  const save = () =>
-    accept.mutate(
-      { personId: donor.id, fact_ids: proposal!.facts.filter((f) => facts.has(String(f.id))).map((f) => f.id), tags: [...tags] },
-      {
-        onSuccess: (res) => {
-          const s = typeof res.saved === "number" ? { facts: res.saved } : res.saved;
-          const parts = [
-            s.facts ? `${s.facts} ${s.facts === 1 ? "fact" : "facts"}` : null,
-            s.interests ? `${s.interests} interest ${s.interests === 1 ? "area" : "areas"}` : null,
-          ].filter(Boolean);
-          const skipped = "skipped_staff_tags" in s && s.skipped_staff_tags?.length
-            ? ` Kept your team’s choice for ${s.skipped_staff_tags.length === 1 ? "1 tag" : `${s.skipped_staff_tags.length} tags`}.`
-            : "";
-          setSaved(`${parts.length ? `Saved ${parts.join(" and ")} to the profile.` : "Nothing new to save."}${skipped}`);
-          preview.reset();
-        },
-      },
-    );
-
-  const toggle = (set: Set<string>, key: string, update: (s: Set<string>) => void) => {
-    const next = new Set(set);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    update(next);
-  };
-
-  const contact = proposal ? contactLine(proposal.contact) : [];
-  const picked = facts.size + tags.size;
-
+  const review = useEnrichReview(donor);
+  const { isOrg, found, preview, accept, picked } = review;
   return (
     <>
-      {live && !isOrg && (
-        <p className={cn(box, "text-muted-foreground")}>
-          Individuals aren’t researched on the web; add tags by hand.
-        </p>
-      )}
-      {preview.isPending && (
-        <p className={cn(box, "flex items-center gap-2")} aria-live="polite">
-          <Spinner /> Searching public sources for {donor.full_name}…
-        </p>
-      )}
-      {proposal && !found && (
-        <p className={cn(box, "text-muted-foreground")} aria-live="polite">
-          {proposal.identity_match === "ambiguous"
-            ? "More than one organization matched this name, so nothing was suggested."
-            : "No public information found: this looks like a private or fictional organization."}
-        </p>
-      )}
-      {proposal && found && (
-        <section className={box} aria-label="Enrichment suggestions">
-          <p className="font-semibold">Enrichment agent found (public web, review before saving):</p>
-          {proposal.interests.length > 0 && (
-            <>
-              <p className="mt-2 text-xs font-semibold text-muted-foreground">Interest areas</p>
-              <ul className="mt-1 flex flex-wrap gap-1.5" aria-label="Suggested interest areas">
-                {proposal.interests.map((interest) => (
-                  <InterestChip
-                    key={`${interest.tag}:${interest.sub_tag ?? ""}`}
-                    interest={interest}
-                    label={tagLabel(interest, labels)}
-                    selected={tags.has(interest.tag)}
-                    onToggle={() => toggle(tags, interest.tag, setTags)}
-                  />
-                ))}
-              </ul>
-            </>
-          )}
-          {proposal.facts.length > 0 && (
-            <>
-              <p className="mt-2 text-xs font-semibold text-muted-foreground">Facts</p>
-              <ul className="mt-1 grid gap-1.5">
-                {proposal.facts.map((fact) => {
-                  const id = String(fact.id);
-                  return (
-                    <li key={id} className="flex items-start gap-2">
-                      <input
-                        type="checkbox"
-                        id={`fact-${id}`}
-                        checked={facts.has(id)}
-                        onChange={() => toggle(facts, id, setFacts)}
-                        className="mt-1 size-4 shrink-0 accent-foreground"
-                      />
-                      <label htmlFor={`fact-${id}`} className={cn(!facts.has(id) && "text-muted-foreground line-through")}>
-                        {fact.fact}
-                      </label>
-                      <SourceLink href={fact.source_url} />
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-          {contact.length > 0 && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Public contact (shown only, not saved): {contact.join(" · ")}
-            </p>
-          )}
-        </section>
-      )}
-      {saved && (
-        <p className="flex items-center gap-1.5 text-sm font-medium" role="status">
-          <Check className="size-4" aria-hidden="true" /> {saved}
-        </p>
-      )}
-      {(preview.isError || accept.isError) && (
-        <p role="alert" className="text-sm text-alert-foreground">
-          {(preview.error ?? accept.error)?.message}
-        </p>
-      )}
+      {live && !isOrg && <p className={cn(box, "text-muted-foreground")}>{ENRICH_COPY.individual}</p>}
+      <EnrichProposal review={review} />
       <div className="flex flex-wrap gap-2">
         {live && isOrg && found ? (
           <button
             type="button"
-            onClick={save}
+            onClick={review.save}
             disabled={accept.isPending || picked === 0}
             className={cn(pill, "bg-primary text-primary-foreground hover:bg-primary/85")}
           >
@@ -451,7 +314,7 @@ const Enrich = ({
           isOrg && (
             <button
               type="button"
-              onClick={run}
+              onClick={review.run}
               disabled={preview.isPending}
               className={cn(pill, "bg-primary text-primary-foreground hover:bg-primary/85")}
             >
