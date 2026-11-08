@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 import { AskSessionProvider } from "../ask/AskSession";
 import { AskSidebar } from "../ask/AskSidebar";
+import { ASK_SIDEBAR_ID } from "../ask/askSidebarState";
 import { useAskSession } from "../ask/askSessionContext";
 import { useAskSidebarDocked } from "../ask/useAskSidebarDocked";
 import { DataImportProvider } from "../dataImport/DataImportProvider";
@@ -14,10 +15,12 @@ import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import Header from "./Header";
 import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
 import { Rail } from "./Rail";
+import { shellState } from "./shellState";
 
 /**
- * Desktop shell in the Kindred look: a rounded warm surface on a beige canvas,
- * an icon rail on the left and the workspace (top bar + page) on the right.
+ * Desktop shell in the Kindred look: a white canvas with soft yellow-green
+ * glows, 16px around the edge and 12px between columns:
+ *   rail | Projects sidebar (collapsible) | workspace (top bar + page) | right pane
  * Phones use MobileLayout instead (see CRM.tsx, useIsMobile).
  */
 export const Layout = ({ children }: { children: ReactNode }) => {
@@ -35,54 +38,60 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 };
 
 /**
- * The Ask sidebar (ask/AskSidebar.tsx) docks as a third grid column at
- * 1280px+, so the page shrinks instead of being covered. Narrower, it
- * overlays with a scrim and the page behind it is inert.
+ * The right pane (ask/AskSidebar.tsx) docks as a column at 1280px+, so the
+ * page shrinks instead of being covered; expanded, it takes the workspace's
+ * place. Narrower, it overlays with a scrim and the page behind it is inert.
+ * The shell is one viewport tall; the page scrolls inside <main>.
  */
 const LayoutShell = ({ children }: { children: ReactNode }) => {
-  const { sidebarOpen } = useAskSession();
-  const docked = useAskSidebarDocked();
-  const overlay = sidebarOpen && !docked;
+  const { sidebarOpen, paneExpanded } = useAskSession();
+  const dockable = useAskSidebarDocked();
+  const shell = shellState({
+    open: sidebarOpen,
+    dockable,
+    expanded: paneExpanded,
+  });
   return (
     <>
-      <div inert={overlay}>
+      <div inert={shell.overlay}>
         <a
-          href="#main-content"
+          href={shell.workspaceHidden ? `#${ASK_SIDEBAR_ID}` : "#main-content"}
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
         >
           Skip to content
         </a>
-        <div className="min-h-screen bg-background p-4 xl:p-7">
+        <div className="flex h-dvh gap-3 p-4">
+          <Rail />
+          <ProjectsSidebar />
           <div
             className={cn(
-              "mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1600px] grid-cols-[60px_minmax(0,1fr)] gap-4 rounded-[34px] bg-surface py-[18px] pr-[22px] pl-2.5 shadow-[0_20px_70px_#3430260a] xl:min-h-[calc(100vh-3.5rem)] xl:grid-cols-[68px_minmax(0,1fr)] xl:gap-7 xl:pt-[22px] xl:pr-[26px] xl:pl-4",
-              sidebarOpen &&
-                docked &&
-                "max-w-[2000px] xl:grid-cols-[68px_minmax(0,1fr)_400px]",
+              "flex min-w-0 flex-1 flex-col gap-3",
+              // Kept mounted so the page keeps its state behind the expanded pane.
+              shell.workspaceHidden && "hidden",
             )}
           >
-            <Rail />
-            {/* Projects sidebar (Codex-style, collapsible) beside the workspace. */}
-            <div className="flex min-w-0 gap-4 xl:gap-6">
-              <ProjectsSidebar />
-              <div className="min-w-0 flex-1">
-                <Header />
-                <main id="main-content" tabIndex={-1} className="outline-none">
-                  <ErrorBoundary FallbackComponent={Error}>
-                    <Suspense
-                      fallback={<Skeleton className="h-12 w-12 rounded-full" />}
-                    >
-                      {children}
-                    </Suspense>
-                  </ErrorBoundary>
-                </main>
-              </div>
-            </div>
-            {sidebarOpen && docked && <AskSidebar docked />}
+            <Header />
+            {/* -m-1 p-1: room for focus rings at the scroll edges. relative: so
+                absolutely positioned children (sr-only text) scroll and clip
+                with the page instead of stretching the document. */}
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className="relative -m-1 min-h-0 flex-1 overflow-y-auto p-1 outline-none"
+            >
+              <ErrorBoundary FallbackComponent={Error}>
+                <Suspense
+                  fallback={<Skeleton className="h-12 w-12 rounded-full" />}
+                >
+                  {children}
+                </Suspense>
+              </ErrorBoundary>
+            </main>
           </div>
+          {shell.docked && <AskSidebar docked />}
         </div>
       </div>
-      {overlay && <AskSidebar docked={false} />}
+      {shell.overlay && <AskSidebar docked={false} />}
     </>
   );
 };
