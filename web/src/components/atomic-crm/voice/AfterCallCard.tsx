@@ -263,7 +263,7 @@ export const AfterCallCard = ({
 
       {phase === "reading" && (
         <p className="flex items-center gap-2 text-muted-foreground" role="status">
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
+          <Loader2 className="size-4 animate-spin" aria-hidden />
           Reading your call…
         </p>
       )}
@@ -372,7 +372,7 @@ export const AfterCallCard = ({
                 disabled={phase === "applying" || ticked.size === 0}
                 className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-brand disabled:opacity-50 dark:text-primary-foreground"
               >
-                {phase === "applying" && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />}
+                {phase === "applying" && <Loader2 className="size-4 animate-spin" aria-hidden />}
                 Apply selected
               </button>
             </div>

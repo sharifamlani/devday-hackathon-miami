@@ -24,7 +24,8 @@ export interface AskSession {
 
   sidebarOpen: boolean;
   openSidebar: () => void;
-  closeSidebar: () => void;
+  /** afterClose runs right after the pane has left the page (e.g. to return focus). */
+  closeSidebar: (afterClose?: () => void) => void;
   toggleSidebar: () => void;
   /** True once a person opened the panel in this page view; drives focus-on-open. */
   openedByUser: boolean;

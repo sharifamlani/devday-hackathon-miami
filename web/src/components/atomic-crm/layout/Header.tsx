@@ -6,6 +6,7 @@ import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
+import { MotionMenuItems } from "./MotionMenuItems";
 import { avatarSlot } from "./shellState";
 import { SampleDataBadge } from "./SampleDataBadge";
 
@@ -38,6 +39,7 @@ const Header = () => {
           <span className={avatarSlot("size-10")}>
             <UserMenu>
               <RestartOnboardingMenuItem />
+              <MotionMenuItems />
             </UserMenu>
           </span>
         </>

@@ -165,10 +165,14 @@
     transform: scaleX(1);
   }
 }
+/* Reduced motion: the OS setting unless "Full motion" is chosen, or "Reduce motion". */
 @media (prefers-reduced-motion: reduce) {
-  .home-composer-bloom {
+  :root:not([data-motion="full"]) .home-composer-bloom {
     animation: none;
   }
+}
+:root[data-motion="reduce"] .home-composer-bloom {
+  animation: none;
 }
 .home-project-toggle {
   display: flex;

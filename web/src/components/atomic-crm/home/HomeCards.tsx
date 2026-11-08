@@ -37,18 +37,31 @@ import { focusRing, tagTone, tile, tileTitle } from "./tile";
 /** What the panels without a snapshot source say instead of a false "all caught up". */
 export const LIVE_ONLY = "Live data appears when the service is connected.";
 
+/** Keyboard hint beside a tile heading (see useWorkspaceHotkeys). */
+const KeyHint = ({ keys }: { keys: string }) => (
+  <kbd
+    aria-hidden="true"
+    className="hidden font-sans text-[11px] font-normal text-muted-foreground md:inline"
+  >
+    {keys}
+  </kbd>
+);
+
 const TileHead = ({
   id,
   title,
+  hint,
   children,
 }: {
   id: string;
   title: ReactNode;
+  hint?: string;
   children?: ReactNode;
 }) => (
   <div className="mb-3 flex items-center justify-between gap-2">
-    <h2 id={id} className={tileTitle}>
+    <h2 id={id} className={cn(tileTitle, hint && "flex items-baseline gap-2")}>
       {title}
+      {hint && <KeyHint keys={hint} />}
     </h2>
     {children}
   </div>
@@ -85,10 +98,15 @@ export const Q4ProgressTile = ({
   const filled =
     percent == null ? 0 : Math.min(Math.max(percent, 0), 100) / 100;
   return (
-    <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
+    <section
+      data-zoom-source="impact"
+      aria-labelledby={headingId}
+      className={cn(tile, "p-4")}
+    >
       <TileHead
         id={headingId}
         title={target ? `${target.label} outreach` : "Quarter progress"}
+        hint="Ctrl+I"
       >
         <Link
           to="/?workspace=impact"
@@ -325,10 +343,11 @@ export const CrmTile = ({
   return (
     <section
       data-tour="crm"
+      data-zoom-source="crm"
       aria-labelledby={headingId}
       className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
     >
-      <TileHead id={headingId} title="CRM">
+      <TileHead id={headingId} title="CRM" hint="Alt+M">
         <Link
           to="/contacts"
           onClick={zoomClick("crm")}
@@ -584,11 +603,13 @@ export const TasksTile = ({
   return (
     <section
       data-tour="tasks"
+      data-zoom-source="tasks"
       aria-labelledby={headingId}
       className={cn(tile, "home-projects")}
     >
       <TileHead
         id={headingId}
+        hint="Alt+T"
         title={
           <Link
             to="/?workspace=tasks"
