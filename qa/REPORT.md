@@ -233,3 +233,14 @@ branding, and the codex/ branch vs CLAUDE.md rule 10. #36-#40 are issues, not PR
 | #65 feat/dedupe-names | 1b92a24 | 6/6 planted groups, 0 false pairs, 0 auto-merges (name-only rows); 175 passed | APPROVE |
 
 Integration: #45/#46/#47/#53 conflict in shared provider files; agreed merge order #46 → #45 → #47 → #53 (owners rebase in turn); #58 after #47; #67 after #53.
+
+### Resumed round (Sat night): Sharif resumed QA; lead lane split with c9 (wave-1 PRs → c9)
+
+| PR | SHA | Checks | Verdict |
+|---|---|---|---|
+| #73 fix/openai-client-loops | f129c36 | 262 passed on main 14df268 with and without it; "Event loop is closed" NOT reproducible on main (sequential run_sync, live ping ×6 + outreach ×3, alternating thread/async/live enrich) | APPROVE (defensive; bug unproven) |
+| #77 docs/problem-solution-mapping | 7bd10f0 | 62 weekday pairs correct; 13/13 smokes complete; ~10 §21.5 endpoints missing from ui-integration §2 | APPROVE (follow-up doc fix) |
+| #69 feat/chat-panel | c6e529f | live mode: the Chat tab crashes (ChatPanel.tsx:113, AskSidebar omits context/selection); 20/20 tests; MIT | CHANGES (grade only) |
+
+Merged without a final QA pass while QA was paused (by Christian): #60, #53, #48, #62, #63, #58, #67, #74 → retro-check of main in progress.
+Upstream trap still live locally: dev/ingest-v2 and feat/ingest-adapter-v2 track origin/main.
