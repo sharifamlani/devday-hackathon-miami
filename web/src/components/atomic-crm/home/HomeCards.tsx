@@ -88,7 +88,7 @@ export const ImpactTile = ({ factCount }: { factCount: number }) => {
       aria-labelledby={headingId}
       className={cn(tile, "relative p-4")}
     >
-      <h2 id={headingId} className={tileTitle}>
+      <h2 id={headingId} className={cn(tileTitle, "flex items-baseline gap-2")}>
         <Link
           to="/?workspace=impact"
           onClick={zoomClick("impact")}
@@ -100,6 +100,7 @@ export const ImpactTile = ({ factCount }: { factCount: number }) => {
         >
           Impact &amp; story
         </Link>
+        <KeyHint keys="Ctrl+I" />
       </h2>
       <p className="mt-1 truncate text-[13px] text-muted-foreground">
         {factCount > 0
