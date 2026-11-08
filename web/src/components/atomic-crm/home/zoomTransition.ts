@@ -135,6 +135,14 @@ function invert(from: DOMRect, to: DOMRect) {
   return `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`;
 }
 
+const radiusOf = (el: Element | null | undefined, fallback = 20) => {
+  const r = el ? parseFloat(getComputedStyle(el).borderTopLeftRadius) : NaN;
+  return Number.isNaN(r) ? fallback : r;
+};
+/** border-radius that reads as `radius` px once the box is scaled from `big` to `small` (paint only). */
+const radiusAfterScale = (radius: number, small: DOMRect, big: DOMRect) =>
+  `${radius / (small.width / big.width)}px / ${radius / (small.height / big.height)}px`;
+
 function ghostOf(
   src: Element,
   rect: DOMRect,
@@ -294,6 +302,12 @@ export function runZoomTransition(opts: {
     closeGhost = ghostOf(panel0, panelRect0, false, host);
     const bar = panel0.querySelector(".desk-panel-toolbar");
     if (bar) closeGhost.append(bar.cloneNode(true));
+    // a faint copy of the first rows, so the card is not blank while it shrinks (skipped for big
+    // bodies: cloning them would cost frames)
+    const body = panel0.querySelector(".desk-panel-body");
+    if (body && body.querySelectorAll("*").length <= 300) {
+      closeGhost.append(body.cloneNode(true));
+    }
     ghosts.push(closeGhost);
   }
   // Open: only the source tile is copied (the panel starts exactly on it and the tile content
@@ -395,7 +409,19 @@ export function runZoomTransition(opts: {
           ? invert(tileRect, panelRect1)
           : "scale(0.94)";
       panel1.style.transformOrigin = "0 0";
-      run(panel1, [{ transform: from }, { transform: "none" }], timing());
+      const rPanel = radiusOf(panel1);
+      const rStart =
+        !phone && has(tileRect)
+          ? radiusAfterScale(radiusOf(source0), tileRect, panelRect1)
+          : `${rPanel}px`;
+      run(
+        panel1,
+        [
+          { transform: from, borderRadius: rStart },
+          { transform: "none", borderRadius: `${rPanel}px` },
+        ],
+        timing(),
+      );
       // content appears once the frame is nearly full size, so text is never shown scaled
       panel1
         .querySelectorAll<HTMLElement>(".desk-panel-toolbar,.desk-panel-body")
@@ -417,21 +443,36 @@ export function runZoomTransition(opts: {
             ? invert(tileRect, panelRect0)
             : "scale(0.94)";
         promote(closeGhost);
+        // the corners travel too: they end at the tile's radius once the frame is scaled
+        const rPanel = radiusOf(panel0);
+        const rEnd =
+          !phone && has(tileRect)
+            ? radiusAfterScale(radiusOf(tile), tileRect, panelRect0)
+            : `${rPanel}px`;
         run(
           closeGhost,
           [
-            { transform: "none", opacity: 1, easing: EASE },
-            { transform: to, opacity: 1, offset: 0.9 },
-            { transform: to, opacity: 0 },
+            {
+              transform: "none",
+              opacity: 1,
+              borderRadius: `${rPanel}px`,
+              easing: EASE,
+            },
+            { transform: to, opacity: 1, borderRadius: rEnd, offset: 0.9 },
+            { transform: to, opacity: 0, borderRadius: rEnd },
           ],
           // the curve eases the shrink over 90% of the time; the last 10% fades the frame out
           timing(0, dur, "linear"),
         );
-        run(
-          closeGhost.querySelector<HTMLElement>(".desk-panel-toolbar"),
-          [{ opacity: 1 }, { opacity: 0 }],
-          timing(0, ms(100), "linear"),
-        );
+        closeGhost
+          .querySelectorAll<HTMLElement>(".desk-panel-toolbar,.desk-panel-body")
+          .forEach((c) =>
+            run(
+              c,
+              [{ opacity: 1 }, { opacity: 0 }],
+              timing(0, ms(110), "linear"),
+            ),
+          );
       }
       promote(overview1);
       run(overview1, fade, timing(dur * 0.45, dur * 0.5, "linear"));
