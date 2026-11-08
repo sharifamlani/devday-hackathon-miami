@@ -88,11 +88,39 @@ def raw_tokens(name: str | None) -> list[str]:
 
 
 def is_org(d: dict) -> bool:
-    if d.get("donor_type") == "organization" or d.get("org_name"):
+    """donor_type wins: an individual with an org_name (their employer or business) is still a person.
+    Untyped rows fall back to org_name or organization words in the name."""
+    if d.get("donor_type") == "organization":
         return True
     if d.get("donor_type") == "individual":
         return False
-    return bool(set(raw_tokens(d.get("full_name"))) & ORG_HINT_WORDS)
+    return bool(d.get("org_name")) or bool(set(raw_tokens(d.get("full_name"))) & ORG_HINT_WORDS)
+
+
+def stem_of(name: str | None) -> str:
+    tokens = [ORG_ABBREVIATIONS.get(t, t) for t in raw_tokens(name)]
+    return " ".join(t for t in tokens if len(t) > 1 and t not in ORG_SUFFIXES)
+
+
+def org_mailbox_match(a: dict, b: dict) -> str | None:
+    """A person who writes gifts as an organization: their org_name is that organization AND they use its
+    mailbox (a shared email, or the organization's name inside their address: billing.marrowlane@...).
+    An employee with a personal address (annelise.moreau@...) is not suggested."""
+    person, org = (a, b) if is_org(b) and not is_org(a) else (b, a) if is_org(a) and not is_org(b) else (None, None)
+    if person is None or not person.get("org_name"):
+        return None
+    ps, os_ = stem_of(person["org_name"]).split(), org_stem(org).split()
+    if not ps or not os_ or not (ps == os_ or (min(len(ps), len(os_)) >= 2 and ps[:2] == os_[:2])):
+        return None
+    shared = donor_emails(person) & donor_emails(org)
+    if shared:
+        return f"writes as {org.get('full_name')} (same email {sorted(shared)[0]})"
+    names = {"".join(os_)} | ({"".join(os_[:2])} if len(os_) >= 2 else set())
+    for email in donor_emails(person):
+        box = re.sub(r"[^a-z0-9]", "", email)
+        if any(len(n) >= 6 and n in box for n in names):
+            return f"writes as {org.get('full_name')} (uses its mailbox {email})"
+    return None
 
 
 def org_stem(d: dict) -> str:
@@ -206,9 +234,13 @@ def pair_reasons(a: dict, b: dict) -> tuple[list[str], float]:
             confidence = max(confidence, 0.70)
     # Name-only evidence: rows that share no contact details (mentions, sign-in sheets, renamed emails).
     fund = family_fund_match(a, b)
+    mailbox = None if fund else org_mailbox_match(a, b)
     if fund:
         reasons.append(fund)
         confidence = max(confidence, 0.60)
+    elif mailbox:
+        reasons.append(mailbox)
+        confidence = max(confidence, 0.80)
     elif is_org(a) and is_org(b):
         sa, sb = org_stem(a).split(), org_stem(b).split()
         if sa and sa == sb:
@@ -247,6 +279,8 @@ def find_pairs(donors: list[dict]) -> list[dict]:
             keys += [f"s:{t}" for t in surnames]
             if first:
                 keys.append(f"f:{first}")
+            if d.get("org_name") and stem_of(d["org_name"]):     # compared with that organization
+                keys.append(f"o:{stem_of(d['org_name'])}")
         for key in keys:
             buckets.setdefault(key, []).append(i)
 
