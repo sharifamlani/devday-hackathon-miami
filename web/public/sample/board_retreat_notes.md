@@ -26,6 +26,15 @@
 - Halcyon Reef Dental Group wired a $25,000 corporate gift on Sept 22, for the youth health field-of-interest fund. Thank-you letter still owed.
 - Priya Raman dropped off a $500 check on Nov 2 - early, ahead of Give Miami Day. Thank her in person.
 
+## Pantry and community notes
+
+- Dolores Quinones (Spanish speaker, picks up pantry boxes every other Friday) put $25 in the donation jar at the
+  Oct 18 open house. Not sure whether she goes in as a donor or stays a client. Marisol to ask what she prefers.
+- Marcus Bell, one of our pantry regulars (he filled out an intake form in September), told Jules he wants to give
+  $10 a month once his new job starts in December. Nothing received yet.
+- Tomas met Gabriela Rincon at the chamber mixer. She says she wants to "get involved and probably give" and mentioned
+  her mother gets senior meals from us. No form, no gift yet.
+
 ## Action items
 
 1. Jules - call Maria, then Veloria Bay trustees.

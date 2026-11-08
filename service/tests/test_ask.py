@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from service import config, db, routes_ask, score
+from service.tests.fixtures_seed import seed
 from service.ask_agent import (EXAMPLE_QUESTIONS, AskFilter, AskIntent, AskPlan, DateRange, apply_filter,
                                build_agent, calendar_for, rules_plan, snapshot_examples)
 from service.main import app
@@ -20,7 +21,7 @@ from service.tests.conftest import AS_OF
 
 QUARTER_THANKS, GONE_QUIET, MONTHLY_LATE, BIG_NOT_CALLED = EXAMPLE_QUESTIONS
 
-# Seed ids (service/db.py SEED_DONORS order): 1 Maria Delgado, 2 María Delgado-Ruiz, 3 James Carter,
+# Seed ids (service/tests/fixtures_seed.py SEED_DONORS order): 1 Maria Delgado, 2 María Delgado-Ruiz, 3 James Carter,
 # 4 Biscayne Harbor, 5 Robert Nguyen, 6 Angela Brooks, 7 Luis Herrera, 8 Priya Shah, 9 Knight Foundation,
 # 10 Amazon, 11 DeLuca Foundation, 12 McDermott Will & Schulte
 SEED_EXPECTED = {
@@ -38,14 +39,14 @@ SEED_EXPECTED = {
 
 @pytest.fixture
 def seeded(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     return conn
 
 
 @pytest.fixture
 def answer_key_db(conn):
-    """data/sample_inputs/answer_key.json's 33 canonical donors and 101 gifts, scored as of its as_of."""
+    """data/sample_inputs/answer_key.json's 33 canonical donors and every gift, scored as of its as_of."""
     key = json.loads((db.REPO_ROOT / "data" / "sample_inputs" / "answer_key.json").read_text(encoding="utf-8"))
     ids = {}
     for donor in key["canonical_donors"]:
@@ -80,9 +81,11 @@ def test_example_questions_against_the_answer_key(answer_key_db):
     assert not {"D02", "D08", "D07"} & set(quiet)
 
     thanks = keys(QUARTER_THANKS)
-    # Priya Raman's Nov 2 check, Robert Nguyen's monthly gifts, Rafael Quintero's Oct 3 / Nov 3 monthly gifts
-    # (added to the answer key in edbd237).
-    assert set(thanks) == {"D08", "D02", "D19"}
+    # Everyone with a gift dated Oct 1 to Nov 7 in the key: Priya Raman's Nov 2 check, Robert Nguyen's and
+    # Rafael Quintero's monthly gifts, plus the donors in online_gifts_oct_nov_2026.xlsx.
+    q4 = {g["donor_id"] for g in key["gifts"] if "2026-10-01" <= g["gift_date"] <= "2026-11-07"}
+    assert {"D08", "D02", "D19"} < q4
+    assert set(thanks) == q4
     assert keys(MONTHLY_LATE) == []                # the one monthly donor (D02) is on track
     big = keys(BIG_NOT_CALLED)
     assert "D27" in big                            # Veloria Bay Foundation, the star

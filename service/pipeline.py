@@ -81,7 +81,7 @@ def stage_rebuild(as_of: date, keep_db: bool) -> str:
         pending = dedupe.run(conn)
         conn.close()
         return f"kept existing rows; scored {n}, {pending} pending duplicates"
-    db.rebuild(as_of=as_of)
+    db.rebuild(as_of=as_of, with_seed=True)   # the Vercel snapshot is built from the SAMPLE seed
     return "rebuilt with SAMPLE seed"
 
 
@@ -195,7 +195,7 @@ def stage_enrich(live: bool) -> str:
         if name not in cache and not live:
             skipped.append(name)
             continue
-        facts = enrich_agent.enrich_donor(name, org_name=org["org_name"], city=org["city"])
+        facts = enrich_agent.enrich_donor(name, org_name=org["org_name"], city=org["city"], use_cache=True)
         conn = db.connect()
         with conn:
             conn.execute("DELETE FROM research_facts WHERE donor_id = ?", (org["id"],))
@@ -282,8 +282,9 @@ def stage_icp(as_of: date, refresh: bool = False, workers: int = 4) -> str:
     exclude |= {r[0] for r in conn.execute("SELECT org_name FROM donors WHERE org_name IS NOT NULL")}
     conn.close()
 
-    profile = icp_agent.build_profile(refresh=refresh)
-    found = icp_agent.find_prospects(profile, exclude, refresh=refresh)
+    # the snapshot build serves the committed cache on purpose; the app itself only falls back to it on failure
+    profile = icp_agent.build_profile(refresh=refresh, use_cache=True)
+    found = icp_agent.find_prospects(profile, exclude, refresh=refresh, use_cache=True)
     conn = db.connect()
     db.save_icp(conn, profile)
     ids = db.save_prospects(conn, found)
