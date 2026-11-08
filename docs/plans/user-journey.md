@@ -8,7 +8,7 @@ Sharif accepts it as the follow-up to 5E.11.
 > **Clock warning.** `CLAUDE.md` puts the freeze (F) at **Sun 3:30 PM**; `ROADMAP.md` §0 says **4:15 PM**. The
 > journey already works end to end on `main` today (walk below), only without separate URLs. **Sharif decides:** ship
 > this before F (about 90 minutes of work plus the flywheel), or keep it for after the event and demo the current
-> flow. Two fixes are worth taking regardless: Step 0 (T-30 reset smoke) and Step 1 (prefill the website).
+> flow. One fix is worth taking regardless: Step 1 (prefill the website). Step 0 (T-30 reset smoke) was fixed by #306.
 
 ---
 
@@ -33,7 +33,7 @@ Every visit starts at the bare URL. Each screen is its own page with its own URL
 | Bare URL always shows the landing | ❌ only on an empty app. A browser that finished setup, or **any fresh browser once the DB has people**, goes straight to the dashboard (`KindredLandingGate` + `shouldAdopt`) |
 | Website prefilled | ❌ name is prefilled ("The Miami Foundation"), website is blank. Carlos's proposal promised both |
 | Import time, cold cache | ⚠️ ~51 s on a fresh worktree (demo script says ~8 s after the warm reset) |
-| T-30 stage reset smoke 4 | ❌ **will fail**: `scripts/stage_reset.sh` looks for "Drag in your files", but in live mode step 1 is now the landing page, which never shows that text |
+| T-30 stage reset smoke 4 | ✅ fixed by #306 (`4e1d8cb`): it now accepts the landing ("Try sample data"). It failed at `054bb4a` |
 | LIVE stack (:8001/:5173) | ⚠️ runs `350ae92` (3 merges behind) and holds 78 people, so it opens on the dashboard until the reset |
 | Proposal doc | ⚠️ describes "Get started" + "Import demo files" buttons that a later commit removed. Stale; Step 7 fixes it |
 
@@ -121,7 +121,7 @@ already does both jobs; this plan only points each screen at the right endpoints
 +---------------------------------------------------------------------------------------------+
 | DASHBOARD  /#/dashboard   (HomePage)        react-query invalidates when the read finishes   |
 |  Impact & story  <- GET /context (facts: success_story, use_of_funds, org_health, program_)  |
-|  Ideas (chips)   <- GET /context + /people (e.g. "Enrich <newest donor>", "Plan next week")  |
+|  Ideas           <- (none on screen: chat chips removed in #310; see §6 open question)        |
 |  Calendar        <- GET /events        Tasks <- GET /tasks       Briefing <- /duplicates ...  |
 |  "Refresh research" in Impact & story -> POST /context/refresh                               |
 +---------------------------------------------------------------------------------------------+
@@ -139,12 +139,12 @@ screen relies on; the plan moves calls between screens and adds none.
 | **Research the organization** | Onboarding (Continue) | `readOrganizationInBackground(links)` → `runContext({name, website, socials})` (`onboarding/backgroundRead.ts`) | `POST /context/run` → `org_context.build_context` (`service/main.py`) | profile + dated, sourced facts saved to SQLite; `served_from` live / fallback labels cached facts |
 | Slow read keeps going | Dashboard | `startBackgroundRead()` + `useBackgroundWatcher` (`onboarding/backgroundRead.ts`) | `POST` / `GET /context/refresh` | status line on the dashboard; facts land when done |
 | **Impact & story** | Dashboard | `useOrgContext()` → `getContext()` (`providers/local/hooks.ts`) | `GET /context` (`service/routes_data.py`) | facts grouped by kind in `home/panels/ImpactPanel.tsx`; "Copy for a grant report" |
-| **Ideas** (chat suggestion chips) | Dashboard | chips in `home/Conversation.tsx` | `GET /context`, `GET /people` | "Enrich <newest donor>", "Who's late on a usual gift?", "Plan next week" |
+| **Ideas** | Dashboard | **none on screen.** The chat chips were removed (#310, Christian). `GET /home/summary` still returns `suggestions` | `GET /home/summary` (`service/routes_*`) | nothing shows them today |
 | Events → calendar, tasks | Dashboard | `getEvents()` (`crmHttp.ts`), `generateTasks()` (`providers/local/tasks.ts`) | `POST /events/refresh`, `GET /events`, `POST /tasks/generate`, `GET /tasks` | Calendar tile, Tasks tile (Preparation tasks per event) |
 | Retry research | Dashboard | `useRefreshContext()` (`crmHooks.ts`) | `POST /context/refresh` | "Refresh research" in Impact & story |
 
-**Open question for Sharif:** "Ideas" has no panel of its own today. The plan treats the chat chips as the Ideas
-surface. If you want an **Ideas & Stories** panel instead, that is a new screen element. It needs its own row and
+**Open question for Sharif:** "Ideas" has no surface today. The chat chips that carried them were removed in #310,
+so nothing on screen shows the service's suggestions. If you want an **Ideas & Stories** panel instead, that is a new screen element. It needs its own row and
 its own wireframe.
 
 ## 7. Wireframes
@@ -249,7 +249,7 @@ AFTER, ~35 s (research landed; nothing reloaded by hand)
 |  16 sourced facts |   in 6 days (Nov 14).               Open calendar →] |
 |  · Copy for a     |                                                      |
 |    grant report   |  (Enrich Desmond Achebe-Wells) (Who's late on a      |
-| November [Gi…]    |   usual gift?) (Plan next week)   ← Ideas chips      |
+| November [Gi…]    |   (no chips: removed in #310)                        |
 | Tasks 18          |                                                      |
 +-------------------+------------------------------------------------------+
 ```
@@ -290,14 +290,14 @@ AFTER, ~35 s (research landed; nothing reloaded by hand)
 | E3 | Receipt shows what the cleaning did | 77 / 19 / 9 on screen = `/ingest` response fields | script compares DOM vs the captured `/ingest` JSON | `walk.json` |
 | E4 | Org step is prefilled | name = "The Miami Foundation", website = "miamifoundation.org" | script reads the input values | `walk.json` |
 | E5 | Continue lands on the dashboard URL fast | URL = `/#/dashboard` ≤ 2 s after Continue | script timer | `walk.json` `since_continue` |
-| E6 | Research fills Impact & story, calendar, tasks, Ideas | ≤ 60 s after Continue: facts ≥ 10, events ≥ 1, tasks ≥ 15, chips ≠ the empty-app chips | script + `GET /context`, `/events`, `/tasks` | `walk.json` + `05-dashboard.png` |
+| E6 | Research fills Impact & story, calendar, tasks | ≤ 60 s after Continue: facts ≥ 10, events ≥ 1, tasks ≥ 15 | script + `GET /context`, `/events`, `/tasks` | `walk.json` + `05-dashboard.png` |
 | E7 | Clean run | 0 console errors, 0 HTTP ≥ 400, at 1440 px and 390 px | script listeners | `walk.json` |
 | E8 | Nothing else broke | full `vitest` suite and `pytest service/tests` pass; deep links `#/contacts`, `#/calendar` still open | `npx vitest run` · `pytest -q service/tests` · script | CI log lines |
 | E9 | T-30 reset is green | `stage_reset.sh test` exits 0 | run it | its `READY` line |
 
 ## 10. Implementation steps (each = one commit on its own branch; PR → QA gate → lead merges)
 
-0. **Reset smoke fix** (`scripts/stage_reset.sh`): smoke 4 checks for "More time for people". Independent; take it now.
+0. ~~**Reset smoke fix**~~: done by #306 (`4e1d8cb`).
 1. **Prefill website** (`OnboardingSteps.tsx`). Independent; take it now.
 2. **`homePath.ts` + the 10 call sites**: one definition of home. S3.
 3. **Routes in `CRM.tsx`**: `/onboarding` (noLayout) → `OnboardingPage`, `/dashboard` → `HomePage`, `/` → `/dashboard`. S2.
@@ -310,8 +310,67 @@ AFTER, ~35 s (research landed; nothing reloaded by hand)
 
 Owners: Carlos reviews steps 4–5 (his flow); QA gates each PR merged with current main; the evaluator grades §9.
 
-## 11. Scorecard (filled at close by the evaluator)
+## 11. Restart onboarding from the menu under the user's name (Sharif, Sun Nov 8, ~4:10 PM)
+
+**It already exists.** `onboarding/RestartOnboardingMenuItem.tsx` is mounted in the account menu
+(`layout/DashboardControls.tsx` desktop, `layout/MobileHeader.tsx` mobile). Walked on `f17ffa9`: avatar → **Set up again**
+reopens setup at step 1 (the landing); **Skip for now** returns to the dashboard; 0 writes, 0 console errors. Before
+setup is finished the item reads **Finish setup** instead.
+
+**Gaps:**
+1. The menu header says **Account** and the avatar says **A**. The user's name (Denise) appears nowhere in it, so
+   "underneath the user's name" isn't true yet.
+2. **Set up again → Try sample data on a filled database imports everything a second time** (seen on LIVE at 2:28).
+   Nothing guards against it.
+3. In the three-URL design, **Set up again** must go to `/` (the landing), not reopen an overlay (§4 already lists
+   `RestartOnboardingMenuItem.tsx`; its target changes from `#/onboarding` to `/`).
+
+```
+Account menu (bottom-left avatar)
+BEFORE                                   AFTER
++------------------------------+         +------------------------------+
+| Account                      |         | Denise                       |  ← the user's name heads the menu
+|------------------------------|         | Development team             |  ← role line (optional)
+| 📣 Campaigns                 |         |------------------------------|
+| ☎ Outreach inbox             |         | ↺ Restart onboarding         |  ← renamed from "Set up again", moved first
+| ↺ Set up again               |         | 🧭 Restart tour              |
+| 🧭 Restart tour              |         | 📣 Campaigns                 |
+| Public link on            ✓  |         | ☎ Outreach inbox             |
+| Motion …                     |         | Public link on            ✓  |
+| ⎋ Logout                     |         | Motion …  ·  ⎋ Logout        |
++------------------------------+         +------------------------------+
+ [A]  ← avatar initial                     [D]  ← initial of the user's name
+
+Click "Restart onboarding" with people already in the database:
++-----------------------------------------------------------+
+| Start setup again?                                        |
+| Your 77 people stay. Importing the same files again would |
+| add them twice: use "Skip upload" to keep your data.      |
+|                 [ Cancel ]  [ Skip upload ]  [ Start over ]|
++-----------------------------------------------------------+
+   Skip upload → /#/onboarding (organization card)   ·   Start over → /   ·   Cancel → stays
+```
+
+| UI piece | BEFORE | AFTER |
+|---|---|---|
+| Menu header | "Account" | user's name |
+| Avatar | "A" | user's initial |
+| Restart item | "Set up again", third item | "Restart onboarding", first item |
+| Filled-DB guard | none (double import possible) | confirm dialog with Skip upload |
+
+**Evaluation criteria for this item (graded with §9):**
+
+| # | Criterion | Metric + threshold | How measured | Evidence |
+|---|---|---|---|---|
+| E10 | The menu shows the user's name above the restart item | header text = the staff persona's name; restart item present | Playwright: open Account menu, read header + items | `restart.json` |
+| E11 | Restart reaches onboarding | click → URL `/` (Start over) or `/#/onboarding` (Skip upload) | Playwright | `restart.json` |
+| E12 | No double import | after Restart → Skip upload → Continue, `/people` counts unchanged (77) | `curl /people` before/after | counts in `restart.json` |
+
+Implementation step 8 (after the freeze): name + initial from the profile in `DashboardControls.tsx` / `MobileHeader.tsx`;
+rename and reorder the item; add the filled-DB confirm in `RestartOnboardingMenuItem.tsx`.
+
+## 12. Scorecard (filled at close by the evaluator)
 
 | Criterion | Threshold | Result | Evidence | PASS/FAIL |
 |---|---|---|---|---|
-| E1–E9 | see §9 | — | — | — |
+| E1–E12 | see §9 and §11 | — | — | — |
