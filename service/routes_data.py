@@ -21,6 +21,7 @@ GET  /people                     people in one tab (?type=giver|neighbor|communi
 PATCH /people/{id}               move a person to another tab {"contact_type": ...}
 GET  /events                     the calendar, upcoming first, with audience and draft counts
 GET  /events/{id}                one event: recipients across the tabs (with why) + its drafted invites
+GET  /context/search             the context store: ?q=&kinds=&k= (cosine x recency, newest first on ties)
 GET  /context/status             when the context was last refreshed + the last refresh log row
 GET  /community/stats            counts by each recorded demographic field, with a "not recorded" bucket
 """
@@ -266,7 +267,8 @@ def list_context(conn: sqlite3.Connection, source: str | None = None) -> list[di
         rows = conn.execute("SELECT * FROM org_context WHERE source = ?" + CONTEXT_ORDER, (source,))
     else:
         rows = conn.execute("SELECT * FROM org_context" + CONTEXT_ORDER)
-    return [dict(r) for r in rows]
+    # the embedding is a binary vector for search only; it never goes out as JSON
+    return [{k: v for k, v in dict(r).items() if k != "embedding"} for r in rows]
 
 
 @router.get("/org-profile")
@@ -278,6 +280,17 @@ def get_org_profile(conn: sqlite3.Connection = Depends(get_conn)) -> dict | None
 def get_context(source: str | None = Query(None, pattern="^(website|x|linkedin|instagram|news)$"),
                 conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
     return list_context(conn, source)
+
+
+@router.get("/context/search")
+def search_context_route(q: str | None = Query(None, max_length=500),
+                         kinds: str | None = Query(None, description="comma-separated: success_story,use_of_funds,org_health,..."),
+                         k: int = Query(8, ge=1, le=50),
+                         conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+    """§21.5: [{id, kind, title, text, source_url, posted_at, score}], best first (cosine x recency, half-life
+    90 days; newest first on ties). No q: the newest items of the asked kinds."""
+    from service.org_context import search_context
+    return search_context(q, [x.strip() for x in (kinds or "").split(",") if x.strip()] or None, k, conn=conn)
 
 
 

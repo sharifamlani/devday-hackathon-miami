@@ -20,6 +20,7 @@ import asyncio
 import json
 import os
 import re
+import logging
 import sqlite3
 import sys
 import time
@@ -524,7 +525,7 @@ def ingest_events(
 ) -> dict:
     """Core: {filename: [ImportedTransaction]} -> DB in ONE transaction (all donors + gifts or nothing).
     dry_run does everything except write. `judgments` lets tests inject the model's tab output."""
-    from service import dedupe, score
+    from service import dedupe, score, tasks
     from service.db import connect, create_schema
 
     t0 = time.time()
@@ -608,6 +609,11 @@ def ingest_events(
     if not dry_run:
         score.run(conn)
         dups = dedupe.run(conn)
+        try:   # §21 B11: alerts/duplicates/new donors/events -> tasks; never fails an upload already saved
+            tasks.generate(conn)
+        except Exception:
+            conn.rollback()
+            logging.getLogger("service").exception("task generator failed after ingest")
     if own:
         conn.close()
     return {
