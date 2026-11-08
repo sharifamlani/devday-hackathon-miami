@@ -1,20 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import type { AskAnswer, AskDonor } from "../providers/local/ask";
-import type {
-  CampaignSummary,
-  DonationTarget,
-  DonorSummary,
-} from "../providers/local/types";
-import type { OutreachPlanItem } from "../outreach/outreachPlan";
-import type { Recommendation } from "../outreach/recommend";
+import type { Artifact } from "../providers/local/calendarFeed";
+import type { Task } from "../providers/local/tasks";
+import type { DonationTarget, DonorSummary } from "../providers/local/types";
 import {
-  agendaLines,
+  agendaFromCalendar,
   answerSummary,
   appendAnswer,
-  attentionDonors,
-  buildTasks,
-  donorFacts,
+  artifactRows,
+  calendarMarks,
+  crmTag,
   donorMeta,
   donorTag,
   draftEmailHref,
@@ -22,35 +18,13 @@ import {
   formatCompactUsd,
   giveMiamiDay,
   goalEnds,
+  kindLabel,
   maskEmail,
   searchDonors,
-  toRecCampaigns,
+  tasksFromApi,
+  type CalendarItem,
   weekDays,
 } from "./homeData";
-
-const campaign = (
-  id: number,
-  status: "draft" | "sent",
-  draft = 4,
-): CampaignSummary => ({
-  id,
-  name: `Campaign ${id}`,
-  intent: "thank_you",
-  channel: "email",
-  created_at: "2026-11-01T10:00:00Z",
-  created_by: null,
-  status,
-  counts: {
-    total: 10,
-    draft,
-    approved: 3,
-    sent: 2,
-    skipped: 1,
-    needs_individual_approval: 0,
-    flagged: 0,
-    bulk_approvable: 0,
-  },
-});
 
 const target = (overrides: Partial<DonationTarget>): DonationTarget =>
   ({
@@ -79,37 +53,6 @@ const donor = (id: number, overrides: Partial<DonorSummary> = {}) =>
     ...overrides,
   }) as DonorSummary;
 
-const planItem = (
-  id: string,
-  overrides: Partial<OutreachPlanItem> = {},
-): OutreachPlanItem => ({
-  id,
-  date: "2026-11-07",
-  donor_id: null,
-  campaign_id: null,
-  label: `Item ${id}`,
-  note: "",
-  done: false,
-  source: "staff",
-  created_at: "2026-11-01T00:00:00Z",
-  ...overrides,
-});
-
-const rec = (
-  key: string,
-  overrides: Partial<Recommendation> = {},
-): Recommendation => ({
-  key,
-  kind: "donor",
-  donor_id: null,
-  campaign_id: null,
-  label: key,
-  date: "2026-11-09",
-  reason: `Reason ${key}`,
-  priority: 100,
-  ...overrides,
-});
-
 const answer = (
   question: string,
   donors: Partial<AskDonor>[] = [],
@@ -124,15 +67,7 @@ const answer = (
     ...overrides,
   }) as AskAnswer;
 
-describe("home data: periods and campaigns", () => {
-  it("keeps draft campaigns for the recommendation rules", () => {
-    expect(
-      toRecCampaigns([campaign(1, "draft"), campaign(2, "sent", 0)]).map(
-        (c) => [c.id, c.drafts],
-      ),
-    ).toEqual([[1, 4]]);
-  });
-
+describe("home data: periods and names", () => {
   it("reads goal deadlines and Give Miami Day from targets, with a fallback", () => {
     const targets = {
       quarter: target({
@@ -179,31 +114,12 @@ describe("home data: donors", () => {
     );
   });
 
-  it("lists donors needing attention by score", () => {
-    const list = [
-      donor(1, { status: "on_track", score: 99 }),
-      donor(2, { status: "lapsing", score: 60 }),
-      donor(3, { status: "on_track", gift_count: 1, score: 70 }),
-      donor(4, { status: "due", score: 80 }),
-    ];
-    expect(attentionDonors(list).map((d) => d.id)).toEqual([4, 3, 2]);
-    expect(attentionDonors(list, 1).map((d) => d.id)).toEqual([4]);
-  });
-
-  it("describes a donor in one line and a few facts", () => {
+  it("describes a donor in one line", () => {
     expect(donorMeta(donor(1))).toBe("Monthly · $50");
     expect(
       donorMeta(donor(1, { gift_count: 1, last_gift_date: "2026-10-22" })),
     ).toBe("First gift Oct 22");
     expect(donorMeta(donor(1, { gift_count: 0 }))).toBe("No gifts yet");
-    expect(donorFacts(donor(1))).toEqual([
-      "Lifetime $2,450",
-      "Last gift Sep 10",
-      "Monthly",
-    ]);
-    expect(
-      donorFacts(donor(1, { last_gift_date: null, usual_cadence: null })),
-    ).toEqual(["Lifetime $2,450"]);
   });
 
   it("masks email addresses", () => {
@@ -230,99 +146,72 @@ describe("home data: donors", () => {
   });
 });
 
-describe("home data: tasks", () => {
-  const today = "2026-11-07";
+const task = (id: number, overrides: Partial<Task> = {}): Task => ({
+  id,
+  kind: "call",
+  title: `Task ${id}`,
+  why: `Why ${id}`,
+  person_id: id,
+  chips: [`Lifetime $${id}00`],
+  due: "2026-11-08",
+  time: null,
+  done: false,
+  source: "generator",
+  ...overrides,
+});
 
-  it("puts today's open plan items first, then recommendations, then donors needing a call", () => {
-    const tasks = buildTasks({
-      today,
-      plan: [
-        planItem("a", { donor_id: 1, label: "Rosa Delgado" }),
-        planItem("b", { donor_id: 2, label: "Done one", done: true }),
-        planItem("c", { donor_id: 3, date: "2026-11-08" }),
-        planItem("d", {
-          campaign_id: 9,
-          label: "Gala thanks",
-          note: "Approve",
-        }),
-      ],
-      recommendations: [
-        rec("donor-1", { donor_id: 1, label: "Rosa Delgado" }),
-        rec("campaign-5", {
-          kind: "campaign",
-          campaign_id: 5,
-          label: "Year end",
-        }),
-      ],
-      donors: [
-        donor(1, { full_name: "Rosa Delgado" }),
-        donor(7, { full_name: "Marcus Bell", status: "lapsing", score: 90 }),
-        donor(8, { status: "on_track" }),
-      ],
-    });
-    expect(tasks.map((t) => [t.key, t.title])).toEqual([
-      ["plan-a", "Contact Rosa Delgado"],
-      ["plan-d", "Review Gala thanks"],
-      ["campaign-5", "Review drafts for Year end"],
-      ["donor-7", "Call Marcus Bell"],
+const item = (overrides: Partial<CalendarItem>): CalendarItem => ({
+  date: "2026-11-08",
+  time: null,
+  title: "Thing",
+  kind: "task",
+  source: "generator",
+  ref: "task:1",
+  ...overrides,
+});
+
+describe("home data: tasks from GET /tasks", () => {
+  it("keeps open tasks in the service's order, with their own chips", () => {
+    const list = tasksFromApi([
+      task(1),
+      task(2, { done: true }),
+      task(3, { kind: "review", person_id: null, chips: [] }),
     ]);
-    expect(tasks[0]).toMatchObject({
-      source: "plan",
-      planItemId: "a",
-      why: "Why 1", // falls back to the donor's why_short
+    expect(list.map((t) => t.id)).toEqual([1, 3]);
+    expect(list[0]).toMatchObject({
+      key: "task-1",
+      title: "Task 1",
+      donorId: 1,
+      chips: ["Lifetime $100"],
     });
-    expect(tasks[1].why).toBe("Approve");
+    expect(tasksFromApi(undefined)).toEqual([]);
   });
 
-  it("keeps work marked done today from coming back as a recommendation", () => {
-    const tasks = buildTasks({
-      today,
-      plan: [planItem("a", { donor_id: 7, label: "Marcus Bell", done: true })],
-      recommendations: [rec("donor-7", { donor_id: 7, label: "Marcus Bell" })],
-      donors: [donor(7, { full_name: "Marcus Bell", status: "lapsing" })],
-    });
-    expect(tasks).toEqual([]);
-  });
-
-  it("drops dismissed tasks and respects the limit", () => {
-    const donors = [1, 2, 3].map((id) =>
-      donor(id, { status: "lapsed", score: 10 * id }),
+  it("names the kind and links Draft email only for person tasks", () => {
+    expect(kindLabel("call")).toBe("Call");
+    expect(kindLabel("prep")).toBe("Prep");
+    expect(kindLabel("follow_up")).toBe("Follow up");
+    expect(draftEmailHref({ kind: "call", donorId: 4 })).toBe(
+      "/campaigns/new?donors=4&intent=re_engage&channel=email",
     );
-    expect(
-      buildTasks({
-        today,
-        plan: [],
-        recommendations: [],
-        donors,
-        dismissed: new Set(["donor-3"]),
-        limit: 1,
-      }).map((t) => t.key),
-    ).toEqual(["donor-2"]);
-  });
-
-  it("links Draft email to a one-donor campaign or the campaign review", () => {
-    expect(
-      draftEmailHref(
-        { kind: "donor", donorId: 4, campaignId: null },
-        { status: "lapsing" },
-      ),
-    ).toBe("/campaigns/new?donors=4&intent=re_engage&channel=email");
-    expect(
-      draftEmailHref(
-        { kind: "campaign", donorId: null, campaignId: 5 },
-        undefined,
-      ),
-    ).toBe("/campaigns/5");
-    expect(
-      draftEmailHref(
-        { kind: "donor", donorId: 4, campaignId: null },
-        undefined,
-      ),
-    ).toBeNull();
+    expect(draftEmailHref({ kind: "email", donorId: 4 })).toBe(
+      "/campaigns/new?donors=4&intent=thank_you&channel=email",
+    );
+    expect(draftEmailHref({ kind: "review", donorId: 4 })).toBeNull();
+    expect(draftEmailHref({ kind: "call", donorId: null })).toBeNull();
   });
 });
 
-describe("home data: week and agenda", () => {
+describe("home data: CRM badges from GET /people/attention", () => {
+  it("names the service's 'failed' badge and passes the rest to attentionTag", () => {
+    expect(crmTag("failed")).toEqual({ label: "Card failed", tone: "alert" });
+    expect(crmTag("late")).toEqual({ label: "Late", tone: "alert" });
+    expect(crmTag("not_yet")).toEqual({ label: "Not yet", tone: "quiet" });
+    expect(crmTag("new").tone).toBe("good");
+  });
+});
+
+describe("home data: week, agenda and artifacts", () => {
   it("returns Monday to Sunday of the current week", () => {
     expect(weekDays("2026-11-07")).toEqual([
       "2026-11-02",
@@ -336,34 +225,75 @@ describe("home data: week and agenda", () => {
     expect(weekDays("2026-11-09")[0]).toBe("2026-11-09");
   });
 
-  it("merges events, plan days and Give Miami Day from today on", () => {
-    const lines = agendaLines({
-      today: "2026-11-07",
-      events: [
-        { date: "2026-11-01", label: "Past event" },
-        { date: "2026-11-12", label: "Board coffee" },
+  it("marks days from the calendar feed, goal ends and Give Miami Day", () => {
+    const marks = calendarMarks({
+      items: [
+        item({ date: "2026-11-08", title: "Call A" }),
+        item({ date: "2026-11-08", title: "Call B" }),
+        item({ date: "2026-11-08", title: "Call C", done: true }),
+        item({ date: "2026-11-12", kind: "event", title: "Board coffee" }),
       ],
-      plan: [
-        planItem("a", { date: "2026-11-10", donor_id: 1 }),
-        planItem("b", { date: "2026-11-10", donor_id: 2 }),
-        planItem("c", { date: "2026-11-11", donor_id: 3, done: true }),
-      ],
+      campaignEnds: [{ date: "2026-11-30", label: "November 2026 goal" }],
       giveMiamiDay: "2026-11-19",
+    });
+    expect(marks.get("2026-11-08")).toMatchObject({ planned: 2, done: 1 });
+    expect(marks.get("2026-11-12")?.events).toEqual(["Board coffee"]);
+    expect(marks.get("2026-11-19")?.giveMiamiDay).toBe(true);
+    expect(marks.get("2026-11-30")?.campaignEnds).toEqual([
+      "November 2026 goal",
+    ]);
+  });
+
+  it("lists events and later tasks, then the next big event, soonest first", () => {
+    const lines = agendaFromCalendar({
+      today: "2026-11-08",
+      items: [
+        item({ date: "2026-11-08", title: "Today's call" }),
+        item({ date: "2026-11-10", title: "Thank-you calls", source: "agent" }),
+        item({ date: "2026-11-12", kind: "event", title: "Board coffee" }),
+        item({ date: "2026-11-11", title: "Done call", done: true }),
+        item({ date: "2026-11-01", kind: "event", title: "Past event" }),
+      ],
+      nextEvent: { title: "Give Miami Day", date: "2026-11-19" },
       limit: 5,
     });
     expect(lines).toEqual([
-      { date: "2026-11-10", label: "2 planned contacts" },
+      { date: "2026-11-10", label: "Thank-you calls (added by agent)" },
       { date: "2026-11-12", label: "Board coffee" },
       { date: "2026-11-19", label: "Give Miami Day" },
     ]);
     expect(
-      agendaLines({
-        today: "2026-11-07",
-        events: [{ date: "2026-11-19", label: "Give Miami Day 2026" }],
-        plan: [],
-        giveMiamiDay: "2026-11-19",
+      agendaFromCalendar({
+        today: "2026-11-08",
+        items: [
+          item({ date: "2026-11-19", kind: "event", title: "Give Miami Day" }),
+        ],
+        nextEvent: { title: "Give Miami Day", date: "2026-11-19" },
       }),
-    ).toEqual([{ date: "2026-11-19", label: "Give Miami Day 2026" }]);
+    ).toEqual([{ date: "2026-11-19", label: "Give Miami Day" }]);
+    expect(
+      agendaFromCalendar({ today: "2026-11-08", items: [], nextEvent: null }),
+    ).toEqual([]);
+  });
+
+  it("sorts artifacts newest first and links campaigns to their review page", () => {
+    const list: Artifact[] = [
+      { kind: "call_note", title: "Call notes", date: "2026-11-02", ref: "n1" },
+      {
+        kind: "campaign",
+        title: "Thank-you drafts",
+        date: "2026-11-05",
+        ref: 7,
+      },
+    ];
+    const rows = artifactRows(list);
+    expect(rows.map((r) => r.title)).toEqual([
+      "Thank-you drafts",
+      "Call notes",
+    ]);
+    expect(rows[0].to).toBe("/campaigns/7");
+    expect(rows[1].to).toBeNull();
+    expect(artifactRows(undefined)).toEqual([]);
   });
 });
 

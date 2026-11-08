@@ -233,3 +233,90 @@ def test_delete_steps_say_deleted_and_the_prompt_allows_send_via_approval():
                                 output={"id": 4, "kind": "other", "title": "Order badges", "undo_token": "t"})]
     assert ca.steps_from(items)[0]["summary"] == "deleted: Order badges"
     assert "You cannot send" not in ca.INSTRUCTIONS and "call send" in ca.INSTRUCTIONS
+
+
+def test_get_and_apply_after_call_actions(db_file, monkeypatch, tmp_path):
+    aca = pytest.importorskip("service.after_call_agent")          # 86's B6 (PR #90)
+    monkeypatch.setenv("AFTER_CALL_DRAFTER", "rules")
+    monkeypatch.setattr(aca, "PROPOSALS_FILE", tmp_path / "proposals.json")
+    aca._PROPOSALS.clear()
+    conn = sqlite3.connect(db_file)
+    script = [("you", "Staff", "Hi Maria, thanks for taking my call."),
+              ("them", "Maria", "I still want to keep giving $50 a month."),
+              ("you", "Staff", "Wonderful, thank you so much.")]
+    conn.execute("INSERT INTO call_notes (id, title, created_at, transcript, destinations) VALUES (?, ?, ?, ?, ?)",
+                 ("note-b10", "Call with Maria", "2026-11-08T10:00:00",
+                  json.dumps([{"speaker": s, "name": n, "text": t, "at": i} for i, (s, n, t) in enumerate(script)]),
+                  json.dumps([{"kind": "donor", "id": 1, "label": "Maria Delgado"}])))
+    conn.commit()
+    conn.close()
+
+    proposed = invoke("get_after_call_actions", call_note_id="note-b10")
+    pledge = next(a for a in proposed["actions"] if a["type"] == "record_pledge")
+    assert one(db_file, "SELECT COUNT(*) AS n FROM pledges")["n"] == 0                   # proposing writes nothing
+    invoke("apply_after_call_actions", call_note_id="note-b10", action_ids=[pledge["id"]])
+    assert one(db_file, "SELECT COUNT(*) AS n FROM pledges WHERE person_id = 1")["n"] == 1
+    assert "error" in invoke("get_after_call_actions", call_note_id="no-such-note")
+
+
+def test_rsvp_event_and_undo(db_file):
+    conn = sqlite3.connect(db_file)
+    if "rsvp" not in {r[1] for r in conn.execute("PRAGMA table_info(event_audience)")}:
+        conn.close()
+        pytest.skip("event_audience.rsvp arrives with 86's B6 (PR #90)")
+    event = conn.execute("INSERT INTO events (title, starts_at, source_url) VALUES "
+                         "('Beach Cleanup (SAMPLE)', '2026-11-21', 'https://example.org/beach')").lastrowid
+    conn.execute("INSERT INTO event_audience (event_id, person_id, reason) VALUES (?, 1, 'test')", (event,))
+    conn.commit()
+    conn.close()
+
+    out = invoke("rsvp_event", event_id=event, person_id=1, rsvp="yes")
+    assert one(db_file, "SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = 1", event)["rsvp"] == "yes"
+    undo(out["undo_token"])
+    assert one(db_file, "SELECT rsvp FROM event_audience WHERE event_id = ? AND person_id = 1", event)["rsvp"] is None
+
+
+def test_add_contact_appears_in_people_and_undo_removes_it(db_file):
+    from fastapi.testclient import TestClient
+    from service.main import app
+    c = TestClient(app)
+    out = invoke("add_contact", full_name="Rosa Example", email="rosa@example.org", contact_type="neighbor")
+
+    pid = out["person_id"]
+    row = one(db_file, "SELECT donor_type, contact_type, source_row FROM donors WHERE id = ?", pid)
+    assert (row["donor_type"], row["contact_type"], row["source_row"]) == ("individual", "neighbor", "AGENT")
+    assert one(db_file, "SELECT COUNT(*) AS n FROM gifts WHERE donor_id = ?", pid)["n"] == 0
+    assert pid in {p["id"] for p in c.get("/people", params={"type": "neighbor"}).json()["people"]}
+
+    assert c.post(f"/undo/{out['undo_token']}").json()["undone"] is True
+    assert one(db_file, "SELECT id FROM donors WHERE id = ?", pid) is None
+
+
+def test_add_contact_organization_is_an_org_for_enrich(db_file):
+    from service.enrich_agent import skip_reason
+    out = invoke("add_contact", full_name="John S. and James L. Knight Foundation", donor_type="organization")
+    row = one(db_file, "SELECT donor_type, org_name, first_name FROM donors WHERE id = ?", out["person_id"])
+    assert (row["donor_type"], row["org_name"], row["first_name"]) == \
+        ("organization", "John S. and James L. Knight Foundation", None)
+    assert skip_reason(row["org_name"], row["donor_type"]) is None                  # Enrich may research it
+
+
+def test_add_contact_undo_refused_once_something_uses_it(db_file):
+    out = invoke("add_contact", full_name="Busy Example", contact_type="giver")
+    invoke("create_task", kind="call", title="Call Busy Example", person_id=out["person_id"])
+    assert "already used" in undo(out["undo_token"])["error"]
+    assert one(db_file, "SELECT id FROM donors WHERE id = ?", out["person_id"]) is not None
+
+
+def test_add_contact_refuses_a_blank_name(db_file):
+    assert invoke("add_contact", full_name="  ")["error"] == "a contact needs a name"
+
+
+def test_add_contact_defaults_to_giver_and_expands_a_unique_short_name(db_file):
+    plain = invoke("add_contact", full_name="Sam Example")
+    assert one(db_file, "SELECT contact_type FROM donors WHERE id = ?", plain["person_id"])["contact_type"] == "giver"
+
+    knight = invoke("add_contact", full_name="Knight Foundation", donor_type="organization")
+    assert knight["full_name"] == "John S. and James L. Knight Foundation"         # exact name: cached tags match
+    assert "which one did you mean" in invoke("add_contact", full_name="Foundation",
+                                              donor_type="organization")["error"]
