@@ -10,7 +10,11 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { formatDayLong, formatDayShort } from "./dates";
-import { itemsOn, useOutreachPlan, type OutreachPlanItem } from "./outreachPlan";
+import {
+  itemsOn,
+  useOutreachPlan,
+  type OutreachPlanItem,
+} from "./outreachPlan";
 import type { Recommendation } from "./recommend";
 
 export interface PlannerOption {
@@ -18,7 +22,8 @@ export interface PlannerOption {
   name: string;
 }
 
-export const AGENT_LABEL = "Recommended by the outreach agent (rules over your data)";
+export const AGENT_LABEL =
+  "Recommended by the outreach agent (rules over your data)";
 
 const pill =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60";
@@ -124,12 +129,19 @@ const DayPlannerBody = ({
           {status}
         </p>
         {!plan.saved && (
-          <p role="alert" className="rounded-2xl bg-alert p-3 text-sm text-alert-foreground">
-            This browser would not save the plan. It stays only while this tab is open.
+          <p
+            role="alert"
+            className="rounded-2xl bg-alert p-3 text-sm text-alert-foreground"
+          >
+            This browser would not save the plan. It stays only while this tab
+            is open.
           </p>
         )}
 
-        <section aria-labelledby={plannedHeading} className="flex flex-col gap-3">
+        <section
+          aria-labelledby={plannedHeading}
+          className="flex flex-col gap-3"
+        >
           <h3 id={plannedHeading} className="text-sm font-semibold">
             Planned{" "}
             <span className="font-normal text-muted-foreground">
@@ -148,12 +160,16 @@ const DayPlannerBody = ({
                   item={item}
                   onToggle={(done) => {
                     plan.update(item.id, { done });
-                    setStatus(`${item.label} marked ${done ? "done" : "not done"}.`);
+                    setStatus(
+                      `${item.label} marked ${done ? "done" : "not done"}.`,
+                    );
                   }}
                   onNote={(note) => plan.update(item.id, { note })}
                   onRemove={() => {
                     plan.remove(item.id);
-                    setStatus(`Removed ${item.label} from ${formatDayShort(date)}.`);
+                    setStatus(
+                      `Removed ${item.label} from ${formatDayShort(date)}.`,
+                    );
                   }}
                 />
               ))}
@@ -171,7 +187,10 @@ const DayPlannerBody = ({
         {(forDay.length > 0 || others.length > 0) && (
           <section aria-labelledby={recHeading} className="flex flex-col gap-3">
             <div>
-              <h3 id={recHeading} className="flex items-center gap-1.5 text-sm font-semibold">
+              <h3
+                id={recHeading}
+                className="flex items-center gap-1.5 text-sm font-semibold"
+              >
                 <Sparkles className="size-4" aria-hidden="true" />
                 Suggestions
               </h3>
@@ -191,7 +210,10 @@ const DayPlannerBody = ({
                     <button
                       type="button"
                       onClick={() => addRecommendation(rec)}
-                      className={cn(pill, "bg-primary text-primary-foreground hover:bg-primary/85")}
+                      className={cn(
+                        pill,
+                        "bg-primary text-primary-foreground hover:bg-primary/85",
+                      )}
                     >
                       <CalendarPlus className="size-4" aria-hidden="true" />
                       Plan for {formatDayShort(date)}
@@ -238,12 +260,19 @@ const PlanRow = ({
           className="mt-0.5 size-5 shrink-0 accent-primary"
         />
         <label htmlFor={checkId} className="min-w-0 flex-1">
-          <span className={cn("block text-sm font-medium", item.done && "line-through")}>
+          <span
+            className={cn(
+              "block text-sm font-medium",
+              item.done && "line-through",
+            )}
+          >
             {item.label}
           </span>
           <span className="block text-xs text-muted-foreground">
             {item.campaign_id != null ? "Campaign" : "Donor"}
-            {item.source === "agent" ? " · suggested by the outreach agent" : ""}
+            {item.source === "agent"
+              ? " · suggested by the outreach agent"
+              : ""}
             {item.done ? " · done" : ""}
           </span>
         </label>
@@ -320,7 +349,10 @@ const AddToDay = ({
   };
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3 rounded-2xl bg-card p-4">
+    <form
+      onSubmit={onSubmit}
+      className="flex flex-col gap-3 rounded-2xl bg-card p-4"
+    >
       <h3 className="text-sm font-semibold">Add to this day</h3>
       <div className="flex flex-col gap-1">
         <label htmlFor={selectId} className="text-xs font-medium">
@@ -377,7 +409,10 @@ const AddToDay = ({
       )}
       <button
         type="submit"
-        className={cn(pill, "w-fit bg-primary text-primary-foreground hover:bg-primary/85")}
+        className={cn(
+          pill,
+          "w-fit bg-primary text-primary-foreground hover:bg-primary/85",
+        )}
       >
         <CalendarPlus className="size-4" aria-hidden="true" />
         Add to {formatDayShort(date)}

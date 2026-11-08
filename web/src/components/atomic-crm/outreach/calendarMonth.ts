@@ -54,7 +54,9 @@ const emptyMarks = (): DayMarks => ({
 });
 
 /** Day → marks, for every day that has at least one. */
-export const computeDayMarks = (sources: MarkSources): Map<string, DayMarks> => {
+export const computeDayMarks = (
+  sources: MarkSources,
+): Map<string, DayMarks> => {
   const marks = new Map<string, DayMarks>();
   const at = (date: string) => {
     let entry = marks.get(date);
@@ -74,7 +76,8 @@ export const computeDayMarks = (sources: MarkSources): Map<string, DayMarks> => 
   for (const event of sources.events ?? []) {
     at(event.date.slice(0, 10)).events.push(event.label);
   }
-  if (sources.giveMiamiDay) at(sources.giveMiamiDay.slice(0, 10)).giveMiamiDay = true;
+  if (sources.giveMiamiDay)
+    at(sources.giveMiamiDay.slice(0, 10)).giveMiamiDay = true;
   return marks;
 };
 
@@ -86,8 +89,10 @@ export const describeMarks = (marks: DayMarks | undefined): string[] => {
   if (!marks) return [];
   const parts: string[] = [];
   if (marks.giveMiamiDay) parts.push("Give Miami Day");
-  if (marks.planned) parts.push(count(marks.planned, "outreach planned", "outreach planned"));
-  if (marks.done) parts.push(count(marks.done, "outreach done", "outreach done"));
+  if (marks.planned)
+    parts.push(count(marks.planned, "outreach planned", "outreach planned"));
+  if (marks.done)
+    parts.push(count(marks.done, "outreach done", "outreach done"));
   if (marks.campaignEnds.length)
     parts.push(`Ends: ${marks.campaignEnds.join(", ")}`);
   if (marks.events.length)

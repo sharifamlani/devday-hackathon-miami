@@ -83,7 +83,8 @@ export const giveMiamiDay = (
   today: string,
 ): string => {
   const reported =
-    targets?.quarter?.give_miami_day?.date ?? targets?.month?.give_miami_day?.date;
+    targets?.quarter?.give_miami_day?.date ??
+    targets?.month?.give_miami_day?.date;
   if (reported) return reported.slice(0, 10);
   const year = Number(today.slice(0, 4));
   const thisYear = giveMiamiDayFor(year);

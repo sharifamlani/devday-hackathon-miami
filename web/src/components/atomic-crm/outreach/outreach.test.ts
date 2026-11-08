@@ -62,16 +62,38 @@ describe("dates", () => {
 describe("outreach plan storage", () => {
   it("adds, dedupes per day, updates and removes", () => {
     let items: OutreachPlanItem[] = [];
-    items = addPlanItem(items, { date: "2026-11-10", donor_id: 4, label: "Rosa" }, NOW);
-    const again = addPlanItem(items, { date: "2026-11-10", donor_id: 4, label: "Rosa" }, NOW);
+    items = addPlanItem(
+      items,
+      { date: "2026-11-10", donor_id: 4, label: "Rosa" },
+      NOW,
+    );
+    const again = addPlanItem(
+      items,
+      { date: "2026-11-10", donor_id: 4, label: "Rosa" },
+      NOW,
+    );
     expect(again).toBe(items);
-    items = addPlanItem(items, { date: "2026-11-11", donor_id: 4, label: "Rosa" }, NOW);
-    items = addPlanItem(items, { date: "2026-11-10", campaign_id: 2, label: "Thank-you" }, NOW);
+    items = addPlanItem(
+      items,
+      { date: "2026-11-11", donor_id: 4, label: "Rosa" },
+      NOW,
+    );
+    items = addPlanItem(
+      items,
+      { date: "2026-11-10", campaign_id: 2, label: "Thank-you" },
+      NOW,
+    );
     expect(items).toHaveLength(3);
 
     const [first] = items;
-    items = updatePlanItem(items, first.id, { done: true, note: "Left a voicemail" });
-    expect(itemsOn(items, "2026-11-10").map((i) => i.label)).toEqual(["Thank-you", "Rosa"]);
+    items = updatePlanItem(items, first.id, {
+      done: true,
+      note: "Left a voicemail",
+    });
+    expect(itemsOn(items, "2026-11-10").map((i) => i.label)).toEqual([
+      "Thank-you",
+      "Rosa",
+    ]);
     expect(items[0]).toMatchObject({ done: true, note: "Left a voicemail" });
 
     items = removePlanItem(items, first.id);
@@ -79,16 +101,28 @@ describe("outreach plan storage", () => {
   });
 
   it("rejects an item naming neither or both targets, or a bad date", () => {
-    expect(addPlanItem([], { date: "2026-11-10", label: "x" }, NOW)).toEqual([]);
+    expect(addPlanItem([], { date: "2026-11-10", label: "x" }, NOW)).toEqual(
+      [],
+    );
     expect(
-      addPlanItem([], { date: "2026-11-10", donor_id: 1, campaign_id: 2, label: "x" }, NOW),
+      addPlanItem(
+        [],
+        { date: "2026-11-10", donor_id: 1, campaign_id: 2, label: "x" },
+        NOW,
+      ),
     ).toEqual([]);
-    expect(addPlanItem([], { date: "Nov 10", donor_id: 1, label: "x" }, NOW)).toEqual([]);
+    expect(
+      addPlanItem([], { date: "Nov 10", donor_id: 1, label: "x" }, NOW),
+    ).toEqual([]);
   });
 
   it("round-trips through storage per viewer and ignores junk", () => {
     const storage = memoryStorage();
-    const items = addPlanItem([], { date: "2026-11-10", donor_id: 4, label: "Rosa" }, NOW);
+    const items = addPlanItem(
+      [],
+      { date: "2026-11-10", donor_id: 4, label: "Rosa" },
+      NOW,
+    );
     expect(writePlan(storage, planStorageKey(7), items)).toBe(true);
     expect(readPlan(storage, planStorageKey(7))).toEqual(items);
     expect(readPlan(storage, planStorageKey(null))).toEqual([]);
@@ -97,7 +131,9 @@ describe("outreach plan storage", () => {
     expect(parsePlan("not json")).toEqual([]);
     expect(parsePlan('{"a":1}')).toEqual([]);
     expect(
-      parsePlan(JSON.stringify([{ id: "a", date: "2026-11-10" }, { ...items[0] }])),
+      parsePlan(
+        JSON.stringify([{ id: "a", date: "2026-11-10" }, { ...items[0] }]),
+      ),
     ).toHaveLength(1);
   });
 
@@ -116,7 +152,11 @@ describe("outreach plan storage", () => {
   });
 
   it("knows what is still planned from a day on", () => {
-    const items = addPlanItem([], { date: "2026-11-10", donor_id: 4, label: "Rosa" }, NOW);
+    const items = addPlanItem(
+      [],
+      { date: "2026-11-10", donor_id: 4, label: "Rosa" },
+      NOW,
+    );
     expect(isPlannedFrom(items, { donor_id: 4 }, "2026-11-09")).toBe(true);
     expect(isPlannedFrom(items, { donor_id: 4 }, "2026-11-11")).toBe(false);
     const done = updatePlanItem(items, items[0].id, { done: true });
@@ -146,9 +186,18 @@ describe("recommendations", () => {
 
   it("only recommends on-track donors when star or big before Give Miami Day", () => {
     expect(scoreDonor(donor({ id: 1, status: "on_track" }))).toBeNull();
-    expect(scoreDonor(donor({ id: 1, status: "on_track", tier: "big" }))).not.toBeNull();
     expect(
-      scoreDonor(donor({ id: 1, status: "on_track", tier: "big", give_miami_day_days_away: 40 })),
+      scoreDonor(donor({ id: 1, status: "on_track", tier: "big" })),
+    ).not.toBeNull();
+    expect(
+      scoreDonor(
+        donor({
+          id: 1,
+          status: "on_track",
+          tier: "big",
+          give_miami_day_days_away: 40,
+        }),
+      ),
     ).toBeNull();
   });
 
@@ -163,8 +212,16 @@ describe("recommendations", () => {
   });
 
   it("skips donors already planned or contacted in the last two weeks", () => {
-    let plan = addPlanItem([], { date: "2026-11-12", donor_id: 1, label: "One" }, NOW);
-    plan = addPlanItem(plan, { date: "2026-11-02", donor_id: 2, label: "Two" }, NOW);
+    let plan = addPlanItem(
+      [],
+      { date: "2026-11-12", donor_id: 1, label: "One" },
+      NOW,
+    );
+    plan = addPlanItem(
+      plan,
+      { date: "2026-11-02", donor_id: 2, label: "Two" },
+      NOW,
+    );
     plan = updatePlanItem(plan, plan[1].id, { done: true });
     const recs = recommendOutreach(
       [donor({ id: 1 }), donor({ id: 2 }), donor({ id: 3 })],
@@ -200,8 +257,14 @@ describe("recommendations", () => {
       ],
     });
     expect(recs).toHaveLength(1);
-    expect(recs[0]).toMatchObject({ kind: "campaign", campaign_id: 1, date: today });
-    expect(recs[0].reason).toBe("4 drafts waiting for your approval · ends in 10 days");
+    expect(recs[0]).toMatchObject({
+      kind: "campaign",
+      campaign_id: 1,
+      date: today,
+    });
+    expect(recs[0].reason).toBe(
+      "4 drafts waiting for your approval · ends in 10 days",
+    );
   });
 });
 
@@ -215,8 +278,16 @@ describe("calendar month", () => {
   });
 
   it("computes dots for planned, done, campaign ends, events and Give Miami Day", () => {
-    let plan = addPlanItem([], { date: "2026-11-10", donor_id: 1, label: "A" }, NOW);
-    plan = addPlanItem(plan, { date: "2026-11-10", donor_id: 2, label: "B" }, NOW);
+    let plan = addPlanItem(
+      [],
+      { date: "2026-11-10", donor_id: 1, label: "A" },
+      NOW,
+    );
+    plan = addPlanItem(
+      plan,
+      { date: "2026-11-10", donor_id: 2, label: "B" },
+      NOW,
+    );
     plan = updatePlanItem(plan, plan[1].id, { done: true });
     const marks = computeDayMarks({
       plan,
@@ -230,10 +301,12 @@ describe("calendar month", () => {
     expect(marks.get("2026-11-19")?.giveMiamiDay).toBe(true);
     expect(marks.has("2026-11-11")).toBe(false);
 
-    expect(describeDay("2026-11-19", marks.get("2026-11-19"), "2026-11-08")).toBe(
-      "Thursday, November 19, 2026. Give Miami Day",
-    );
-    expect(describeDay("2026-11-10", marks.get("2026-11-10"), "2026-11-10")).toBe(
+    expect(
+      describeDay("2026-11-19", marks.get("2026-11-19"), "2026-11-08"),
+    ).toBe("Thursday, November 19, 2026. Give Miami Day");
+    expect(
+      describeDay("2026-11-10", marks.get("2026-11-10"), "2026-11-10"),
+    ).toBe(
       "Tuesday, November 10, 2026, today. 1 outreach planned. 1 outreach done",
     );
   });

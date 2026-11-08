@@ -28,10 +28,17 @@ export const addDays = (iso: string, days: number): string => {
   return toIsoDate(date);
 };
 
-export const addMonths = (
-  month: { year: number; month: number },
-  delta: number,
-) => {
+export interface MonthRef {
+  year: number;
+  month: number; // 0-based, like Date
+}
+
+export const monthOf = (iso: string): MonthRef => {
+  const date = fromIsoDate(iso);
+  return { year: date.getFullYear(), month: date.getMonth() };
+};
+
+export const addMonths = (month: MonthRef, delta: number) => {
   const date = new Date(month.year, month.month + delta, 1);
   return { year: date.getFullYear(), month: date.getMonth() };
 };

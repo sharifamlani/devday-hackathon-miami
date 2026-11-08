@@ -151,7 +151,9 @@ export const donorReason = (
 ): string => {
   const kind = who(donor);
   const parts = [
-    kind ? `${STATUS_HEADLINE[donor.status]} ${kind}` : STATUS_HEADLINE[donor.status],
+    kind
+      ? `${STATUS_HEADLINE[donor.status]} ${kind}`
+      : STATUS_HEADLINE[donor.status],
   ];
   if (alert) parts.push(alert.label);
   if (donor.why_short) parts.push(donor.why_short);
@@ -176,7 +178,9 @@ export const campaignReason = (campaign: RecCampaign, today: string) => {
     const days = daysBetween(today, campaign.ends_on);
     if (days >= 0)
       parts.push(
-        days === 0 ? "ends today" : `ends in ${days} ${days === 1 ? "day" : "days"}`,
+        days === 0
+          ? "ends today"
+          : `ends in ${days} ${days === 1 ? "day" : "days"}`,
       );
   }
   return parts.join(" · ");

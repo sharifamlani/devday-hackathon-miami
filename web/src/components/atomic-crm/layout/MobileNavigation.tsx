@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { PhoneCall, Send, Sparkles, Users } from "lucide-react";
+import { House, PhoneCall, Send, Sparkles, Users } from "lucide-react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
 
@@ -7,6 +7,7 @@ export const MobileNavigation = () => {
   const location = useLocation();
   const translate = useTranslate();
   const onHome = !!matchPath("/", location.pathname);
+  const onInbox = !!matchPath("/inbox", location.pathname);
   const onDonors = !!matchPath("/contacts/*", location.pathname);
   const onCampaigns =
     !!matchPath("/campaigns/*", location.pathname) ||
@@ -27,12 +28,18 @@ export const MobileNavigation = () => {
             : undefined,
       }}
     >
-      <div className="flex min-h-[65px] items-center justify-around gap-1 px-5 py-1.5">
+      <div className="flex min-h-[65px] items-center justify-around gap-1 px-2 py-1.5">
         <NavigationButton
           href="/"
-          Icon={PhoneCall}
-          label={translate("crm.call_today.title", { _: "Call today" })}
+          Icon={House}
+          label="Home"
           isActive={onHome}
+        />
+        <NavigationButton
+          href="/inbox"
+          Icon={PhoneCall}
+          label="Inbox"
+          isActive={onInbox}
         />
         <NavigationButton
           href="/contacts"

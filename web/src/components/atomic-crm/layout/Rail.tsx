@@ -1,4 +1,12 @@
-import { HeartHandshake, PhoneCall, Send, Sparkles, Users } from "lucide-react";
+import {
+  CalendarDays,
+  HeartHandshake,
+  House,
+  PhoneCall,
+  Send,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import type { ComponentType } from "react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
@@ -10,16 +18,16 @@ export const Rail = () => {
   const location = useLocation();
   const translate = useTranslate();
   const onHome = !!matchPath("/", location.pathname);
+  const onInbox = !!matchPath("/inbox", location.pathname);
+  // The outreach planner opens on Home (?plan=today) until /calendar lands (#67).
+  const onPlanner = onHome && location.search.includes("plan=");
   const onDonors = !!matchPath("/contacts/*", location.pathname);
   const onCampaigns =
     !!matchPath("/campaigns/*", location.pathname) ||
     !!matchPath("/outbox", location.pathname);
 
   return (
-    <nav
-      aria-label="Main"
-      className="flex flex-col items-center gap-6 py-2.5"
-    >
+    <nav aria-label="Main" className="flex flex-col items-center gap-6 py-2.5">
       <Link
         to="/"
         aria-label="Donor Desk home"
@@ -30,9 +38,15 @@ export const Rail = () => {
       <ul className="flex flex-col gap-2 rounded-[30px] bg-card p-2">
         <RailButton
           to="/"
-          label={translate("crm.call_today.title", { _: "Call today" })}
+          label="Home"
+          icon={House}
+          active={onHome && !onPlanner}
+        />
+        <RailButton
+          to="/inbox"
+          label="Outreach inbox"
           icon={PhoneCall}
-          active={onHome}
+          active={onInbox}
         />
         <RailButton
           to="/contacts"
@@ -51,6 +65,12 @@ export const Rail = () => {
           label={translate("crm.campaigns.title", { _: "Campaigns" })}
           icon={Send}
           active={onCampaigns}
+        />
+        <RailButton
+          to="/?plan=today"
+          label="Calendar"
+          icon={CalendarDays}
+          active={onPlanner}
         />
       </ul>
     </nav>

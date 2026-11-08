@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { ShieldCheck, Sparkles } from "lucide-react";
+import { useSearchParams } from "react-router";
 
 import { cn } from "@/lib/utils";
 import { DonorDrawer } from "../contacts/DonorDrawer";
@@ -23,7 +24,16 @@ import "../dashboard/donor-inbox.css";
 export const AskPage = () => {
   const ask = useAsk();
   const promptId = useId();
-  const [draft, setDraft] = useState("");
+  const [params] = useSearchParams();
+  const linkedQuestion = params.get("q");
+  const [draft, setDraft] = useState(linkedQuestion ?? "");
+  // /ask?q=… (saved questions in the Projects sidebar) fills the prompt; the
+  // person still presses Ask, so a link never runs the model by itself.
+  const [seenQuestion, setSeenQuestion] = useState(linkedQuestion);
+  if (linkedQuestion !== seenQuestion) {
+    setSeenQuestion(linkedQuestion);
+    if (linkedQuestion) setDraft(linkedQuestion);
+  }
   // The answer to the question as asked, kept so "Reset filters" can restore it.
   const [original, setOriginal] = useState<AskAnswer | null>(null);
   const [answer, setAnswer] = useState<AskAnswer | null>(null);

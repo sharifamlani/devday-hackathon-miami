@@ -5,9 +5,15 @@ import { useSearchParams } from "react-router";
 import { DonorDrawer } from "../contacts/DonorDrawer";
 import { useCampaigns, useDonors, useTargets } from "../providers/local/hooks";
 import { computeDayMarks } from "../outreach/calendarMonth";
-import { formatDayShort, isIsoDate, toIsoDate } from "../outreach/dates";
+import {
+  formatDayShort,
+  isIsoDate,
+  monthOf,
+  toIsoDate,
+  type MonthRef,
+} from "../outreach/dates";
 import { DayPlanner } from "../outreach/DayPlanner";
-import { MonthGrid, MonthLegend, monthOf, type MonthRef } from "../outreach/MonthGrid";
+import { MonthGrid, MonthLegend } from "../outreach/MonthGrid";
 import { itemsOn, useOutreachPlan } from "../outreach/outreachPlan";
 import { recommendOutreach } from "../outreach/recommend";
 import {
@@ -104,11 +110,15 @@ export const HomePage = () => {
       <div className="grid gap-6 xl:grid-cols-12">
         <div className="xl:col-span-7">
           <GlanceCard
-            isPending={donors.isPending || targets.isPending || campaigns.isPending}
+            isPending={
+              donors.isPending || targets.isPending || campaigns.isPending
+            }
             figures={{
               raised: quarter?.raised ?? null,
               raisedLabel: quarter?.label ?? null,
-              needCall: donors.data ? donors.data.filter(needsCall).length : null,
+              needCall: donors.data
+                ? donors.data.filter(needsCall).length
+                : null,
               drafts: campaigns.data ? draftsAwaiting(campaigns.data) : null,
             }}
           />
@@ -175,13 +185,17 @@ export const HomePage = () => {
           .map((d) => ({ id: d.id, name: d.full_name }))
           .sort((a, b) => a.name.localeCompare(b.name))}
         campaigns={campaignList.map((c) => ({ id: c.id, name: c.name }))}
-        recommendations={planDate ? recommendOutreach(donors.data ?? [], {
-          today,
-          plan: plan.items,
-          campaigns: toRecCampaigns(campaignList),
-          giveMiamiDay: gmd,
-          limit: 12,
-        }) : []}
+        recommendations={
+          planDate
+            ? recommendOutreach(donors.data ?? [], {
+                today,
+                plan: plan.items,
+                campaigns: toRecCampaigns(campaignList),
+                giveMiamiDay: gmd,
+                limit: 12,
+              })
+            : []
+        }
         dayNotes={planDate ? dayNotes(planDate) : []}
       />
       <DonorDrawer donorId={donorId} onClose={() => setDonorId(null)} />

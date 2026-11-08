@@ -5,10 +5,7 @@ import { Link } from "react-router";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatUsd } from "../contacts/donorFormat";
-import type {
-  CampaignSummary,
-  DonationTarget,
-} from "../providers/local/types";
+import type { CampaignSummary, DonationTarget } from "../providers/local/types";
 import { formatDayShort } from "../outreach/dates";
 import { AGENT_LABEL } from "../outreach/DayPlanner";
 import type { Recommendation } from "../outreach/recommend";
@@ -165,10 +162,16 @@ export const GoalGaugeCard = ({
   const percent = target?.percent ?? null;
   const filled = percent == null ? 0 : Math.min(percent, 100) / 100;
   return (
-    <section aria-labelledby={headingId} className={cn(card, "flex flex-col gap-4")}>
+    <section
+      aria-labelledby={headingId}
+      className={cn(card, "flex flex-col gap-4")}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 id={headingId} className="text-lg font-semibold tracking-[-0.3px]">
+          <h2
+            id={headingId}
+            className="text-lg font-semibold tracking-[-0.3px]"
+          >
             {target ? `${target.label} goal` : "Quarter goal"}
           </h2>
           <p className="text-sm text-muted-foreground">Sample goal</p>
@@ -189,7 +192,11 @@ export const GoalGaugeCard = ({
       ) : (
         <div className="flex flex-wrap items-center gap-5">
           <div className="relative size-36 shrink-0">
-            <svg viewBox="0 0 120 120" className="size-full -rotate-[225deg]" aria-hidden="true">
+            <svg
+              viewBox="0 0 120 120"
+              className="size-full -rotate-[225deg]"
+              aria-hidden="true"
+            >
               <circle
                 cx="60"
                 cy="60"
@@ -216,7 +223,9 @@ export const GoalGaugeCard = ({
                 <span className="block text-3xl font-semibold tabular-nums">
                   {percent == null ? "—" : `${Math.round(percent)}%`}
                 </span>
-                <span className="block text-xs text-muted-foreground">of goal</span>
+                <span className="block text-xs text-muted-foreground">
+                  of goal
+                </span>
               </span>
             </div>
           </div>
@@ -229,12 +238,15 @@ export const GoalGaugeCard = ({
             </div>
             <div>
               <dt className="text-muted-foreground">Goal</dt>
-              <dd className="font-medium tabular-nums">{formatUsd(target.goal)}</dd>
+              <dd className="font-medium tabular-nums">
+                {formatUsd(target.goal)}
+              </dd>
             </div>
             <div>
               <dt className="sr-only">Time left</dt>
               <dd className="rounded-full bg-quiet px-3 py-1 text-quiet-foreground">
-                {target.days_left} {target.days_left === 1 ? "day" : "days"} left
+                {target.days_left} {target.days_left === 1 ? "day" : "days"}{" "}
+                left
               </dd>
             </div>
           </dl>
@@ -256,10 +268,16 @@ export const CampaignProgressCard = ({
   const headingId = useId();
   const progress = campaign ? campaignProgress(campaign) : null;
   return (
-    <section aria-labelledby={headingId} className={cn(card, "flex flex-col gap-4")}>
+    <section
+      aria-labelledby={headingId}
+      className={cn(card, "flex flex-col gap-4")}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id={headingId} className="text-lg font-semibold tracking-[-0.3px]">
+          <h2
+            id={headingId}
+            className="text-lg font-semibold tracking-[-0.3px]"
+          >
             Campaign progress
           </h2>
           <p className="truncate text-sm text-muted-foreground">
@@ -271,7 +289,9 @@ export const CampaignProgressCard = ({
             <span className="block text-2xl font-semibold tabular-nums">
               {progress.percent}%
             </span>
-            <span className="block text-xs text-muted-foreground">approved or sent</span>
+            <span className="block text-xs text-muted-foreground">
+              approved or sent
+            </span>
           </p>
         )}
       </div>
@@ -280,7 +300,10 @@ export const CampaignProgressCard = ({
       ) : !campaign || !progress ? (
         <Link
           to="/campaigns/new"
-          className={cn(pill, "w-fit bg-primary text-primary-foreground hover:bg-primary/85")}
+          className={cn(
+            pill,
+            "w-fit bg-primary text-primary-foreground hover:bg-primary/85",
+          )}
         >
           <Send className="size-4" aria-hidden="true" />
           Start a campaign
@@ -295,33 +318,49 @@ export const CampaignProgressCard = ({
               <>
                 <span
                   className="bg-primary"
-                  style={{ width: `${(progress.sent / progress.total) * 100}%` }}
+                  style={{
+                    width: `${(progress.sent / progress.total) * 100}%`,
+                  }}
                 />
                 <span
                   className="bg-brand"
-                  style={{ width: `${(progress.approved / progress.total) * 100}%` }}
+                  style={{
+                    width: `${(progress.approved / progress.total) * 100}%`,
+                  }}
                 />
               </>
             )}
           </div>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <li className="flex items-center gap-1.5">
-              <span aria-hidden="true" className="size-2.5 rounded-full bg-primary" />
+              <span
+                aria-hidden="true"
+                className="size-2.5 rounded-full bg-primary"
+              />
               {progress.sent} sent
             </li>
             <li className="flex items-center gap-1.5">
-              <span aria-hidden="true" className="size-2.5 rounded-full bg-brand" />
+              <span
+                aria-hidden="true"
+                className="size-2.5 rounded-full bg-brand"
+              />
               {progress.approved} approved
             </li>
             <li className="flex items-center gap-1.5">
-              <span aria-hidden="true" className="size-2.5 rounded-full border border-current" />
+              <span
+                aria-hidden="true"
+                className="size-2.5 rounded-full border border-current"
+              />
               {progress.draft} drafts
             </li>
             {progress.skipped > 0 && <li>{progress.skipped} skipped</li>}
           </ul>
           <Link
             to={`/campaigns/${campaign.id}`}
-            className={cn(pill, "w-fit bg-quiet px-5 text-quiet-foreground hover:bg-accent")}
+            className={cn(
+              pill,
+              "w-fit bg-quiet px-5 text-quiet-foreground hover:bg-accent",
+            )}
           >
             Review campaign
             <span className="sr-only">: {campaign.name}</span>
@@ -353,10 +392,16 @@ export const RecommendedCard = ({
   const headingId = useId();
   const [status, setStatus] = useState("");
   return (
-    <section aria-labelledby={headingId} className={cn(card, "flex flex-col gap-4")}>
+    <section
+      aria-labelledby={headingId}
+      className={cn(card, "flex flex-col gap-4")}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id={headingId} className="text-lg font-semibold tracking-[-0.3px]">
+          <h2
+            id={headingId}
+            className="text-lg font-semibold tracking-[-0.3px]"
+          >
             Recommended outreach
           </h2>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -380,7 +425,10 @@ export const RecommendedCard = ({
           We couldn’t load donors for recommendations: {error.message}
         </p>
       ) : isPending ? (
-        <div className="flex flex-col gap-2" aria-label="Loading recommendations">
+        <div
+          className="flex flex-col gap-2"
+          aria-label="Loading recommendations"
+        >
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-16 w-full rounded-2xl" />
           ))}
@@ -392,7 +440,10 @@ export const RecommendedCard = ({
       ) : (
         <ul className="flex flex-col gap-2">
           {recommendations.map((rec) => {
-            const filled = Math.max(1, Math.min(SEGMENTS, Math.round((rec.priority / 150) * SEGMENTS)));
+            const filled = Math.max(
+              1,
+              Math.min(SEGMENTS, Math.round((rec.priority / 150) * SEGMENTS)),
+            );
             return (
               <li
                 key={rec.key}
@@ -403,7 +454,11 @@ export const RecommendedCard = ({
                     aria-hidden="true"
                     className="grid size-10 shrink-0 place-items-center rounded-full bg-card text-xs font-semibold"
                   >
-                    {rec.kind === "campaign" ? <Send className="size-4" /> : initials(rec.label)}
+                    {rec.kind === "campaign" ? (
+                      <Send className="size-4" />
+                    ) : (
+                      initials(rec.label)
+                    )}
                   </span>
                   <div className="min-w-0">
                     {rec.donor_id != null ? (
@@ -423,14 +478,19 @@ export const RecommendedCard = ({
                         {rec.label}
                       </Link>
                     )}
-                    <p className="text-xs text-muted-foreground">{rec.reason}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {rec.reason}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <span className="flex flex-col gap-1">
                     <span className="text-[11px] text-muted-foreground">
                       Priority
-                      <span className="sr-only"> {filled} of {SEGMENTS}</span>
+                      <span className="sr-only">
+                        {" "}
+                        {filled} of {SEGMENTS}
+                      </span>
                     </span>
                     <span aria-hidden="true" className="flex gap-0.5">
                       {Array.from({ length: SEGMENTS }, (_, i) => (
@@ -454,7 +514,10 @@ export const RecommendedCard = ({
                           : `${rec.label} is already planned for ${formatDayShort(rec.date)}.`,
                       );
                     }}
-                    className={cn(pill, "shrink-0 bg-primary text-primary-foreground hover:bg-primary/85")}
+                    className={cn(
+                      pill,
+                      "shrink-0 bg-primary text-primary-foreground hover:bg-primary/85",
+                    )}
                   >
                     <CalendarPlus className="size-4" aria-hidden="true" />
                     Plan for {formatDayShort(rec.date)}

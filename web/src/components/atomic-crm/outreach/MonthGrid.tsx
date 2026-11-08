@@ -15,19 +15,11 @@ import {
   formatMonthTitle,
   fromIsoDate,
   mondayIndex,
+  monthOf,
   toIsoDate,
+  type MonthRef,
 } from "./dates";
 import { describeDay, monthWeeks, type DayMarks } from "./calendarMonth";
-
-export interface MonthRef {
-  year: number;
-  month: number; // 0-based
-}
-
-export const monthOf = (iso: string): MonthRef => {
-  const date = fromIsoDate(iso);
-  return { year: date.getFullYear(), month: date.getMonth() };
-};
 
 const inMonth = (iso: string, month: MonthRef) => {
   const ref = monthOf(iso);
@@ -271,8 +263,12 @@ export const MonthGrid = ({
                         isSelected
                           ? "bg-brand font-semibold text-brand-foreground"
                           : "hover:bg-current/10",
-                        isToday && !isSelected && "font-bold ring-1 ring-current ring-inset",
-                        dayMarks?.giveMiamiDay && !isSelected && "ring-2 ring-brand ring-inset",
+                        isToday &&
+                          !isSelected &&
+                          "font-bold ring-1 ring-current ring-inset",
+                        dayMarks?.giveMiamiDay &&
+                          !isSelected &&
+                          "ring-2 ring-brand ring-inset",
                       )}
                     >
                       <span aria-hidden="true">{cell.day}</span>
@@ -301,19 +297,16 @@ export const MonthLegend = ({
   className,
 }: {
   kinds?: (
-    | "today"
-    | "planned"
-    | "done"
-    | "campaignEnds"
-    | "events"
-    | "giveMiamiDay"
+    "today" | "planned" | "done" | "campaignEnds" | "events" | "giveMiamiDay"
   )[];
   className?: string;
 }) => {
   const items = {
     today: {
       label: "Today",
-      mark: <span className="size-3 rounded-full ring-1 ring-current ring-inset" />,
+      mark: (
+        <span className="size-3 rounded-full ring-1 ring-current ring-inset" />
+      ),
     },
     planned: {
       label: "Planned outreach",

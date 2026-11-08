@@ -68,8 +68,7 @@ export const parsePlan = (raw: string | null): OutreachPlanItem[] => {
         note: typeof item.note === "string" ? item.note : "",
         done: item.done === true,
         source: item.source === "agent" ? "agent" : "staff",
-        created_at:
-          typeof item.created_at === "string" ? item.created_at : "",
+        created_at: typeof item.created_at === "string" ? item.created_at : "",
       },
     ];
   });
@@ -163,8 +162,7 @@ export const updatePlanItem = (
       ? {
           ...item,
           ...patch,
-          date:
-            patch.date && isIsoDate(patch.date) ? patch.date : item.date,
+          date: patch.date && isIsoDate(patch.date) ? patch.date : item.date,
         }
       : item,
   );
