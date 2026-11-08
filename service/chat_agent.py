@@ -76,6 +76,14 @@ def query(sql: str, args: tuple = ()) -> list[dict]:
 TAB_CONTACT = {"givers": "giver", "neighbors": "neighbor", "community": "community"}
 
 
+def gave_via_ids(channel: str | None) -> set[int] | None:
+    """Donor ids with a gift through a matching channel (case-insensitive substring); None = no filter."""
+    if not channel:
+        return None
+    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ?",
+                                         (f"%{channel.strip().lower()}%",))}
+
+
 def tab_people(tab: str) -> list[dict] | None:
     """Everyone on this tab via data's list_people once three-tab people land; None before that."""
     from service import routes_data
@@ -95,12 +103,14 @@ def not_loaded(ctx: ChatContext) -> dict:
 
 @function_tool
 def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, tier: str | None = None,
-                star_only: bool = False, limit: int = 25) -> dict:
-    """Find people on the current tab. status: lapsing | lapsed | due | on_track. tier: small | mid | major."""
+                star_only: bool = False, gave_via: str | None = None, limit: int = 25) -> dict:
+    """Find people on the current tab. status: lapsing | lapsed | due | on_track. tier: small | mid | major.
+    gave_via: people with a gift whose channel matches (e.g. "Give Miami Day", "event", "check", "online")."""
+    via = gave_via_ids(gave_via)
     people = tab_people(ctx.context.tab)
     if people is not None:
         people = [p for p in people if (not status or p.get("status") == status) and (not tier or p.get("tier") == tier)
-                  and (not star_only or p.get("is_star"))][:min(limit, 50)]
+                  and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)][:min(limit, 50)]
         keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status")
         return {"people": [{k: p.get(k) for k in keep} for p in people], "count": len(people)}
     if ctx.context.tab not in ("givers", "home", "calendar"):
@@ -114,6 +124,8 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
         args.append(tier)
     if star_only:
         where.append("s.is_star = 1")
+    if via is not None:
+        where.append(f"d.id IN ({', '.join(str(i) for i in via) or 'NULL'})")
     rows = query("SELECT d.id, d.full_name, d.donor_type, s.score, s.tier, s.is_star, s.status FROM donors d "
                  "JOIN donor_scores s ON s.donor_id = d.id" + (" WHERE " + " AND ".join(where) if where else "")
                  + " ORDER BY s.score DESC LIMIT ?", (*args, min(limit, 50)))
@@ -613,6 +625,29 @@ def summarize(output) -> str:
         return data.get("note") or f"{len(data['alerts'])} alerts"
     if "person" in data:
         return f"brief for {data['person']['full_name']}"
+    if "results" in data:
+        return data.get("note") or f"{len(data['results'])} context results"
+    if "tasks" in data:
+        return data.get("note") or f"{len(data['tasks'])} tasks"
+    if "items" in data and "people" not in data:
+        return data.get("note") or f"{len(data['items'])} calendar items"
+    if "call_notes" in data:
+        return f"{len(data['call_notes'])} call notes"
+    if "undone" in data:
+        return f"undone: {data.get('action', '')} {data.get('target', '')}".strip()
+    if "title" in data and "kind" in data and "id" in data:                       # a task / calendar item
+        when = " ".join(x for x in (data.get("due"), data.get("time")) if x)
+        state = "deleted" if data.get("deleted_at") else "done" if data.get("done") else "saved"
+        return f"task #{data['id']} {state}: {data['title']}" + (f" ({when})" if when else "")
+    if "person_id" in data and "after" in data:
+        return f"updated person {data['person_id']}: " + ", ".join(f"{k} = {v}" for k, v in data["after"].items())
+    if "full_name" in data and "gifts" in data:                                    # get_person
+        bits = [b for b in (data.get("status"), f"score {data['score']}" if data.get("score") is not None else None) if b]
+        return data["full_name"] + (f" ({', '.join(bits)})" if bits else "")
+    if "interests" in data:
+        return f"interests: {', '.join(i.get('tag', '') for i in data['interests'])}"
+    if "suggestion_id" in data:
+        return f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
     return json.dumps(data)[:160]
 
 

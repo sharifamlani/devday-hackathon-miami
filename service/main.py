@@ -495,6 +495,22 @@ async def chat(req: ChatRequest) -> dict:
                         [t.model_dump() for t in req.history], screen.event_id)
 
 
+@app.post("/chat/stream")
+async def chat_stream(req: ChatRequest):
+    """POST /chat, streamed to assistant-ui (assistant-stream data stream): text deltas, one tool-call part per
+    step (result has summary + undo_token), and a data chunk {type: "approvals", run_id, approvals} when the
+    run pauses for approval (resume with POST /chat/approve)."""
+    from service.chat_agent import SCREEN_TAB
+    from service.chat_stream import stream_chat
+
+    if not config.HAS_OPENAI_KEY:
+        raise HTTPException(503, "OPENAI_API_KEY is not set in .env")
+    screen = req.context or ChatScreen()
+    tab = req.tab or SCREEN_TAB[screen.screen]
+    selection = req.selection or ([screen.person_id] if screen.person_id is not None else [])
+    return stream_chat(req.message, tab, selection, [t.model_dump() for t in req.history], screen.event_id)
+
+
 class ApprovalDecision(BaseModel):
     call_id: str
     approve: bool
