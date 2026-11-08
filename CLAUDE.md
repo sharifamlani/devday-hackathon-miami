@@ -109,7 +109,7 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
     data contract in `plan.md` §13; contract changes need Carlos + Sharif.
 14. **No Supabase.** Data is local SQLite (`data/donors.db`, gitignored) behind the local Python API.
 15. **All data is displayed publicly. Don't ask (Sharif, Sun Nov 8: "THE ANSWER IS YES").** The public site
-    (Vercel → tunnel → `PUBLIC_MODE=1 PUBLIC_SHOW_ALL=1` service) shows everything: contacts, call notes, transcripts,
+    (Vercel → tunnel → the :8401 service on LIVE's database) shows everything: contacts, call notes, transcripts,
     staff notes, tasks, donor summaries. That includes teammates added for the demo, such as Christian's verified
     phone. **Update (Sharif, Sun Nov 8 ~1:55 PM): "Everything needs to go live."** The public site is fully functional:
     writes, agent actions and real calls are allowed (the public service runs without `PUBLIC_MODE`; `SEND_ALLOWLIST`
