@@ -767,8 +767,12 @@ def resolve_duplicates(ctx: RunContextWrapper[ChatContext], names: list[str] | N
                 counted_once = [{"amount": r["amount"], "date": r["gift_date"]} for r in conn.execute(
                     f"SELECT amount, gift_date FROM gifts WHERE id IN ({', '.join('?' * len(once))}) ORDER BY gift_date",
                     once)] if once else []
+                kept_name, gone_name = kept["full_name"], gone["full_name"]
+                if kept_name == gone_name:   # same name on both records: tell them apart by their giving
+                    label = lambda x: f"{x['full_name']} ({x['gifts']} gift{'s' if x['gifts'] != 1 else ''})"   # noqa: E731
+                    kept_name, gone_name = label(kept), label(gone)
                 merged.append({"suggestion_id": p["suggestion_id"], "confidence": p["confidence"],
-                               "reasons": p["reasons"], "kept": kept["full_name"], "merged_in": gone["full_name"],
+                               "reasons": p["reasons"], "kept": kept_name, "merged_in": gone_name,
                                "counted_once": counted_once, "undo_token": token,
                                "undo_merge_id": result.get("merge_id")})
             score.run(conn)
@@ -1109,6 +1113,17 @@ def summarize(output) -> str:
     return json.dumps(data)[:160]
 
 
+DECLINED = {"merge_duplicate": "kept separate", "send": "not sent", "call_person": "not called"}
+
+
+def step_summary(tool: str, output) -> str:
+    """The step card's line. A card the person declined comes back as the SDK's "Tool execution was not
+    approved."; say what that meant instead."""
+    if isinstance(output, str) and "not approved" in output.lower():
+        return DECLINED.get(tool, "declined")
+    return summarize(output)
+
+
 def output_data(output) -> dict:
     try:
         data = output if isinstance(output, dict) else json.loads(output)
@@ -1135,8 +1150,8 @@ def steps_from(items) -> list[dict]:
             raw = item.raw_item
             call_id = raw.get("call_id") if isinstance(raw, dict) else getattr(raw, "call_id", None)
             if call_id in calls:
-                summary = summarize(item.output)
-                if calls[call_id]["tool"].startswith("delete_") and not summary.startswith("error"):
+                summary = step_summary(calls[call_id]["tool"], item.output)
+                if calls[call_id]["tool"].startswith("delete_") and not summary.startswith("error") and summary != "declined":
                     summary = "deleted: " + summary.split(": ", 1)[-1]     # tasks' public shape has no deleted_at
                 calls[call_id]["summary"] = summary
                 calls[call_id]["status"] = "error" if summary.startswith("error") else "done"
@@ -1189,6 +1204,10 @@ def approval_summary(tool: str, args: dict) -> str | None:
             pair = next((p for p in with_conn(duplicate_pairs) if p["suggestion_id"] == args["suggestion_id"]), None)
             if pair is None:
                 return f"Merge {merged} into {kept}"
+            if kept == merged:             # same name on both records: tell them apart by their giving
+                n = lambda x: f"{x['gifts']} gift{'s' if x['gifts'] != 1 else ''}"           # noqa: E731
+                k, m = (pair["a"], pair["b"]) if keep_a else (pair["b"], pair["a"])
+                kept, merged = f"{kept} ({n(k)})", f"{merged} ({n(m)})"
             giving = " vs ".join(f"{x['gifts']} gift{'s' if x['gifts'] != 1 else ''} · ${x['total_given']:,.0f}"
                                  for x in (pair["a"], pair["b"]) if x)
             evidence = pair["reasons"][0] if pair["reasons"] else "similar records"

@@ -677,3 +677,57 @@ def test_the_merge_card_names_the_record_the_merge_will_keep(db_file):
         conn.close()
     sid = next(p["suggestion_id"] for p in invoke("resolve_duplicates", names=["Bill Hartwell", "William Hartwell"])["to_confirm"])
     assert ca.approval_summary("merge_duplicate", {"suggestion_id": sid}).startswith("Merge Bill Hartwell into William Hartwell")
+
+
+def test_a_declined_card_step_says_what_happened_not_the_sdk_message():
+    rejected = "Tool execution was not approved."
+    assert ca.step_summary("merge_duplicate", rejected) == "kept separate"
+    assert ca.step_summary("send", rejected) == "not sent"
+    assert ca.step_summary("delete_task", rejected) == "declined"
+    assert ca.step_summary("get_tasks", {"tasks": []}) == "0 tasks"
+
+
+def test_a_same_name_pair_is_told_apart_by_gift_count(db_file):
+    conn = sqlite3.connect(db_file)
+    try:
+        ids = []
+        for gifts in (1, 2):
+            cur = conn.execute("INSERT INTO donors (full_name, first_name, last_name, donor_type, contact_type) "
+                               "VALUES ('Imogen Thale', 'Imogen', 'Thale', 'individual', 'giver')")
+            ids.append(cur.lastrowid)
+            for k in range(gifts):
+                conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 25, ?, 'online')",
+                             (cur.lastrowid, f"2026-0{k + 1}-01"))
+        conn.commit()
+    finally:
+        conn.close()
+    from service import dedupe
+    c = db.connect()
+    try:
+        db.create_schema(c)
+        dedupe.run(c)
+    finally:
+        c.close()
+    sid = next(p["suggestion_id"] for p in invoke("resolve_duplicates", names=["Imogen Thale"])["to_confirm"])
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": sid}).startswith(
+        "Merge Imogen Thale (1 gift) into Imogen Thale (2 gifts)")
+    conn = sqlite3.connect(db_file)
+    try:
+        conn.execute("UPDATE duplicate_suggestions SET confidence = 0.9 WHERE id = ?", (sid,))   # now a sure pair
+        conn.commit()
+    finally:
+        conn.close()
+    m = next(m for m in invoke("resolve_duplicates", names=["Imogen Thale"])["merged"] if m["suggestion_id"] == sid)
+    assert (m["merged_in"], m["kept"]) == ("Imogen Thale (1 gift)", "Imogen Thale (2 gifts)")
+
+
+def test_a_declined_delete_is_not_reported_as_deleted():
+    from agents.items import ToolCallItem, ToolCallOutputItem
+    from types import SimpleNamespace
+    call = ToolCallItem.__new__(ToolCallItem)
+    call.raw_item = SimpleNamespace(call_id="d1", name="delete_task", arguments='{"task_id": 1}')
+    out = ToolCallOutputItem.__new__(ToolCallOutputItem)
+    out.raw_item = {"call_id": "d1"}
+    out.output = "Tool execution was not approved."
+    steps = ca.steps_from([call, out])
+    assert steps[0]["summary"] == "declined"
