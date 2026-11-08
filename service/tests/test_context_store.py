@@ -95,3 +95,10 @@ def test_search_route(db_file, monkeypatch):
     body = r.json()
     assert len(body) == 3 and set(body[0]) == {"id", "kind", "title", "text", "source_url", "posted_at", "score"}
     assert [x["posted_at"] for x in body] == sorted((x["posted_at"] for x in body), reverse=True)
+
+
+def test_context_rows_never_carry_the_binary_embedding(store):
+    from service import routes_data
+    oc.index_context(store)
+    rows = routes_data.list_context(store)
+    assert rows and all("embedding" not in r for r in rows) and all(r["kind"] for r in rows)

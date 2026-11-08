@@ -265,7 +265,8 @@ def list_context(conn: sqlite3.Connection, source: str | None = None) -> list[di
         rows = conn.execute("SELECT * FROM org_context WHERE source = ?" + CONTEXT_ORDER, (source,))
     else:
         rows = conn.execute("SELECT * FROM org_context" + CONTEXT_ORDER)
-    return [dict(r) for r in rows]
+    # the embedding is a binary vector for search only; it never goes out as JSON
+    return [{k: v for k, v in dict(r).items() if k != "embedding"} for r in rows]
 
 
 @router.get("/org-profile")
