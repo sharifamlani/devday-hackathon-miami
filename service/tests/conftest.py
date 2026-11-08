@@ -21,5 +21,5 @@ def db_file(tmp_path, monkeypatch):
     path = tmp_path / "donors.db"
     monkeypatch.setenv("DONORS_DB", str(path))
     monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
-    db.rebuild(path, as_of=AS_OF)
+    db.rebuild(path, with_seed=True, as_of=AS_OF)
     return path

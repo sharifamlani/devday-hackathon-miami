@@ -1,0 +1,492 @@
+"""B11/B12: tasks, undo, the generator on the sample upload, the calendar feed and artifacts (plan.md §21)."""
+
+import json
+from datetime import date
+from pathlib import Path
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from service import db, tasks
+from service.tests.test_gift_alerts import load_answer_key
+
+AS_OF = date(2026, 11, 8)
+ANSWER_KEY = Path(__file__).resolve().parents[2] / "data" / "sample_inputs" / "answer_key.json"
+EXPECTED_ALERTS = {"D18", "D19", "D06", "D09", "D27"}   # test_gift_alerts: the 5 planted gift problems
+
+
+def person(conn, name="Ana Ruiz") -> int:
+    return db.insert_donor(conn, {"full_name": name, "donor_type": "individual"})
+
+
+def event(conn, title, starts_at, **extra) -> int:
+    cur = conn.execute("INSERT INTO events (title, starts_at, source_url, source, place) VALUES (?, ?, ?, ?, ?)",
+                       (title, starts_at, extra.get("source_url", "https://miamifoundation.org/events"),
+                        extra.get("source", "website"), extra.get("place")))
+    conn.commit()
+    return cur.lastrowid
+
+
+def actions(conn):
+    return [dict(r) for r in conn.execute("SELECT actor, action, target, undone_at FROM agent_actions ORDER BY id")]
+
+
+# ---------- schema ----------
+
+def test_schema_creates_tasks_and_agent_actions_and_leaves_donors_alone(conn):
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    assert {"tasks", "agent_actions"} <= tables
+    donor_cols = [r[1] for r in conn.execute("PRAGMA table_info(donors)")]
+    db.create_schema(conn)   # idempotent
+    assert [r[1] for r in conn.execute("PRAGMA table_info(donors)")] == donor_cols
+    assert "tasks" in db.TABLES and "agent_actions" in db.TABLES
+
+
+# ---------- CRUD + undo ----------
+
+def test_create_returns_contract_shape_and_logs_an_undoable_action(conn):
+    pid = person(conn)
+    task, token = tasks.create_task(conn, kind="call", title="Call Ana", why="Monthly gift failed",
+                                    person_id=pid, chips=["Lifetime $900"], due="2026-11-08", time="10:30",
+                                    actor="agent")
+    assert set(task) == {"id", "kind", "title", "why", "person_id", "chips", "due", "time", "done", "source"}
+    assert task["chips"] == ["Lifetime $900"] and task["source"] == "agent" and task["done"] is False
+    assert actions(conn) == [{"actor": "agent", "action": "create_task", "target": f"task:{task['id']}",
+                              "undone_at": None}]
+    assert tasks.undo(conn, token)["undone"] is True
+    assert tasks.list_tasks(conn, as_of=AS_OF) == []
+
+
+def test_update_complete_delete_each_undo_back(conn):
+    task, _ = tasks.create_task(conn, kind="email", title="Thank Ana", due="2026-11-08")
+    t1, u1 = tasks.update_task(conn, task["id"], title="Thank Ana for her gift", time="09:00")
+    assert t1["title"] == "Thank Ana for her gift" and t1["time"] == "09:00"
+    t2, u2 = tasks.complete_task(conn, task["id"])
+    assert t2["done"] is True
+    _, u3 = tasks.delete_task(conn, task["id"])
+    assert tasks.list_tasks(conn, as_of=AS_OF) == []
+
+    tasks.undo(conn, u3)
+    assert tasks.get_task(conn, task["id"])["done"] is True
+    tasks.undo(conn, u2)
+    assert tasks.get_task(conn, task["id"])["done"] is False
+    tasks.undo(conn, u1)
+    assert tasks.get_task(conn, task["id"])["title"] == "Thank Ana" and tasks.get_task(conn, task["id"])["time"] is None
+    assert [a["action"] for a in actions(conn)] == ["create_task", "update_task", "complete_task", "delete_task"]
+
+
+def test_undo_refuses_out_of_order_and_twice(conn):
+    task, _ = tasks.create_task(conn, kind="other", title="A")
+    _, older = tasks.update_task(conn, task["id"], title="B")
+    _, newer = tasks.update_task(conn, task["id"], title="C")
+    with pytest.raises(tasks.UndoConflict):
+        tasks.undo(conn, older)
+    tasks.undo(conn, newer)
+    tasks.undo(conn, older)
+    assert tasks.get_task(conn, task["id"])["title"] == "A"
+    with pytest.raises(tasks.UndoConflict):
+        tasks.undo(conn, older)
+    with pytest.raises(tasks.NotFound):
+        tasks.undo(conn, "nope")
+
+
+def test_validation(conn):
+    with pytest.raises(tasks.TaskError):
+        tasks.create_task(conn, kind="lunch", title="x")
+    with pytest.raises(tasks.TaskError):
+        tasks.create_task(conn, kind="call", title="  ")
+    with pytest.raises(tasks.TaskError):
+        tasks.create_task(conn, kind="call", title="x", due="next week")
+    with pytest.raises(tasks.NotFound):
+        tasks.create_task(conn, kind="call", title="x", person_id=999)
+    with pytest.raises(tasks.NotFound):
+        tasks.update_task(conn, 999, title="x")
+
+
+def test_today_list_has_overdue_and_undated_open_tasks_and_filters(conn):
+    pid = person(conn)
+    tasks.create_task(conn, kind="call", title="Today call", due="2026-11-08", person_id=pid)
+    tasks.create_task(conn, kind="email", title="Overdue", due="2026-11-01")
+    done, _ = tasks.create_task(conn, kind="email", title="Old done", due="2026-11-01")
+    tasks.complete_task(conn, done["id"])
+    tasks.create_task(conn, kind="prep", title="Later", due="2026-11-20")
+    tasks.create_task(conn, kind="other", title="Someday")
+    today = [t["title"] for t in tasks.list_tasks(conn, due="today", as_of=AS_OF)]
+    assert today == ["Overdue", "Today call", "Someday"]
+    assert [t["title"] for t in tasks.list_tasks(conn, from_="2026-11-10", to="2026-11-30")] == ["Later"]
+    assert [t["title"] for t in tasks.list_tasks(conn, person_id=pid)] == ["Today call"]
+
+
+# ---------- calendar items (dated tasks) ----------
+
+def test_calendar_items_add_move_delete_with_undo(conn):
+    item, add_tok = tasks.add_calendar_item(conn, title="3 thank-you calls", date_="2026-11-10", actor="agent")
+    ref = f"task:{item['id']}"
+    moved, move_tok = tasks.move_calendar_item(conn, ref, date_="2026-11-12", time="14:00", actor="agent")
+    assert (moved["due"], moved["time"]) == ("2026-11-12", "14:00")
+    _, del_tok = tasks.delete_calendar_item(conn, ref, actor="agent")
+    assert all(i["ref"] != ref for i in tasks.calendar(conn, as_of=AS_OF))
+    tasks.undo(conn, del_tok)
+    tasks.undo(conn, move_tok)
+    assert [i for i in tasks.calendar(conn, as_of=AS_OF) if i["ref"] == ref][0]["date"] == "2026-11-10"
+    tasks.undo(conn, add_tok)
+    assert tasks.calendar(conn, as_of=AS_OF) == []
+    assert {a["action"] for a in actions(conn)} == {"create_task", "move_calendar_item", "delete_calendar_item"}
+
+
+def test_events_on_the_calendar_are_read_only(conn):
+    eid = event(conn, "Give Miami Day", "2026-11-19")
+    with pytest.raises(tasks.TaskError):
+        tasks.move_calendar_item(conn, f"event:{eid}", date_="2026-11-20")
+
+
+def test_calendar_merges_events_and_dated_tasks(conn):
+    eid = event(conn, "Give Miami Day", "2026-11-19")
+    event(conn, "Open House", "2026-11-12T18:00")
+    event(conn, "Far away", "2027-03-01")
+    tasks.add_calendar_item(conn, title="3 thank-you calls", date_="2026-11-12", time="10:00", kind="call",
+                            actor="agent")
+    tasks.create_task(conn, kind="other", title="Undated")   # not on the calendar
+    items = tasks.calendar(conn, as_of=AS_OF)
+    assert [(i["date"], i["time"], i["title"], i["kind"], i["source"]) for i in items] == [
+        ("2026-11-12", "10:00", "3 thank-you calls", "task", "agent"),
+        ("2026-11-12", "18:00", "Open House", "event", "website"),
+        ("2026-11-19", None, "Give Miami Day", "event", "website"),
+    ]
+    assert items[-1]["ref"] == f"event:{eid}"
+    assert tasks.calendar(conn, from_="2027-01-01", to="2027-12-31")[0]["title"] == "Far away"
+
+
+# ---------- artifacts ----------
+
+def test_artifacts_lists_drafts_campaigns_and_call_notes_when_present(conn):
+    pid = person(conn)
+    conn.execute("INSERT INTO outreach_drafts (donor_id, channel, subject, body, created_at) "
+                 "VALUES (?, 'email', 'Thank you, Ana', 'Hi', '2026-11-05 10:00:00')", (pid,))
+    cid = conn.execute("INSERT INTO campaigns (name, intent, channel, created_at) "
+                       "VALUES ('GMD reminders', 're_engage', 'email', '2026-11-06 09:00:00')").lastrowid
+    conn.execute("INSERT INTO campaign_messages (campaign_id, donor_id, channel, body) VALUES (?, ?, 'email', 'x')",
+                 (cid, pid))
+    conn.commit()
+    items = tasks.artifacts(conn)   # no call notes saved yet
+    assert [(i["kind"], i["title"]) for i in items] == [("draft", "Campaign: GMD reminders · 1 message"),
+                                                        ("draft", "Thank you, Ana")]
+    conn.execute("INSERT INTO call_notes (id, title, created_at, destinations) VALUES "
+                 "('note-1', 'Call with Ana', '2026-11-07T15:00:00', ?)",
+                 (json.dumps([{"kind": "donor", "id": pid, "label": "Ana Ruiz"}]),))
+    conn.commit()
+    first = tasks.artifacts(conn)[0]
+    assert first == {"kind": "call_note", "title": "Call with Ana", "date": "2026-11-07T15:00:00",
+                     "ref": "call_note:note-1", "destinations": ["Ana Ruiz"]}
+
+
+# ---------- the generator ----------
+
+def sample_upload(conn) -> dict[str, int]:
+    """The sample upload as ingest leaves it: canonical people, gifts (declined charges flagged), and the
+    answer key's duplicate groups still open as pending suggestions (one extra record per alias)."""
+    key = json.loads(ANSWER_KEY.read_text(encoding="utf-8"))
+    ids = load_answer_key(conn, key)
+    for group in key["duplicate_groups"]:
+        keep = ids[group["donor_id"]]
+        for alias in group["members"][1:]:
+            other = db.insert_donor(conn, {"full_name": alias.split(" (")[0], "donor_type": "individual"})
+            conn.execute("INSERT INTO duplicate_suggestions (donor_a_id, donor_b_id, reasons, confidence) "
+                         "VALUES (?, ?, ?, 0.9)", (keep, other, json.dumps([f"similar name: {alias}"])))
+    conn.commit()
+    return ids
+
+
+def test_generate_on_the_sample_upload_is_exact_and_idempotent(conn):
+    key = json.loads(ANSWER_KEY.read_text(encoding="utf-8"))
+    ids = sample_upload(conn)
+    by_id = {v: k for k, v in ids.items()}
+
+    result = tasks.generate(conn, AS_OF)
+    made = result["tasks"]
+    calls = [t for t in made if t["kind"] == "call"]
+    reviews = [t for t in made if t["kind"] == "review"]
+    assert {by_id[t["person_id"]] for t in calls} == EXPECTED_ALERTS and len(calls) == 5
+    assert len(reviews) == len(key["duplicate_groups"]) == 6
+    assert all(t["source"] == "generator" and t["due"] == AS_OF.isoformat() for t in calls + reviews)
+    park = next(t for t in calls if by_id[t["person_id"]] == "D18")
+    assert park["title"] == "Call Hye-jin Park" and "failed" in park["why"]
+    assert park["chips"][0].startswith("Lifetime $") and park["chips"][1].startswith("Last gift $")
+    nguyen = next(t for t in reviews if "Robert Nguyen" in t["title"])
+    assert nguyen["chips"][0] == "3 records"   # two aliases, one group
+    assert result["created"] == len(made)
+
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+    _, _ = tasks.delete_task(conn, calls[0]["id"])
+    assert tasks.generate(conn, AS_OF)["created"] == 0   # a deleted generated task stays deleted
+    assert sum(1 for a in actions(conn) if a["actor"] == "generator") == len(made)
+
+
+def pair(conn, a, b, status="pending"):
+    conn.execute("INSERT INTO duplicate_suggestions (donor_a_id, donor_b_id, reasons, confidence, status) "
+                 "VALUES (?, ?, ?, 0.9, ?)", (a, b, json.dumps([f"pair {a}~{b}"]), status))
+    conn.commit()
+
+
+def reviews(conn):
+    return [dict(r) for r in conn.execute("SELECT id, title, chips, gen_key, members, deleted_at FROM tasks "
+                                          "WHERE kind = 'review' ORDER BY id")]
+
+
+def live_groups(conn):
+    """{frozenset(members): chips[0]} for every live review task."""
+    return {frozenset(json.loads(r["members"])): json.loads(r["chips"])[0]
+            for r in reviews(conn) if not r["deleted_at"]}
+
+
+def dismiss(conn, a, b):
+    conn.execute("UPDATE duplicate_suggestions SET status = 'dismissed' WHERE donor_a_id = ? AND donor_b_id = ?", (a, b))
+    conn.commit()
+
+
+def test_a_growing_duplicate_group_keeps_one_review_task(conn):
+    """c9: A~B makes a review; dedupe later adds B~C (and a lower id joins): still one task, rewritten."""
+    b, c = person(conn, "Bob Nguyen"), person(conn, "R. Nguyen")
+    a = person(conn, "Robert Nguyen")   # higher id than b: the group's smallest id changes when it joins
+    pair(conn, b, c)
+    first = tasks.generate(conn, AS_OF)
+    assert first["created"] == 1 and first["tasks"][0]["chips"][0] == "2 records"
+
+    pair(conn, a, b)
+    grown = tasks.generate(conn, AS_OF)
+    assert (grown["created"], grown["updated"]) == (0, 1)
+    rows = reviews(conn)
+    assert len(rows) == 1 and json.loads(rows[0]["chips"])[0] == "3 records"
+    assert json.loads(rows[0]["members"]) == sorted([a, b, c])
+    assert "Robert Nguyen" in rows[0]["title"]
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+    assert "update_duplicate_review" in [x["action"] for x in actions(conn)]
+
+
+def test_two_duplicate_groups_that_join_keep_the_older_task(conn):
+    a, b, c, d = (person(conn, n) for n in ("A One", "A Two", "B One", "B Two"))
+    pair(conn, a, b)
+    pair(conn, c, d)
+    assert tasks.generate(conn, AS_OF)["created"] == 2
+    pair(conn, b, c)
+    result = tasks.generate(conn, AS_OF)
+    assert (result["created"], result["updated"]) == (0, 1)
+    live = [r for r in reviews(conn) if not r["deleted_at"]]
+    assert len(live) == 1 and json.loads(live[0]["chips"])[0] == "4 records"
+
+
+def test_a_joined_group_that_splits_gets_one_task_per_half(conn):
+    """c9's repro: (1,2),(3,4) -> join via (2,3) -> dismiss (2,3). Used to claim one task twice and hit UNIQUE gen_key."""
+    a, b, c, d = (person(conn, n) for n in ("S One", "S Two", "S Three", "S Four"))
+    pair(conn, a, b)
+    pair(conn, c, d)
+    tasks.generate(conn, AS_OF)
+    pair(conn, b, c)
+    tasks.generate(conn, AS_OF)
+    assert live_groups(conn) == {frozenset({a, b, c, d}): "4 records"}
+    dismiss(conn, b, c)
+    result = tasks.generate(conn, AS_OF)
+    assert live_groups(conn) == {frozenset({a, b}): "2 records", frozenset({c, d}): "2 records"}
+    assert (result["created"], result["updated"]) == (1, 1)
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+
+
+def test_join_split_rejoin_stays_one_task_per_group(conn):
+    a, b, c, d = (person(conn, n) for n in ("R One", "R Two", "R Three", "R Four"))
+    pair(conn, a, b)
+    pair(conn, c, d)
+    tasks.generate(conn, AS_OF)
+    for step in range(2):
+        pair(conn, b, c) if step == 0 else conn.execute(
+            "UPDATE duplicate_suggestions SET status = 'pending' WHERE donor_a_id = ? AND donor_b_id = ?", (b, c))
+        conn.commit()
+        tasks.generate(conn, AS_OF)
+        assert live_groups(conn) == {frozenset({a, b, c, d}): "4 records"}
+        dismiss(conn, b, c)
+        tasks.generate(conn, AS_OF)
+        assert live_groups(conn) == {frozenset({a, b}): "2 records", frozenset({c, d}): "2 records"}
+    keys = [r["gen_key"] for r in reviews(conn) if r["gen_key"]]
+    assert len(keys) == len(set(keys))
+
+
+def test_a_handled_duplicate_review_reopens_fresh_only_for_a_new_member(conn):
+    """c9: done/deleted = handled. A new member gets a fresh review task; the handled one stays closed."""
+    a, b, c = (person(conn, n) for n in ("X One", "X Two", "X Three"))
+    pair(conn, a, b)
+    made = tasks.generate(conn, AS_OF)["tasks"][0]
+    tasks.delete_task(conn, made["id"])
+    assert tasks.generate(conn, AS_OF)["created"] == 0          # same group: still handled
+    pair(conn, b, c)
+    fresh = tasks.generate(conn, AS_OF)
+    assert fresh["created"] == 1 and fresh["tasks"][0]["id"] != made["id"]
+    assert live_groups(conn) == {frozenset({a, b, c}): "3 records"}
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+    tasks.complete_task(conn, fresh["tasks"][0]["id"])
+    assert tasks.generate(conn, AS_OF)["created"] == 0          # done counts as handled too
+
+def test_generate_skips_resolved_duplicates(conn):
+    a, b = person(conn, "Liz Fontaine"), person(conn, "Elizabeth Fontaine")
+    conn.execute("INSERT INTO duplicate_suggestions (donor_a_id, donor_b_id, reasons, confidence, status) "
+                 "VALUES (?, ?, '[]', 0.9, 'dismissed')", (a, b))
+    conn.commit()
+    assert tasks.generate(conn, AS_OF)["created"] == 0
+
+
+def test_generate_welcome_and_event_prep(conn):
+    new = person(conn, "Nadia New")
+    conn.execute("INSERT INTO gifts (donor_id, amount, gift_date) VALUES (?, 250, '2026-10-20')", (new,))
+    old = person(conn, "Olga Old")
+    conn.execute("INSERT INTO gifts (donor_id, amount, gift_date) VALUES (?, 250, '2026-08-01')", (old,))
+    conn.commit()
+    gmd = event(conn, "Give Miami Day", "2026-11-19", place="Online")
+    event(conn, "Spring Gala", "2026-12-15")
+    made = tasks.generate(conn, AS_OF)["tasks"]
+    assert [(t["kind"], t["title"]) for t in made] == [("email", "Welcome Nadia New"),
+                                                        ("prep", "Prep list: Give Miami Day")]
+    prep = made[1]
+    assert prep["due"] == "2026-11-12" and prep["chips"] == ["In 11 days", "Online"]
+    cal = [(i["date"], i["title"]) for i in tasks.calendar(conn, as_of=AS_OF)]
+    assert cal == [("2026-11-08", "Welcome Nadia New"), ("2026-11-12", "Prep list: Give Miami Day"),
+                   ("2026-11-19", "Give Miami Day"), ("2026-12-15", "Spring Gala")]
+    assert any(i["ref"] == f"event:{gmd}" for i in tasks.calendar(conn, as_of=AS_OF))
+
+
+# ---------- HTTP ----------
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    monkeypatch.setenv("DONORS_DB", str(tmp_path / "donors.db"))
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    from service.routes_tasks import router
+    app = FastAPI()
+    app.include_router(router)
+    return TestClient(app)
+
+
+def test_routes_crud_undo_generate_calendar_artifacts(client):
+    r = client.post("/tasks", json={"kind": "call", "title": "Call Ana", "due": "2026-11-08", "chips": ["VIP"]})
+    assert r.status_code == 200
+    body = r.json()
+    task_id, token = body["id"], body["undo_token"]
+    assert client.get("/tasks", params={"due": "today"}).json()[0]["title"] == "Call Ana"
+
+    r = client.patch(f"/tasks/{task_id}", json={"done": True})
+    assert r.json()["done"] is True
+    assert client.post(f"/undo/{token}").status_code == 409            # a later write must be undone first
+    assert client.post(f"/undo/{r.json()['undo_token']}").json()["undone"] is True
+
+    r = client.delete(f"/tasks/{task_id}")
+    assert r.json()["deleted"] is True
+    assert client.get("/tasks").json() == []
+    client.post(f"/undo/{r.json()['undo_token']}")
+    assert client.get("/tasks").json()[0]["id"] == task_id
+
+    assert client.post("/tasks", json={"kind": "lunch", "title": "x"}).status_code == 422
+    assert client.post("/tasks", json={"kind": "call", "title": "x", "source": "generator"}).status_code == 422
+    assert client.post("/tasks", json={"kind": "call", "title": "x", "source": "agent"}).json()["source"] == "agent"
+    assert client.patch("/tasks/999", json={"title": "x"}).status_code == 404
+    assert client.post("/undo/unknown").status_code == 404
+
+    assert client.post("/tasks/generate").json() == {"created": 0, "tasks": [], "updated": 0}
+    assert client.get("/calendar", params={"from": "2026-11-01", "to": "2026-11-30"}).json()[0]["ref"] == f"task:{task_id}"
+    assert client.get("/artifacts").json() == []
+
+
+# ---------- hooks ----------
+
+def test_upload_hook_generates_tasks_once(tmp_path, monkeypatch):
+    """ingest_events runs the generator after dedupe: alerts and new donors become tasks; dry runs add nothing."""
+    from service import ingest_adapter as ia
+    from service.tests.test_ingest_adapter import _events, _judgments
+
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    dry = db.connect(tmp_path / "dry.db")
+    db.create_schema(dry)
+    ia.ingest_events(_events(), "auto", dry, judgments=_judgments(), dry_run=True)
+    assert dry.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 0
+
+    conn = db.connect(tmp_path / "t.db")
+    db.create_schema(conn)
+    ia.ingest_events(_events(), "auto", conn, judgments=_judgments())
+    made = tasks.list_tasks(conn, as_of=AS_OF)
+    assert {(t["kind"], t["title"]) for t in made} == {("call", "Call Ann Lee"), ("email", "Welcome Hye Park")}
+    assert all(t["source"] == "generator" for t in made)
+    assert tasks.generate(conn, AS_OF)["created"] == 0
+
+
+def test_a_generator_failure_never_fails_an_upload(tmp_path, monkeypatch):
+    from service import ingest_adapter as ia
+    from service.tests.test_ingest_adapter import _events, _judgments
+
+    def boom(*_, **__):
+        raise RuntimeError("generator bug")
+
+    monkeypatch.setattr(tasks, "generate", boom)
+    conn = db.connect(tmp_path / "t.db")
+    db.create_schema(conn)
+    res = ia.ingest_events(_events(), "auto", conn, judgments=_judgments())
+    assert res["people_added"] == 5
+    assert conn.execute("SELECT COUNT(*) FROM donors").fetchone()[0] == 5
+
+
+# ---------- refresh hook + undo routing ----------
+
+@pytest.fixture
+def refresh_db(tmp_path, monkeypatch):
+    """A db with a saved org and an event in 11 days; service.refresh.refresh stubbed (no network)."""
+    import service.refresh
+
+    monkeypatch.setenv("DONORS_DB", str(tmp_path / "donors.db"))
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    monkeypatch.setattr(service.refresh, "refresh", lambda conn, urls, **_: {"events_added": 1})
+    conn = db.connect()
+    db.create_schema(conn)
+    conn.execute("INSERT INTO org_profile (name, website) VALUES ('The Miami Foundation', 'https://miamifoundation.org')")
+    conn.commit()
+    event(conn, "Give Miami Day", "2026-11-19")
+    conn.close()
+
+
+def test_refresh_hook_generates_prep_tasks(refresh_db):
+    from service.main import run_refresh
+
+    assert run_refresh() == {"state": "done", "detail": None, "changes": {"events_added": 1}}
+    conn = db.connect()
+    assert tasks.list_tasks(conn, due="today", as_of=AS_OF) == []    # due Nov 12, not today
+    assert [t["title"] for t in tasks.list_tasks(conn, from_="2026-11-01", to="2026-11-30")] == ["Prep list: Give Miami Day"]
+    conn.close()
+
+
+def test_a_generator_failure_never_fails_a_refresh(refresh_db, monkeypatch):
+    from service.main import run_refresh
+
+    def boom(*_, **__):
+        raise RuntimeError("generator bug")
+
+    monkeypatch.setattr(tasks, "generate", boom)
+    assert run_refresh()["state"] == "done"
+
+
+def test_undo_routes_interest_tokens(client, monkeypatch):
+    import sys
+    import types
+
+    fake = types.ModuleType("service.interests")
+    fake.undo = lambda conn, token: {"undone": True, "op": "add_interest", "donor_id": 1}
+    monkeypatch.setitem(sys.modules, "service.interests", fake)
+    assert client.post("/undo/int_abc").json() == {"undone": True, "op": "add_interest", "donor_id": 1}
+
+    def bad(conn, token):
+        raise ValueError("Incorrect padding")
+
+    fake.undo = bad
+    assert client.post("/undo/int_abc").status_code == 422
+
+
+def test_undo_interest_token_before_interests_lands(client, monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "service.interests", None)   # import raises ImportError
+    r = client.post("/undo/int_abc")
+    assert r.status_code == 404 and "isn't available yet" in r.json()["detail"]

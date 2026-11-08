@@ -4,6 +4,7 @@ import sqlite3
 import pytest
 
 from service import db, dedupe, score
+from service.tests.fixtures_seed import seed
 from service.tests.conftest import AS_OF
 
 
@@ -44,7 +45,7 @@ def test_different_people_same_city_not_suggested(conn):
 
 
 def test_seed_planted_duplicate_found_and_run_never_merges(conn):
-    db.seed(conn)
+    seed(conn)
     n_before = conn.execute("SELECT COUNT(*) FROM donors").fetchone()[0]
     assert dedupe.run(conn) == 1
     s = conn.execute("SELECT * FROM duplicate_suggestions").fetchone()
@@ -55,7 +56,7 @@ def test_seed_planted_duplicate_found_and_run_never_merges(conn):
 
 
 def test_merge_moves_everything_and_keeps_decisions(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     dedupe.run(conn)
     s = conn.execute("SELECT * FROM duplicate_suggestions").fetchone()
@@ -80,7 +81,7 @@ def test_merge_moves_everything_and_keeps_decisions(conn):
 
 
 def test_merge_rejects_keep_id_outside_pair(conn):
-    db.seed(conn)
+    seed(conn)
     dedupe.run(conn)
     s = conn.execute("SELECT * FROM duplicate_suggestions").fetchone()
     with pytest.raises(ValueError):
@@ -90,7 +91,7 @@ def test_merge_rejects_keep_id_outside_pair(conn):
 
 
 def test_star_donor_draft_cannot_be_sent_without_human(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     star_id = conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 1").fetchone()[0]
     with pytest.raises(sqlite3.IntegrityError):
@@ -102,7 +103,7 @@ def test_star_donor_draft_cannot_be_sent_without_human(conn):
 
 
 def test_ready_status_allowed_for_non_star_and_draft_for_star(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     small = conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 0 LIMIT 1").fetchone()[0]
     conn.execute("INSERT INTO outreach_drafts (donor_id, body, status) VALUES (?, 'hi', 'ready')", (small,))
@@ -112,7 +113,7 @@ def test_ready_status_allowed_for_non_star_and_draft_for_star(conn):
 
 
 def test_star_draft_can_never_be_ready(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     star_id = conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 1").fetchone()[0]
     with pytest.raises(sqlite3.IntegrityError):
