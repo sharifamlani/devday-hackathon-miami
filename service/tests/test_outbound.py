@@ -17,7 +17,7 @@ def no_network(monkeypatch):
     monkeypatch.setattr(httpx, "post", refuse)
     monkeypatch.setattr(ca, "model_write", refuse)
     monkeypatch.setenv("CAMPAIGN_DRAFTER", "template")
-    for var in ("SMS_PROVIDER", "EMAIL_SEND", "GMAIL_TOKEN_PATH"):
+    for var in ("SMS_PROVIDER", "EMAIL_SEND", "GMAIL_TOKEN_PATH", "SEND_ALLOWLIST"):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -99,3 +99,26 @@ def test_failed_delivery_is_not_marked_sent(db_file, monkeypatch):
     assert r["sent"] == 0 and r["failed"][0]["reason"] == "failed: HTTP 400"
     assert c.get("/outbox", params={"campaign_id": camp["id"]}).json() == []
     assert c.get(f"/campaigns/{camp['id']}").json()["messages"][0]["status"] == "approved"
+
+
+def test_live_send_skips_recipients_not_on_the_allowlist(monkeypatch):
+    monkeypatch.setenv("SMS_PROVIDER", "twilio")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC1")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tok")
+    monkeypatch.setenv("TWILIO_PHONE_NUMBER", "+13055550000")
+    # no allowlist: nothing goes out, and the network is never touched (autouse fixture would raise)
+    r = outbound.deliver("text", "+13055550101", None, "hi")
+    assert r["provider"] == "dryrun" and r["simulated"] and "SEND_ALLOWLIST" in r["detail"]
+    monkeypatch.setenv("SEND_ALLOWLIST", "me@example.com, (305) 555-0199")
+    assert outbound.deliver("text", "+13055550101", None, "hi")["provider"] == "dryrun"
+    monkeypatch.setenv("EMAIL_SEND", "on")
+    assert outbound.deliver("email", "someone@example.com", "s", "b")["provider"] == "dryrun"
+
+
+def test_allowlisted_recipient_reaches_the_live_adapter(monkeypatch):
+    calls = []
+    monkeypatch.setenv("SMS_PROVIDER", "twilio")
+    monkeypatch.setenv("SEND_ALLOWLIST", "+1 305 555 0199")
+    monkeypatch.setattr(outbound, "send_sms", lambda to, body: calls.append(to) or {"provider": "twilio", "status": "sent", "simulated": False, "provider_id": "SM1"})
+    r = outbound.deliver("text", "305-555-0199", None, "hi")
+    assert calls == ["305-555-0199"] and r["status"] == "sent"

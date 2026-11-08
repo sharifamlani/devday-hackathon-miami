@@ -55,6 +55,31 @@ def send_email(to: str, subject: str | None, body: str) -> dict:
             "provider_id": r.json().get("id"), "detail": None}
 
 
+def allowlist() -> set[str]:
+    """SEND_ALLOWLIST: comma-separated emails / phone numbers a LIVE send may reach (case-insensitive;
+    phones compared on digits). Empty or unset = no live sends at all."""
+    return {_norm(x) for x in (os.getenv("SEND_ALLOWLIST") or "").split(",") if x.strip()}
+
+
+def _norm(addr: str) -> str:
+    addr = addr.strip().lower()
+    digits = "".join(ch for ch in addr if ch.isdigit())
+    return digits[-10:] if "@" not in addr and len(digits) >= 7 else addr
+
+
+def live_requested(channel: str) -> bool:
+    if channel == "email":
+        return email_enabled()
+    return (os.getenv("SMS_PROVIDER") or "dryrun").strip().lower() not in ("", "dryrun")
+
+
 def deliver(channel: str, to: str, subject: str | None, body: str) -> dict:
-    """channel 'email' | 'text' → the matching adapter."""
+    """channel 'email' | 'text' → the matching adapter.
+
+    Safety: a live provider is only used for recipients on SEND_ALLOWLIST. Everyone else gets a dry run,
+    so a real Twilio/Gmail account can never reach sample or real donors by accident during a demo."""
+    if live_requested(channel) and _norm(to) not in allowlist():
+        return {"channel": "email" if channel == "email" else "sms", "provider": "dryrun",
+                "status": "queued (dry run)", "simulated": True, "provider_id": None,
+                "detail": "recipient not on SEND_ALLOWLIST; live send skipped"}
     return send_email(to, subject, body) if channel == "email" else send_sms(to, body)
