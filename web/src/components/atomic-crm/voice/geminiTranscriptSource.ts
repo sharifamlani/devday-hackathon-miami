@@ -20,10 +20,15 @@ import {
  *
  * Gemini Live gives no speaker labels, so every final is a "You" line, as
  * with the browser recognizer. The source also records the call (webm/opus)
- * for the speaker-labelled pass at the end (speakerLabels.ts):
- * finishRecording() hands that recording over. Pausing ends the Gemini
- * session and resuming opens a new one, which also keeps each session under
- * Gemini's 10-minute cap; the recording pauses with it.
+ * for the speaker-labelled pass at the end (speakerLabels.ts). Pausing ends the
+ * Gemini session and resuming opens a new one, which also keeps each session
+ * under Gemini's 10-minute cap; the recording pauses with it.
+ *
+ * The pane's mic Pause stops the source outright and Resume starts a new one,
+ * so a call can span several sources. Each one, when it stops, puts its
+ * stretch of recording on the call tape; takeCallRecordings() hands the whole
+ * tape over at the end of the call, so pausing before "Generate summary"
+ * still gets every stretch labelled.
  */
 
 export interface SocketLike {
@@ -55,23 +60,36 @@ export interface CallRecorderLike {
   stop(): void;
 }
 
+/** One stretch of a call: from a source's start (or resume) to its stop. */
 export interface CallRecording {
   audio: Blob;
   /**
-   * Final lines this source emitted. They are the last `lines` lines of the
-   * pane's transcript: the stretch this recording covers (the pane restarts
-   * the mic source after a pause, so earlier lines belong to earlier recordings).
+   * The text of every final line this stretch emitted, in order. The pane
+   * shows them with the same text, so speakerLabels.ts finds the lines a
+   * stretch covers by matching these, not by trusting counts.
    */
-  lines: number;
+  texts: string[];
 }
 
 export interface RecordingSource extends TranscriptSource {
   /**
-   * Stop recording and resolve with this source's recording (null when
-   * nothing was recorded). Call it before stop(), which ends the recording.
+   * Stop recording and put this source's stretch on the call tape (once; a
+   * later stop() adds nothing). Resolves with the stretch, or null when
+   * nothing was recorded.
    */
   finishRecording(): Promise<CallRecording | null>;
 }
+
+/** Stretches from sources that have stopped, oldest first, until taken. */
+let callTape: Promise<CallRecording | null>[] = [];
+
+/** Every stretch recorded since the tape was last taken, oldest first; empties the tape. */
+export const takeCallRecordings = async (): Promise<CallRecording[]> => {
+  const pending = callTape;
+  callTape = [];
+  const stretches = await Promise.all(pending);
+  return stretches.filter((s): s is CallRecording => s != null);
+};
 
 export interface GeminiSourceOptions {
   /** For tests: open the socket. Defaults to a WebSocket to our service. */
@@ -137,8 +155,9 @@ export const geminiTranscriptSource = ({
   let callRecorder: CallRecorderLike | null = null;
   let callRecorderReady: Promise<CallRecorderLike | null> | null = null;
   const chunks: Blob[] = [];
-  let finals = 0;
+  const texts: string[] = [];
   let recordingStopped: Promise<void> | null = null;
+  let stretch: Promise<CallRecording | null> | null = null;
 
   /** Stop the call recorder once; resolves after its last chunk has arrived. */
   const stopCallRecorder = (r: CallRecorderLike): Promise<void> => {
@@ -224,7 +243,7 @@ export const geminiTranscriptSource = ({
         handlers?.onInterim?.(msg.text ?? "");
       } else if (msg.type === "final" && msg.text) {
         handlers?.onInterim?.("");
-        finals += 1;
+        texts.push(msg.text);
         handlers?.onLine({ speaker: "you", name: "You", text: msg.text, at: elapsedSec() } satisfies TranscriptLine);
       } else if (msg.type === "error") {
         fail("Live captions stopped. Press Resume to try again, or use the demo call.");
@@ -260,6 +279,22 @@ export const geminiTranscriptSource = ({
     void r.start();
   };
 
+  /** This source's stretch, put on the call tape once, whoever asks first. */
+  const finishRecording = (): Promise<CallRecording | null> => {
+    if (!stretch) {
+      stretch = (async () => {
+        const r = await callRecorderReady;
+        if (!r) return null;
+        await stopCallRecorder(r);
+        return chunks.length
+          ? { audio: new Blob(chunks, { type: r.mimeType || "audio/webm" }), texts: [...texts] }
+          : null;
+      })();
+      callTape.push(stretch);
+    }
+    return stretch;
+  };
+
   return {
     isDemo: false,
     start(next) {
@@ -288,17 +323,10 @@ export const geminiTranscriptSource = ({
       if (state === "running") activeMs += now() - runningSince;
       state = "stopped";
       disconnect(false);
-      if (callRecorder) void stopCallRecorder(callRecorder);
+      void finishRecording(); // a pause stops the source: keep its stretch on the tape
       handlers?.onInterim?.("");
     },
-    async finishRecording() {
-      const r = await callRecorderReady;
-      if (!r) return null;
-      await stopCallRecorder(r);
-      return chunks.length
-        ? { audio: new Blob(chunks, { type: r.mimeType || "audio/webm" }), lines: finals }
-        : null;
-    },
+    finishRecording,
   };
 };
 

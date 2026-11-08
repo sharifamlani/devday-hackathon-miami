@@ -304,6 +304,10 @@ def _merge_crm(conn: sqlite3.Connection, keep_id: int, drop_id: int) -> dict:
              for t in CRM_MOVED_TABLES}
     for table in CRM_MOVED_TABLES:
         conn.execute(f"UPDATE {table} SET contact_id = ? WHERE contact_id = ?", (keep_id, drop_id))
+    # The one tasks table (service/tasks.py) keys a donor by person_id.
+    if _has_table(conn, "tasks"):
+        moved["tasks"] = [r[0] for r in conn.execute("SELECT id FROM tasks WHERE person_id = ? ORDER BY id", (drop_id,))]
+        conn.execute("UPDATE tasks SET person_id = ? WHERE person_id = ?", (keep_id, drop_id))
 
     kept_tags = [r[0] for r in conn.execute(
         "SELECT tag_id FROM crm_contact_tags WHERE contact_id = ? ORDER BY position, tag_id", (keep_id,))]
@@ -343,6 +347,8 @@ def _undo_crm(conn: sqlite3.Connection, moved: dict, kept_id: int, merged_id: in
         for row_id in moved.get(table, []):
             conn.execute(f"UPDATE {table} SET contact_id = ? WHERE id = ? AND contact_id = ?",
                          (merged_id, row_id, kept_id))
+    for row_id in moved.get("tasks", []):
+        conn.execute("UPDATE tasks SET person_id = ? WHERE id = ? AND person_id = ?", (merged_id, row_id, kept_id))
     tags = moved.get("crm_contact_tags") or {}
     for tag_id in tags.get("added_to_kept", []):
         conn.execute("DELETE FROM crm_contact_tags WHERE contact_id = ? AND tag_id = ?", (kept_id, tag_id))

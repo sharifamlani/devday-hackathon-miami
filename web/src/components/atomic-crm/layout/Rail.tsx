@@ -11,6 +11,8 @@ import { useContext, type ComponentType } from "react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
 
+import { DashboardControls } from "./DashboardControls";
+
 import { cn } from "@/lib/utils";
 import { AskSessionContext } from "../ask/askSessionContext";
 import { ASK_SIDEBAR_ID } from "../ask/askSidebarState";
@@ -44,6 +46,8 @@ export const Rail = () => {
     !!matchPath("/campaigns/*", location.pathname) ||
     !!matchPath("/outbox", location.pathname);
   const askShowing = !!session?.sidebarOpen && session.paneMode === "ask";
+
+  if (onHome) return <DashboardControls />;
 
   return (
     <nav

@@ -487,6 +487,8 @@ def test_undo_routes_interest_tokens(client, monkeypatch):
     fake = types.ModuleType("service.interests")
     fake.undo = lambda conn, token: {"undone": True, "op": "add_interest", "donor_id": 1}
     monkeypatch.setitem(sys.modules, "service.interests", fake)
+    import service
+    monkeypatch.setattr(service, "interests", fake, raising=False)   # the real module is loaded once #88 lands
     assert client.post("/undo/int_abc").json() == {"undone": True, "op": "add_interest", "donor_id": 1}
 
     def bad(conn, token):
@@ -500,5 +502,146 @@ def test_undo_interest_token_before_interests_lands(client, monkeypatch):
     import sys
 
     monkeypatch.setitem(sys.modules, "service.interests", None)   # import raises ImportError
+    import service
+    monkeypatch.delattr(service, "interests", raising=False)
     r = client.post("/undo/int_abc")
     assert r.status_code == 404 and "isn't available yet" in r.json()["detail"]
+
+
+# ---------- one task store: the Donors tab (/crm/tasks) is a view of the tasks table ----------
+
+CRM_KEYS = {"id", "contact_id", "type", "text", "due_date", "done_date", "sales_id", "created_at", "updated_at"}
+
+
+@pytest.fixture
+def crm_env(tmp_path, monkeypatch):
+    """A db file with two donors; an app with both /crm and /tasks routers."""
+    monkeypatch.setenv("DONORS_DB", str(tmp_path / "donors.db"))
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    from service.routes_crm import router as crm_router
+    from service.routes_tasks import router as tasks_router
+    conn = db.connect()
+    db.create_schema(conn)
+    ana, ben = person(conn, "Ana Ruiz"), person(conn, "Ben Cole")
+    conn.commit()   # the app's own connections write too
+    app = FastAPI()
+    app.include_router(crm_router)
+    app.include_router(tasks_router)
+    yield TestClient(app), conn, ana, ben
+    conn.close()
+
+
+def last_token(conn):
+    return conn.execute("SELECT token FROM agent_actions ORDER BY id DESC LIMIT 1").fetchone()[0]
+
+
+def test_a_donor_tab_task_is_in_the_shared_store_and_round_trips_exactly(crm_env):
+    client, conn, ana, _ = crm_env
+    sent = {"contact_id": ana, "type": "thank-you", "text": "Thank Ana for the gala table",
+            "due_date": "2026-11-12T15:00:00.000Z", "sales_id": 0}
+    made = client.post("/crm/tasks", json=sent).json()
+    assert set(made) == CRM_KEYS
+    assert {k: made[k] for k in sent} == sent and made["done_date"] is None
+    assert client.get(f"/crm/tasks/{made['id']}").json() == made
+    assert client.get("/crm/tasks", params={"contact_id": ana}).json() == {"data": [made], "total": 1}
+
+    shared = client.get("/tasks", params={"person_id": ana}).json()
+    assert [(t["id"], t["kind"], t["title"], t["due"], t["source"]) for t in shared] == [
+        (made["id"], "other", "Thank Ana for the gala table", "2026-11-12", "staff")]
+    cal = client.get("/calendar", params={"from": "2026-11-01", "to": "2026-11-30"}).json()
+    assert [(i["date"], i["title"], i["ref"]) for i in cal] == [("2026-11-12", "Thank Ana for the gala table",
+                                                                  f"task:{made['id']}")]
+    assert conn.execute("SELECT COUNT(*) FROM crm_tasks").fetchone()[0] == 0     # the old store gets no writes
+
+
+def test_tasks_made_elsewhere_show_in_the_donor_tab(crm_env):
+    client, conn, ana, ben = crm_env
+    client.post("/tasks", json={"kind": "call", "title": "Call Ana", "person_id": ana, "due": "2026-11-10"})
+    tasks.create_task(conn, kind="prep", title="Bring the pledge card", person_id=ana, due="2026-11-11",
+                      actor="agent")
+    tasks.create_task(conn, kind="email", title="Email Ben", person_id=ben, due="2026-11-09")
+    tasks.create_task(conn, kind="other", title="No donor")                # never in the donor tab
+    rows = client.get("/crm/tasks", params={"contact_id": ana}).json()
+    assert rows["total"] == 2
+    assert [(r["type"], r["text"], r["due_date"], r["contact_id"]) for r in rows["data"]] == [
+        ("call", "Call Ana", "2026-11-10", ana), ("none", "Bring the pledge card", "2026-11-11", ana)]
+    everyone = client.get("/crm/tasks", params={"sort": "due_date", "order": "DESC", "per_page": 2}).json()
+    assert everyone["total"] == 3 and [r["text"] for r in everyone["data"]] == ["Bring the pledge card", "Call Ana"]
+
+
+def test_donor_tab_edits_done_and_delete_are_shared_and_undoable(crm_env):
+    client, conn, ana, ben = crm_env
+    made = client.post("/crm/tasks", json={"contact_id": ana, "type": "call", "text": "Call Ana",
+                                           "due_date": "2026-11-10"}).json()
+    tid = made["id"]
+    done = client.patch(f"/crm/tasks/{tid}", json={"done_date": "2026-11-08T17:30:00.000Z"}).json()
+    assert done["done_date"] == "2026-11-08T17:30:00.000Z" and done["text"] == "Call Ana"
+    assert client.get("/tasks", params={"person_id": ana}).json()[0]["done"] is True
+    assert client.post(f"/undo/{last_token(conn)}").json()["undone"] is True
+    assert client.get(f"/crm/tasks/{tid}").json()["done_date"] is None
+
+    moved = client.patch(f"/crm/tasks/{tid}", json={"contact_id": ben, "text": "Call Ben instead"}).json()
+    assert (moved["contact_id"], moved["text"], moved["type"]) == (ben, "Call Ben instead", "call")
+    assert client.get("/tasks", params={"person_id": ben}).json()[0]["title"] == "Call Ben instead"
+
+    gone = client.delete(f"/crm/tasks/{tid}").json()
+    assert gone["id"] == tid and client.get(f"/crm/tasks/{tid}").status_code == 404
+    client.post(f"/undo/{last_token(conn)}")
+    assert client.get(f"/crm/tasks/{tid}").json()["text"] == "Call Ben instead"
+    assert client.patch("/crm/tasks/9999", json={"text": "x"}).status_code == 404
+    assert client.patch(f"/crm/tasks/{tid}", json={"text": None}).status_code == 422   # the REQUIRED rule still holds
+
+
+def test_an_edit_from_the_agent_rebuilds_the_donor_tab_view(crm_env):
+    client, conn, ana, _ = crm_env
+    made = client.post("/crm/tasks", json={"contact_id": ana, "type": "thank-you", "text": "Thank Ana",
+                                           "due_date": "2026-11-12T15:00:00.000Z"}).json()
+    tasks.update_task(conn, made["id"], actor="agent", title="Thank Ana in person", due="2026-11-14")
+    view = client.get(f"/crm/tasks/{made['id']}").json()
+    assert (view["text"], view["due_date"], view["type"]) == ("Thank Ana in person", "2026-11-14", "thank-you")
+    tasks.update_task(conn, made["id"], actor="agent", kind="call")
+    assert client.get(f"/crm/tasks/{made['id']}").json()["type"] == "call"
+
+
+def insert_crm_task(conn, contact_id, text, done_date=None):
+    conn.execute("INSERT INTO crm_tasks (contact_id, type, text, due_date, done_date, sales_id, created_at, updated_at) "
+                 "VALUES (?, 'email', ?, '2026-11-09T10:00:00.000Z', ?, 7, '2026-11-01T09:00:00.000Z', "
+                 "'2026-11-02T09:00:00.000Z')", (contact_id, text, done_date))
+    conn.commit()
+
+
+def test_old_crm_tasks_move_into_the_shared_store_once(crm_env):
+    client, conn, ana, _ = crm_env
+    insert_crm_task(conn, ana, "Email Ana the report")
+    insert_crm_task(conn, ana, "Sent", done_date="2026-11-03T12:00:00.000Z")
+    rows = client.get("/crm/tasks", params={"contact_id": ana, "sort": "id"}).json()["data"]
+    assert [(r["type"], r["text"], r["due_date"], r["done_date"], r["sales_id"], r["created_at"]) for r in rows] == [
+        ("email", "Email Ana the report", "2026-11-09T10:00:00.000Z", None, 7, "2026-11-01T09:00:00.000Z"),
+        ("email", "Sent", "2026-11-09T10:00:00.000Z", "2026-11-03T12:00:00.000Z", 7, "2026-11-01T09:00:00.000Z")]
+    assert tasks.migrate_crm_tasks(conn) == 0
+    assert client.get("/crm/tasks").json()["total"] == 2
+    assert [t["title"] for t in client.get("/tasks", params={"person_id": ana}).json()] == ["Email Ana the report", "Sent"]
+
+
+def test_the_app_moves_old_crm_tasks_at_startup(crm_env):
+    _, conn, ana, _ = crm_env
+    insert_crm_task(conn, ana, "From before")
+    from service.main import app
+    with TestClient(app):
+        pass
+    assert [t["title"] for t in tasks.list_tasks(conn, person_id=ana)] == ["From before"]
+
+
+def test_a_donor_merge_moves_shared_tasks_and_undo_moves_them_back(conn):
+    from service import dedupe
+
+    keep, drop = person(conn, "Elizabeth Fontaine"), person(conn, "Liz Fontaine")
+    mine, _ = tasks.create_task(conn, kind="call", title="Call Liz", person_id=drop, due="2026-11-10")
+    conn.execute("INSERT INTO duplicate_suggestions (donor_a_id, donor_b_id, reasons, confidence) "
+                 "VALUES (?, ?, '[]', 0.9)", (keep, drop))
+    conn.commit()
+    sid = conn.execute("SELECT id FROM duplicate_suggestions").fetchone()[0]
+    res = dedupe.merge(conn, sid, keep_id=keep, approved_by="staff")
+    assert tasks.get_task(conn, mine["id"])["person_id"] == keep
+    dedupe.undo_merge(conn, res["merge_id"])
+    assert tasks.get_task(conn, mine["id"])["person_id"] == drop

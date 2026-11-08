@@ -75,8 +75,12 @@ from service.routes_tasks import router as tasks_router  # noqa: E402  (§21 B11
 app.include_router(tasks_router)
 app.include_router(calls_router)  # live transcript call notes: /calls, /calls/summarize
 app.include_router(crm_router)  # the Donors tab's notes, tasks and tags: /crm/...
+app.include_router(importlib.import_module("service.routes_interests").router)  # B1 interests; owns POST /enrich (dry_run)
 from service.routes_voice import router as voice_router  # noqa: E402  (B3: /transcribe/live, /transcribe/file)
 app.include_router(voice_router)
+
+from service.routes_after_call import router as after_call_router  # noqa: E402  (§21 B6: /call-notes/{id}/actions, /apply)
+app.include_router(after_call_router)
 
 def module_present(name: str) -> bool:
     try:
@@ -704,6 +708,21 @@ def daily_refresh_loop(hh_mm: str) -> None:
     while True:
         time.sleep(seconds_until(hh_mm))
         log.info("daily refresh: %s", start_refresh_job()["status"])
+
+
+@app.on_event("startup")
+def migrate_crm_tasks() -> None:
+    """One task store: copy any Donors-tab tasks saved in crm_tasks into tasks (idempotent; routes_crm also does it)."""
+    from service import tasks
+
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        copied = tasks.migrate_crm_tasks(conn)
+        if copied:
+            log.info("moved %d Donors-tab tasks into the tasks table", copied)
+    finally:
+        conn.close()
 
 
 @app.on_event("startup")

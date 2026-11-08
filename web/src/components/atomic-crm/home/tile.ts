@@ -1,8 +1,8 @@
 /**
- * The Kindred tile: the shared `tile` utility in index.css (thin border,
- * card fill, yellow-green glow at the bottom corners).
+ * Dashboard tiles use a borderless frosted surface with centered warmth.
+ * The shared tile utility remains available to the rest of the app.
  */
-export const tile = "tile";
+export const tile = "tile home-tile";
 
 /** The dark focus card: same glow, stronger, on the primary (ink) fill. */
 export const focusCard =
