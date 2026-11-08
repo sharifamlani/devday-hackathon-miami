@@ -348,7 +348,7 @@ def list_people(conn: sqlite3.Connection, contact_type: str | None = None, has_d
         args.append(interest)
     sql = DONOR_WITH_SCORE + (" WHERE " + " AND ".join(where) if where else "")
     sql += " ORDER BY s.score IS NULL, s.score DESC, d.full_name, d.id"
-    return [_donor_out(r) for r in conn.execute(sql, args)]
+    return tasks.with_next_steps(conn, [_donor_out(r) for r in conn.execute(sql, args)])   # "Next step" (3a)
 
 
 @router.get("/people")
