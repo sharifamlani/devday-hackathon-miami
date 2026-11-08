@@ -10,3 +10,4 @@ openpyxl
 python-docx
 assistant-stream
 google-genai
+playwright

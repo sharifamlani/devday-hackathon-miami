@@ -257,6 +257,7 @@ export interface ApiOrgProfile {
   instagram_url: string | null;
   priorities?: ApiJson<unknown>;
   voice?: ApiJson<unknown>;
+  source_status?: ApiJson<Record<string, string>>;
   updated_at?: string | null;
 }
 

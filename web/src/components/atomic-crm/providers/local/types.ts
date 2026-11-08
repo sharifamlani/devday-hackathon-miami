@@ -210,6 +210,7 @@ export interface OrgProfile {
   socials: SocialLink[]; // only the ones the org entered
   priorities: string[];
   voice: string[]; // tone notes for the outreach agent
+  source_status?: Record<string, string>;
   updated_at: string | null;
 }
 

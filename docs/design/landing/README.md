@@ -6,13 +6,15 @@ The primary React app opens on the Kindred landing page at its bare URL, regardl
 
 **Supporting line:** Your mission deserves more of your time.
 
-The layout centers all information in one screen at the checked desktop and phone sizes. It uses white, charcoal, yellow and muted olive, with a crisp primary action and a faint outlined drop area. Both app entry points use the shared `DonorDesk` component, so the normal and Vercel demo builds receive the same design.
+The layout centers all information in one screen at the checked desktop and phone sizes. It uses white, charcoal, yellow and muted olive, with one clear primary action. Both app entry points use the shared `DonorDesk` component, so the normal and Vercel demo builds receive the same design.
 
-The landing's direct upload remains a secondary shortcut. The primary demo action is **Get started**, which moves into the workspace hash route and starts onboarding. The onboarding file step supports multi-file upload and the bundled **Import demo files** action. The organization step starts with The Miami Foundation's name and website, both editable; the name travels with the context request and is saved in the organization profile.
+The landing has no upload or sample-data shortcut. **Get started** moves into the workspace hash route and starts onboarding; all file imports begin there, then continue through organization research. The onboarding file step supports multi-file upload and the bundled **Import demo files** action. The organization step starts with The Miami Foundation's name and website, both editable; the name travels with the context request and is saved in the organization profile.
 
-The context screen distinguishes live and saved source results. When a live read fails or times out, it says saved same-website research is being used; for partial reads, successful live sources take precedence and saved facts are used only for failed or empty sources. Snapshot mode labels saved sample context and remains read-only.
+The context screen distinguishes live and saved source results. When a live read fails or times out, it says saved same-website research is being used; for partial reads, successful live sources take precedence and saved facts are used only for failed or empty sources. The source status is saved with the organization profile so the dashboard keeps cached facts labeled. Snapshot mode labels saved sample context and remains read-only.
 
-The upload dialog uses the existing data-mode boundary. Snapshot builds offer a sample workspace and explain that uploads need the local service. Local builds submit a CSV through the existing `uploadFiles` method and show success/errors; no new backend or ingest behavior is introduced.
+The Impact & Story panel offers **Refresh research** in the live build so the presenter can retry after onboarding; snapshot mode labels its saved sample context and has no live refresh action.
+
+The linked screenshots and earlier QA notes record the previous landing variant with upload/sample shortcuts. The onboarding-only landing change above has not yet received a new visual QA pass.
 
 ## Review
 

@@ -94,6 +94,10 @@ research.mutate({ name, website, x_url, linkedin_url, instagram_url });
 //   "fallback" (live read failed/timed out): show "Showing saved context", detail as a tooltip
 ```
 
+The saved organization profile includes per-source `source_status`. The Impact & Story panel uses it to keep
+cached facts labeled after onboarding, while preserving each fact's source link and date. Snapshot mode also
+shows that its context is saved sample data and that the preview cannot run live research.
+
 Outside React (a script or test), call the same functions directly:
 `import { donorDeskMethods } from "@/components/atomic-crm/providers/local"`.
 

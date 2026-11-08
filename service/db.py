@@ -936,8 +936,9 @@ def save_context(conn: sqlite3.Connection, result: dict) -> dict:
             skipped += 1                                # no URL, no claim
             continue
         cur = conn.execute(
-            "INSERT OR IGNORE INTO org_context (source, url, posted_at, fact, quote, priority) VALUES (?, ?, ?, ?, ?, ?)",
-            (f["source"], f.get("url"), f.get("posted_at"), f.get("fact"), f.get("quote"), f.get("priority")))
+            "INSERT OR IGNORE INTO org_context (source, url, posted_at, fact, quote, priority, cached) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (f["source"], f.get("url"), f.get("posted_at"), f.get("fact"), f.get("quote"), f.get("priority"),
+             int(bool(f.get("cached")))))
         if cur.rowcount:
             ids.append(cur.lastrowid)
     after = {(r[0], r[1], r[2]) for r in conn.execute(
