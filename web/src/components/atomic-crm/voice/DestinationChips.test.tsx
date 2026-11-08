@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import type { NoteDestination, NoteDestinationKind } from "./callNotes";
@@ -45,7 +45,13 @@ const Harness = ({ start = [] }: { start?: NoteDestination[] }) => {
 describe("DestinationChips", () => {
   it("starts as four icon tiles with accessible names", async () => {
     const screen = await render(<Harness />);
-    await expect.element(screen.getByText("Today")).toBeInTheDocument();
+    await expect
+      .element(
+        screen.getByRole("button", {
+          name: "Today: this note is saved to today",
+        }),
+      )
+      .toBeVisible();
     for (const name of ["Add to donor", "Add to group", "Add to project"])
       await expect
         .element(screen.getByRole("button", { name, exact: true }))
@@ -78,6 +84,18 @@ describe("DestinationChips", () => {
     await expect
       .element(screen.getByRole("button", { name: "Add to donor" }))
       .toBeVisible();
+  });
+
+  it("keyboard focus shows the Today tooltip, and focus rings sit inside the tile", async () => {
+    const screen = await render(<Harness />);
+    const today = screen.getByRole("button", {
+      name: "Today: this note is saved to today",
+    });
+    await userEvent.tab(); // the first tab stop is the Today tile
+    await expect.element(today).toHaveFocus();
+    await expect.element(page.getByText("Saved to today")).toBeVisible();
+    const add = screen.getByRole("button", { name: "Add to donor" });
+    expect(add.element().className).toContain("-outline-offset-2");
   });
 
   it("a group with no one in it is shown but can't be picked", async () => {

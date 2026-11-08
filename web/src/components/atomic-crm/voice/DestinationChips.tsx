@@ -51,8 +51,9 @@ const KINDS: KindConfig[] = [
 /** 38px square tiles; a filled tile widens to its name (destinations.css, on the motion variables). */
 const tileBase =
   "dest-tile inline-flex h-[38px] items-stretch rounded-[10px] border bg-card text-[13px]";
+/** Inset, so the tile's overflow clip (for the width animation) never cuts the ring off. */
 const focusRing =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
 
 /** Groups options under their section headings, in the order the sections first appear. */
 export const groupBySection = (options: DestinationOption[]) => {
@@ -97,17 +98,20 @@ export const DestinationChips = ({
     >
       <Tooltip>
         <TooltipTrigger
+          // A button so keyboard users can focus it and get the tooltip; it only explains.
           render={
-            <span
+            <button
+              type="button"
+              aria-label="Today: this note is saved to today"
               className={cn(
                 tileBase,
                 "w-[38px] items-center justify-center border-border text-foreground",
+                focusRing,
               )}
             />
           }
         >
           <CalendarDays className="size-4" aria-hidden="true" />
-          <span className="sr-only">Today</span>
         </TooltipTrigger>
         <TooltipContent>Saved to today</TooltipContent>
       </Tooltip>
