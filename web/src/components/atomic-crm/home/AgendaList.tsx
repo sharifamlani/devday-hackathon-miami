@@ -74,10 +74,35 @@ export const dayHeading = (date: string, today: string) => {
   return date === today ? `Today · ${text}` : text;
 };
 
+const kindNames: Record<string, [string, string]> = {
+  call: ["call", "calls"],
+  review: ["review", "reviews"],
+  email: ["email", "emails"],
+  prep: ["prep", "preps"],
+};
+
+/** A day's untimed tasks as one label: "6 calls · 1 review" (a lone task keeps its own title). */
+export const taskSummary = (tasks: CalendarItem[]) => {
+  if (tasks.length === 1) return tasks[0].title;
+  const byKind = new Map<string, number>();
+  for (const t of tasks) {
+    const key = t.task_kind ?? "other";
+    byKind.set(key, (byKind.get(key) ?? 0) + 1);
+  }
+  return [...byKind.entries()]
+    .sort(([, a], [, b]) => b - a)
+    .map(([key, n]) => {
+      const [one, many] = kindNames[key] ?? ["task", "tasks"];
+      return `${n} ${n === 1 ? one : many}`;
+    })
+    .join(" · ");
+};
+
 /**
  * Open items from `start` for `days` days, grouped by day (soonest first, empty days omitted).
- * Within a day: "All day" rows first, then timed rows by time. Today's untimed tasks stay out:
- * the Tasks tile under the calendar already lists them.
+ * Within a day: "All day" rows first (each untimed event, then one row summarizing the untimed
+ * tasks so a busy day can't flood the tile), then timed rows by time. Today is always listed
+ * when it is in range, empty or not.
  */
 export const agendaDays = (
   items: CalendarItem[],
@@ -90,8 +115,6 @@ export const agendaDays = (
   for (const item of items) {
     const date = item.date.slice(0, 10);
     if (item.done || date < start || date > end) continue;
-    if (date === today && item.kind === "task" && minutes(item.time) == null)
-      continue;
     byDate.set(date, [...(byDate.get(date) ?? []), item]);
   }
   const row = (i: CalendarItem, n: number): AgendaRow => ({
@@ -100,16 +123,37 @@ export const agendaDays = (
     label: i.title,
     byAgent: i.source === "agent",
   });
+  if (today >= start && today <= end && !byDate.has(today))
+    byDate.set(today, []);
+  const untimedTasks = (list: CalendarItem[]): AgendaRow[] => {
+    const tasks = list.filter(
+      (i) => minutes(i.time) == null && i.kind !== "event",
+    );
+    return tasks.length
+      ? [
+          {
+            key: `tasks-${tasks[0].ref ?? tasks[0].title}`,
+            time: "All day",
+            label: taskSummary(tasks),
+            byAgent: tasks.length === 1 && tasks[0].source === "agent",
+          },
+        ]
+      : [];
+  };
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, list]) => ({
       date,
       rows: [
-        ...list.filter((i) => minutes(i.time) == null),
+        ...list
+          .filter((i) => minutes(i.time) == null && i.kind === "event")
+          .map(row),
+        ...untimedTasks(list),
         ...list
           .filter((i) => minutes(i.time) != null)
-          .sort((a, b) => minutes(a.time)! - minutes(b.time)!),
-      ].map(row),
+          .sort((a, b) => minutes(a.time)! - minutes(b.time)!)
+          .map(row),
+      ],
     }));
 };
 
@@ -131,7 +175,9 @@ export const AgendaList = ({
   const strip = weekStrip(start);
   const feed = useCalendarFeed(start, addDays(start, LIST_DAYS - 1));
   const days = agendaDays(feed.data ?? [], start, today);
-  const hasItems = new Set(days.map((d) => d.date));
+  const hasItems = new Set(
+    days.filter((d) => d.rows.length).map((d) => d.date),
+  );
   const month = parseWhen(start).toLocaleDateString("en-US", {
     month: "long",
   });
@@ -233,7 +279,10 @@ export const AgendaList = ({
         ) : (
           days.map((day) => (
             <div key={day.date} className="home-agenda-day" data-day={day.date}>
-              <h3>{dayHeading(day.date, today)}</h3>
+              <h3>
+                {dayHeading(day.date, today)}
+                {day.rows.length === 0 && " — nothing scheduled"}
+              </h3>
               <ul>
                 {day.rows.map((row) => (
                   <li key={row.key}>

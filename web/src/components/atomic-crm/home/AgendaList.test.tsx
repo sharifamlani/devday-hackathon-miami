@@ -32,13 +32,29 @@ const TODAY = "2026-11-08";
 describe("week strip", () => {
   it("starts today with the real weekday letters (Nov 8, 2026 is a Sunday)", () => {
     const strip = weekStrip(TODAY);
-    expect(strip.map((d) => d.letter)).toEqual(["S", "M", "T", "W", "T", "F", "S"]);
+    expect(strip.map((d) => d.letter)).toEqual([
+      "S",
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S",
+    ]);
     expect(strip.map((d) => d.day)).toEqual([8, 9, 10, 11, 12, 13, 14]);
     expect(weekRange(TODAY)).toBe("Nov 8 – 14");
   });
 
   it("derives letters from the dates, shifts by a week, and spans month ends", () => {
-    expect(weekStrip("2026-11-09").map((d) => d.letter)).toEqual(["M", "T", "W", "T", "F", "S", "S"]);
+    expect(weekStrip("2026-11-09").map((d) => d.letter)).toEqual([
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S",
+      "S",
+    ]);
     expect(weekRange("2026-11-29")).toBe("Nov 29 – Dec 5");
   });
 });
@@ -80,19 +96,25 @@ describe("agendaDays", () => {
     ]);
   });
 
-  it("lists All day rows first, flags agent rows, and leaves today's untimed tasks to the Tasks tile", () => {
+  it("lists All day rows first, one summary row for untimed tasks, and flags agent rows", () => {
     const [today, later] = agendaDays(
       [
         item("Planning", TODAY, "14:00", { source: "agent" }),
-        item("Call A", TODAY, null, { kind: "task", task_kind: "call" }),
+        ...["call", "call", "call", "review"].map((k, n) =>
+          item(`T${n}`, TODAY, null, { kind: "task", task_kind: k }),
+        ),
         item("Give Miami Day", "2026-11-10", null, { source: "agent" }),
         item("Early", "2026-11-10", "07:00"),
-        item("Review B", "2026-11-10", null, { kind: "task", task_kind: "review" }),
+        item("Review B", "2026-11-10", null, {
+          kind: "task",
+          task_kind: "review",
+        }),
       ],
       TODAY,
       TODAY,
     );
     expect(today.rows.map((r) => [r.time, r.label, r.byAgent])).toEqual([
+      ["All day", "3 calls · 1 review", false],
       ["2:00 PM", "Planning", true],
     ]);
     expect(later.rows.map((r) => [r.time, r.label])).toEqual([
@@ -100,5 +122,18 @@ describe("agendaDays", () => {
       ["All day", "Review B"],
       ["7:00 AM", "Early"],
     ]);
+  });
+
+  it("always lists today, empty when nothing is scheduled, but not when today is out of range", () => {
+    const days = agendaDays(
+      [item("Later", "2026-11-10", "09:00")],
+      TODAY,
+      TODAY,
+    );
+    expect(days.map((d) => [d.date, d.rows.length])).toEqual([
+      [TODAY, 0],
+      ["2026-11-10", 1],
+    ]);
+    expect(agendaDays([], "2026-11-22", TODAY)).toEqual([]);
   });
 });
