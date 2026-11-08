@@ -785,3 +785,20 @@ Scheduler can run.
 
 **Coming soon (not built):** posting to Instagram, LinkedIn and X from the agent. The UI shows it as a disabled
 "Coming soon" action.
+
+## 18. Voice-first capture, Google transcription, context database (Sharif, Sat Nov 7 night)
+
+Full mapping, wireframes and audit: `docs/problem-solution-mapping.md`.
+
+- **Home layout (Sharif's sketch):** left = money raised (% of goal, the at-a-glance) over CRM; middle = agent
+  interactions with the text box below; right = calendar over to-do. Christian builds it.
+- **Voice-first:** a 🎙 button in the agent text box opens a live transcript; staff save it as a note on a person.
+  Transcription uses **Google Gemini 3.5 Transcribe**: `gemini-3.5-transcribe-live` (live, 16 kHz PCM over the
+  Live API) and `gemini-3.5-transcribe` (recorded files, speaker labels), with the existing `GEMINI_API_KEY`.
+  The summary and save step stay on the OpenAI Agents SDK.
+- **Phone recording (stretch):** a Twilio call bridged and recorded, then transcribed and saved. Florida needs every
+  party's consent, so the call opens with a recording notice; a person makes the call, no AI voice.
+- **Context database:** onboarding writes `org_profile`; the context agent fills `org_context` and `events` with
+  sourced facts from the website, news and public social posts; agents read it through tools; the daily refresh
+  (`REFRESH_DAILY_AT`) keeps it current and logs each run. Missing: the onboarding screen (draft #70) and the
+  refresh time set on the demo laptop.
