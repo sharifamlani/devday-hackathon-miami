@@ -6,7 +6,11 @@ import {
   campaignEndsFrom,
   giveMiamiDayFrom,
   mergeAgenda,
-  planCalendarEntries,
+  taskCalendarEntries,
+  taskLabel,
+  taskOrigin,
+  tasksFromFeed,
+  tasksFromPlan,
 } from "./planLayer";
 
 const event = (
@@ -59,7 +63,7 @@ describe("calendar plan layer", () => {
     expect(ends).toEqual([{ date: "2026-12-31", label: "Year-end appeal" }]);
   });
 
-  it("turns plan items into all-day entries and merges them into the agenda by day", () => {
+  it("turns the snapshot build's local plan into tasks, entries and agenda lines", () => {
     let items = addPlanItem(
       [],
       { date: "2026-11-15", donor_id: 1, label: "Rosa" },
@@ -77,17 +81,93 @@ describe("calendar plan layer", () => {
     );
     items = updatePlanItem(items, items[2].id, { done: true });
 
-    const entries = planCalendarEntries(items);
+    const tasks = tasksFromPlan(items);
+    const entries = taskCalendarEntries(tasks);
     expect(entries[0]).toMatchObject({ title: "Contact Rosa", allDay: true });
     expect(entries[2].title).toBe("Done: Review Thanks");
 
     const agenda = mergeAgenda(
       [event(9, "Give Miami 5K", "2026-11-15T07:30:00")],
-      items,
+      tasks,
       "2026-11-08",
     );
     expect(
-      agenda.map((e) => (e.kind === "event" ? e.event.title : e.item.label)),
-    ).toEqual(["Thanks", "Give Miami 5K", "Rosa"]);
+      agenda.map((e) => (e.kind === "event" ? e.event.title : e.task.title)),
+    ).toEqual(["Review Thanks", "Give Miami 5K", "Contact Rosa"]);
+  });
+
+  it("reads tasks (not events) from GET /calendar, with who added them", () => {
+    const tasks = tasksFromFeed([
+      {
+        date: "2026-11-10",
+        time: null,
+        title: "Call Dana",
+        kind: "task",
+        source: "agent",
+        ref: "task:7",
+        done: false,
+        task_kind: "call",
+      },
+      {
+        date: "2026-11-10",
+        time: "10:00",
+        title: "Board coffee",
+        kind: "event",
+        source: null,
+        ref: 3,
+      },
+      {
+        date: "2026-11-11",
+        time: null,
+        title: "Welcome Sam",
+        kind: "task",
+        source: "generator",
+        ref: "task:8",
+        done: true,
+      },
+    ]);
+    expect(tasks.map((t) => t.id)).toEqual(["7", "8"]);
+    expect(tasks[0]).toMatchObject({ date: "2026-11-10", kind: "call" });
+    expect(taskLabel(tasks[0])).toBe("Call Dana (added by agent)");
+    expect(taskLabel(tasks[1])).toBe("Done: Welcome Sam");
+    expect(taskOrigin(tasks[0])).toBe("added by agent");
+    expect(taskOrigin(tasks[1])).toBe("suggested from your data");
+    expect(taskOrigin({ source: "staff" })).toBeNull();
+  });
+
+  it("lists events before tasks on a day, tasks by time", () => {
+    const agenda = mergeAgenda(
+      [event(1, "Gala", "2026-11-10T19:00:00")],
+      tasksFromFeed([
+        {
+          date: "2026-11-10",
+          time: "14:00",
+          title: "B",
+          kind: "task",
+          source: null,
+          ref: "task:2",
+        },
+        {
+          date: "2026-11-10",
+          time: "09:00",
+          title: "A",
+          kind: "task",
+          source: null,
+          ref: "task:1",
+        },
+        {
+          date: "2026-11-01",
+          time: null,
+          title: "Past",
+          kind: "task",
+          source: null,
+          ref: "task:3",
+        },
+      ]),
+      "2026-11-08",
+    );
+    expect(
+      agenda.map((e) => (e.kind === "event" ? e.event.title : e.task.title)),
+    ).toEqual(["Gala", "A", "B"]);
   });
 });
