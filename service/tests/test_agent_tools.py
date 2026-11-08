@@ -542,6 +542,7 @@ def test_call_list_follows_the_home_attention_order(db_file):
     assert all(p["phone_on_file"] == phones[p["id"]] for p in people)
 
 
+@needs_key
 def test_live_who_to_call_leads_with_the_failed_gift_and_cites_next_steps(db_file):
     """'Who should I call today?' answers from the CRM's attention order: the failed-gift donor first, and a
     giver's saved next step quoted."""
