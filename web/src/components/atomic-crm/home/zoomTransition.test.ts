@@ -146,6 +146,20 @@ describe("runZoomTransition (FLIP)", () => {
     expect(doc.documentElement.dataset.zoom).toBeUndefined();
   });
 
+  it("an exiting overview or pane is timed as a close (--exit-ratio of open)", () => {
+    const { doc } = makeVTDoc();
+    runZoomTransition({
+      kind: "pane",
+      exit: true,
+      update: () => {},
+      doc,
+      win: win(false),
+    });
+    expect(doc.documentElement.style.getPropertyValue("--zoom-dur")).toBe(
+      "240ms",
+    );
+  });
+
   it("close is 280ms; reduced motion is a 120ms fade", () => {
     const a = animDoc();
     runZoomTransition({

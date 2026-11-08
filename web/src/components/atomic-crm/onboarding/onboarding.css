@@ -21,6 +21,7 @@
     radial-gradient(55% 45% at 100% 100%, var(--onb-glow-g), transparent 70%),
     #fff;
   outline: none;
+  animation: motion-fade-in var(--motion-base) var(--ease-enter) both;
 }
 
 .dark .onb-screen,
@@ -49,6 +50,7 @@
 /* The card never outgrows the screen: the step's body scrolls and its footer
    (the main button) stays in the same place on every step. */
 .onb-card {
+  animation: motion-enter var(--motion-slow) var(--ease-enter) both;
   width: 100%;
   max-width: 620px;
   max-height: calc(100vh - 32px);
@@ -158,6 +160,9 @@
   border-radius: 999px;
   background: var(--muted);
   box-shadow: inset 0 0 0 1px var(--border);
+  transition:
+    background-color var(--motion-slow) var(--ease-move),
+    box-shadow var(--motion-slow) var(--ease-move);
 }
 .onb-progress span[data-done="true"] {
   background: var(--foreground);
@@ -873,4 +878,30 @@
 .onb-screen h2[tabindex="-1"]:focus-visible,
 .onb-coach h2[tabindex="-1"]:focus-visible {
   outline: none;
+}
+
+/* Setup steps (OnboardingFlow.tsx): the card rises in, and each step slides in from the side
+   you're heading, on the shared motion variables (none with Reduce motion). The wrapper keeps
+   the step's flex layout, so its body still scrolls and its footer stays put. */
+.onb-step-motion {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  animation: onb-step-in-forward var(--motion-base) var(--ease-enter) both;
+}
+.onb-step-motion[data-direction="back"] {
+  animation-name: onb-step-in-back;
+}
+@keyframes onb-step-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes onb-step-in-back {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
 }
