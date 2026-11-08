@@ -1079,3 +1079,22 @@ no direct push to main.
 3. Live demo from the laptop (recommended), or a tunnel to the public URL.
 4. Money card: 2026 year to date + quarter bars (recommended), or % of a sample goal.
 5. #76 persona: Tidepath or The Miami Foundation.
+
+### 20.6 Integration target: Christian's mockup (Sat Nov 7 night)
+
+Christian is building the screens in `docs/design/mockup/` now. Every element is mapped to its hook, endpoint and
+owner in `docs/ui-integration.md`; builders code to that map plus §20.2. Builds it adds:
+
+| # | Build | Owner | Wave |
+|---|---|---|---|
+| B1 (changed) | Enrich becomes propose → **Save to profile** (`?dry_run=1` + `/enrichment/accept`) | 42 | 1 |
+| B2 (changed) | `/targets` adds `reached_today` | 48 | 1 |
+| B3 (changed) | end-of-call pass on the recorded audio with `gemini-3.5-transcribe` for speaker names; note `title` + `folder` | Agent Phone | 1 |
+| **B13** | `GET /home/summary` (glance counts, next event, suggestion chips) + `GET /people/attention` (CRM list badges) | 48 | 1 |
+| **B11** | task generator: alerts → calls, duplicates → review, new donors → welcome, events → prep; runs after upload and daily refresh | 86 | 2 |
+| **B12** | `GET /artifacts` (call notes, drafts, reports) + `GET /calendar` (events merged with dated tasks, "added by agent") | 86 | 2 |
+| B9 (grows) | hooks for every endpoint in `docs/ui-integration.md` §2, mocked until each lands | 80 | 1 |
+| B10 (grows) | chat tools `create_task`, `add_calendar_item` so "add thank-you calls Tuesday" writes the calendar | 90 | 2 |
+
+Open decisions: Q4 gauge on sample data reads 0.5% (seed fictional Q4 demo gifts, or a smaller sample goal);
+hide the "Show meeting notes" overlay for judging.
