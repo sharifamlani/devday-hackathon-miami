@@ -117,8 +117,10 @@ Sending is a **dry run** by default: email goes out only with `EMAIL_SEND=on` an
   approval is designed but not implemented.
 - **Social media is not read.** Social links are "Saved for later; the agent doesn't read them yet." Official X,
   LinkedIn and Instagram APIs need tokens we don't have; the reader in `service/social_context.py` isn't wired in.
-- **No public tunnel.** The service listens on 127.0.0.1 only and phone calls need no webhooks, so nothing on the
-  laptop is exposed to the internet.
+- **The public tunnel is off by default.** The service listens on 127.0.0.1 and phone calls need no webhooks.
+  `python scripts/public_tunnel.py on` with `PUBLIC_MODE=1` lets the Vercel app reach the laptop
+  (`docs/public-tunnel.md`): then only an allow-list of read routes plus chat and Ask are served, contact details
+  are masked, the agent is read-only, every send stays simulated, and model routes are rate-limited.
 - **Enrichment researches public organizations only.** Individuals are never looked up on the web, and the
   fictional sample organizations correctly return "no public information found"; the demo enriches a real
   organization added by hand.
