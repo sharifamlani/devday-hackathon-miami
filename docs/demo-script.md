@@ -27,7 +27,7 @@ Screen: the landing page ("Less time on tasks. More time for people.").
 > "That's the challenge minimum: duplicates merged only after staff approve, with no history lost."
 
 ## 1:20–1:45 · Nobody slips through
-1. **Inbox:** "Ranked by who needs a call: recency, frequency, amount and the gap since their usual gift. Maria gave every Give Miami Day since 2022 and nothing yet this year. She's #1."
+1. Rail → **Inbox** (`#/inbox`): "Ranked by who needs a call: recency, frequency, amount and the gap since their usual gift. Maria gave every Give Miami Day since 2022 and nothing yet this year. She's #1."
 2. Point to the **late monthly / failed card** alert (gift alerts, #48): "A monthly gift that failed on Oct 10 shows up within days, not months."
 
 ## 1:45–2:15 · Ask your data (OpenAI Agents SDK)
@@ -50,7 +50,7 @@ Screen: the landing page ("Less time on tasks. More time for people.").
 
 ## Landing entry in the React app
 
-Open the bare app URL to show “Less time on tasks. More time for people.” with “Your mission deserves more of your time.” underneath. “Try sample data” opens the existing donor workspace at `#/`. Existing workspace deep links continue to open directly.
+Open the bare app URL to show “Less time on tasks. More time for people.” with “Your mission deserves more of your time.” underneath. “Try sample data” opens the donor workspace at `#/`, which is the home dashboard (today at a glance, outreach calendar, goal, recommended outreach). The Outreach inbox is at `#/inbox` (rail Inbox icon). Existing workspace deep links continue to open directly.
 
 The upload controls sit inside a thin outlined CSV drop area. In local mode, “Upload donor data” opens the file chooser; selecting or dropping a CSV opens the confirmation dialog with its filename. In the hosted snapshot build it explains that uploads need the local donor service and offers the sample workspace. With `VITE_DATA_MODE=local`, the CSV form uses the existing `uploadFiles` client and offers the workspace after a successful import. Live ingest remains dependent on the team's ingest service; this design change adds no backend ingestion behavior.
 

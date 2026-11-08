@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   HeartHandshake,
+  House,
   PhoneCall,
   Send,
   Sparkles,
@@ -17,6 +18,7 @@ export const Rail = () => {
   const location = useLocation();
   const translate = useTranslate();
   const onHome = !!matchPath("/", location.pathname);
+  const onInbox = !!matchPath("/inbox", location.pathname);
   const onDonors = !!matchPath("/contacts/*", location.pathname);
   const onCalendar = !!matchPath("/calendar", location.pathname);
   const onCampaigns =
@@ -36,11 +38,12 @@ export const Rail = () => {
         <HeartHandshake className="size-[27px]" aria-hidden />
       </Link>
       <ul className="flex flex-col gap-2 rounded-[30px] bg-card p-2">
+        <RailButton to="/" label="Home" icon={House} active={onHome} />
         <RailButton
-          to="/"
-          label={translate("crm.call_today.title", { _: "Call today" })}
+          to="/inbox"
+          label="Outreach inbox"
           icon={PhoneCall}
-          active={onHome}
+          active={onInbox}
         />
         <RailButton
           to="/contacts"
