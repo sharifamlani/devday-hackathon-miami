@@ -41,14 +41,14 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    and the reading finishes in the background).
 5. **Dashboard (home).** A card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?" (or, while the read is
    still running, "We're still reading your website. Want a one-minute tour while it finishes?"): click **Not now**. Point at:
-   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and its **Impact & story ↗**
-     link (the Foundation's impact and stories);
+   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
+     card with it (the Foundation's impact and stories);
    - the **Today's briefing** button;
    - the week strip (**November · Nov 8 – 14**) and the agenda under it: **Today · Sunday, Nov 8** e.g. "9 reviews · 5
      calls · 3 preps · 1 email", Thu 12 **Prep list: Give Miami Day**, Sat 14 **Give Miami Day — Early Giving opens**,
      Sun 15 **The Give Miami 5K** (8:00 AM) and the Post-Race Festival (8:30 AM), Thu 19 **Give Miami Day**. "The agent
      found these on the Foundation's site during setup and made the prep tasks.";
-   - **Tasks** (e.g. 18; **↗** opens the full list), grouped: **Donor outreach** (e.g. 6: failed cards, late gifts, a
+   - **Tasks** (e.g. 18; the tile's heading opens the full list), grouped: **Donor outreach** (e.g. 6: failed cards, late gifts, a
      new donor), **Donor records** (e.g. 9 possible duplicates), **Preparation** (one per upcoming event). Clicking a
      task opens it for the agent (step 7);
    - the **CRM** tile: **Find a donor**, **Open database**, and the donors needing attention with their badges
@@ -57,7 +57,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    - the chat (**Ask the agent…**) with its chips (an **Enrich …** chip naming one donor, e.g. **Enrich Desmond Achebe-Wells**; it varies by
      upload), **Who's late on a usual gift?**,
      **Plan next week**).
-   **Open database** and the calendar's **↗** (**Open full calendar**) open a panel beside the chat. The icon rail on
+   **Open database** and the calendar tile (**Open full calendar**) open a panel beside the chat. The icon rail on
    the left holds **Live transcript** and **Open Ask sidebar**.
 6. **Home chat agent.** Click the chip **Plan next week** (about 10 s; **Thinking…** shows meanwhile). The conversation
    shows the agent's tool steps (e.g. **Get context**, **Get events**, **Get calendar**, **Get tasks**), then a plan for
@@ -87,7 +87,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    Economic Mobility**) and **Facts**, each with its **[src]** link, plus a public contact that's shown, not saved.
    Click **Save to profile** (or **Close**). "Nothing is saved until staff accept, and every tag shows where it came
    from."
-10. **Calendar.** On the dashboard click **Open full calendar** (or the **↗** on the week strip). Under **Calendar** ("The
+10. **Calendar.** On the dashboard open the full calendar from the week strip (**Open full calendar**). Under **Calendar** ("The
     Foundation's events and your tasks, side by side.") sit the chip **Context updated today …** and **Refresh now**
     (re-reads the site, news and events; it shows **Refreshing…** until the pass is done). Filter pills
     **Fundraising**, **Stewardship**, **Events**, **Community outreach**, **Tasks**; **Today** / **Back** / **Next**
