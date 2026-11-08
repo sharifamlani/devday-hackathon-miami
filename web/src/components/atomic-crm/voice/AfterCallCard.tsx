@@ -4,6 +4,8 @@ import { Check, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NoteDestination } from "./callNotes";
 import { listServerCallNotes } from "../providers/local/calls";
+import { useEvents } from "../providers/local/crmHooks";
+import type { CrmEvent } from "../providers/local/crmTypes";
 import { useDonors } from "../providers/local/hooks";
 import { DATA_MODE } from "../providers/local/config";
 import {
@@ -84,6 +86,47 @@ export const confidentMatch = (
   return same.length === 1 && same[0].id === person.id;
 };
 
+/**
+ * Where an RSVP action will actually write, and whether that looks like what was said. The agent
+ * can only pick an event id from the calendar; when the event named on the call is missing (setup
+ * sometimes misses the 5K) it may pick a same-day neighbour (the 5K's Post-Race Festival) while its
+ * label still names the 5K. So the card shows the real target, and flags it when the target's
+ * title has distinctive words that weren't said.
+ */
+/**
+ * An event's start as a local time. A date-only value ("2026-11-19", Give Miami Day) would parse as
+ * UTC midnight, which in Miami is the evening before: the card would say Wed Nov 18 and flag "the
+ * 19th" as the wrong day (82's review). Read it as local midnight instead.
+ */
+export const eventStart = (startsAt: string) =>
+  new Date(/^\d{4}-\d{2}-\d{2}$/.test(startsAt) ? `${startsAt}T00:00` : startsAt);
+export type RsvpCheck = { event: CrmEvent | null; mismatch: boolean };
+// Short words matter here: "5k", "day", "give", "race" are what tell "The Give Miami 5K" from
+// "Give Miami Day" or the 5K's Post-Race Festival (a4's review). Only filler words are ignored.
+const NAME_WORDS = /[a-z0-9]{2,}/g;
+const FILLER = new Set(["the", "and", "with", "for", "of", "on", "at", "in", "to", "an", "a"]);
+const words = (text: string) => (foldName(text).match(NAME_WORDS) ?? []).filter((w) => !FILLER.has(w));
+/** The day of the month said aloud ("the 15th", "November 15"), if any. */
+const spokenDay = (text: string): number | null => {
+  const m = foldName(text).match(/\b(\d{1,2})(?:st|nd|rd|th)\b/) ?? foldName(text).match(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})\b/);
+  return m ? Number(m[1]) : null;
+};
+export const checkRsvp = (action: AfterCallAction, events: CrmEvent[] | undefined): RsvpCheck | null => {
+  if (action.type !== "rsvp_event" || !events) return null;
+  const id = Number(action.payload.event_id);
+  const event = events.find((e) => e.id === id) ?? null;
+  if (!event) return { event: null, mismatch: true };
+  const spoken = action.evidence ?? action.label;
+  const said = new Set(words(spoken));
+  const unsaid = words(event.title).filter((w) => !said.has(w));
+  const day = spokenDay(spoken);
+  const otherDay = day != null && eventStart(event.starts_at).getDate() !== day;
+  return { event, mismatch: unsaid.length > 0 || otherDay };
+};
+
+export const eventDate = (startsAt: string) =>
+  eventStart(startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+
 /** The note's destinations with the matched donor added, unless a donor is already set. */
 export const withMatchedDonor = (destinations: NoteDestination[], person: MatchedPerson): NoteDestination[] =>
   destinations.some((d) => d.kind === "donor")
@@ -118,6 +161,8 @@ export const AfterCallCard = ({
   onMatched.current = onMatchedPerson;
   const donors = useDonors();
   const matchChecked = useRef(false);
+  const events = useEvents();
+  const rsvpChecked = useRef(false);
 
   useEffect(() => {
     // Once the person has changed a tick, their card stands: no reset, no new request.
@@ -160,6 +205,14 @@ export const AfterCallCard = ({
     // contactName is read once per proposal; a later change must not ask the model again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId, attempt, retryMs]);
+
+  // An RSVP that may hit the wrong event starts unticked (once, before the person edits).
+  useEffect(() => {
+    if (rsvpChecked.current || !proposal || !events.data || edited.current) return;
+    rsvpChecked.current = true;
+    const doubtful = proposal.actions.filter((a) => checkRsvp(a, events.data)?.mismatch).map((a) => a.id);
+    if (doubtful.length) setTicked((t) => new Set([...t].filter((id) => !doubtful.includes(id))));
+  }, [proposal, events.data]);
 
   // Pre-fill the note's donor once, when both the proposal and the donor list are in.
   useEffect(() => {
@@ -265,6 +318,25 @@ export const AfterCallCard = ({
                         {a.evidence && (
                           <span className="block text-xs text-muted-foreground">“{a.evidence}”</span>
                         )}
+                        {(() => {
+                          const rsvp = checkRsvp(a, events.data);
+                          if (!rsvp) return null;
+                          if (!rsvp.event)
+                            return (
+                              <span className="block text-xs text-[#9a6b00]" data-rsvp="missing">
+                                That event isn’t in the calendar. Check before applying.
+                              </span>
+                            );
+                          return (
+                            <span
+                              className={cn("block text-xs", rsvp.mismatch ? "text-[#9a6b00]" : "text-muted-foreground")}
+                              data-rsvp={rsvp.mismatch ? "mismatch" : "ok"}
+                            >
+                              RSVP goes to: {rsvp.event.title} · {eventDate(rsvp.event.starts_at)}
+                              {rsvp.mismatch && ". That isn’t quite what was said; check it’s the right event."}
+                            </span>
+                          );
+                        })()}
                         {why && <span className="block text-xs text-[#9a6b00]">Not applied: {why}</span>}
                       </span>
                     </label>
