@@ -161,7 +161,16 @@ export interface CrmResourceOptions {
   persistence?: CrmPersistence;
   /** The tags an empty in-memory store starts with. */
   seedTags?: typeof DEFAULT_TAGS;
+  /**
+   * How long records read from the service count as fresh. Past it, the next
+   * read (react-admin refetches on focus and on mount) reads them again, so
+   * another tab's notes show up. Browser and memory storage never go stale.
+   */
+  staleMs?: number;
 }
+
+/** See CrmResourceOptions.staleMs. */
+export const SERVER_STALE_MS = 20_000;
 
 const isRecordResource = (name: string): name is CrmRecordResource =>
   name === "contact_notes" || name === "tasks" || name === "tags";
@@ -178,34 +187,86 @@ export const createCrmResources = (
     options.persistence ??
     browserPersistence(null, options.seedTags ?? DEFAULT_TAGS);
 
+  const staleMs =
+    persistence.where === "server"
+      ? (options.staleMs ?? SERVER_STALE_MS)
+      : Number.POSITIVE_INFINITY;
+
   type Loaded = {
     store: ReturnType<typeof withSupabaseFilterAdapter>;
     overlays: Map<number, ContactOverlay>;
   };
-  let loading: Promise<Loaded> | null = null;
-  /** The saved records, read once; a failed read is tried again next time. */
-  const ready = (): Promise<Loaded> => {
-    if (!loading) {
-      const attempt = persistence.load().then((records) => ({
-        store: withSupabaseFilterAdapter(
-          fakeRestDataProvider(
-            structuredClone({
-              contact_notes: records.contact_notes,
-              tasks: records.tasks,
-              tags: records.tags,
-            }),
-            false,
-            0,
+  /** The records last read, and when. */
+  let current: { loaded: Loaded; at: number } | null = null;
+  let reading: Promise<Loaded> | null = null;
+  /** Counts saved writes, so a read that raced one doesn't hide it. */
+  let writes = 0;
+
+  const read = (): Promise<Loaded> => {
+    if (reading) return reading;
+    const writesBefore = writes;
+    const attempt = persistence
+      .load()
+      .then((records): Loaded => {
+        const loaded: Loaded = {
+          store: withSupabaseFilterAdapter(
+            fakeRestDataProvider(
+              structuredClone({
+                contact_notes: records.contact_notes,
+                tasks: records.tasks,
+                tags: records.tags,
+              }),
+              false,
+              0,
+            ),
           ),
-        ),
-        overlays: records.overlays,
-      }));
-      loading = attempt;
-      attempt.catch(() => {
-        if (loading === attempt) loading = null;
+          overlays: records.overlays,
+        };
+        if (current && writes !== writesBefore) {
+          // A change was saved while this read was in flight and may be
+          // missing from it: keep the copy that has it, read again next time.
+          current = { loaded: current.loaded, at: 0 };
+          return current.loaded;
+        }
+        current = { loaded, at: Date.now() };
+        return loaded;
+      })
+      .finally(() => {
+        if (reading === attempt) reading = null;
       });
-    }
-    return loading;
+    reading = attempt;
+    return attempt;
+  };
+
+  /**
+   * The saved records: read on first use, and again once the service copy is
+   * stale. If a fresh read fails, the last copy still answers; a first read
+   * that fails is tried again next time.
+   */
+  const ready = async (): Promise<Loaded> => {
+    if (current && Date.now() - current.at < staleMs) return current.loaded;
+    if (!current) return read();
+    const last = current.loaded;
+    return read().catch(() => last);
+  };
+  /** After a write is saved: count it, then return the copy to update. */
+  const afterWrite = async () => {
+    writes += 1;
+    return current?.loaded ?? (await ready());
+  };
+  /** Adds or replaces one saved record in the in-memory copy. */
+  const put = async (
+    store: Loaded["store"],
+    name: CrmRecordResource,
+    saved: Record<string, any>,
+  ) => {
+    const has = await store
+      .getOne(name, { id: saved.id })
+      .then(() => true)
+      .catch(() => false);
+    return has
+      ? store.update(name, { id: saved.id, data: saved, previousData: saved })
+      : store.create(name, { data: saved });
   };
   /** The donor list still shows when notes and tasks can't be read. */
   const readyOrNull = () => ready().catch(() => null);
@@ -358,13 +419,12 @@ export const createCrmResources = (
   };
 
   const updateContact = async (id: number, data: Record<string, unknown>) => {
-    const { overlays } = await ready();
-    const next: ContactOverlay = { ...overlays.get(id) };
+    const next: ContactOverlay = { ...(await ready()).overlays.get(id) };
     if (Array.isArray(data.tags)) next.tags = data.tags.map(Number);
     if (typeof data.last_seen === "string") next.last_seen = data.last_seen;
     if (typeof data.background === "string") next.background = data.background;
     await persistence.saveOverlay(id, next);
-    overlays.set(id, next);
+    (await afterWrite()).overlays.set(id, next);
     return contactDetail(id);
   };
 
@@ -449,12 +509,12 @@ export const createCrmResources = (
       }
       if (name === "companies") throw new Error(READ_ONLY_ORGS);
       if (!isRecordResource(name)) throw new Error(`Unknown list ${name}`);
-      const { store } = await ready();
+      await ready();
       const saved = await persistence.create(
         name,
         await toSave(name, params.data),
       );
-      return store.create(name, { ...params, data: saved });
+      return put((await afterWrite()).store, name, saved);
     },
     update: async (resource, params) => {
       const name = baseName(resource);
@@ -465,13 +525,13 @@ export const createCrmResources = (
       }
       if (name === "companies") throw new Error(READ_ONLY_ORGS);
       if (!isRecordResource(name)) throw new Error(`Unknown list ${name}`);
-      const { store } = await ready();
+      await ready();
       const saved = await persistence.update(
         name,
         params.id,
         await toSave(name, params.data),
       );
-      return store.update(name, { ...params, data: saved });
+      return put((await afterWrite()).store, name, saved);
     },
     updateMany: async (resource, params) => {
       const name = baseName(resource);
@@ -483,11 +543,11 @@ export const createCrmResources = (
       }
       if (name === "companies") throw new Error(READ_ONLY_ORGS);
       if (!isRecordResource(name)) throw new Error(`Unknown list ${name}`);
-      const { store } = await ready();
+      await ready();
       const data = await toSave(name, params.data);
       for (const id of params.ids) {
         const saved = await persistence.update(name, id, data);
-        await store.update(name, { id, data: saved, previousData: { id } });
+        await put((await afterWrite()).store, name, saved);
       }
       return { data: params.ids };
     },
@@ -497,10 +557,14 @@ export const createCrmResources = (
         throw new Error("Donor records can't be removed from here.");
       }
       if (!isRecordResource(name)) throw new Error(`Unknown list ${name}`);
-      const { store, overlays } = await ready();
+      await ready();
       // The saved copy drops the tag from every donor (the service cascades).
       await persistence.remove(name, params.id);
-      const result = await store.delete(name, params);
+      const { store, overlays } = await afterWrite();
+      // Already gone from a copy read after the delete was saved: fine.
+      const result = await store
+        .delete(name, params)
+        .catch(() => ({ data: params.previousData as any }));
       if (name === "tags") {
         const tagId = Number(params.id);
         for (const [id, overlay] of overlays) {

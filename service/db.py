@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS merge_log (
     kept_before   TEXT NOT NULL,   -- JSON: the kept donor row before the merge
     merged_row    TEXT NOT NULL,   -- JSON: the dropped donor row
     merged_score  TEXT,            -- JSON: its donor_scores row, or null
-    moved         TEXT NOT NULL,   -- JSON: {"gifts": [ids], "research_facts": [ids], "outreach_drafts": [ids]}
+    moved         TEXT NOT NULL,   -- JSON: {"gifts": [ids], "research_facts": [ids], "outreach_drafts": [ids],
+                                   --        plus the crm_* moves (dedupe._merge_crm), absent on older rows}
     superseded    TEXT NOT NULL,   -- JSON: duplicate_suggestions ids this merge superseded
     undone_at     TEXT
 );
@@ -555,9 +556,10 @@ ADDED_COLUMNS = {
 
 
 def create_schema(conn: sqlite3.Connection) -> None:
-    migrate_outreach_drafts(conn)
+    # Decided before anything runs SCHEMA (migrate_outreach_drafts does, on an older db)
     new_tags_table = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'crm_tags'").fetchone() is None
+    migrate_outreach_drafts(conn)
     conn.executescript(SCHEMA)
     if new_tags_table:
         conn.executemany("INSERT OR IGNORE INTO crm_tags (id, name, color) VALUES (?, ?, ?)", CRM_DEFAULT_TAGS)

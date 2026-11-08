@@ -2,13 +2,15 @@
 checks, default tags, the migration, logging and the snapshot export. No network."""
 
 import logging
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
 
-from service import db
+from service import db, dedupe, score
 from service.export_snapshot import build_snapshot
 from service.main import app
+from service.tests.conftest import AS_OF
 
 JAMES = 3       # seed donors (db.SEED_DONORS)
 MARIA = 1
@@ -188,6 +190,86 @@ def test_create_schema_adds_the_crm_tables_to_an_older_db(tmp_path):
     assert len(db.crm_list(conn, "tags", per_page=100)[0]) == len(db.CRM_DEFAULT_TAGS)
     assert db.crm_list(conn, "contact_notes") == ([], 0)
     conn.close()
+
+
+def test_an_older_db_whose_drafts_migrate_still_gets_the_default_tags(tmp_path):
+    """migrate_outreach_drafts runs the whole SCHEMA first; the tags table must still count as new."""
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.executescript("""
+        CREATE TABLE donors (id INTEGER PRIMARY KEY, full_name TEXT NOT NULL);
+        CREATE TABLE outreach_drafts (id INTEGER PRIMARY KEY, donor_id INTEGER NOT NULL REFERENCES donors(id),
+            channel TEXT, subject TEXT, body TEXT NOT NULL, call_script TEXT, facts_used TEXT,
+            status TEXT NOT NULL DEFAULT 'draft', approved_by TEXT, approved_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    """)
+    old.commit()
+    old.close()
+    conn = db.connect(path)
+    db.create_schema(conn)
+    assert len(db.crm_list(conn, "tags", per_page=100)[0]) == len(db.CRM_DEFAULT_TAGS)
+    conn.close()
+
+
+def crm_state(conn, donor_id):
+    return {
+        "notes": [r[0] for r in conn.execute("SELECT id FROM crm_contact_notes WHERE contact_id = ? ORDER BY id",
+                                             (donor_id,))],
+        "tasks": [r[0] for r in conn.execute("SELECT id FROM crm_tasks WHERE contact_id = ? ORDER BY id",
+                                             (donor_id,))],
+        "contact": db.crm_contacts(conn, donor_id),
+    }
+
+
+@pytest.fixture
+def merged_pair(conn):
+    """A seeded duplicate pair (a kept, b dropped) with CRM records on both donors."""
+    db.seed(conn)
+    score.run(conn, AS_OF)
+    dedupe.run(conn)
+    s = conn.execute("SELECT * FROM duplicate_suggestions ORDER BY id").fetchone()
+    a, b = s["donor_a_id"], s["donor_b_id"]
+    for d, text in ((a, "kept note"), (b, "dropped note")):
+        db.crm_create(conn, "contact_notes", {"contact_id": d, "text": text, "date": "2026-11-07T10:00:00Z"})
+        db.crm_create(conn, "tasks", {"contact_id": d, "text": text, "due_date": "2026-11-09"})
+    db.crm_save_contact(conn, a, tags=[2, 1], background="Kept background", last_seen="2026-11-01T10:00:00.000Z")
+    db.crm_save_contact(conn, b, tags=[3, 2], background="Dropped background", last_seen="2026-11-05T10:00:00.000Z")
+    return s, a, b
+
+
+def test_merge_moves_crm_records_and_undo_restores_them(conn, merged_pair):
+    s, a, b = merged_pair
+    before = {d: crm_state(conn, d) for d in (a, b)}
+
+    res = dedupe.merge(conn, s["id"], keep_id=a, approved_by="staff")
+    kept = crm_state(conn, a)
+    assert kept["notes"] == sorted(before[a]["notes"] + before[b]["notes"])
+    assert kept["tasks"] == sorted(before[a]["tasks"] + before[b]["tasks"])
+    assert kept["contact"] == [{"contact_id": a, "tags": [2, 1, 3],          # kept's first, then the new one
+                                "background": "Kept background\n\nDropped background",
+                                "last_seen": "2026-11-05T10:00:00.000Z"}]   # the later
+    assert crm_state(conn, b) == {"notes": [], "tasks": [], "contact": []}
+
+    dedupe.undo_merge(conn, res["merge_id"])
+    assert {d: crm_state(conn, d) for d in (a, b)} == before
+
+
+def test_merge_takes_the_dropped_background_when_the_kept_one_is_empty(conn, merged_pair):
+    s, a, b = merged_pair
+    db.crm_save_contact(conn, a, background="")
+    dedupe.merge(conn, s["id"], keep_id=a)
+    assert db.crm_contacts(conn, a)[0]["background"] == "Dropped background"
+
+
+def test_undo_keeps_edits_made_after_the_merge_and_skips_deleted_tags(conn, merged_pair):
+    s, a, b = merged_pair
+    res = dedupe.merge(conn, s["id"], keep_id=a)
+    db.crm_save_contact(conn, a, background="Edited after the merge")
+    db.crm_delete(conn, "tags", 3)
+    dedupe.undo_merge(conn, res["merge_id"])
+    assert db.crm_contacts(conn, a)[0]["background"] == "Edited after the merge"
+    restored = db.crm_contacts(conn, b)[0]
+    assert restored["tags"] == [2] and restored["background"] == "Dropped background"
 
 
 def test_notes_outlive_a_merge_of_their_donor(client, db_file):

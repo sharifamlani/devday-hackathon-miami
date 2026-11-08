@@ -1,12 +1,15 @@
 import {
   CRM_STORAGE_KEY,
   MAX_ATTACHMENT_BYTES,
+  STORAGE_OFF_MESSAGE,
   apiPersistence,
   browserPersistence,
   defaultPersistence,
   durableAttachments,
   overlayFromApi,
   pickFields,
+  savedInBrowser,
+  usableStorage,
   type StorageLike,
 } from "./crmPersistence";
 
@@ -22,6 +25,9 @@ const memoryStorage = (initial: Record<string, string> = {}) => {
     getItem: (key) => items.get(key) ?? null,
     setItem: (key, value) => {
       items.set(key, value);
+    },
+    removeItem: (key) => {
+      items.delete(key);
     },
   };
   return storage;
@@ -213,13 +219,48 @@ describe("apiPersistence (local mode)", () => {
   });
 });
 
-describe("defaultPersistence", () => {
+describe("defaultPersistence and storage that is turned off", () => {
+  const throwing = () => {
+    throw new Error("SecurityError");
+  };
+
   it("uses the service in local mode and this browser in snapshot mode", () => {
     expect(defaultPersistence(TAGS, "local").where).toBe("server");
-    // No window in node: snapshot mode falls back to memory here.
-    expect(["browser", "memory"]).toContain(
-      defaultPersistence(TAGS, "snapshot").where,
+    expect(defaultPersistence(TAGS, "snapshot", memoryStorage()).where).toBe(
+      "browser",
     );
+    // No window in node: nothing can be stored.
+    expect(defaultPersistence(TAGS, "snapshot").where).toBe("unavailable");
+  });
+
+  it("finds storage unusable when reading it or writing to it throws", () => {
+    expect(usableStorage(throwing)).toBeNull();
+    const full = memoryStorage();
+    full.setItem = throwing;
+    expect(usableStorage(() => full)).toBeNull();
+    const fine = memoryStorage();
+    expect(usableStorage(() => fine)).toBe(fine);
+  });
+
+  it("refuses every save with a plain message, and reads start empty", async () => {
+    const store = defaultPersistence(TAGS, "snapshot", null);
+    expect((await store.load()).tags).toEqual(TAGS);
+    await expect(
+      store.create("contact_notes", { contact_id: 1, text: "x", date: "d" }),
+    ).rejects.toThrow(STORAGE_OFF_MESSAGE);
+    await expect(store.update("tasks", 1, { text: "x" })).rejects.toThrow(
+      STORAGE_OFF_MESSAGE,
+    );
+    await expect(store.remove("tags", 1)).rejects.toThrow(STORAGE_OFF_MESSAGE);
+    await expect(store.saveOverlay(1, { tags: [1] })).rejects.toThrow(
+      STORAGE_OFF_MESSAGE,
+    );
+  });
+
+  it('says "Saved in this browser" only when this browser can store them', () => {
+    expect(savedInBrowser("snapshot", memoryStorage())).toBe(true);
+    expect(savedInBrowser("snapshot", null)).toBe(false);
+    expect(savedInBrowser("local", memoryStorage())).toBe(false);
   });
 });
 

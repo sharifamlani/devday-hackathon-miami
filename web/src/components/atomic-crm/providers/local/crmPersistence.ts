@@ -29,8 +29,12 @@ export interface CrmRecords {
 }
 
 export interface CrmPersistence {
-  /** Where saved records end up; the UI says "Saved in this browser" for "browser". */
-  readonly where: "server" | "browser" | "memory";
+  /**
+   * Where saved records end up; the UI says "Saved in this browser" for
+   * "browser". "unavailable": snapshot mode in a browser whose storage is
+   * off, where every save fails with a plain message.
+   */
+  readonly where: "server" | "browser" | "memory" | "unavailable";
   load(): Promise<CrmRecords>;
   /** Saves a new record and returns it with its id. */
   create(
@@ -142,7 +146,8 @@ export const CRM_STORAGE_KEY = "donor-desk.crm.v1";
 const STORAGE_VERSION = 1;
 
 /** The part of the Web Storage API this file uses (tests pass a Map-backed one). */
-export type StorageLike = Pick<Storage, "getItem" | "setItem">;
+export type StorageLike = Pick<Storage, "getItem" | "setItem"> &
+  Partial<Pick<Storage, "removeItem">>;
 
 interface StoredState {
   version: typeof STORAGE_VERSION;
@@ -393,9 +398,47 @@ export const apiPersistence = (req: Requester = request): CrmPersistence => {
   };
 };
 
-const browserStorage = (): StorageLike | null => {
+/* ---------- Storage turned off (snapshot mode) ---------- */
+
+export const STORAGE_OFF_MESSAGE =
+  "This browser can't save notes or tasks: its storage is turned off.";
+
+/**
+ * Snapshot mode in a browser that won't store anything (storage blocked or
+ * full): reads start empty, every save fails with a plain message, and the
+ * forms don't claim "Saved in this browser".
+ */
+export const unavailablePersistence = (
+  seedTags: readonly CrmRecord[],
+): CrmPersistence => {
+  const refuse = async (): Promise<never> => {
+    throw new Error(STORAGE_OFF_MESSAGE);
+  };
+  return {
+    where: "unavailable",
+    load: () => browserPersistence(null, seedTags).load(),
+    create: refuse,
+    update: refuse,
+    remove: refuse,
+    saveOverlay: refuse,
+  };
+};
+
+/**
+ * This browser's localStorage when it can actually store something (a probe
+ * write succeeds), else null. Reading window.localStorage itself can throw
+ * when storage is blocked.
+ */
+export const usableStorage = (
+  get: () => StorageLike | null = () => window.localStorage,
+): StorageLike | null => {
   try {
-    return typeof window !== "undefined" ? window.localStorage : null;
+    const storage = get();
+    if (!storage) return null;
+    const probe = `${CRM_STORAGE_KEY}.probe`;
+    storage.setItem(probe, "1");
+    storage.removeItem?.(probe);
+    return storage;
   } catch {
     return null;
   }
@@ -405,10 +448,19 @@ const browserStorage = (): StorageLike | null => {
 export const defaultPersistence = (
   seedTags: readonly CrmRecord[],
   mode = DATA_MODE,
-): CrmPersistence =>
-  mode === "local"
-    ? apiPersistence()
-    : browserPersistence(browserStorage(), seedTags);
+  storage: StorageLike | null = mode === "local" ? null : usableStorage(),
+): CrmPersistence => {
+  if (mode === "local") return apiPersistence();
+  return storage
+    ? browserPersistence(storage, seedTags)
+    : unavailablePersistence(seedTags);
+};
+
+/** Whether the forms should say "Saved in this browser" (see SavedInBrowserHint). */
+export const savedInBrowser = (
+  mode = DATA_MODE,
+  storage: StorageLike | null = mode === "local" ? null : usableStorage(),
+) => mode !== "local" && storage !== null;
 
 /** True when notes and tasks saved now stay only in this browser. */
-export const SAVED_IN_BROWSER = DATA_MODE !== "local";
+export const SAVED_IN_BROWSER = savedInBrowser();

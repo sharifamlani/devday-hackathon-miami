@@ -416,3 +416,139 @@ describe("createCrmResources: saved notes, tasks and tags", () => {
     expect(data.map((t) => t.name)).toContain("Gala host");
   });
 });
+
+describe("createCrmResources: records another tab saved (local mode)", () => {
+  const T0 = new Date("2026-11-07T18:00:00Z").getTime();
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(T0);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Stands in for the service: every call reads the shared storage again. */
+  const service = (shared: StorageLike): CrmPersistence => {
+    const db = () => browserPersistence(shared, DEFAULT_TAGS);
+    return {
+      where: "server",
+      load: () => db().load(),
+      create: (r, d) => db().create(r, d),
+      update: (r, id, d) => db().update(r, id, d),
+      remove: (r, id) => db().remove(r, id),
+      saveOverlay: (id, o) => db().saveOverlay(id, o),
+    };
+  };
+  const sharedStorage = (): StorageLike => {
+    const items = new Map<string, string>();
+    return {
+      getItem: (k) => items.get(k) ?? null,
+      setItem: (k, v) => {
+        items.set(k, v);
+      },
+    };
+  };
+  const note = (text: string) => ({
+    data: { contact_id: 2, text, date: "2026-11-07T18:00:00.000Z" },
+  });
+
+  it("reads the service again once its copy is stale", async () => {
+    const shared = sharedStorage();
+    const tabA = createCrmResources(source(), {
+      persistence: service(shared),
+      staleMs: 20_000,
+    });
+    const tabB = createCrmResources(source(), {
+      persistence: service(shared),
+      staleMs: 20_000,
+    });
+    expect((await tabB.getList("contact_notes", listAll)).total).toBe(0);
+    await tabA.create("contact_notes", note("From tab A"));
+    vi.setSystemTime(T0 + 5_000);
+    expect((await tabB.getList("contact_notes", listAll)).total).toBe(0);
+    vi.setSystemTime(T0 + 25_000);
+    const fresh = await tabB.getList("contact_notes", listAll);
+    expect(fresh.data.map((n) => n.text)).toEqual(["From tab A"]);
+    expect((await tabB.getOne("contacts", { id: 2 })).data.last_seen).toBe(
+      "2026-11-07T18:00:00.000Z",
+    );
+  });
+
+  it("keeps a change saved while a fresh read was in flight", async () => {
+    const records = {
+      contact_notes: [] as any[],
+      tasks: [] as any[],
+      tags: [] as any[],
+    };
+    let releaseCreate!: () => void;
+    let releaseLoad!: () => void;
+    let slowLoad = false;
+    const gated: CrmPersistence = {
+      where: "server",
+      load: async () => {
+        const snapshot = structuredClone({ ...records, overlays: new Map() });
+        if (slowLoad) await new Promise<void>((r) => (releaseLoad = r));
+        return snapshot; // read before the create landed
+      },
+      create: async (_r, data) => {
+        await new Promise<void>((r) => (releaseCreate = r));
+        const saved = { ...data, id: 1 };
+        records.contact_notes.push(saved);
+        return saved;
+      },
+      update: async () => {
+        throw new Error("unused");
+      },
+      remove: async () => {},
+      saveOverlay: async () => {},
+    };
+    const crm = createCrmResources(source(), {
+      persistence: gated,
+      staleMs: 20_000,
+    });
+    await crm.getList("contact_notes", listAll);
+    const creating = crm.create("contact_notes", note("Mine"));
+    await vi.waitFor(() => expect(releaseCreate).toBeTypeOf("function"));
+    vi.setSystemTime(T0 + 25_000);
+    slowLoad = true;
+    const listing = crm.getList("contact_notes", listAll);
+    await vi.waitFor(() => expect(releaseLoad).toBeTypeOf("function"));
+    releaseCreate();
+    await creating;
+    releaseLoad();
+    expect((await listing).data.map((n) => n.text)).toEqual(["Mine"]);
+  });
+
+  it("answers from the last copy when a fresh read fails", async () => {
+    const shared = sharedStorage();
+    const inner = service(shared);
+    let down = false;
+    const crm = createCrmResources(source(), {
+      persistence: {
+        ...inner,
+        load: async () => {
+          if (down) throw new Error("Service down");
+          return inner.load();
+        },
+      },
+      staleMs: 20_000,
+    });
+    await crm.create("contact_notes", note("Saved"));
+    down = true;
+    vi.setSystemTime(T0 + 25_000);
+    expect((await crm.getList("contact_notes", listAll)).total).toBe(1);
+  });
+
+  it("never re-reads this browser's own storage", async () => {
+    const shared = sharedStorage();
+    const load = vi.fn(browserPersistence(shared, DEFAULT_TAGS).load);
+    const crm = createCrmResources(source(), {
+      persistence: { ...browserPersistence(shared, DEFAULT_TAGS), load },
+      staleMs: 1,
+    });
+    await crm.getList("tasks", listAll);
+    vi.setSystemTime(T0 + 60_000);
+    await crm.getList("tasks", listAll);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+});
