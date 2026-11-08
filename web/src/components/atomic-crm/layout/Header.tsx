@@ -5,6 +5,7 @@ import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
 import { ProjectsSidebarToggle } from "./ProjectsSidebar";
+import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { avatarSlot } from "./shellState";
 
 /**
@@ -16,16 +17,24 @@ const Header = () => {
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
-      <ProjectsSidebarToggle />
+      <span data-tour="projects" className="inline-flex">
+        <ProjectsSidebarToggle />
+      </span>
       <span className="ml-1 min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
         {title}
       </span>
       <span className="flex-1" />
-      <LiveTranscriptTrigger />
+      <span data-tour="voice" className="inline-flex">
+        <LiveTranscriptTrigger />
+      </span>
       <ThemeToggleButton />
-      <AskSidebarTrigger />
+      <span data-tour="ask" className="inline-flex">
+        <AskSidebarTrigger />
+      </span>
       <span className={avatarSlot("size-10")}>
-        <UserMenu />
+        <UserMenu>
+          <RestartOnboardingMenuItem />
+        </UserMenu>
       </span>
       {/* No search field in the top bar; ⌘K / Ctrl+K still opens search. */}
       <span className="hidden">

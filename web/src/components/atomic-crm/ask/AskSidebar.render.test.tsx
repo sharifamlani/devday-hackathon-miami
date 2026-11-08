@@ -5,6 +5,10 @@ import { MemoryRouter } from "react-router";
 
 import { AskPanel } from "./AskPanel";
 
+// The donor drawer reads through react-admin's data hooks, which need the
+// full <Admin> context; this test is about the sidebar shell, not the drawer.
+vi.mock("../contacts/DonorDrawer", () => ({ DonorDrawer: () => null }));
+
 // The FakeRest auth provider (imported via providers/local) writes to
 // localStorage on import; Node has none, the browser project does.
 vi.hoisted(() => {
