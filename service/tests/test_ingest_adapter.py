@@ -429,6 +429,7 @@ def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
     conn = sqlite3.connect(tmp_path / "run1.db")
     n_gifts, total = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM gifts WHERE status = 'ok'").fetchone()
     scored = conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0]
+    declined = conn.execute("SELECT COUNT(*) FROM gifts WHERE status = 'declined'").fetchone()[0]
     failed_in = conn.execute(
         "SELECT COUNT(*) FROM gifts g JOIN donors d ON d.id=g.donor_id "
         "WHERE d.full_name LIKE 'Hye-jin%' AND g.gift_date='2026-10-10' AND g.status = 'ok'"
@@ -458,6 +459,7 @@ def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
 
     # money: exact, with the declined charge left out
     assert n_gifts == t["unique_gifts"] and round(total) == t["total_amount"] and failed_in == 0
+    assert declined == len(KEY["failed_gifts_not_counted"])  # kept on record as 'declined', not counted as gifts
     assert scored == by_tab["giver"]  # only Givers are scored
 
     # the routes the demo opens next all answer, and the gift alerts are the key's five
