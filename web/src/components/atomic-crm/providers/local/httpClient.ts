@@ -19,6 +19,10 @@ import type { UploadTarget } from "./crmTypes";
 import { knownRoutes, routeExists } from "./routes";
 import { requireWebsite } from "./validate";
 import {
+  isPublicPreviewRefusal,
+  PUBLIC_PREVIEW_MESSAGE,
+} from "./publicPreview";
+import {
   parseContext,
   parseContextRun,
   parseDonorDetail,
@@ -83,7 +87,9 @@ export const request = async <T>(
       // not JSON: keep the text in the message
     }
     throw new ApiError(
-      `${method} ${path} failed: ${response.status} ${detail}`.trim(),
+      isPublicPreviewRefusal(response.status, body)
+        ? PUBLIC_PREVIEW_MESSAGE
+        : `${method} ${path} failed: ${response.status} ${detail}`.trim(),
       response.status,
       body,
     );
@@ -174,7 +180,9 @@ export const localApiMethods: BaseDonorDeskMethods = {
         const detail = (error.body as { detail?: unknown } | null)?.detail;
         throw new Error(
           `This merge can't be undone: ${
-            typeof detail === "string" && detail ? detail : "it is no longer the newest merge"
+            typeof detail === "string" && detail
+              ? detail
+              : "it is no longer the newest merge"
           }`,
         );
       }
