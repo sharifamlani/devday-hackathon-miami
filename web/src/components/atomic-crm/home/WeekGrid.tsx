@@ -177,6 +177,9 @@ export const TimeGrid = ({
   const showNow =
     today === localDate() && days.includes(today) && now >= start && now <= end;
   const range = days.join(",");
+  // A block's top, pulled up so a late-night block ends at the bottom edge instead of past it.
+  const blockTop = (mins: number, length = BLOCK_MINUTES) =>
+    ((Math.min(mins, end - length) - start) / 60) * HOUR_PX + 1;
 
   // Open on the first event (or 9a), not at midnight.
   useEffect(() => {
@@ -255,7 +258,7 @@ export const TimeGrid = ({
                       key={`${p.event.ref ?? p.event.title}-${n}`}
                       className="home-cal-slot"
                       style={{
-                        top: ((p.start - start) / 60) * HOUR_PX + 1,
+                        top: blockTop(p.start),
                         height: (BLOCK_MINUTES / 60) * HOUR_PX - 2,
                         // Day view: overlapping blocks side by side.
                         left: `calc(${(p.lane / p.lanes) * 100}% + 1px)`,
@@ -272,11 +275,22 @@ export const TimeGrid = ({
                       key={`${group[0].event.ref ?? group[0].event.title}-${n}`}
                       className="home-cal-slot"
                       style={{
-                        top: ((group[0].start - start) / 60) * HOUR_PX + 1,
+                        top: blockTop(
+                          group[0].start,
+                          Math.min(
+                            group[group.length - 1].start +
+                              BLOCK_MINUTES -
+                              group[0].start,
+                            end - start,
+                          ),
+                        ),
                         height:
-                          ((group[group.length - 1].start +
-                            BLOCK_MINUTES -
-                            group[0].start) /
+                          (Math.min(
+                            group[group.length - 1].start +
+                              BLOCK_MINUTES -
+                              group[0].start,
+                            end - start,
+                          ) /
                             60) *
                             HOUR_PX -
                           2,

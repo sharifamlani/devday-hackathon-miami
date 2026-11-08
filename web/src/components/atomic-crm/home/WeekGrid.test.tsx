@@ -122,6 +122,23 @@ describe("TimeGrid", () => {
     expect(onOpen).toHaveBeenCalledWith("2026-11-15");
   });
 
+  it("a late-night block ends at the bottom of the grid, not past it", async () => {
+    await render(
+      <TimeGrid
+        days={[WEEK[0]]}
+        today="2026-11-08"
+        events={[ev("Night shift", WEEK[0], "23:59")]}
+        onOpenEvent={() => {}}
+        detailed
+      />,
+    );
+    const hours = document.querySelector<HTMLElement>(".home-cal-hours")!;
+    const slot = document.querySelector<HTMLElement>(".home-cal-slot")!;
+    expect(slot.offsetTop + slot.offsetHeight).toBeLessThanOrEqual(
+      hours.offsetHeight,
+    );
+  });
+
   it("draws the now line only when the shown today is the browser's real date", async () => {
     await render(
       <TimeGrid
