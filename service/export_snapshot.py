@@ -12,6 +12,8 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "event_details": {"<id>": {...}}     # == GET /events/{id}
       "community_stats": {...}     # == GET /community/stats
       "context_status": {...}      # == GET /context/status
+      "auto_merges": {"<id>": {...}}  # == GET /people/{id}/merges for each flagged person; contacts masked,
+                                      #    gift_ids dropped (gift_count kept); open merges only. Read-only on Vercel.
       (donor_details covers every person in every tab, so the drawer works on all three.)
       "icp":        {...} | null   # == GET /icp (null before the ICP stage has run)
       "prospects":  [...]          # == GET /prospects
@@ -86,9 +88,10 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
         "people": {"counts": people_counts(conn), **{t: tasks.with_next_steps(conn, list_people(conn, t), as_of, public_only=True)
                                                      for t in ("giver", "neighbor", "community")}},
         "events": (events := list_events(conn)),
-        "event_details": {str(e["id"]): event_detail(conn, e["id"]) for e in events},
+        "event_details": {str(e["id"]): snapshot_event(conn, e["id"]) for e in events},
         "community_stats": community_stats(conn),
         "context_status": context_status(conn),
+        "auto_merges": auto_merges_snapshot(conn),
         "icp": latest_icp(conn),
         "prospects": (prospects := list_prospects(include_dismissed=False, conn=conn)),
         "prospect_details": {str(p["id"]): get_prospect(p["id"], conn) for p in prospects},
@@ -138,13 +141,58 @@ def snapshot_donor(donor_id: int, conn) -> dict:
     return {**get_donor(donor_id, conn), "call_notes": []}
 
 
+# The snapshot has a 2 MB budget. Each event lists at most this many drafted invites; every invite is still in its
+# person's donor_details, and drafts_ready / audience_count stay exact (computed in SQL).
+SNAPSHOT_DRAFTS_PER_EVENT = 10
+
+
+def snapshot_event(conn, event_id: int) -> dict:
+    """GET /events/{id}, with the drafts list capped; drafts_total says how many there are when capped."""
+    event = event_detail(conn, event_id)
+    if len(event.get("drafts") or []) > SNAPSHOT_DRAFTS_PER_EVENT:
+        event["drafts_total"] = len(event["drafts"])
+        event["drafts"] = event["drafts"][:SNAPSHOT_DRAFTS_PER_EVENT]
+    return event
+
+
+def auto_merges_snapshot(conn) -> dict:
+    """The "!" dialog's source records for every person with an open automatic merge (#125), so the Vercel
+    build can list them (Keep/Split stay live-only). Emails and phones masked like campaign addresses."""
+    try:
+        from service.routes_campaigns import mask_address
+        from service.routes_data import person_merges
+    except ImportError:
+        return {}
+    has_table = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'auto_merges'").fetchone()
+    if not has_table:
+        return {}
+    out = {}
+    for (person_id,) in conn.execute("SELECT DISTINCT donor_id FROM auto_merges WHERE reviewed_at IS NULL "
+                                     "AND donor_id IN (SELECT id FROM donors) ORDER BY donor_id"):
+        body = person_merges(conn, person_id)
+        body["merges"] = [
+            {**m, "reviewed_by": None,
+             "sources": [{**src, "email": mask_address(src.get("email"), "email"),
+                          "phone": mask_address(src.get("phone"), "text"), "gift_ids": []}
+                         for src in m["sources"]]}
+            for m in body["merges"] if m["reviewed_at"] is None]
+        out[str(person_id)] = body
+    return out
+
+
 def campaigns_snapshot(conn) -> dict | None:
     """#38's sample campaign + template drafts; null when the outreach lane isn't on this build."""
     try:
         from service.routes_campaigns import campaigns_demo
-        return campaigns_demo(conn)
+        demo = campaigns_demo(conn)
     except ImportError:
         return None
+    # The campaign picker offers Givers only (GET /donors), so cached drafts for Neighbors and Community can never
+    # be used on Vercel: drop them to stay inside the 2 MB budget. Every selectable donor keeps all six drafts.
+    givers = {str(r[0]) for r in conn.execute("SELECT id FROM donors WHERE contact_type = 'giver'")}
+    if demo and isinstance(demo.get("drafts"), dict):
+        demo["drafts"] = {k: v for k, v in demo["drafts"].items() if k in givers}
+    return demo
 
 
 def write_snapshot(snapshot: dict, out: Path) -> int:

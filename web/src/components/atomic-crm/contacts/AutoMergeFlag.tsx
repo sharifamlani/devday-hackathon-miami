@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, type DataMode } from "../providers/local/config";
+import { contactEmail, contactPhone } from "../providers/local/crmDonors";
 import {
   useReviewMerge,
   usePersonMerges,
@@ -19,6 +20,15 @@ import {
 
 const pill =
   "inline-flex min-h-9 items-center justify-center rounded-full px-3.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60";
+
+/** A source record's email and phone, full on the laptop and masked in the snapshot build. */
+export const sourceContacts = (
+  src: { email?: string | null; phone?: string | null },
+  mode: DataMode = DATA_MODE,
+): string[] =>
+  [contactEmail(src.email, mode), contactPhone(src.phone, mode)].filter(
+    (v): v is string => v !== null,
+  );
 
 /**
  * The amber "!" next to a person merged automatically on upload (#125): exact
@@ -127,7 +137,7 @@ const MergeReviewPanel = ({
               </p>
               <p className="text-muted-foreground">
                 {[
-                  src.email ?? src.phone,
+                  ...sourceContacts(src),
                   src.files.join(", ") || null,
                   `${src.gift_count} gift${src.gift_count === 1 ? "" : "s"}`,
                   src.rule,

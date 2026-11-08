@@ -37,7 +37,7 @@ describe("live-only endpoints in the snapshot build", () => {
   it("writes refuse with the live-only message", async () => {
     await expect(createTask({ title: "x" })).rejects.toThrow(LIVE_ONLY);
     await expect(addInterest(1, { tag: "arts" })).rejects.toThrow(LIVE_ONLY);
-    await expect(proposeAfterCall(12)).rejects.toThrow(LIVE_ONLY);
+    await expect(proposeAfterCall("12")).rejects.toThrow(LIVE_ONLY);
   });
 
   it("fetches nothing but snapshot.json", () => {

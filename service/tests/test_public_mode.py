@@ -233,6 +233,7 @@ def test_chat_agent_is_read_only_in_public_mode(client, monkeypatch):
     assert all(s["status"] == "error" and "not available in the public preview" in s["summary"] for s in body["steps"])
     public_mode.set_enabled(False)
     assert "add_contact" in {t.name for t in chat_agent.tools_for_mode()}   # local mode keeps every tool
+    assert "get_call_notes" not in chat_agent.READ_ONLY_TOOLS              # transcripts never reach a public chat
 
 
 def test_call_notes_and_staff_notes_never_appear_in_any_allowed_get(client):

@@ -69,6 +69,8 @@ export interface ApiGift {
   gift_date: string;
   channel: string | null;
   fund_type: string | null;
+  /** "ok" counts; a "declined"/"failed" charge stays on record but is never a gift (service gifts.status). */
+  status?: string | null;
 }
 
 export interface ApiResearchFact {

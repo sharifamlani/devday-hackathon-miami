@@ -28,7 +28,7 @@ export interface CampaignMessage {
   needs_individual_approval: boolean; // star, big tier or organization
   approval_reason: string | null; // "Star donor" | "Organization" | "Big donor"
   channel: CampaignChannel;
-  to: string | null; // always masked: r***@example.com, ***-***-0101
+  to: string | null; // full address as stored (masked only in the snapshot's sample campaign)
   subject: string | null;
   body: string;
   facts_used: CampaignFact[];
@@ -119,7 +119,7 @@ export interface OutboxEntry {
   donor_id: number | null;
   donor_name: string | null;
   channel: CampaignChannel;
-  to: string | null; // masked
+  to: string | null; // full address as stored
   subject: string | null;
   body: string;
   sent_at: string;

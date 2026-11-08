@@ -18,6 +18,7 @@ import { AutoMergeFlag } from "./AutoMergeFlag";
 import { isNonGiver, TAB_ONE } from "./personTab";
 import { useDonor } from "../providers/local/hooks";
 import { CallNotesPanel } from "./CallNotesPanel";
+import { EmailLink, PhoneLink } from "./ContactLinks";
 import { DonorTagList, Stat } from "./donorCrmUi";
 import { GivingPanel } from "./GivingPanel";
 import { SavedInterestChips } from "./InterestChips";
@@ -48,7 +49,7 @@ export const DonorDrawer = ({
   onClose: () => void;
 }) => {
   const { data: donor, isPending, error } = useDonor(donorId);
-  // The CRM record adds status tags, masked contact details and call notes.
+  // The CRM record adds status tags, contact details and call notes.
   const { data: record } = useGetOne<DonorContactDetail>(
     "contacts",
     { id: donorId ?? -1 },
@@ -155,8 +156,8 @@ export const DonorDrawer = ({
               </div>
               {record && (
                 <dl className="grid grid-cols-2 gap-2 text-sm">
-                  <Stat label="Email" value={record.email ?? "Not recorded"} />
-                  <Stat label="Phone" value={record.phone ?? "Not recorded"} />
+                  <Stat label="Email" value={<EmailLink email={record.email} />} />
+                  <Stat label="Phone" value={<PhoneLink phone={record.phone} />} />
                   <Stat label="Source" value={record.source} />
                   <Stat
                     label="Organization"

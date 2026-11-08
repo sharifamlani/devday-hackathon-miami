@@ -141,7 +141,8 @@ def cached_facts(name: str) -> list[Fact] | None:
 
 def enrich_donor(name: str, org_name: str | None = None, city: str | None = None,
                  focus: str | None = None, refresh: bool = False,
-                 donor_type: str | None = None, use_cache: bool = False) -> list[Fact]:
+                 donor_type: str | None = None, use_cache: bool = False,
+                 state: str | None = None, email: str | None = None) -> list[Fact]:
     """Research one donor and return sourced facts whose URLs load. Empty list means nothing public found.
 
     Always a live run. data/research_cache.json is read only when the live run raises (refresh=False),
@@ -157,7 +158,7 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
     if skip_reason(org_name, donor_type):
         return []
     try:
-        return research_live(name, org_name, city, focus)
+        return research_live(name, org_name, city, focus, state, email)
     except Exception:
         cached = None if refresh else cached_facts(name)
         if cached is None:
@@ -165,11 +166,12 @@ def enrich_donor(name: str, org_name: str | None = None, city: str | None = None
         return cached
 
 
-def research_live(name: str, org_name: str | None, city: str | None, focus: str | None) -> list[Fact]:
+def research_live(name: str, org_name: str | None, city: str | None, focus: str | None,
+                  state: str | None = None, email: str | None = None) -> list[Fact]:
     """The live run behind enrich_donor. It goes through enrich_full, so an organization's identity must match on
     its name plus one more attribute (identity_matches); only the CLI's --focus search keeps the facts-only agent."""
     if not focus:
-        found = enrich_full(name, org_name, city, "organization", refresh=True)
+        found = enrich_full(name, org_name, city, "organization", refresh=True, state=state, email=email)
         return [Fact(fact=f["fact"], source_url=f["source_url"], retrieved_at=f["retrieved_at"]) for f in found["facts"]]
     query = f"Donor: {name}"
     if org_name:

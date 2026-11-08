@@ -47,8 +47,12 @@ export const mergeKeys = {
   person: (id: number) => ["donor-desk", "people", "merges", id] as const,
 };
 
+/** Live: the API. Vercel snapshot: snapshot.json's auto_merges (masked, read-only; Keep/Split stay live-only). */
 export const getPersonMerges = (personId: number) =>
-  call<PersonMerges>("Merge review", "GET", `/people/${personId}/merges`);
+  call<PersonMerges>("Merge review", "GET", `/people/${personId}/merges`, {
+    snapshot: (snap) =>
+      (snap.auto_merges as Record<string, PersonMerges> | undefined)?.[String(personId)],
+  });
 
 export const reviewMerge = (personId: number, action: MergeReview) =>
   call<MergeReviewResult>(
