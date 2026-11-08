@@ -233,3 +233,10 @@ def test_delete_steps_say_deleted_and_the_prompt_allows_send_via_approval():
                                 output={"id": 4, "kind": "other", "title": "Order badges", "undo_token": "t"})]
     assert ca.steps_from(items)[0]["summary"] == "deleted: Order badges"
     assert "You cannot send" not in ca.INSTRUCTIONS and "call send" in ca.INSTRUCTIONS
+
+
+def test_rsvp_step_reads_like_a_sentence():
+    assert ca.summarize({"event_id": 3, "person_id": 7, "rsvp": "yes", "full_name": "Rosa Delgado",
+                         "event_title": "Beach Cleanup", "starts_at": "2026-11-21", "undo_token": "t"}) == \
+        "RSVP: Rosa Delgado → Beach Cleanup (Sat Nov 21), attending"
+    assert ca.summarize({"event_id": 3, "person_id": 7, "rsvp": "no"}) == "RSVP: person 7 → event 3, not attending"
