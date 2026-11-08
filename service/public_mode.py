@@ -16,13 +16,14 @@ import re
 import time
 from collections import defaultdict, deque
 
-from service import config
+from service import config, public_gate
 
 RATE_LIMIT = 20          # requests per window, per client IP, per route group
 RATE_WINDOW_S = 60.0
 MAX_LIVE_SOCKETS = 3     # concurrent WS /transcribe/live, all clients together
 
 NOT_AVAILABLE = "not available in the public preview"
+LINK_OFF = "The public link is off right now."
 
 # (method, path regex). Everything else, including every PATCH/PUT/DELETE, /phone/*, /ingest, /send*, /calls*,
 # /crm/*, /merges*, /enrich*, /context/run|refresh, /events/refresh, /chat/stream, is refused.
@@ -43,6 +44,12 @@ _live_sockets = 0
 
 def enabled() -> bool:
     return config.PUBLIC_MODE
+
+
+def redacting() -> bool:
+    """True when public mode hides private data (masking, blanking, the GET allow-list). PUBLIC_SHOW_ALL turns that off;
+    writes stay refused and the rate limit stays either way."""
+    return config.PUBLIC_MODE and not config.PUBLIC_SHOW_ALL
 
 
 def forced_simulated() -> bool:
@@ -83,6 +90,9 @@ def group_of(path: str) -> str | None:
 
 
 def allowed(method: str, path: str) -> bool:
+    if method == "GET" and not redacting() and not path.startswith("/phone/"):
+        return True     # PUBLIC_SHOW_ALL: every read, still no writes. /phone/* stays out: the preview carries the real
+                        # STAFF_PHONE from .env, and GET /phone/calls/{id} can mark a stale call failed
     return any(m == method and rx.match(path) for m, rx in ALLOW)
 
 
@@ -107,7 +117,10 @@ BLANK_KEYS = {"call_notes", "transcript", "notes", "private_notes", "background"
 
 
 def mask_json(value, key: str = ""):
-    """Blank staff free-text fields; mask email/phone values (by key name) and any email address in a string."""
+    """Blank staff free-text fields; mask email/phone values (by key name) and any email address in a string.
+    PUBLIC_SHOW_ALL: unchanged (HTTP responses and agent tool outputs alike)."""
+    if config.PUBLIC_SHOW_ALL:
+        return value
     k = key.lower()
     if k in BLANK_KEYS:
         return [] if isinstance(value, list) else ("" if isinstance(value, str) else None)
@@ -153,6 +166,11 @@ class PublicModeMiddleware:
         global _live_sockets
         if scope["type"] not in ("http", "websocket") or not config.PUBLIC_MODE:
             return await self.app(scope, receive, send)
+        if not public_gate.is_on():                  # the laptop switched the public link off: nothing, not even /health
+            if scope["type"] == "websocket":
+                await receive()
+                return await send({"type": "websocket.close", "code": 1013})
+            return await respond_json(send, 503, {"detail": LINK_OFF})
         path = scope["path"]
         if scope["type"] == "websocket":
             if path != "/transcribe/live":
@@ -180,7 +198,7 @@ class PublicModeMiddleware:
             if wait is not None:
                 return await respond_json(send, 429, {"detail": "Too many requests. Try again shortly."},
                                           [(b"retry-after", str(int(wait) + 1).encode())])
-        return await self.app(scope, receive, mask_sender(send))
+        return await self.app(scope, receive, mask_sender(send) if redacting() else send)
 
 
 async def respond_json(send, status: int, payload: dict, extra: list | None = None) -> None:

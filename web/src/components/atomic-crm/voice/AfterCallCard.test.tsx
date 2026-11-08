@@ -10,8 +10,10 @@ const api = vi.hoisted(() => ({
   mutate: vi.fn(),
   savedIds: vi.fn<() => string[]>(),
   donors: vi.fn<() => { id: number; full_name: string }[] | undefined>(),
+  events: vi.fn<() => { id: number; title: string; starts_at: string }[] | undefined>(),
 }));
 vi.mock("../providers/local/hooks", () => ({ useDonors: () => ({ data: api.donors() }) }));
+vi.mock("../providers/local/crmHooks", () => ({ useEvents: () => ({ data: api.events() }) }));
 vi.mock("../providers/local/calls", () => ({
   listServerCallNotes: async () => api.savedIds().map((id) => ({ id })),
 }));
@@ -20,7 +22,7 @@ vi.mock("../providers/local/voice", () => ({
   useAfterCall: () => ({ apply: { mutate: api.mutate } }),
 }));
 
-const { AfterCallCard, confidentMatch, foldName, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
+const { AfterCallCard, checkRsvp, confidentMatch, eventDate, foldName, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
 
 const ROSA: AfterCallProposal = {
   steps: ["Read the call", "Matched the Beach Cleanup on Sat Nov 21"],
@@ -45,6 +47,8 @@ beforeEach(() => {
   api.savedIds.mockReturnValue(["n1"]); // the note is already saved unless a test says otherwise
   api.donors.mockReset();
   api.donors.mockReturnValue([{ id: 1, full_name: "Rosa Delgado" }]);
+  api.events.mockReset();
+  api.events.mockReturnValue(undefined); // no calendar loaded unless a test says otherwise
 });
 
 describe("AfterCallCard", () => {
@@ -277,6 +281,97 @@ describe("a late or duplicate /actions response never undoes the person's choice
     const screen = await render(<AfterCallCard noteId="n1" />);
     await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
     expect(screen.getByText("Matched the Beach Cleanup on Sat Nov 21").elements()).toHaveLength(0);
+  });
+});
+
+describe("an RSVP shows where it will really write (the 5K can be missing from setup)", () => {
+  const FIVE_K = { id: 1, title: "The Give Miami 5K", starts_at: "2026-11-15T08:00" };
+  const FESTIVAL = { id: 2, title: "The Give Miami 5K Post-Race Festival, a Party with a Purpose!", starts_at: "2026-11-15T08:30" };
+  const rsvpTo = (eventId: number): AfterCallProposal => ({
+    steps: [],
+    actions: [
+      { id: "t1", type: "create_task", label: "Text Hye-jin a secure card-update link", payload: {} },
+      { id: "r1", type: "rsvp_event", label: "RSVP Hye-jin yes for the November 15 Give Miami 5K", payload: { event_id: eventId },
+        evidence: "And put me down for the Give Miami 5K on the 15th." },
+    ],
+    person: { id: 1, full_name: "Hye-jin Park", first_name: "Hye-jin" },
+  });
+  const ticks = (screen: Awaited<ReturnType<typeof render>>) =>
+    (screen.getByRole("checkbox").elements() as HTMLInputElement[]).map((b) => b.checked);
+
+  it("the 5K itself: shows the target and stays ticked", async () => {
+    api.events.mockReturnValue([FIVE_K, FESTIVAL]);
+    api.propose.mockResolvedValue(rsvpTo(1));
+    const screen = await render(<AfterCallCard noteId="n1" />);
+    await expect.element(screen.getByText("RSVP goes to: The Give Miami 5K", { exact: false })).toBeVisible();
+    expect(ticks(screen)).toEqual([true, true]);
+  });
+
+  it("5K missing, the agent picked the Post-Race Festival: shows the real target, warns, and starts unticked", async () => {
+    api.events.mockReturnValue([FESTIVAL]);
+    api.propose.mockResolvedValue(rsvpTo(2));
+    api.mutate.mockImplementation((vars, opts) => opts.onSuccess(applied(vars.actionIds)));
+    const screen = await render(<AfterCallCard noteId="n1" />);
+    await expect.element(screen.getByText("Post-Race Festival", { exact: false })).toBeVisible();
+    await expect.element(screen.getByText("check it’s the right event", { exact: false })).toBeVisible();
+    await expect.poll(() => ticks(screen)).toEqual([true, false]);
+    await screen.getByRole("button", { name: "Apply selected" }).click();
+    expect(api.mutate.mock.calls[0][0].actionIds).toEqual(["t1"]); // the doubtful RSVP isn't written unless ticked
+  });
+
+  it("an event id that isn't in the calendar says so and starts unticked", async () => {
+    api.events.mockReturnValue([FIVE_K]);
+    api.propose.mockResolvedValue(rsvpTo(99));
+    const screen = await render(<AfterCallCard noteId="n1" />);
+    await expect.element(screen.getByText("That event isn’t in the calendar", { exact: false })).toBeVisible();
+    await expect.poll(() => ticks(screen)).toEqual([true, false]);
+  });
+
+  it("never overrides a tick the person already changed", async () => {
+    api.events.mockReturnValue(undefined); // calendar still loading
+    api.propose.mockResolvedValue(rsvpTo(2));
+    const screen = await render(<AfterCallCard noteId="n1" />);
+    await expect.element(screen.getByText("Text Hye-jin a secure card-update link", { exact: false })).toBeVisible();
+    await screen.getByRole("checkbox").nth(0).click(); // the person edits first
+    api.events.mockReturnValue([FESTIVAL]);
+    await screen.rerender(<AfterCallCard noteId="n1" />);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(ticks(screen)).toEqual([false, true]); // their choice stands; the warning still shows
+    await expect.element(screen.getByText("check it’s the right event", { exact: false })).toBeVisible();
+  });
+});
+
+describe("checkRsvp tells same-named events apart (a4's review)", () => {
+  const said = "And put me down for the Give Miami 5K on the 15th.";
+  const rsvp = (eventId: number) =>
+    ({ id: "r", type: "rsvp_event", label: "RSVP", payload: { event_id: eventId }, evidence: said }) as const;
+  const ev = (id: number, title: string, starts_at: string) =>
+    ({ id, title, starts_at }) as unknown as Parameters<typeof checkRsvp>[1] extends (infer T)[] | undefined ? T : never;
+  const calendar = [
+    ev(1, "The Give Miami 5K", "2026-11-15T08:00"),
+    ev(2, "The Give Miami 5K Post-Race Festival, a Party with a Purpose!", "2026-11-15T08:30"),
+    ev(4, "Give Miami Day", "2026-11-19T00:00"),
+    ev(5, "The Give Miami 5K", "2026-12-06T08:00"),
+  ];
+
+  it("the 5K said on the 15th matches the 5K on the 15th", () => {
+    expect(checkRsvp(rsvp(1), calendar)?.mismatch).toBe(false);
+  });
+  it("Give Miami Day is flagged: 'day' wasn't said (and it's the 19th)", () => {
+    expect(checkRsvp(rsvp(4), calendar)?.mismatch).toBe(true);
+  });
+  it("the Post-Race Festival is flagged: 'post', 'race', 'festival'... weren't said", () => {
+    expect(checkRsvp(rsvp(2), calendar)?.mismatch).toBe(true);
+  });
+  it("the right name on another date is flagged by the spoken day", () => {
+    expect(checkRsvp(rsvp(5), calendar)?.mismatch).toBe(true);
+  });
+  // 82's review: a date-only start parsed as UTC midnight is the evening before in Miami.
+  it("a date-only event is on its own day: Give Miami Day on the 19th is not a mismatch", () => {
+    const day = { ...rsvp(6), evidence: "Count me in for Give Miami Day on the 19th." };
+    expect(checkRsvp(day, [ev(6, "Give Miami Day", "2026-11-19")])?.mismatch).toBe(false);
+    expect(eventDate("2026-11-19")).toBe("Thu, Nov 19");
+    expect(eventDate("2026-11-15T08:00")).toBe("Sun, Nov 15");
   });
 });
 

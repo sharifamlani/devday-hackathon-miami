@@ -1085,3 +1085,29 @@
     margin-top: 18px;
   }
 }
+
+/* Setup steps (OnboardingFlow.tsx): the card rises in, and each step slides in from the side
+   you're heading, on the shared motion variables (none with Reduce motion). The wrapper keeps
+   the step's flex layout, so its body still scrolls and its footer stays put. */
+.onb-step-motion {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  animation: onb-step-in-forward var(--motion-base) var(--ease-enter) both;
+}
+.onb-step-motion[data-direction="back"] {
+  animation-name: onb-step-in-back;
+}
+@keyframes onb-step-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes onb-step-in-back {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}

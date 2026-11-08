@@ -98,11 +98,34 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     **Invites · Open batch**. **Open batch** (about 3 s) opens the event's campaign page (e.g. **The Give Miami 5K ·
     Nov 15 · 12 people**) with **Approve all small-donor drafts** and **Send approved messages**; nothing is sent until
     someone approves it.
-11. **A call, transcribed.** Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
+11. **A call, transcribed.**
+    **Live call (the run's choice).** In **Ask the agent…** type *"Call Christian Gonzalez"* (a teammate added as a
+    donor for the demo, off-screen, after setup). The agent answers with his call sheet. Click the sheet's **Call**:
+    the panel **Call Christian Gonzalez** opens in the card ("Your phone (…) rings first. When you pick up, Christian
+    Gonzalez (…) is called and sees your number.", and "Christian Gonzalez hears “Hello. This call is recorded for our
+    notes.” before the call connects."), with **Cancel** / **Call**. Click the panel's **Call** to dial. The staff
+    phone rings first (**Ringing your phone…**): answer it; Twilio's trial message plays ("You have a trial account…
+    press any key to execute your code"), so **press any key**; then you hear "Calling Christian Gonzalez. Please
+    hold." **Calling Christian Gonzalez…**: his phone rings once you've pressed the key (it may also start ringing
+    while you're still hearing the message: expected, just press promptly). He answers, hears the same trial
+    message, **presses any key** (brief him beforehand), then hears "Hello. This call is recorded for our notes.";
+    **Connected · recording**. Without a key press Twilio hangs up that phone and the transcript comes back empty.
+    Say it as a known limit: "it's a trial account, so Twilio reads a notice first." If the call drops: "That's a
+    trial-account limit," and do the demo call below. Keep it under 30 s (the trial balance is low), then
+    **Hang up**. The card works through **Getting the recording…**, **Transcribing…**, **Summarizing…** and
+    **Suggesting follow-ups…**, then shows **Saved to the call notes**, the **Summary** and **Suggested follow-ups**,
+    each with its own **Apply**. If it doesn't connect or Twilio errors: "Calls go through Twilio; here's the sheet and
+    the demo call instead," and do the demo call below.
+    **Demo call.** Open a task's **ⓘ** (**Task details**) and click **Call and transcribe**, or click
     **Live transcript** in the rail: the panel
     opens on **Listening** with **Demo call**, **Generate summary** and **Pause**. **Demo call** plays a scripted call
-    with Rosa (about 10 s). Click **Generate summary** (about 4 s): the summary and **Suggested next steps** (text her a
-    card-update link, sign her up for the beach cleanup), or ask a question in **Ask about this call**.
+    with **Hye-jin Park**, a donor from the sample data (about 10 s): Denise from The Miami Foundation calls about her $40
+    monthly gift that didn't go through on October 10th; Hye-jin has a new card, asks to be put down for the Give
+    Miami 5K on the 15th, and prefers a call. Click **Generate summary** (about 4 s): the summary and **Suggested
+    next steps**. The after-call card then proposes the follow-ups, each with a checkbox: a card-update task, the RSVP
+    (**RSVP goes to: The Give Miami 5K · Sun, Nov 15**) and a context note (e.g. her new card). Tick what to
+    keep and click **Apply selected**: "A call becomes tasks and an RSVP, and nothing is written until staff click
+    Apply selected." (Or ask a question in **Ask about this call**.)
 12. **Dictation.** **Open Ask sidebar** and use **Dictate** to speak a question instead of typing it (**Stop
     dictation** to finish; it needs the live service and a microphone: test it before going on stage).
 13. **Duplicates review.** Click the **CRM** tile's heading: the banner reads **9 possible duplicates found** with
@@ -113,10 +136,10 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     **Keep separate**. "Merge only after a person approves; the gift history moves to the kept record." Open the kept
     donor (e.g. **Robert Nguyen**): the record reads e.g. **Merged Bob Nguyen · Nov 8, 2026 · 1 gift moved**, and
     **Undo merge** → **Confirm undo** puts both back (the pair returns to the review list). After the suggestions are approved the
-    counts match the answer key: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts.
+    counts match the answer key: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts. With Christian added
+    for the live call, the screen reads 68 + Christian = 69 people (34 givers).
 
-> Not on screen yet (don't demo): the after-call **Apply** card (the backend proposes follow-ups from a call and
-> writes them on Apply, but no screen shows it yet). Out of scope: the Neighbors / Community tabs.
+> Out of scope: the Neighbors / Community tabs.
 
 ### If it's slow (what to say)
 

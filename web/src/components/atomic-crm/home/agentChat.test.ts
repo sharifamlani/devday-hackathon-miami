@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { agentChatMessages, applyStreamLine, CHAT_STORAGE_KEY, decide, decidedLabel, loadSavedChat, resetAgentChat, scopesOf, sendToAgent, type AgentStep, WAITING_PREFIX, waitingLine } from "./agentChat";
+import { agentChatMessages, applyStreamLine, CHAT_STORAGE_KEY, decide, decidedLabel, loadSavedChat, resetAgentChat, scopesOf, sendToAgent, type AgentStep, undoStep, WAITING_PREFIX, waitingLine } from "./agentChat";
 
 const reply = (body: unknown) =>
   Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
@@ -347,5 +347,33 @@ describe("decidedLabel: a decided event delete", () => {
     expect(decidedLabel("delete_event", true)).toBe("deleting");
     expect(decidedLabel("delete_event", false)).toBe("kept (not deleted)");
     expect(decidedLabel("delete_task", false)).toBe("declined");
+  });
+});
+
+describe("undoStep: nothing left to undo", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetAgentChat();
+  });
+
+  it("says why and drops the button instead of an error when the event was deleted since", async () => {
+    vi.spyOn(window, "fetch")
+      .mockImplementationOnce(() =>
+        reply({
+          reply: "Added it.",
+          steps: [{ tool: "add_event", args: {}, summary: "Added Board meeting · Tue Nov 10, 3:00 PM", status: "done", undo_token: "t-add", call_id: "a1" }],
+          approvals: [],
+          run_id: null,
+        }),
+      )
+      .mockImplementationOnce(() =>
+        reply({ undone: false, reason: "the event was deleted afterwards; undo the delete to bring it back" }),
+      );
+    await sendToAgent("add a board meeting", () => {});
+    await undoStep(1, 0, () => {});
+    const m = agentChatMessages()[1] as Extract<ReturnType<typeof agentChatMessages>[number], { role: "assistant" }>;
+    expect(m.steps[0].undo_token).toBeNull();
+    expect(m.steps[0].undone).toBeFalsy();
+    expect(m.steps[0].summary).toContain("nothing to undo: the event was deleted afterwards");
   });
 });

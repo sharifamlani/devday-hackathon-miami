@@ -8,7 +8,8 @@
 /* Motion curves (see "Motion" below): also Tailwind utilities ease-enter, ease-exit, ease-move. */
 @theme {
   --ease-enter: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  /* Leaving starts moving at once (an ease-out), so a close never feels like it hesitates. */
+  --ease-exit: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
@@ -216,6 +217,26 @@
 /* Kindred tile: thin border, white fill, a yellow-green glow at the bottom
    corners. Use `tile` on any card or panel; set `[--tile:var(--card)]` where
    it floats over a scrim and must be opaque. */
+/* Home's surface (home/dashboard.css .home-tile) for full-screen pages: soft gray-white with a
+   centered yellow glow, no border. Pages like Donors use it so they read like Home. */
+@utility desk-tile {
+  border: 0;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgb(244 217 88 / 13%), transparent 74%),
+    rgb(245 246 247 / 84%);
+  box-shadow: 0 2px 8px rgb(36 39 40 / 2.5%);
+  .dark & {
+    background:
+      radial-gradient(
+        ellipse at 50% 50%,
+        rgb(244 217 88 / 9%),
+        transparent 74%
+      ),
+      rgb(34 36 37 / 92%);
+  }
+}
+
 @utility tile {
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -317,6 +338,8 @@ body {
   --motion-fast: calc(var(--duration-fast) * var(--motion-scale));
   --motion-base: calc(var(--duration-base) * var(--motion-scale));
   --motion-slow: calc(var(--duration-slow) * var(--motion-scale));
+  /* Closing takes this share of opening's time, everywhere (panes, panels, dialogs, menus). */
+  --exit-ratio: 0.75;
 }
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) {

@@ -104,6 +104,12 @@ const StepsScreen = ({
   const ref = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const progressId = useId();
+  // A new step slides in from the side you're heading (forward from the right, back from the left).
+  const previousStep = useRef(step);
+  const direction = step >= previousStep.current ? "forward" : "back";
+  useEffect(() => {
+    previousStep.current = step;
+  }, [step]);
   // Esc means "Finish later", but not while files upload or the site is read.
   const busyRef = useRef(busy);
   busyRef.current = busy;
@@ -178,7 +184,9 @@ const StepsScreen = ({
             </div>
           </div>
         </div>
-        {children(headingRef)}
+        <div key={step} className="onb-step-motion" data-direction={direction}>
+          {children(headingRef)}
+        </div>
       </div>
     </div>,
     document.body,

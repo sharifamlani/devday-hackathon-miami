@@ -1,10 +1,14 @@
-"""One switch for the public tunnel: python scripts/public_tunnel.py on | off | status
+"""One switch for the public tunnel: python scripts/public_tunnel.py on | off | status | gate on|off
 
-on      start `cloudflared tunnel --url http://localhost:8001`, record pid + URL in .public-tunnel.json, and
-        print (never run) the three commands that point the Vercel app at it.
+on      start `cloudflared tunnel --url http://localhost:8401`, record pid + URL in .public-tunnel.json, and
+        print (never run) the three commands that point the Vercel app at it. Refuses unless the target port is a
+        PUBLIC_MODE service (its /public-mode says enabled: true); --unsafe overrides.
 off     kill ONLY the cloudflared process recorded in .public-tunnel.json, then print the commands that put
         the Vercel app back on its snapshot.
 status  is the recorded pid alive, the URL, and an HTTP check of <url>/health.
+gate    on|off: the public link switch (same as the laptop app's profile menu). Off = the public service answers
+        503, the Vercel app falls back to the snapshot; the tunnel and its URL stay up. Asks the laptop service
+        (--laptop-port, default 8001).
 
 Exit codes: 0 ok, 1 failure, 2 cloudflared is not installed. Runbook: docs/public-tunnel.md
 """
@@ -23,7 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 STATE = REPO_ROOT / ".public-tunnel.json"
 LOG = REPO_ROOT / ".public-tunnel.log"
 VERCEL_ORIGIN = "https://devday-donor-desk.vercel.app"
-DEFAULT_PORT = 8001          # session 20: the LIVE stack runs on :8001
+DEFAULT_PORT = 8401          # the PUBLIC_MODE service next to LIVE (:8001 is LIVE's writable API: never tunnel it)
+LAPTOP_PORT = 8001
 URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 INSTALL = "winget install --id Cloudflare.cloudflared"
 
@@ -61,8 +66,21 @@ def http_status(url: str, timeout: float = 5.0) -> str:
         return f"unreachable ({type(e).__name__})"
 
 
+def public_mode_on(port: int) -> bool:
+    """True only when http://localhost:<port>/public-mode answers enabled: true."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/public-mode", timeout=5) as r:
+            return json.loads(r.read()).get("enabled") is True
+    except Exception:
+        return False
+
+
 def cmd_on(args) -> int:
     port = args.port
+    if not args.unsafe and not public_mode_on(port):
+        print(f"refusing: :{port} is not a PUBLIC_MODE service (GET /public-mode is not enabled: true), so the tunnel\n"
+              f"would publish a writable API. Start it with PUBLIC_MODE=1 (docs/public-tunnel.md), or pass --unsafe.")
+        return 1
     state = read_state()
     if state and is_cloudflared(state["pid"]):
         print(f"already on: {state['url']} (pid {state['pid']}). Run `off` first to restart it.")
@@ -141,12 +159,31 @@ def cmd_status(_args) -> int:
     return 0
 
 
+def cmd_gate(args) -> int:
+    if args.state not in ("on", "off"):
+        print("usage: public_tunnel.py gate on|off")
+        return 1
+    req = urllib.request.Request(f"http://127.0.0.1:{args.laptop_port}/public-link", method="PUT",
+                                 data=json.dumps({"on": args.state == "on"}).encode(),
+                                 headers={"content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            print(f"public link {'on' if json.loads(r.read())['on'] else 'off'}")
+            return 0
+    except Exception as e:
+        print(f"could not reach the laptop service on :{args.laptop_port} ({type(e).__name__})")
+        return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("action", choices=["on", "off", "status"])
+    ap.add_argument("action", choices=["on", "off", "status", "gate"])
+    ap.add_argument("state", nargs="?", help="gate only: on or off")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT, help="local service port to tunnel (default %(default)s)")
+    ap.add_argument("--unsafe", action="store_true", help="on: tunnel a port that is not in PUBLIC_MODE")
+    ap.add_argument("--laptop-port", type=int, default=LAPTOP_PORT, help="gate: the laptop service (default %(default)s)")
     args = ap.parse_args()
-    return {"on": cmd_on, "off": cmd_off, "status": cmd_status}[args.action](args)
+    return {"on": cmd_on, "off": cmd_off, "status": cmd_status, "gate": cmd_gate}[args.action](args)
 
 
 if __name__ == "__main__":
