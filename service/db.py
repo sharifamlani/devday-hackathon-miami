@@ -595,6 +595,8 @@ ADDED_COLUMNS = {
                     "staff_name": "TEXT"},          # greeting name, set in onboarding step 2
     # A declined or failed charge is kept on record but never counted in totals or scoring.
     "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed'))"},
+    # One task store: the Donors tab's react-admin fields as sent (type, text, due_date, done_date, sales_id), JSON.
+    "tasks": {"crm": "TEXT"},
     # §21.2.3 context store (86): what each fact is, a short title, its embedding, and whether it came from cache
     "org_context": {
         "kind": "TEXT CHECK (kind IN ('success_story', 'program_update', 'use_of_funds', 'org_health', 'event', 'news', 'other'))",

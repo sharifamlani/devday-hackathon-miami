@@ -7,6 +7,7 @@ import { GlobalSearchButton } from "../search/GlobalSearchButton";
 import { ProjectsSidebarToggle } from "./ProjectsSidebar";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { avatarSlot } from "./shellState";
+import { SampleDataBadge } from "./SampleDataBadge";
 
 /**
  * Top bar: Projects toggle and wordmark on the left; live transcript, theme,
@@ -23,6 +24,7 @@ const Header = () => {
       <span className="ml-1 min-w-0 truncate text-xl font-bold tracking-[-0.02em]">
         {title}
       </span>
+      <SampleDataBadge />
       <span className="flex-1" />
       <span data-tour="voice" className="inline-flex">
         <LiveTranscriptTrigger />
