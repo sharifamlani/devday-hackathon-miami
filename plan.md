@@ -1132,3 +1132,25 @@ If the clock wins, cut in this order: S1 phone, B12 artifacts, B13 badges; never
 **Dispatch:** one message per session, sent together, each with the five CLAUDE.md fields (CONTEXT / OWNS / TASK /
 DONE WHEN / RETURN), a pointer to §20.2 + ui-integration §2, and the git rules: `git worktree add --no-track`,
 check that `@{upstream}` is not main, PR to QA, never push to main.
+
+### 20.8 Voice-first chat input: dictate the question (Sharif, Sat Nov 7 night)
+
+The 🎙 in the agent chat box (mockup item 11, and the mic in the Ask sidebar) is **dictation**: press, speak, the words
+fill the text box live through `gemini-3.5-transcribe-live`, release (or press again) to stop; staff edit or send.
+It is separate from **Call and transcribe** on the task card, which records a whole call and saves a note.
+
+| Piece | Build | Owner | Wave |
+|---|---|---|---|
+| Backend | reuses B3's `WS /transcribe/live`, with `mode=SMART` (drops filler words) and a `purpose=dictation` flag so nothing is stored | Agent Phone (B3) | 1 |
+| Hook | `useDictation()` → `{start, stop, interim, final, error}`; shared by the center chat and the Ask sidebar | 80 (B9) | 1 |
+| Button | mic in the chat box: idle / listening (pulsing, interim text greyed) / error; Esc cancels | Christian | 1 |
+
+```
+Chat box, listening
++------------------------------------------------------------------+
+| [+]  Who gave this quarter and hasn't been tha|   [● 🎙]  [➜]    |
+|      ^ live words appear as Denise speaks       ^ press to stop  |
++------------------------------------------------------------------+
+```
+Criterion: first words in the box within 2 s of speech; at least 90% word match on a scripted question; nothing written
+to the database. Smoke: the B3 relay smoke with `purpose=dictation` returns final text and 0 new rows.
