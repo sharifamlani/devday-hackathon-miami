@@ -32,6 +32,7 @@ import type {
   Tab,
 } from "./crmTypes";
 import { TABS } from "./crmTypes";
+import { parseWhen } from "./parseWhen";
 
 /** Shown wherever the nonprofit didn't record a value. Never guess one. */
 export const NOT_RECORDED = "not recorded";
@@ -311,7 +312,7 @@ const plural = (n: number, word: string) => `${n} new ${word}${n === 1 ? "" : "s
 
 /** "today 7:00 AM", "yesterday 6:30 PM", "Nov 5 7:00 AM", in the viewer's timezone. */
 export const relativeDay = (iso: string, now: Date = new Date()): string => {
-  const when = new Date(iso);
+  const when = parseWhen(iso);
   if (Number.isNaN(when.getTime())) return iso;
   const time = when.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   const dayKey = (d: Date) => d.toDateString();

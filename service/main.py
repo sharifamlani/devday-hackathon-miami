@@ -322,19 +322,52 @@ def cached_context(website: str | None) -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")).get(host)
 
 
+def forget_other_org(conn: sqlite3.Connection, website: str | None) -> bool:
+    """Setup rerun for a different organization (another site host): drop the previous org's facts
+    (org_context, which is also the context store) and its name, priorities, voice and source status,
+    so none of it shows under the new URL. Same host, or nothing saved yet: keep everything.
+    Uncommitted; the save_context that follows commits it. True when something was cleared."""
+    row = conn.execute("SELECT website FROM org_profile WHERE id = 1").fetchone()
+    if not row or not row[0] or host_of(row[0]) == host_of(website):
+        return False
+    conn.execute("DELETE FROM org_context")
+    reset = "name = NULL, priorities = '[]', voice = '{}', source_status = '{}'"
+    if "last_refreshed_at" in {r[1] for r in conn.execute("PRAGMA table_info(org_profile)")}:
+        reset += ", last_refreshed_at = NULL"
+    conn.execute(f"UPDATE org_profile SET {reset} WHERE id = 1")
+    return True
+
+
 def persist_context(result: dict) -> dict | None:
     """build_context is pure; db.save_context is the only writer of org_profile + org_context.
 
     Returns {"org_profile_id", "context_ids", "replaced_sources"}, or None until save_context lands.
+    A run for another organization first forgets the previous one (forget_other_org).
     """
     if not hasattr(db, "save_context"):
         return None
     conn = db.connect()
     try:
         db.create_schema(conn)
+        forget_other_org(conn, (result.get("profile") or {}).get("website"))
         saved = db.save_context(conn, result)
         from service.org_context import after_context_saved; after_context_saved(conn)  # index the store, then tasks (86)
         return saved
+    finally:
+        conn.close()
+
+
+def persist_urls(urls: dict) -> dict:
+    """Saves only the URLs the user typed into org_profile, for a run that timed out or hit a model error,
+    so the background refresh (org_urls) can read them later. Same organization: its facts, name,
+    priorities and voice stay as they were. Another organization: the previous one is forgotten first.
+    """
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        cleared = forget_other_org(conn, urls.get("website"))
+        saved = db.save_context(conn, {"profile": dict(urls), "sources": {}, "facts": []})
+        return {**saved, "urls_only": True, "cleared_previous_org": cleared}
     finally:
         conn.close()
 
@@ -414,8 +447,9 @@ async def context_run(req: ContextRun) -> dict:
 
     served_from: "live" (always: the site is read on every run; `refresh` is accepted and ignored) or
     "fallback" (the read timed out or failed: cached: true, every fact flagged cached, still 200, so the
-    screen moves on). The saved/committed context is used only in that failure branch. No website: state
-    "failed", detail "no website provided", served_from null, empty context, nothing saved.
+    screen moves on). The saved/committed context is used only in that failure branch, which still saves the
+    typed URLs (only the URLs) so a background refresh can read them. No website: state "failed", detail
+    "no website provided", served_from null, empty context, nothing saved.
     """
     try:
         from service.org_context import build_context
@@ -436,6 +470,7 @@ async def context_run(req: ContextRun) -> dict:
         state, cached, detail = "done", False, None
         served_from = "live"
     except Exception as e:  # timeout, model error, site error: fall back, never leave the screen hanging
+        keep_urls = not isinstance(e, ValueError)   # a timeout or model error, not a missing/invalid website
         if isinstance(e, asyncio.TimeoutError):
             detail = f"website read took longer than {config.CONTEXT_DEADLINE_S:.0f} s"
         else:
@@ -453,6 +488,10 @@ async def context_run(req: ContextRun) -> dict:
         # A failed run saves nothing: a typo'd URL must not wipe the saved profile or facts
         if state != "failed":
             saved = await run_in_threadpool(persist_context, savable(result, sources))
+    elif keep_urls:
+        # The site is still worth reading: keep what the user typed (never their facts) so
+        # POST /context/refresh can finish the job in the background on these URLs.
+        saved = await run_in_threadpool(persist_urls, urls)
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,

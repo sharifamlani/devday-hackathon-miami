@@ -250,27 +250,90 @@ describe("geminiTranscriptSource", () => {
   });
 });
 
+describe("graceful stop", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const started = async () => {
+    await takeCallRecordings();
+    const h = setup();
+    await vi.advanceTimersByTimeAsync(0); // the call recorder comes up
+    h.sockets[0].open();
+    h.recorders[0].frame([0, 0]);
+    h.callRecorder.chunk("a");
+    return h;
+  };
+
+  it("stopped mid-sentence: sends end, and the last final lands in the stretch's tail", async () => {
+    const h = await started();
+    h.sockets[0].server({ type: "final", text: "Luis gives every" });
+    h.sockets[0].server({ type: "interim", text: "and he prefers phone calls in" });
+    const finishing = h.source.finishRecording();
+    h.source.stop();
+    expect(h.sockets[0].sent.at(-1)).toBe(JSON.stringify({ type: "end" }));
+    expect(h.sockets[0].closed).toBe(false); // left open to drain
+    h.sockets[0].server({ type: "final", text: "And he prefers phone calls in December." });
+    h.sockets[0].onclose?.(); // the server closes after the final
+    const rec = await finishing;
+    expect(rec?.texts).toEqual(["Luis gives every"]);
+    expect(rec?.tail).toEqual(["And he prefers phone calls in December."]);
+    expect(h.lines.map((l) => l.text)).toEqual(["Luis gives every"]); // nothing reaches the pane after stop
+  });
+
+  it("no final within the drain time: the unfinished words stand in", async () => {
+    const h = await started();
+    h.sockets[0].server({ type: "interim", text: "phone calls in December" });
+    const finishing = h.source.finishRecording();
+    h.source.stop();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect((await finishing)?.tail).toEqual(["phone calls in December"]);
+    expect(h.sockets[0].closed).toBe(true);
+  });
+
+  it("nothing being recognized: closes at once, no end sent, empty tail", async () => {
+    const h = await started();
+    h.sockets[0].server({ type: "final", text: "All said." });
+    const finishing = h.source.finishRecording();
+    h.source.stop();
+    expect(h.sockets[0].closed).toBe(true);
+    expect(h.sockets[0].sent).not.toContain(JSON.stringify({ type: "end" }));
+    expect((await finishing)?.tail).toEqual([]);
+  });
+});
+
 describe("warmUpCaptions", () => {
-  it("holds one suspended 16 kHz AudioContext, created once", () => {
-    const made: { sampleRate?: number; suspended: boolean }[] = [];
+  it("keeps one 16 kHz context, runs it briefly, and runs it again on the first pointer press", async () => {
+    const made: { sampleRate?: number; runs: number; state: string }[] = [];
     const Real = globalThis.AudioContext;
     globalThis.AudioContext = class {
-      rec: { sampleRate?: number; suspended: boolean };
+      rec: { sampleRate?: number; runs: number; state: string };
       constructor(o?: AudioContextOptions) {
-        this.rec = { sampleRate: o?.sampleRate, suspended: false };
+        this.rec = { sampleRate: o?.sampleRate, runs: 0, state: "suspended" };
         made.push(this.rec);
       }
+      resume() {
+        this.rec.runs += 1;
+        this.rec.state = "running";
+        return Promise.resolve();
+      }
       suspend() {
-        this.rec.suspended = true;
+        this.rec.state = "suspended";
         return Promise.resolve();
       }
     } as unknown as typeof AudioContext;
+    const settle = () => new Promise((r) => setTimeout(r, 0));
     try {
       warmUpCaptions();
       warmUpCaptions();
-      // at most one made here (none if the module's own warm-up already ran in local mode)
-      expect(made.length).toBeLessThanOrEqual(1);
-      for (const m of made) expect(m).toEqual({ sampleRate: 16000, suspended: true });
+      await settle();
+      expect(made).toHaveLength(1); // one context, however often it is warmed
+      expect(made[0]).toMatchObject({ sampleRate: 16000, runs: 2, state: "suspended" });
+      window.dispatchEvent(new PointerEvent("pointerdown")); // the first gesture brings the device up
+      await settle();
+      expect(made[0]).toMatchObject({ runs: 3, state: "suspended" });
+      window.dispatchEvent(new PointerEvent("pointerdown")); // only once
+      await settle();
+      expect(made[0].runs).toBe(3);
     } finally {
       globalThis.AudioContext = Real;
     }

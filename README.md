@@ -21,7 +21,7 @@ From our call with a Miami Foundation staff member, plus the challenge brief.
 
 | Problem | What the app does | Where |
 |---|---|---|
-| **Challenge #2: duplicates** | Finds possible duplicates across files (6 of 6 planted groups in the sample data). Staff approve each merge; the gift history moves to the kept record; every merge can be undone. | Givers → Review duplicates (`service/dedupe.py`) |
+| **Challenge #2: duplicates** | Exact matches (the same email, or the same name with nothing contradicting it) merge automatically on upload; a "!" marker so staff can review them (Keep / Split) is planned. Fuzzy matches are suggestions (6 of 6 planted groups found in the sample data): staff approve each merge, the gift history moves to the kept record, and every merge can be undone. | Givers → Review duplicates (`service/dedupe.py`) |
 | **Challenge #2: late gifts** | Flags failed and late recurring gifts (a declined monthly card, a missed quarterly gift) before the donor lapses. A declined charge is never counted as money raised. | Home + gift alerts (`service/gift_alerts.py`) |
 | **Who to contact first** | A deterministic score (recency, frequency, amount, and the gap since a donor's usual gift) ranks who to call. The model explains the score; it never computes it. | Home, Inbox (`service/score.py`) |
 | **Context gets lost** | One record per person across all files. Voice capture: a mic button transcribes a call live; after the call an agent proposes follow-ups (a task, an RSVP, a pledge, a note) and **writes nothing until staff click Apply**. | Voice panel (`web/.../voice`), `service/after_call_agent.py` |
@@ -112,6 +112,7 @@ Sending is a **dry run** by default: email goes out only with `EMAIL_SEND=on` an
 
 ## Credits and licenses
 
+- **Built with Claude Code and Codex;** the OpenAI API and the OpenAI Agents SDK run throughout the product.
 - **Atomic CRM** by Marmelab (MIT): the web app's base (`web/LICENSE.md`).
 - **assistant-stream** from the assistant-ui project (MIT): streams the chat agent's replies (`service/chat_stream.py`).
 - **Google live-api-web-console** (Apache-2.0): the browser audio recorder files in `web/.../voice/audio/` and

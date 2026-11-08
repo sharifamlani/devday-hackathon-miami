@@ -61,6 +61,10 @@ export const applyMessage = (
   return { ...state, error: message.detail ?? "Transcription failed." };
 };
 
+/** No audio frame from the microphone this long after it started: report it. */
+export const NO_AUDIO_MS = 4000;
+export const NO_AUDIO_MESSAGE = "No audio is reaching dictation. Check your microphone.";
+
 const MOCK_SCRIPT: { after: number; message: ServerMessage }[] = [
   { after: 300, message: { type: "interim", text: "Who gave on" } },
   { after: 700, message: { type: "interim", text: "Who gave on Give Miami Day" } },
@@ -131,11 +135,14 @@ const useLiveTranscription = (purpose: TranscribePurpose) => {
       ws.binaryType = "arraybuffer";
       socket.current = ws;
       ws.onmessage = (event) => {
+        let message: ServerMessage;
         try {
-          onMessage(JSON.parse(String(event.data)) as ServerMessage);
+          message = JSON.parse(String(event.data)) as ServerMessage;
         } catch {
-          // ignore non-JSON frames
+          return; // ignore non-JSON frames
         }
+        onMessage(message);
+        if (message.type === "error") cleanup(); // the server gave up: release the mic too
       };
       ws.onerror = () => {
         setState((s) => ({ ...s, error: s.error ?? "The transcription connection failed." }));
@@ -156,12 +163,32 @@ const useLiveTranscription = (purpose: TranscribePurpose) => {
         import("./audio/utils"),
       ]);
       const rec = new AudioRecorder(16000);
+      let heard = false;
       rec.on("data", (base64: string) => {
+        heard = true;
         if (ws.readyState === WebSocket.OPEN) ws.send(base64ToArrayBuffer(base64));
       });
       recorder.current = rec;
       await rec.start();
+      // The server may have refused while the mic started (e.g. no GEMINI_API_KEY: an error
+      // message, then close). Keep that error instead of claiming to listen.
+      if (socket.current !== ws || ws.readyState !== WebSocket.OPEN) {
+        cleanup();
+        setState((s) => ({ ...s, error: s.error ?? "The transcription connection closed." }));
+        setStatus("error");
+        return;
+      }
       setStatus("listening");
+      // AudioRecorder.start() resolves before the mic is ready and never rejects, so a denied
+      // or dead microphone shows up only as silence: time it out.
+      timers.current.push(
+        window.setTimeout(() => {
+          if (heard || recorder.current !== rec) return; // audio flowing, or already stopped
+          cleanup();
+          setState((s) => ({ ...s, error: NO_AUDIO_MESSAGE }));
+          setStatus("error");
+        }, NO_AUDIO_MS),
+      );
     } catch (error) {
       cleanup();
       setState((s) => ({ ...s, error: s.error ?? (error as Error).message }));
