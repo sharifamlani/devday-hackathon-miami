@@ -1,0 +1,8 @@
+seed call note: 200 | seed Donors-tab task: 200 | local (public off) /tasks has it: True
+no Origin: /health 200 /public-mode 200 /donors 403 | evil: /donors 403 /chat 403
+forged vercel Origin, denied routes: {'/ingest': 403, '/tasks': 403, '/tasks/1': 403, '/people/3': 403, '/calls': 403, '/chat/stream': 403, '/phone/preview': 403, '/context/run': 403, '/enrich/17': 403, '/campaigns/1/send': 403, '/crm/tasks': 403} | all 403: True
+allowed GETs checked: 22 | any marker / unmasked contact / non-200: none
+/donors/3: call_notes [] | notes None | next_step None
+pages: /events 4 items | /home/summary tasks_today 18 | /people counts {'giver': 40, 'neighbor': 22, 'community': 15, 'needs_review': 3}
+[public mode] agent get_person(3): call_notes present: False | transcript marker: False | card 4242: False | private task: False | next_step: None
+[public mode] agent people rows carry the private task: False

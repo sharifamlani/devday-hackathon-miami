@@ -57,9 +57,11 @@ should also be recorded in `plan.md` §21.10.
 3. **Test artifacts committed to `main`:** `fac5a71` added 68 Vitest failure screenshots under
    `web/.vitest/`, with no ignore rule; their long names break `git worktree add` in deep folders. Fix: #166 (in
    review).
-4. **#137 (public tunnel) is not merged** and is graded outside this table: the transcript leak is fixed; a
-   private Donors-tab task title still leaks through `/people` (next_step), `/calendar` and `/tasks` under
-   public mode; the branch needs a rebase. The tunnel stays off until it passes.
+4. **#137 (public tunnel): approved at `fb10d4e`** after three rounds (no access control → transcript leak →
+   private-task leak, each fixed). On main `982f58f` + #137: 607 passed / 6 skipped; with a seeded transcript and
+   private task, 0 markers and 0 unmasked contacts across 22 allowed GETs; every write/upload/phone/send route 403
+   even with a forged Origin; the public chat's own tools return no call notes. The tunnel stays off until
+   Sharif says go; re-run the probes once against the live tunnel URL then.
 
 ## Failures and recommendations (all four are resolved; kept as the record of what was fixed)
 
