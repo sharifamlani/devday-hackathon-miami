@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { PanelLeft } from "lucide-react";
 import { OVERVIEW_ID, useOverview } from "../home/overviewContext";
 import { closeWorkspace, parseWorkspace } from "../home/workspaceView";
@@ -13,7 +13,10 @@ import { avatarSlot } from "./shellState";
 export const DashboardControls = () => {
   const overview = useOverview();
   // Read the open panel from the URL only: HomePage owns useWorkspaceView's navigation effects.
-  const panel = parseWorkspace(useLocation().search);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const onHome = location.pathname === "/";
+  const panel = parseWorkspace(location.search);
   // With a panel open (Calendar, Tasks, CRM, Impact & story), the same button is the way home:
   // it closes the panel, then (once the close has committed) brings a hidden overview back, so
   // the two transitions never interrupt each other.
@@ -32,16 +35,22 @@ export const DashboardControls = () => {
       <button
         type="button"
         className="home-overview-toggle"
-        onClick={panel ? goHome : overview.toggle}
-        aria-label={
-          panel
-            ? "Back to the overview"
-            : overview.open
-              ? "Hide workspace overview"
-              : "Show workspace overview"
+        onClick={
+          !onHome ? () => navigate("/") : panel ? goHome : overview.toggle
         }
-        title={panel ? "Back to the overview" : undefined}
-        aria-expanded={panel ? false : overview.open}
+        aria-label={
+          !onHome
+            ? "Back to Home"
+            : panel
+              ? "Back to the overview"
+              : overview.open
+                ? "Hide workspace overview"
+                : "Show workspace overview"
+        }
+        title={
+          !onHome ? "Back to Home" : panel ? "Back to the overview" : undefined
+        }
+        aria-expanded={onHome && !panel ? overview.open : undefined}
         aria-controls={OVERVIEW_ID}
       >
         <PanelLeft

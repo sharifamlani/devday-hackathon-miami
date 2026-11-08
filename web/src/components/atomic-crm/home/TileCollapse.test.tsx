@@ -84,7 +84,7 @@ describe("collapsible overview tiles", () => {
       .toBeVisible();
   });
 
-  it("a folded quarter tile keeps the sample-goal qualification", async () => {
+  it("the quarter tile stays open (no fold toggle) and has no Sample goal label", async () => {
     const screen = await render(
       <MemoryRouter>
         <Q4ProgressTile
@@ -97,11 +97,10 @@ describe("collapsible overview tiles", () => {
         />
       </MemoryRouter>,
     );
-    await screen
-      .getByRole("button", { name: "Collapse quarter progress" })
-      .click();
-    await expect
-      .element(screen.getByText(/66% · \$98\.8k · sample goal/))
-      .toBeVisible();
+    await expect.element(screen.getByText("$98.8k")).toBeVisible();
+    expect(
+      document.querySelector('button[aria-label="Collapse quarter progress"]'),
+    ).toBeNull();
+    expect(document.body.textContent).not.toContain("Sample goal");
   });
 });
