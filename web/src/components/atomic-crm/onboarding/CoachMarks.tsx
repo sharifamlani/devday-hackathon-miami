@@ -19,16 +19,14 @@ const reducedMotion = () =>
 /**
  * Coach marks over the real homepage: dims the page, rings the current
  * `data-tour` target and shows a small card next to it. A modal dialog:
- * focus stays in the card, Esc stops the tour (progress kept).
+ * focus stays in the card, Esc stops the tour.
  */
 export const CoachMarks = ({
   stops,
-  onBackToSetup,
   onFinish,
   onExit,
 }: {
   stops: TourStop[];
-  onBackToSetup: () => void;
   onFinish: () => void;
   onExit: () => void;
 }) => {
@@ -52,7 +50,8 @@ export const CoachMarks = ({
   useEffect(() => {
     if (!stop) return;
     const el = document.querySelector<HTMLElement>(tourSelector(stop.id));
-    if (!el) {
+    // Missing or hidden (display:none): a centered card, no spotlight.
+    if (!el || !el.getClientRects().length) {
       setBox(null);
       return;
     }
@@ -144,22 +143,22 @@ export const CoachMarks = ({
         }}
       >
         <p className="onb-progress-text">
-          Step 5 of 5 · {index + 1} of {stops.length}
+          Quick tour · {index + 1} of {stops.length}
         </p>
         <h2 id={titleId} ref={headingRef} tabIndex={-1}>
           {stop.title}
         </h2>
         <p id={bodyId}>{stop.body}</p>
         <div className="onb-actions">
-          <button
-            type="button"
-            className="onb-btn quiet small"
-            onClick={() =>
-              index === 0 ? onBackToSetup() : setIndex(index - 1)
-            }
-          >
-            Back
-          </button>
+          {index > 0 && (
+            <button
+              type="button"
+              className="onb-btn quiet small"
+              onClick={() => setIndex(index - 1)}
+            >
+              Back
+            </button>
+          )}
           <span className="onb-spacer" />
           {!last && (
             <button
