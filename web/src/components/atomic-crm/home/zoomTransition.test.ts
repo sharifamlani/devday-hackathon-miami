@@ -51,7 +51,7 @@ describe("runZoomTransition", () => {
     expect(update).toHaveBeenCalled();
     expect(src.style.viewTransitionName).toBe("");
   });
-  it("close is 280ms and gives the name back to the tile", async () => {
+  it("close takes --exit-ratio of open (240ms) and gives the name back to the tile", async () => {
     const { doc, transitions } = makeDoc();
     const src = document.createElement("div");
     document.body.append(src);
@@ -63,7 +63,7 @@ describe("runZoomTransition", () => {
       win: win(false),
     });
     expect(doc.documentElement.style.getPropertyValue("--zoom-dur")).toBe(
-      "280ms",
+      "240ms",
     );
     await transitions[0].cb();
     expect(src.style.viewTransitionName).toBe("zoom-frame");
@@ -89,6 +89,19 @@ describe("runZoomTransition", () => {
         "320ms",
       );
     }
+  });
+  it("an exiting overview or pane is timed as a close", () => {
+    const { doc } = makeDoc();
+    runZoomTransition({
+      kind: "pane",
+      exit: true,
+      update: () => {},
+      doc,
+      win: win(false),
+    });
+    expect(doc.documentElement.style.getPropertyValue("--zoom-dur")).toBe(
+      "240ms",
+    );
   });
   it("timings follow the motion variables, including --motion-scale", () => {
     const root = document.documentElement;

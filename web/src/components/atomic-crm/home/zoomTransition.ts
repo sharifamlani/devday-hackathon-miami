@@ -21,11 +21,18 @@ type VTDoc = {
 
 export const FRAME_NAME = "zoom-frame";
 /** Read from the motion variables (src/index.css) at each transition, so one edit retimes them all. */
-const duration = (kind: ZoomKind): number => {
+const duration = (kind: ZoomKind, exit = false): number => {
   const slow = motionMs("slow");
-  if (kind === "close") return Math.round(slow * 0.875);
+  if (kind === "close" || exit) return Math.round(slow * exitRatio());
   if (kind === "switch") return Math.round(motionMs("base") * 0.9);
   return slow;
+};
+/** --exit-ratio (index.css): closing takes this share of opening's time. */
+const exitRatio = (root: HTMLElement = document.documentElement): number => {
+  const value = parseFloat(
+    getComputedStyle(root).getPropertyValue("--exit-ratio"),
+  );
+  return Number.isNaN(value) ? 0.75 : value;
 };
 /** Reduced motion: a short crossfade instead of movement. */
 const REDUCED_FADE_MS = 120;
@@ -65,6 +72,8 @@ export function prefersReducedMotion(win: Window = window) {
 export function runZoomTransition(opts: {
   kind: ZoomKind;
   update: () => void | Promise<void>;
+  /** The overview or pane is going away: time it as a close (see --exit-ratio). */
+  exit?: boolean;
   sourceEl?: HTMLElement | null;
   doc?: VTDoc;
   win?: Window;
@@ -89,7 +98,7 @@ export function runZoomTransition(opts: {
   root.dataset.zoom = reduced ? "fade" : kind;
   root.style.setProperty(
     "--zoom-dur",
-    `${reduced ? REDUCED_FADE_MS : duration(kind)}ms`,
+    `${reduced ? REDUCED_FADE_MS : duration(kind, opts.exit)}ms`,
   );
 
   const morph = !reduced && kind !== "switch";

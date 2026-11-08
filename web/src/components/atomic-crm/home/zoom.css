@@ -174,11 +174,11 @@ html[data-zoom="open"]::view-transition-new(zoom-frame) {
 }
 html[data-zoom="close"]::view-transition-old(zoom-frame) {
   animation: zoom-fade-out calc(120ms * var(--motion-scale)) linear
-    calc(160ms * var(--motion-scale)) both;
+    calc(var(--zoom-dur) - calc(120ms * var(--motion-scale))) both;
 }
 html[data-zoom="close"]::view-transition-new(zoom-frame) {
   animation: zoom-fade-in calc(120ms * var(--motion-scale)) linear
-    calc(160ms * var(--motion-scale)) both;
+    calc(var(--zoom-dur) - calc(120ms * var(--motion-scale))) both;
 }
 html[data-zoom="open"]::view-transition-new(zoom-content) {
   animation: zoom-fade-in
@@ -212,8 +212,7 @@ html[data-zoom="switch"]::view-transition-new(zoom-content) {
       both;
   }
   html[data-zoom="close"]::view-transition-old(zoom-frame) {
-    animation: zoom-sheet-out calc(280ms * var(--motion-scale)) var(--zoom-ease)
-      both;
+    animation: zoom-sheet-out var(--zoom-dur) var(--ease-exit) both;
   }
 }
 @keyframes zoom-sheet-in {
