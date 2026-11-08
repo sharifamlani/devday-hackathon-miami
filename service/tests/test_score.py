@@ -3,6 +3,7 @@
 from datetime import date
 
 from service import db, score
+from service.tests.fixtures_seed import seed
 from service.tests.conftest import AS_OF
 
 GMD_YEARS = [("2022-11-17"), ("2023-11-16"), ("2024-11-21"), ("2025-11-20")]
@@ -31,7 +32,7 @@ def test_same_donor_who_already_gave_this_year_is_on_track_and_low():
 
 
 def test_lapsing_gmd_giver_ranks_first_on_seed_and_on_track_ranks_below_every_lapsing(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     ranked = conn.execute(
         "SELECT d.full_name, s.score, s.status FROM donor_scores s JOIN donors d ON d.id = s.donor_id "
@@ -83,7 +84,7 @@ def test_future_gifts_are_ignored():
 
 
 def test_deterministic_and_bounded(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     first = [tuple(r) for r in conn.execute("SELECT donor_id, score, tier, is_star, status, why FROM donor_scores")]
     score.run(conn, AS_OF)

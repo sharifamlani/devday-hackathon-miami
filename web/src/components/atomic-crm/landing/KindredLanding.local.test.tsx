@@ -50,7 +50,7 @@ describe("Try sample data (local mode)", () => {
     expect(target).toBeUndefined(); // the data layer's default: the agent sorts
   });
 
-  it("shows the error and offers the cached workspace when ingest isn't running", async () => {
+  it("shows the error and points to the example files, not a cached workspace, when ingest isn't running", async () => {
     uploadFiles.mockRejectedValue(
       new Error("Upload isn't available yet: the ingest service is not running."),
     );
@@ -61,8 +61,9 @@ describe("Try sample data (local mode)", () => {
     await expect
       .element(screen.getByText("Upload isn't available yet: the ingest service is not running."))
       .toBeVisible();
+    await expect.element(screen.getByText(/You can also drag the example files/)).toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: "Open the cached sample workspace instead" }))
-      .toBeVisible();
+      .not.toBeInTheDocument();
   });
 });

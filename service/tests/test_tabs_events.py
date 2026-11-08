@@ -7,6 +7,7 @@ from datetime import date
 import pytest
 
 from service import db, score
+from service.tests.fixtures_seed import seed
 from service.export_snapshot import build_snapshot
 from service.routes_data import list_events
 from service.tests.conftest import AS_OF
@@ -108,7 +109,7 @@ def test_move_person_between_tabs(db_file):
 # ---- events -------------------------------------------------------------------------------------
 
 def test_save_events_new_changed_and_sourceless(conn):
-    db.seed(conn)
+    seed(conn)
     first = db.save_events(conn, EVENTS)
     assert (first["added"], first["changed"], first["removed"]) == (4, 0, 0)        # "No source" dropped
     assert len(first["ids"]) == 5 and first["ids"][4] is None                        # ids line up with the input
@@ -125,7 +126,7 @@ def test_save_events_new_changed_and_sourceless(conn):
 
 
 def test_only_a_complete_run_removes_missing_future_events(conn):
-    db.seed(conn)
+    seed(conn)
     ids = db.save_events(conn, EVENTS)["ids"]
     partial = db.save_events(conn, EVENTS[:1])                                      # failed/partial run
     assert partial["removed"] == 0 and conn.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 4
@@ -140,14 +141,14 @@ def test_only_a_complete_run_removes_missing_future_events(conn):
 
 
 def test_events_list_upcoming_first_then_past(conn):
-    db.seed(conn)
+    seed(conn)
     db.save_events(conn, EVENTS)
     titles = [e["title"] for e in list_events(conn, today=date(2026, 11, 8))]
     assert titles == ["Early giving opens", "Give Miami 5K", "Give Miami Day", "Summer arts night"]
 
 
 def test_event_audience_rows_replace_and_skip_unknown_people(conn):
-    db.seed(conn)
+    seed(conn)
     (gmd,) = db.save_events(conn, EVENTS[:1])["ids"]
     maria = person_id(conn, "Maria Delgado")
     n = db.save_event_audience(conn, gmd, {"event_kind": "giving", "person_ids": [maria, 9999, maria],
@@ -162,7 +163,7 @@ def test_event_audience_rows_replace_and_skip_unknown_people(conn):
 
 
 def test_event_drafts_link_replace_and_obey_star_rules(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     (gmd,) = db.save_events(conn, EVENTS[:1])["ids"]
     maria = person_id(conn, "Maria Delgado")
@@ -292,7 +293,7 @@ def test_declined_and_failed_gifts_are_shown_but_never_scored(db_file):
 
 
 def test_existing_gifts_default_to_ok(conn):
-    db.seed(conn)
+    seed(conn)
     assert {r[0] for r in conn.execute("SELECT DISTINCT status FROM gifts")} == {"ok"}
 
 
@@ -319,7 +320,7 @@ def test_event_batch_id_is_null_until_campaigns_link_events(db_file):
 
 
 def test_event_quote_is_stored_and_a_new_snippet_is_not_a_change(conn):
-    db.seed(conn)
+    seed(conn)
     e = {**EVENTS[0], "verification": "page-verified", "quote": "Give Miami Day returns Nov. 19", "place": None}
     (gid,) = db.save_events(conn, [e])["ids"]
     again = db.save_events(conn, [{**e, "quote": "Give Miami Day is Thursday, Nov. 19"}])

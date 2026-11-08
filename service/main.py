@@ -64,12 +64,16 @@ app.add_middleware(
 )
 app.include_router(data_router)
 app.include_router(targets_router)
+from service.routes_home import router as home_router  # noqa: E402  (B13: home summary + attention list)
+app.include_router(home_router)
 from service.routes_campaigns import router as campaigns_router  # noqa: E402  (#38: simulated outbox only)
 app.include_router(campaigns_router)
 app.include_router(ask_router)  # POST /ask (issue #36)
 from service.routes_tasks import router as tasks_router  # noqa: E402  (§21 B11/B12)
 app.include_router(tasks_router)
 app.include_router(calls_router)  # live transcript call notes: /calls, /calls/summarize
+from service.routes_voice import router as voice_router  # noqa: E402  (B3: /transcribe/live, /transcribe/file)
+app.include_router(voice_router)
 
 def module_present(name: str) -> bool:
     try:
@@ -401,8 +405,9 @@ def with_user_urls(result: dict | None, urls: dict) -> dict | None:
 async def context_run(req: ContextRun) -> dict:
     """Onboarding screen 2, synchronous: reads the website (≤ CONTEXT_DEADLINE_S), saves, returns per-source status.
 
-    served_from: "live" (refresh read the site), "cache" (refresh false, by request), or "fallback"
-    (the read timed out or failed: cached: true, still 200, so the screen moves on). No website: state
+    served_from: "live" (always: the site is read on every run; `refresh` is accepted and ignored) or
+    "fallback" (the read timed out or failed: cached: true, every fact flagged cached, still 200, so the
+    screen moves on). The saved/committed context is used only in that failure branch. No website: state
     "failed", detail "no website provided", served_from null, empty context, nothing saved.
     """
     try:
@@ -419,11 +424,10 @@ async def context_run(req: ContextRun) -> dict:
 
     urls = req.model_dump(exclude={"refresh"})
     try:
-        result = await asyncio.wait_for(run_in_threadpool(build_context, urls, req.refresh),
-                                        config.CONTEXT_DEADLINE_S)
+        result = await asyncio.wait_for(run_in_threadpool(build_context, urls, True), config.CONTEXT_DEADLINE_S)
         result = with_user_urls(result, urls)
         state, cached, detail = "done", False, None
-        served_from = "live" if req.refresh else "cache"
+        served_from = "live"
     except Exception as e:  # timeout, model error, site error: fall back, never leave the screen hanging
         if isinstance(e, asyncio.TimeoutError):
             detail = f"website read took longer than {config.CONTEXT_DEADLINE_S:.0f} s"
@@ -431,6 +435,8 @@ async def context_run(req: ContextRun) -> dict:
             detail = f"{type(e).__name__}: {e}"
         log.warning("context run failed, serving cached context: %s", detail)
         result = with_user_urls(cached_context(req.website), urls)
+        if result:                                      # label every fact so the UI can say "cached"
+            result = {**result, "facts": [{**f, "cached": True} for f in result.get("facts") or []]}
         state, cached, served_from = "failed", True, "fallback"
 
     sources = source_progress(req, result, fallback=served_from == "fallback")
