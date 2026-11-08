@@ -42,6 +42,8 @@ import {
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { DuplicateBanner } from "./DuplicateMerge";
+import { AlsoFound, PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
+import { usePeopleTab } from "./usePeopleTab";
 
 const SORTS = [
   { value: "score:DESC", label: "Priority score" },
@@ -70,6 +72,7 @@ const DonorListLayout = () => {
     useListContext<DonorContact>();
   const [importOpen, setImportOpen] = useState(false);
   const facets = useFacets();
+  const [tab] = usePeopleTab();
 
   // Imports and merges refetch the donor-desk queries; follow them.
   const donorsUpdatedAt = useDonors().dataUpdatedAt;
@@ -100,9 +103,16 @@ const DonorListLayout = () => {
         </div>
       </div>
       <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
-      <DuplicateBanner />
+      <PeopleTabBar />
+      {tab !== "giver" && <PeopleTabPanel tab={tab} />}
+      {tab === "giver" && <DuplicateBanner />}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2",
+          tab !== "giver" && "hidden",
+        )}
+      >
         <SearchBox />
         <SortSelect />
         <Popover>
@@ -132,7 +142,7 @@ const DonorListLayout = () => {
         </Popover>
       </div>
 
-      <div className="flex gap-4">
+      <div className={cn("flex gap-4", tab !== "giver" && "hidden")}>
         <div className="min-w-0 flex-1 space-y-2">
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {isPending
@@ -166,7 +176,10 @@ const DonorListLayout = () => {
           )}
         </div>
       </div>
-      <BulkBar />
+      {tab === "giver" && (
+        <AlsoFound query={String(filterValues.q ?? "")} current="giver" />
+      )}
+      {tab === "giver" && <BulkBar />}
     </div>
   );
 };
