@@ -26,7 +26,7 @@ Merged tonight (18 + Christian's + Faye's): #73 #77 #80 #57 #68 #81 #82 #79 #83 
 | #88 | Interest tags (+ tag_slugs) | 42 | head 5f444aa, with QA 98 | merge on APPROVE (may need a rebase on b3510bf) |
 | #90 | After-call agent | 86 | head 009e670, with QA 98 | merge on APPROVE |
 | #102 | Schema-migration race | in-lead builder | c9: fix passes, CHANGES = main.py conflict with #100's startup hook | rebase: migrate_schema first, then migrate_crm_tasks; c9 re-check |
-| #103 | Voice: pause-then-summarize relabels every stretch | Agent Phone | head 6e91849, with c9 | merge on APPROVE |
+| #103 | Voice: pause-then-summarize relabels every stretch | Agent Phone | **c9 APPROVED 6e91849ab7e098f2ee6f5805ca331f80e1a44439** | merge first thing on resume (pinned) |
 | #101 | Center chat → agent (step cards, Undo, approval cards) | 90 | based on #95 | retarget to main after #95; also must merge with #105's HomeChat changes; QA 98 |
 | #104 | Calendar page shows tasks; outreach plan = real tasks | integration agent | based on #95 | retarget after #95; QA |
 | — | Mobile "Sample data" badge | 80 | not started (waits on #95) | small PR after #95 |
