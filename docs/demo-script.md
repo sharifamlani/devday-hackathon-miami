@@ -58,7 +58,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      today. First up: Call Rafael Quintero** · **Start**; **5 usual gifts look late.** · **Show me**; **9 possible
      duplicates to review.** · **Review**; **Next event: Give Miami Day — Early Giving opens, in 6 days (Nov 14).** ·
      **Open calendar**;
-   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
+   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k) and the **Impact & story**
      card (e.g. **14 sourced facts · Copy for a grant report**; its panel also has **Refresh research**: don't click it
      on stage, and don't read its "Last refreshed" time aloud, it shows UTC);
    - the calendar tile (**November · Nov 8 – 14**): a week grid with coloured event blocks for the events the agent
