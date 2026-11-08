@@ -171,7 +171,7 @@ within about 2 s and the answer types out live, so narrate the steps as they app
 | Step | Can vary because | If it's slow or off, say |
 |---|---|---|
 | 4 Background read (~30 s) | the site read runs in the background; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | Events or facts not there yet: keep touring and say "the agent is still reading the site; the events land in a moment." |
-| 6 / 7 agent replies (~10 s / ~28 s) | live model calls; step 7 also preps a call sheet | "It's pulling the task, the donor's record, a call sheet and a draft; every step it takes shows here." |
+| 6 / 7 agent replies (~6 s / ~28 s) | live model calls; step 7 also preps a call sheet | "It's pulling the task, the donor's record, a call sheet and a draft; every step it takes shows here." |
 | 8 campaign (~38 s) | 25 live drafts | "Twenty-five personal drafts, each citing a real Foundation story. Nothing is sent without approval." |
 | 9 Enrich | fast while the research cache holds Knight; otherwise a live web search | "It's reading the public web; every tag will carry its source." |
 | 12 Dictation | needs a mic and the live service | Type the question instead. |
