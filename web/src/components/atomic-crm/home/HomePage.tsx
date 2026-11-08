@@ -46,11 +46,7 @@ import {
 } from "./homeData";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { CrmPanel } from "./panels/CrmPanel";
-import {
-  ImpactPanel,
-  listFacts,
-  type ImpactFact,
-} from "./panels/ImpactPanel";
+import { ImpactPanel, listFacts, type ImpactFact } from "./panels/ImpactPanel";
 import { TasksPanel } from "./panels/TasksPanel";
 import {
   PanelFrame,
@@ -226,7 +222,7 @@ export const HomePage = () => {
           className="home-conversation"
         >
           <div className="home-greeting">
-            <h1 className="mb-3.5 text-[28px] leading-tight font-normal tracking-[-0.02em]">
+            <h1 className="home-greeting-title">
               {greeting(new Date().getHours())}
               {name ? (
                 <>
