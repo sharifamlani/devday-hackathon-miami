@@ -1167,3 +1167,26 @@ the agent, because (1) the event's acceptance criteria name the OpenAI Agents SD
 (2) `/chat` with tool steps and approval-gated sends already runs on it (#58), and (3) a framework switch at T-18 h
 re-opens working code. LangChain/LangGraph is used only if the chat-UI research (`docs/research/repos-to-lift.md`)
 shows a decisively faster path. The chat UI package is chosen from that research the same way.
+
+### 20.10 Everything runs through the agent in the main UI (Sharif, Sat Nov 7 night). Non-negotiable
+
+The center agent is the primary way to change data: anything a staff member can do on a screen, they can ask the
+agent to do, and the screen updates live. Write tools (B10, 90), on top of §20.9's reads:
+
+| Area | Write tools |
+|---|---|
+| CRM | `update_person` (contact fields, tab Givers/Neighbors/Community, notes), `add_interest` / `remove_interest`, `accept_enrichment`, `log_gift` (manual), `merge_duplicate` / `dismiss_duplicate` |
+| Calendar | `add_calendar_item`, `move_calendar_item`, `delete_calendar_item`, `rsvp_event` |
+| Tasks | `create_task`, `update_task` (title, due, time, person), `complete_task`, `delete_task` |
+| Calls | `save_call_note`, `apply_after_call_actions` |
+| Outreach | `draft_email`, `draft_sms`, `send` (approval card, as today) |
+
+Rules:
+- Edits apply at once and show as tool steps with **Undo** (each write returns an undo token; `undo(token)` reverts it).
+- Sends, merges and deletes show an **approval card** first; nothing leaves the building without a click.
+- Every write goes through the same service functions the screens use, so the agent and the buttons can never
+  disagree; after a write the UI refetches (task list, calendar, CRM list, gauge) so the change is visible.
+- Every agent write is logged (`agent_actions`: tool, args, result, undo token, time).
+
+Criterion: for each write tool, one chat request changes the row (SQL check) and the matching panel shows it
+without a reload (Playwright); Undo restores the row; 0 sends, merges or deletes without an approval click.
