@@ -134,7 +134,8 @@ const q4Line = (q: DonationTarget | undefined) => {
   if (!q) return null;
   if (q.goal == null) return `${q.label}: ${usd(q.raised)} raised`;
   const pct = q.goal > 0 ? ` (${Math.round((q.raised / q.goal) * 100)}%)` : "";
-  return `${q.label}: ${usd(q.raised)} of ${usd(q.goal)}${pct}`;
+  // The copied report leaves the app, so it keeps saying the goal is a sample (the panel doesn't show it).
+  return `${q.label}: ${usd(q.raised)} of ${usd(q.goal)}${q.goal_is_sample ? " (sample goal)" : ""}${pct}`;
 };
 
 /** The plain text "Copy for a grant report" puts on the clipboard. Only what is on screen. */
