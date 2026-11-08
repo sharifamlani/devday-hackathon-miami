@@ -660,7 +660,9 @@ ADDED_COLUMNS = {
     "org_profile": {"last_refreshed_at": "TEXT",    # set by every successful save_context
                     "staff_name": "TEXT"},          # greeting name, set in onboarding step 2
     # A declined or failed charge is kept on record but never counted in totals or scoring.
-    "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed'))"},
+    # 'duplicate': the same gift recorded twice, found when staff merge two people (dedupe.merge); on record,
+    # never counted, back to 'ok' on undo.
+    "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed', 'duplicate'))"},
     # One task store: the Donors tab's react-admin fields as sent (type, text, due_date, done_date, sales_id), JSON.
     "tasks": {"crm": "TEXT"},
     # §21.2.3 context store (86): what each fact is, a short title, its embedding, and whether it came from cache
@@ -727,10 +729,42 @@ def _migrate(conn: sqlite3.Connection) -> None:
         for name, kind in columns.items():
             if name not in have:
                 _add_column(conn, table, name, kind)
+    migrate_gifts_status_check(conn)
     # Backfill for drafts saved before the prospect_drafted_on_draft trigger existed.
     conn.execute("UPDATE prospects SET status = 'drafted' WHERE status = 'new' AND id IN "
                  "(SELECT prospect_id FROM outreach_drafts WHERE prospect_id IS NOT NULL)")
     conn.commit()
+
+
+def migrate_gifts_status_check(conn: sqlite3.Connection) -> bool:
+    """An older db's gifts.status CHECK lacks 'duplicate'. SQLite can't alter a constraint, so the table is rebuilt
+    with the same columns and every row copied (ids kept). Returns True when a migration ran."""
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'gifts'").fetchone()
+    old_check = "CHECK (status IN ('ok', 'declined', 'failed'))"
+    if row is None or old_check not in row[0]:
+        return False
+    indexes = [r[0] for r in conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'gifts' AND sql IS NOT NULL")]
+    new_sql = row[0].replace(old_check, "CHECK (status IN ('ok', 'declined', 'failed', 'duplicate'))", 1)
+    new_sql = new_sql.replace("CREATE TABLE gifts", "CREATE TABLE gifts_new", 1)
+    fk = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        conn.execute(new_sql)
+        conn.execute("INSERT INTO gifts_new SELECT * FROM gifts")
+        conn.execute("DROP TABLE gifts")
+        conn.execute("ALTER TABLE gifts_new RENAME TO gifts")
+        for sql in indexes:
+            conn.execute(sql.replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ", 1)
+                         if "IF NOT EXISTS" not in sql else sql)
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute(f"PRAGMA foreign_keys = {'ON' if fk else 'OFF'}")
+    return True
 
 
 def migrate_outreach_drafts(conn: sqlite3.Connection) -> bool:

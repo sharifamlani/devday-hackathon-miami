@@ -112,7 +112,9 @@ def grace_days(cadence: str) -> int:
 
 def donor_alerts(donor_id: int, gifts: list[dict], as_of: date) -> list[dict]:
     """Alerts for one donor's gifts ({id, amount, gift_date, channel, source_row}); [] when on track."""
-    gifts = sorted((g for g in gifts if date.fromisoformat(g["gift_date"]) <= as_of), key=lambda g: g["gift_date"])
+    gifts = sorted((g for g in gifts if date.fromisoformat(g["gift_date"]) <= as_of
+                    and (g.get("status") or "") != "duplicate"),   # the same gift recorded twice: ignore the repeat
+                   key=lambda g: g["gift_date"])
     good = [g for g in gifts if not is_failed(g)]
     dates = [date.fromisoformat(g["gift_date"]) for g in good]
     # A recent monthly run is read on its own; anything else uses the whole history

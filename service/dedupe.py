@@ -26,7 +26,7 @@ import json
 import re
 import sqlite3
 import unicodedata
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from difflib import SequenceMatcher
 from itertools import combinations
 
@@ -407,6 +407,43 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _is_check(g) -> bool:
+    return "check" in (g["channel"] or "").lower() or "check" in (g["source_row"] or "").split("|")[0].lower()
+
+
+def count_once_after_merge(conn: sqlite3.Connection, keep_id: int, moved_gift_ids: list[int]) -> list[int]:
+    """Ingest's count-once rule (ingest_adapter.collapse_cross_file_repeats) applied across the two merged people:
+    a gift moved over from the merged-away donor and one already on the kept donor with the same amount, dates
+    within 2 days, from different files, one of them a check, are one gift. The check-log row stays 'ok', the
+    other is marked 'duplicate'. Only pairs spanning the two people are considered, so gifts that ingest already
+    judged on one person never change. Returns the gift ids marked."""
+    if not moved_gift_ids:
+        return []
+    rows = [dict(r) for r in conn.execute(
+        "SELECT id, amount, gift_date, channel, source_row FROM gifts WHERE donor_id = ? AND status = 'ok' "
+        "ORDER BY gift_date, id", (keep_id,))]
+    moved = {int(i) for i in moved_gift_ids}
+    mine = [g for g in rows if g["id"] not in moved]
+    theirs = [g for g in rows if g["id"] in moved]
+    file_of = lambda g: (g["source_row"] or "").split("|")[0].strip()          # noqa: E731
+    used: set[int] = set()
+    marked: list[int] = []
+    for g in theirs:
+        twin = next((k for k in mine if k["id"] not in used
+                     and k["amount"] == g["amount"]
+                     and abs((date.fromisoformat(k["gift_date"][:10]) - date.fromisoformat(g["gift_date"][:10])).days) <= 2
+                     and file_of(k) != file_of(g)
+                     and (_is_check(k) or _is_check(g))), None)
+        if twin is None:
+            continue
+        loser = twin if _is_check(g) and not _is_check(twin) else g                # keep the check-log row
+        used.add(twin["id"])
+        marked.append(loser["id"])
+    for gift_id in marked:
+        conn.execute("UPDATE gifts SET status = 'duplicate' WHERE id = ?", (gift_id,))
+    return marked
+
+
 def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = None,
           approved_by: str | None = None) -> dict:
     """Merge a suggested pair into one donor. The kept donor takes the other's gifts, research facts,
@@ -458,6 +495,9 @@ def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = No
             moved[table] = conn.execute(
                 f"UPDATE {table} SET donor_id = ? WHERE donor_id = ?", (keep_id, drop_id)).rowcount
         moved_ids.update(_merge_crm(conn, keep_id, drop_id))
+        # The same gift recorded on both people (a check in the deposit log and in a spreadsheet, split across
+        # two records by the upload) now sits on one donor: count it once. Marked, never deleted; undo restores.
+        moved_ids["duplicate_gifts"] = count_once_after_merge(conn, keep_id, moved_ids.get("gifts", []))
         conn.execute("DELETE FROM donor_scores WHERE donor_id = ?", (drop_id,))
         conn.execute("DELETE FROM donors WHERE id = ?", (drop_id,))
 
@@ -475,7 +515,7 @@ def merge(conn: sqlite3.Connection, suggestion_id: int, keep_id: int | None = No
         conn.rollback()
         raise
     return {"suggestion_id": suggestion_id, "kept_donor_id": keep_id, "removed_donor_id": drop_id,
-            "moved": moved, "merge_id": merge_id}
+            "moved": moved, "merge_id": merge_id, "counted_once": moved_ids["duplicate_gifts"]}
 
 
 def undo_merge(conn: sqlite3.Connection, merge_id: int) -> dict:
@@ -511,6 +551,8 @@ def undo_merge(conn: sqlite3.Connection, merge_id: int) -> dict:
         if restore:
             conn.execute(f"UPDATE donors SET {', '.join(f'{k} = ?' for k in restore)} WHERE id = ?",
                          [*restore.values(), kept_id])
+        for gift_id in moved.get("duplicate_gifts", []):              # counted once on merge: count again
+            conn.execute("UPDATE gifts SET status = 'ok' WHERE id = ? AND status = 'duplicate'", (gift_id,))
         for table in MOVED_TABLES:
             for row_id in moved.get(table, []):
                 conn.execute(f"UPDATE {table} SET donor_id = ? WHERE id = ? AND donor_id = ?",
