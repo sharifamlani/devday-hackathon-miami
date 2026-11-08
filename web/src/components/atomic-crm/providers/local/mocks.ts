@@ -201,6 +201,23 @@ registerMock("POST", "/call-notes/{id}/apply", ({ body }) => ({
   applied: (body as { action_ids: (string | number)[] }).action_ids.map((id) => ({ id, type: MOCK.afterCall.actions.find((a) => a.id === id)?.type ?? "unknown", ref: null })),
 }));
 registerMock("GET", "/people/{id}/pledges", () => MOCK.pledges);
+// #125 automatic-merge review (dev only, VITE_MOCK_ENDPOINTS=1)
+registerMock("GET", "/people/{id}/merges", ({ path }) => ({
+  person_id: Number(path.split("/")[2]),
+  auto_merged: true,
+  merged_from: 2,
+  merges: [{
+    id: 1, reviewed_at: null, review_action: null,
+    sources: [
+      { name: "Elizabeth Fontaine", email: "liz.fontaine@example.com", phone: null, files: ["give_miami_day_export_2022-2025.xlsx"], locations: ["give_miami_day_export_2022-2025.xlsx: sheet:GMD gifts:row 12"], gift_ids: [3, 9], gift_count: 2, survivor: true, rule: "same email" },
+      { name: "Liz F.", email: "liz.fontaine@example.com", phone: null, files: ["online_gifts_oct_nov_2026.xlsx"], locations: ["online_gifts_oct_nov_2026.xlsx: sheet:October:row 5"], gift_ids: [41], gift_count: 1, survivor: false, rule: "same email" },
+    ],
+  }],
+}));
+registerMock("POST", "/people/{id}/merges/review", ({ body }) => ({
+  action: (body as { action: string }).action,
+  restored: (body as { action: string }).action === "split" ? [{ id: 9001, full_name: "Liz F." }] : [],
+}));
 registerMock("GET", "/context/search", ({ query }) => {
   const kinds = query.get("kinds")?.split(",");
   return MOCK.context.filter((c) => !kinds || kinds.includes(c.kind)).slice(0, Number(query.get("k") ?? 8));

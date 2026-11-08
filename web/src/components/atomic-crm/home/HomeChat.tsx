@@ -5,6 +5,7 @@ import {
   CalendarPlus,
   Check,
   Mail,
+  Sparkles,
   Paperclip,
   Plus,
   Upload,
@@ -20,6 +21,11 @@ import {
 import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
 import { EXAMPLE_QUESTIONS, type AskAnswer } from "../providers/local/ask";
+import { DATA_MODE } from "../providers/local/config";
+import { Markdown } from "../misc/Markdown";
+import { useAgentRefetch } from "../providers/local/refetch";
+import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
+import { ApprovalCard, StepCard } from "./AgentCards";
 import {
   answerSummary,
   appendAnswer,
@@ -45,6 +51,7 @@ export const FocusTaskCard = ({
   hasData,
   live = true,
   onAction,
+  onWork,
 }: {
   task: HomeTask | null;
   index: number;
@@ -57,6 +64,8 @@ export const FocusTaskCard = ({
   /** False in the read-only snapshot build: no "all caught up" there. */
   live?: boolean;
   onAction?: () => void;
+  /** Hand this task to the home agent (live only). */
+  onWork?: (task: HomeTask) => void;
 }) => {
   const session = useAskSession();
   const headingId = useId();
@@ -121,6 +130,19 @@ export const FocusTaskCard = ({
         </ul>
       )}
       <div className="flex flex-wrap gap-2">
+        {onWork && (
+          <button
+            type="button"
+            onClick={() => onWork(task)}
+            className={cn(
+              pill,
+              "bg-brand text-brand-foreground hover:bg-brand/85",
+            )}
+          >
+            <Sparkles className="size-4" aria-hidden="true" />
+            Work on it with the agent
+          </button>
+        )}
         {task.kind !== "review" && task.kind !== "prep" && (
           <button
             type="button"
@@ -228,7 +250,78 @@ const UserMessage = ({ text }: { text: string }) => (
   </p>
 );
 
-export const AgentThread = () => {
+/** On the laptop API the Home chat is the main-UI agent (B10): steps as cards, Undo, approval cards. */
+const LIVE_AGENT = DATA_MODE === "local";
+
+const LiveAgentThread = () => {
+  const { messages, pending, error } = useAgentChat();
+  const refetch = useAgentRefetch();
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [messages.length, pending]);
+
+  return (
+    <div
+      role="log"
+      aria-label="Conversation with the agent"
+      className="flex min-h-[120px] flex-1 flex-col gap-3 overflow-y-auto px-[22px] py-4"
+    >
+      {messages.length === 0 && !pending && (
+        <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
+          Ask about donors, plan outreach, or add to the calendar.
+        </p>
+      )}
+      {messages.map((m, i) =>
+        m.role === "user" ? (
+          <UserMessage key={i} text={m.text} />
+        ) : (
+          <div
+            key={i}
+            className="flex max-w-[78%] flex-col gap-2 self-start rounded-2xl rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm"
+          >
+            <span className="block text-[11px] font-bold text-muted-foreground">Agent</span>
+            {m.steps.length > 0 && (
+              <ul aria-label="Steps" className="flex flex-col gap-1.5">
+                {m.steps.map((step, j) => (
+                  <StepCard key={`${i}-${j}`} step={step} onUndo={() => undoStep(i, j, refetch)} />
+                ))}
+              </ul>
+            )}
+            {m.approvals.map((a) => (
+              <ApprovalCard
+                key={a.call_id}
+                approval={a}
+                decided={Boolean(m.decided)}
+                decision={m.decisions?.[a.call_id]}
+                handled={m.handled}
+                disabled={pending}
+                onDecide={(approve) => decide(i, { [a.call_id]: approve }, refetch)}
+              />
+            ))}
+            {m.text && <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>}
+          </div>
+        ),
+      )}
+      {pending && (
+        <p className="self-start rounded-2xl bg-surface px-3.5 py-2.5 text-sm text-muted-foreground">
+          Thinking…
+        </p>
+      )}
+      {error && !pending && (
+        <p role="alert" className="self-start text-sm text-alert-foreground">
+          The agent couldn’t answer: {error}
+        </p>
+      )}
+      <div ref={endRef} />
+    </div>
+  );
+};
+
+export const AgentThread = () => (LIVE_AGENT ? <LiveAgentThread /> : <AskThread />);
+
+const AskThread = () => {
   const session = useAskSession();
   const { answer, pending, error } = session;
   const [history, setHistory] = useState<AskAnswer[]>(() =>
@@ -294,15 +387,19 @@ export const Composer = ({
   suggestions?: string[];
 }) => {
   const session = useAskSession();
+  const agent = useAgentChat();
+  const refetch = useAgentRefetch();
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const inputId = useId();
   const [bloomId, setBloomId] = useState(0);
+  const busy = LIVE_AGENT ? agent.pending : session.pending;
 
   const send = (question: string) => {
     const q = question.trim();
-    if (!q || session.pending) return;
-    session.submit(q);
+    if (!q || busy) return;
+    if (LIVE_AGENT) void sendToAgent(q, refetch);
+    else session.submit(q);
     setText("");
   };
   const onSubmit = (event: FormEvent) => {
@@ -311,14 +408,14 @@ export const Composer = ({
   };
 
   return (
-    <div className="home-composer">
+    <div data-tour="composer" className="home-composer">
       <ul aria-label="Suggestions" className="mb-2.5 flex flex-wrap gap-2">
         {suggestions.map((question) => (
           <li key={question} className="max-w-full">
             <button
               type="button"
               onClick={() => send(question)}
-              disabled={session.pending}
+              disabled={busy}
               className={cn(
                 "inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-left text-xs hover:bg-accent disabled:opacity-60",
                 focusRing,
@@ -395,7 +492,7 @@ export const Composer = ({
           onClick={(event) => {
             if (
               text.trim() &&
-              !session.pending &&
+              !busy &&
               (event.detail > 0 ||
                 document.activeElement === event.currentTarget)
             )
@@ -403,7 +500,7 @@ export const Composer = ({
           }}
           aria-label="Send"
           title="Send"
-          disabled={session.pending || !text.trim()}
+          disabled={busy || !text.trim()}
           className={cn(
             "grid size-9 shrink-0 place-items-center rounded-full border border-[#2427280e] bg-white text-[#242728] hover:bg-[#f5f6f7] disabled:opacity-50",
             focusRing,

@@ -16,6 +16,10 @@ import { firstName, type TranscriptSource } from "./transcriptSource";
  * produced, so a stretch that doesn't line up (an abandoned call, a demo
  * stretch in between) labels nothing rather than the wrong lines.
  *
+ * A stretch stopped mid-sentence was drained gracefully; finals that arrived
+ * after the pane stopped listening travel as its `tail`. The labelled pass
+ * covers them; where a stretch keeps its live lines, its tail is appended.
+ *
  * Every failure keeps live lines, per stretch: no recording, no service
  * (snapshot mode), an error, an empty answer, or not back within
  * LABEL_TIMEOUT_MS (one budget for all stretches, sent in parallel).
@@ -62,6 +66,12 @@ export const matchStretches = (
     end = start;
   }
   return matched;
+};
+
+/** A stretch's live lines plus the finals drained after the pane stopped listening. */
+const withTail = (live: TranscriptLine[], stretch: CallRecording): TranscriptLine[] => {
+  const at = live.at(-1)?.at ?? 0;
+  return [...live, ...(stretch.tail ?? []).map((text) => ({ speaker: "you" as const, name: "You", text, at }))];
 };
 
 /** Labelled lines for one stretch, moved onto the pane's call clock at `startAt`. */
@@ -127,12 +137,15 @@ export const labelSpeakers = async (
     matched.forEach((m, i) => {
       lines.push(...liveLines.slice(at, m.start));
       const labeled = results[i];
-      lines.push(...(labeled ? onPaneClock(labeled, liveLines[m.start].at) : liveLines.slice(m.start, m.end)));
+      lines.push(...(labeled ? onPaneClock(labeled, liveLines[m.start].at) : withTail(liveLines.slice(m.start, m.end), m.stretch)));
       at = m.end;
     });
     lines.push(...liveLines.slice(at));
     const done = results.filter(Boolean).length;
-    if (!done) return keep(outcome === "timeout" ? `speaker pass took over ${timeoutMs / 1000} s` : "speaker pass failed", matched.length);
+    if (!done) {
+      const reason = outcome === "timeout" ? `speaker pass took over ${timeoutMs / 1000} s` : "speaker pass failed";
+      return { lines, labeled: false, stretches: { labeled: 0, matched: matched.length }, reason };
+    }
     return {
       lines,
       labeled: true,

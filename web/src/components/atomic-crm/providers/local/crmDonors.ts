@@ -299,6 +299,11 @@ export interface DonorContact {
   avatar: { src?: string };
   email_jsonb: [];
   phone_jsonb: [];
+  /** CRM tab (giver | neighbor | community); null on older APIs. */
+  contact_type?: "giver" | "neighbor" | "community" | null;
+  /** Exact-match merge waiting for staff review (#125): the "!" icon. */
+  auto_merged?: boolean;
+  merged_from?: number;
 }
 
 export interface DonorOrganization {
@@ -468,6 +473,9 @@ export const toDonorContact = (
     usual_month: why?.pattern?.month_name ?? null,
     recurring: isRecurring(why?.usual_cadence_days, summary.gift_count),
     give_miami_day_days_away: summary.give_miami_day_days_away,
+    contact_type: summary.contact_type ?? null,
+    auto_merged: summary.auto_merged ?? false,
+    merged_from: summary.merged_from ?? 0,
     source: sourceList(row.source_row),
     interests: stringList(row.interests),
     imported_notes: row.notes?.trim() || null,

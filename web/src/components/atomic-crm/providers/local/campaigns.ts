@@ -370,6 +370,9 @@ export const campaignSnapshotMethods = (
           body: m.body,
           sent_at: sentAt,
           simulated: true,
+          provider: "dryrun",
+          delivery_status: "queued (dry run)",
+          provider_id: null,
         });
         Object.assign(m, { status: "sent", sent_at: sentAt });
         sent += 1;
@@ -380,6 +383,8 @@ export const campaignSnapshotMethods = (
       return {
         simulated: true,
         sent,
+        providers: (sent ? { dryrun: sent } : {}) as Record<string, number>,
+        failed: [],
         no_address: noAddress,
         not_approved: counts.draft,
       };

@@ -46,8 +46,16 @@ Rules:
 - You can change records directly (people, tasks, calendar, interests, RSVPs, duplicates). Each change applies at
   once and the user sees an Undo button; say what you changed. Sends, merges and deletes wait for the user's
   approval: call the tool, and the user approves or declines on a card.
+- To phone someone, call call_person (it waits for the approval card). The user's own phone rings first,
+  then the person's; the call is recorded with a spoken notice and saved as a call note afterwards.
 - For event outreach use plan_event_outreach: it makes one batch per event; report each event's drafts and
   who needs individual approval.
+- "Work on this task: ... (task #N)" means do the work, not describe it: call get_task(N), then get_person for its
+  person, then take the next step yourself. Call/email task about a late or failed gift: draft_email (or
+  draft_sms if they give by text) with intent re_engage; a welcome: intent thank_you. Never send; say the
+  draft is ready to review. Review task: say which records look like the same person and why, and offer the
+  merge (it waits for approval). Prep task: list who is invited and what to prepare. End with "Mark done?";
+  call complete_task only when the user says so.
 {first_turn}{selection}"""
 
 FIRST_TURN = """- This is the start of the conversation: before answering, call get_context and get_events. If any event
@@ -80,7 +88,8 @@ def gave_via_ids(channel: str | None) -> set[int] | None:
     """Donor ids with a gift through a matching channel (case-insensitive substring); None = no filter."""
     if not channel:
         return None
-    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ?",
+    return {r["donor_id"] for r in query("SELECT DISTINCT donor_id FROM gifts WHERE lower(channel) LIKE ? "
+                                         "AND COALESCE(status, 'ok') = 'ok'",       # a declined charge isn't a gift
                                          (f"%{channel.strip().lower()}%",))}
 
 
@@ -249,8 +258,8 @@ def build_brief(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
                   "FROM donors d LEFT JOIN donor_scores s ON s.donor_id = d.id WHERE d.id = ?", (person_id,))
     if not donor:
         return {"error": f"person {person_id} not found"}
-    gifts = query("SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? ORDER BY gift_date DESC LIMIT 6",
-                  (person_id,))
+    gifts = query("SELECT amount, gift_date, channel FROM gifts WHERE donor_id = ? AND COALESCE(status, 'ok') = 'ok' "
+                  "ORDER BY gift_date DESC LIMIT 6", (person_id,))   # declined/failed charges are not gifts
     facts = query("SELECT fact, source_url FROM research_facts WHERE donor_id = ? LIMIT 5", (person_id,))
     d = donor[0]
     d["why"] = json.loads(d["why"] or "{}").get("reasons", [])
@@ -333,9 +342,17 @@ def get_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
     from fastapi import HTTPException
     from service import routes_data
     try:
-        return with_conn(lambda conn: routes_data.get_donor(person_id, conn))
+        return with_conn(lambda conn: person_record(routes_data.get_donor(person_id, conn)))
     except HTTPException as e:
         return {"error": str(e.detail)}
+
+
+def person_record(donor: dict) -> dict:
+    """What the agent sees about a person: gifts are only charges that went through; a declined or failed
+    charge moves to declined_charges, so a draft can never thank anyone for it. The UI route is unchanged."""
+    gifts = donor.get("gifts") or []
+    ok = [g for g in gifts if (g.get("status") or "ok") == "ok"]
+    return donor | {"gifts": ok, "declined_charges": [g for g in gifts if g not in ok]}
 
 
 @function_tool
@@ -345,6 +362,18 @@ def get_calendar(ctx: RunContextWrapper[ChatContext], from_date: str | None = No
     if t is None:
         return {"items": [], "note": "the calendar is not available yet"}
     return {"items": with_conn(t.calendar, from_date, to_date)}
+
+
+@function_tool
+def get_task(ctx: RunContextWrapper[ChatContext], task_id: int) -> dict:
+    """One task by id: kind, title, why, person_id, chips, due, done, source."""
+    t = tasks_module()
+    if t is None:
+        return {"error": "tasks are not available yet"}
+    try:
+        return {"task": with_conn(t.get_task, task_id)}
+    except t.NotFound as e:
+        return {"error": str(e)}
 
 
 @function_tool
@@ -613,6 +642,18 @@ def send(ctx: RunContextWrapper[ChatContext], batch_id: int, message_ids: list[i
         return {"error": str(e.detail)}
 
 
+@function_tool(needs_approval=True)
+def call_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
+    """Phone a person from the staff member's own number. Needs the user's approval. The staff member's phone
+    rings first; once they answer, this person's phone rings. The call is recorded after a spoken notice, then
+    transcribed, summarized and saved as a call note with suggested follow-ups."""
+    from service import phone
+    try:
+        return with_conn(phone.start_call, person_id)
+    except (phone.PhoneError, LookupError) as e:
+        return {"error": str(e)}
+
+
 @function_tool
 def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
     """Undo one earlier change by its undo_token."""
@@ -625,7 +666,7 @@ def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
 
 TOOLS = [
     # reads
-    find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_calendar, get_tasks,
+    find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_calendar, get_task, get_tasks,
     get_call_notes, build_brief, community_stats,
     # writes (each returns an undo_token)
     update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
@@ -633,7 +674,7 @@ TOOLS = [
     apply_after_call_actions,
     draft_email, draft_sms, plan_event_outreach, undo,
     # approval-gated: the run pauses on an approval card
-    merge_duplicate, delete_task, delete_calendar_item, send,
+    merge_duplicate, delete_task, delete_calendar_item, send, call_person,
 ]
 APPROVAL_TOOLS = {t.name for t in TOOLS if getattr(t, "needs_approval", False)}
 
@@ -646,10 +687,22 @@ def summarize(output) -> str:
         return str(output)[:160]
     if "error" in data:
         return f"error: {data['error']}"
+    if isinstance(data.get("task"), dict):                  # get_task
+        t = data["task"]
+        return f"task #{t.get('id')}: {t.get('title')}" + (" (done)" if t.get("done") else "")
+    if "full_name" in data and "gifts" in data:            # get_person: a donor record
+        gifts = data.get("gifts") or []
+        return f"{data['full_name']}: {len(gifts)} gift{'s' if len(gifts) != 1 else ''}" + (
+            f", score {data['score']}" if data.get("score") is not None else "")
+    if "batch_id" in data and "sent" in data:   # the send result: approved by a person, then delivered
+        blocked = len(data.get("blocked") or [])
+        return (f"Approved: batch #{data['batch_id']}, {data['sent']} sent"
+                + (f", {blocked} blocked" if blocked else "")
+                + (" (dry run)" if data.get("simulated") else ""))
     if "batch_id" in data:
-        extra = f", {len(data['needs_individual_approval'])} need individual approval" \
-            if data["needs_individual_approval"] else ""
-        return f"batch #{data['batch_id']}: {data['drafts']} drafts, pending approval{extra}"
+        needs = data.get("needs_individual_approval") or []
+        extra = f", {len(needs)} need individual approval" if needs else ""
+        return f"batch #{data['batch_id']}: {data.get('drafts', 0)} drafts, pending approval{extra}"
     if "people" in data:
         names = ", ".join(p["full_name"] for p in data["people"][:4])
         return data.get("note") or f"{data.get('count', 0)} people" + (f": {names}" if names else "")

@@ -14,6 +14,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { DonorContactDetail } from "../providers/local/crmResources";
+import { AutoMergeFlag } from "./AutoMergeFlag";
+import { isNonGiver, TAB_ONE } from "./personTab";
 import { useDonor } from "../providers/local/hooks";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { DonorTagList, Stat } from "./donorCrmUi";
@@ -79,23 +81,35 @@ export const DonorDrawer = ({
                       </span>
                     )}
                     {donor.full_name}
+                    <span className="ml-2 inline-flex align-middle">
+                      <AutoMergeFlag
+                        personId={donor.id}
+                        name={donor.full_name}
+                        autoMerged={donor.auto_merged}
+                        mergedFrom={donor.merged_from}
+                      />
+                    </span>
                   </SheetTitle>
                   <SheetDescription className="mt-1 flex flex-wrap items-center gap-1.5">
                     <Badge
                       variant="outline"
                       className="rounded-full border-border bg-card px-2.5 text-muted-foreground"
                     >
-                      {tierLabel[donor.tier]} donor
+                      {isNonGiver(donor.contact_type)
+                        ? TAB_ONE[donor.contact_type]
+                        : `${tierLabel[donor.tier]} donor`}
                     </Badge>
                     {donor.is_sample && <SampleHistoryBadge />}
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                        statusClass[donor.status],
-                      )}
-                    >
-                      {statusLabel[donor.status]}
-                    </span>
+                    {!isNonGiver(donor.contact_type) && (
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                          statusClass[donor.status],
+                        )}
+                      >
+                        {statusLabel[donor.status]}
+                      </span>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {[
                         donor.donor_type === "organization"

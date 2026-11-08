@@ -231,3 +231,75 @@ def test_tag_slugs_needs_no_database():
     assert slugs == interests.TAG_SLUGS and len(slugs) == 17
     slugs.append("x")                                                   # a copy: callers can't change the constant
     assert len(interests.TAG_SLUGS) == 17
+
+
+# --- Organization identity: name + one more attribute (c9's "Whitaker Family Charitable Fund" case) ---------
+
+def found(city, region, website=None, tags=("education",)):
+    """What the agent returns: a confirmed-looking identity located in city/region, with tags and a fact."""
+    return Enrichment(
+        identity_match="confirmed", identity_basis=["name"], notes=None,
+        facts=[enrich_agent.ResearchedFact(fact="Gives to schools.", source_url="https://ex.org/f")],
+        interests=[enrich_agent.FoundInterest(tag=t, sub_tag=None, confidence="high", evidence="e",
+                                              source_url="https://ex.org/t", source_type="named_gift") for t in tags],
+        contact=enrich_agent.Contact(employer=None, title=None, linkedin_url=None, public_email=None,
+                                     public_phone=None, website=website, source_urls=["https://ex.org/contact"],
+                                     location=enrich_agent.Location(city=city, region=region, country="US")))
+
+
+@pytest.fixture
+def live_agent(monkeypatch):
+    """enrich_full's live path with a scripted agent result; every URL loads."""
+    monkeypatch.setattr(enrich_agent, "read_interest_cache", lambda: {})
+    monkeypatch.setattr(enrich_agent, "url_loads", lambda url: True)
+    box = {}
+    monkeypatch.setattr(enrich_agent.Runner, "run_sync",
+                        lambda agent, query: type("R", (), {"final_output": box["e"]})())
+    return box
+
+
+def test_name_only_match_in_another_state_gets_no_tags(live_agent):
+    live_agent["e"] = found("Greenville", "South Carolina")
+    out = enrich_agent.enrich_full("Whitaker Family Charitable Fund", "Whitaker Family Charitable Fund", "Miami",
+                                   "organization", state="FL")
+    assert out["identity_match"] == "ambiguous" and out["interests"] == [] and out["facts"] == []
+    assert out["notes"] == enrich_agent.IDENTITY_NOTE and out["identity_basis"] == ["name"]
+
+
+def test_no_second_attribute_on_the_record_is_ambiguous(live_agent):
+    live_agent["e"] = found("Miami", "FL")
+    out = enrich_agent.enrich_full("Whitaker Family Charitable Fund", None, None, "organization",
+                                   email="harold.whitaker@example.org")      # placeholder domain: no signal
+    assert out["identity_match"] == "ambiguous" and out["interests"] == []
+
+
+def test_knight_in_miami_keeps_its_sourced_tags(live_agent):
+    live_agent["e"] = found("Miami", "Florida", tags=("civic_media", "arts_culture"))
+    out = enrich_agent.enrich_full("John S. and James L. Knight Foundation", None, "Miami", "organization", state="FL")
+    assert out["identity_match"] == "confirmed" and out["identity_basis"] == ["name", "city", "state"]
+    assert {i["tag"] for i in out["interests"]} == {"civic_media", "arts_culture"}
+    assert all(i["source_url"] for i in out["interests"])
+
+
+def test_website_matching_the_email_domain_counts(live_agent):
+    live_agent["e"] = found(None, None, website="https://www.knightfoundation.org/")
+    out = enrich_agent.enrich_full("Knight Foundation", None, None, "organization", email="grants@knightfoundation.org")
+    assert out["identity_basis"] == ["name", "website"] and out["interests"]
+
+
+def test_state_names_and_abbreviations_compare_equal():
+    assert enrich_agent.state_name("FL") == enrich_agent.state_name("Florida") == "florida"
+    assert enrich_agent.state_name("South Carolina") != enrich_agent.state_name("FL")
+
+
+def test_cached_proposal_is_returned_without_the_live_check(monkeypatch):
+    cached = {"identity_match": "confirmed", "facts": [], "interests": [{"tag": "civic_media"}], "contact": {}}
+    monkeypatch.setattr(enrich_agent, "read_interest_cache", lambda: {"John S. and James L. Knight Foundation": cached})
+    monkeypatch.setattr(enrich_agent.Runner, "run_sync", lambda *a, **k: (_ for _ in ()).throw(AssertionError("live run")))
+    assert enrich_agent.enrich_full("John S. and James L. Knight Foundation", None, None, "organization") is cached
+
+
+def test_plain_enrich_live_path_is_gated_too(live_agent):
+    live_agent["e"] = found("Greenville", "SC")
+    assert enrich_agent.enrich_donor("Whitaker Family Charitable Fund", "Whitaker Family Charitable Fund", "Miami",
+                                     donor_type="organization") == []

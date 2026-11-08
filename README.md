@@ -21,10 +21,11 @@ From our call with a Miami Foundation staff member, plus the challenge brief.
 
 | Problem | What the app does | Where |
 |---|---|---|
-| **Challenge #2: duplicates** | Finds possible duplicates across files (6 of 6 planted groups in the sample data). Staff approve each merge; the gift history moves to the kept record; every merge can be undone. | Givers → Review duplicates (`service/dedupe.py`) |
+| **Challenge #2: duplicates** | Exact matches (the same email, or the same name with nothing contradicting it) merge automatically on upload; a "!" marker so staff can review them (Keep / Split) is planned. Fuzzy matches are suggestions (6 of 6 planted groups found in the sample data): staff approve each merge, the gift history moves to the kept record, and every merge can be undone. | Givers → Review duplicates (`service/dedupe.py`) |
 | **Challenge #2: late gifts** | Flags failed and late recurring gifts (a declined monthly card, a missed quarterly gift) before the donor lapses. A declined charge is never counted as money raised. | Home + gift alerts (`service/gift_alerts.py`) |
 | **Who to contact first** | A deterministic score (recency, frequency, amount, and the gap since a donor's usual gift) ranks who to call. The model explains the score; it never computes it. | Home, Inbox (`service/score.py`) |
 | **Context gets lost** | One record per person across all files. Voice capture: a mic button transcribes a call live; after the call an agent proposes follow-ups (a task, an RSVP, a pledge, a note) and **writes nothing until staff click Apply**. | Voice panel (`web/.../voice`), `service/after_call_agent.py` |
+| **Calls from your own phone** | **Call from my phone** on a donor rings your cell first, then the donor, who sees your number and hears a recording notice. After the call, each side's channel is transcribed, summarized and saved as a call note on that donor, with follow-ups to Apply. | Donor → Call notes (`service/phone.py`) |
 | **Staying on top of donors** | **Enrich** looks up an organization's public facts with sources and tags its interest areas from a fixed list of 17. Staff review before anything is saved. | Profile → Enrich (`service/interests.py`) |
 | **The people served, not just donors** | Three tabs: **Givers** (gave), **Neighbors** (met, not yet either), **Community** (the people the nonprofit serves, analyzed only from what they reported; never sent a donation ask). | Upload sorts people into a tab or flags them for review |
 | **Showing impact** | A **context store**: the agent reads the organization's website and news, keeps dated, sourced facts (success stories, how money is spent, how the organization is doing), newest first. Every campaign, thank-you and invite cites at least one of each, with sources shown. | Onboarding, `service/org_context.py` |
@@ -109,9 +110,15 @@ Sending is a **dry run** by default: email goes out only with `EMAIL_SEND=on` an
 - **Live context facts are "search-cited":** their URLs come from the search's own results, but hosted search
   doesn't return page text, so the quote isn't checked against the page itself.
 - **Free-tier Gemini audio may be used by Google** to improve its products; real donor calls need the paid tier.
+- **Phone calls (Twilio) run from the laptop only** and need `PHONE_CALLS=on`, a Twilio-verified `STAFF_PHONE`, and
+  the donor's number on `SEND_ALLOWLIST`. Our Twilio account is a **trial**: it reaches only verified numbers and
+  plays a trial message on each call. A donor calling back reaches your cell directly, outside the CRM. Calls shown
+  with a personal number as caller ID can get a lower carrier rating ("Spam Likely" on some phones). Restarting the
+  service mid-call loses that call's transcript (the call itself still completes).
 
 ## Credits and licenses
 
+- **Built with Claude Code and Codex;** the OpenAI API and the OpenAI Agents SDK run throughout the product.
 - **Atomic CRM** by Marmelab (MIT): the web app's base (`web/LICENSE.md`).
 - **assistant-stream** from the assistant-ui project (MIT): streams the chat agent's replies (`service/chat_stream.py`).
 - **Google live-api-web-console** (Apache-2.0): the browser audio recorder files in `web/.../voice/audio/` and
