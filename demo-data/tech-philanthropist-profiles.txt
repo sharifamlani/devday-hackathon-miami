@@ -1,0 +1,183 @@
+DEMO UPLOAD FILE — ALL CONTACT DETAILS AND GIFT EVENTS BELOW ARE SYNTHETIC.
+These 20 profiles complement the structured CSV. All gifts are invented examples to a fictional nonprofit.
+Public-interest notes are basic research leads; see SOURCES.md for source links and limitations.
+
+Prospect: Mitch Kapor
+Organization / public giving channel: Kapor Foundation
+Email: prospect081.demo@example.org (fictional example.org address)
+Phone: 305-555-0181 (fictional 555 placeholder)
+Public-interest note: equity in tech, education. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $12097 on 2025-11-02 (invented demo gift; not a real donation).
+- $24451 on 2026-11-07 (invented demo gift; not a real donation).
+
+Prospect: Freada Kapor Klein
+Organization / public giving channel: Kapor Foundation
+Email: prospect082.demo@example.org (fictional example.org address)
+Phone: 305-555-0182 (fictional 555 placeholder)
+Public-interest note: equity in tech, education. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $12234 on 2025-12-05 (invented demo gift; not a real donation).
+- $24722 on 2026-01-06 (invented demo gift; not a real donation).
+
+Prospect: Tim Cook
+Organization / public giving channel: Apple employee giving / personal philanthropy
+Email: prospect083.demo@example.org (fictional example.org address)
+Phone: 305-555-0183 (fictional 555 placeholder)
+Public-interest note: health, education, environment; public personal detail limited. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $12371 on 2025-01-08 (invented demo gift; not a real donation).
+- $24993 on 2026-02-09 (invented demo gift; not a real donation).
+
+Prospect: Jony Ive
+Organization / public giving channel: LoveFrom / personal giving
+Email: prospect084.demo@example.org (fictional example.org address)
+Phone: 305-555-0184 (fictional 555 placeholder)
+Public-interest note: design and education; verify current vehicle. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $12508 on 2025-02-11 (invented demo gift; not a real donation).
+- $25264 on 2026-03-12 (invented demo gift; not a real donation).
+
+Prospect: Brian Acton
+Organization / public giving channel: Signal Foundation
+Email: prospect085.demo@example.org (fictional example.org address)
+Phone: 305-555-0185 (fictional 555 placeholder)
+Public-interest note: privacy and secure communications. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $12645 on 2025-03-14 (invented demo gift; not a real donation).
+- $25535 on 2026-04-15 (invented demo gift; not a real donation).
+
+Prospect: Klaus Tschira
+Organization / public giving channel: Jan Koum Foundation
+Email: prospect086.demo@example.org (fictional example.org address)
+Phone: 305-555-0186 (fictional 555 placeholder)
+Public-interest note: health and community giving; verify current programs. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $12782 on 2025-04-17 (invented demo gift; not a real donation).
+- $25806 on 2026-05-18 (invented demo gift; not a real donation).
+
+Prospect: Tobi Lütke
+Organization / public giving channel: Slack Fund
+Email: prospect087.demo@example.org (fictional example.org address)
+Phone: 305-555-0187 (fictional 555 placeholder)
+Public-interest note: technology and community; verify current channel. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $12919 on 2025-05-20 (invented demo gift; not a real donation).
+- $26077 on 2026-06-21 (invented demo gift; not a real donation).
+
+Prospect: Paul Graham
+Organization / public giving channel: Y Combinator / personal philanthropy
+Email: prospect088.demo@example.org (fictional example.org address)
+Phone: 305-555-0188 (fictional 555 placeholder)
+Public-interest note: entrepreneurship and education; verify current giving. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $13056 on 2025-06-23 (invented demo gift; not a real donation).
+- $26348 on 2026-07-24 (invented demo gift; not a real donation).
+
+Prospect: Jessica Livingston
+Organization / public giving channel: Y Combinator / personal philanthropy
+Email: prospect089.demo@example.org (fictional example.org address)
+Phone: 305-555-0189 (fictional 555 placeholder)
+Public-interest note: entrepreneurship and education; verify current giving. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $13193 on 2025-07-26 (invented demo gift; not a real donation).
+- $26619 on 2026-08-27 (invented demo gift; not a real donation).
+
+Prospect: Sam Altman
+Organization / public giving channel: OpenAI / personal philanthropy
+Email: prospect090.demo@example.org (fictional example.org address)
+Phone: 305-555-0190 (fictional 555 placeholder)
+Public-interest note: technology, health and policy; verify giving vehicle. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $13330 on 2025-08-02 (invented demo gift; not a real donation).
+- $26890 on 2026-09-03 (invented demo gift; not a real donation).
+
+Prospect: Dara Khosrowshahi
+Organization / public giving channel: Hoffman Family Foundation
+Email: prospect091.demo@example.org (fictional example.org address)
+Phone: 305-555-0191 (fictional 555 placeholder)
+Public-interest note: education, democracy, technology. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $13467 on 2025-09-05 (invented demo gift; not a real donation).
+- $27161 on 2026-10-06 (invented demo gift; not a real donation).
+
+Prospect: Safra Catz
+Organization / public giving channel: Personal giving
+Email: prospect092.demo@example.org (fictional example.org address)
+Phone: 305-555-0192 (fictional 555 placeholder)
+Public-interest note: technology and education; verify vehicle. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $13604 on 2025-10-08 (invented demo gift; not a real donation).
+- $27432 on 2026-11-07 (invented demo gift; not a real donation).
+
+Prospect: Jimmy Wales
+Organization / public giving channel: Wikimedia Foundation
+Email: prospect093.demo@example.org (fictional example.org address)
+Phone: 305-555-0193 (fictional 555 placeholder)
+Public-interest note: free knowledge and education. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $13741 on 2025-11-11 (invented demo gift; not a real donation).
+- $27703 on 2026-11-07 (invented demo gift; not a real donation).
+
+Prospect: Craig Newmark
+Organization / public giving channel: Craig Newmark Philanthropies
+Email: prospect094.demo@example.org (fictional example.org address)
+Phone: 305-555-0194 (fictional 555 placeholder)
+Public-interest note: journalism, veterans, online safety. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $13878 on 2025-12-14 (invented demo gift; not a real donation).
+- $27974 on 2026-01-15 (invented demo gift; not a real donation).
+
+Prospect: Eric Yuan
+Organization / public giving channel: Omidyar Network
+Email: prospect095.demo@example.org (fictional example.org address)
+Phone: 305-555-0195 (fictional 555 placeholder)
+Public-interest note: inclusive economies, civic engagement. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $14015 on 2025-01-17 (invented demo gift; not a real donation).
+- $28245 on 2026-02-18 (invented demo gift; not a real donation).
+
+Prospect: Tim Berners-Lee
+Organization / public giving channel: World Wide Web Foundation
+Email: prospect096.demo@example.org (fictional example.org address)
+Phone: 305-555-0196 (fictional 555 placeholder)
+Public-interest note: open web and digital rights. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $14152 on 2025-02-20 (invented demo gift; not a real donation).
+- $28516 on 2026-03-21 (invented demo gift; not a real donation).
+
+Prospect: Jack Dorsey
+Organization / public giving channel: Start Small
+Email: prospect097.demo@example.org (fictional example.org address)
+Phone: 305-555-0197 (fictional 555 placeholder)
+Public-interest note: disaster relief, health, open internet. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $14289 on 2025-03-23 (invented demo gift; not a real donation).
+- $28787 on 2026-04-24 (invented demo gift; not a real donation).
+
+Prospect: Biz Stone
+Organization / public giving channel: Start Small / personal philanthropy
+Email: prospect098.demo@example.org (fictional example.org address)
+Phone: 305-555-0198 (fictional 555 placeholder)
+Public-interest note: health, education, community; verify vehicle. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $14426 on 2025-04-26 (invented demo gift; not a real donation).
+- $29058 on 2026-05-27 (invented demo gift; not a real donation).
+
+Prospect: Sara Blakely
+Organization / public giving channel: Sara Blakely Foundation
+Email: prospect099.demo@example.org (fictional example.org address)
+Phone: 305-555-0199 (fictional 555 placeholder)
+Public-interest note: women and girls; technology entrepreneur. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $14563 on 2025-05-02 (invented demo gift; not a real donation).
+- $29329 on 2026-06-03 (invented demo gift; not a real donation).
+
+Prospect: Melanie Perkins
+Organization / public giving channel: Canva Foundation / personal philanthropy
+Email: prospect100.demo@example.org (fictional example.org address)
+Phone: 305-555-0200 (fictional 555 placeholder)
+Public-interest note: education and design access. Verify current program fit and funding process; this note does not establish a relationship with the demo organization.
+Synthetic gift history to fictional South Florida Community Demo Fund:
+- $14700 on 2025-06-05 (invented demo gift; not a real donation).
+- $29600 on 2026-07-06 (invented demo gift; not a real donation).

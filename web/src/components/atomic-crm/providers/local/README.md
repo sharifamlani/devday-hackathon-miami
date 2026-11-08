@@ -72,8 +72,9 @@ const DraftBox = ({ donorId }: { donorId: number }) => {
 After any write the hooks refetch everything, so lists, ranks and drawers update by themselves. Never
 read a POST's response yourself.
 
-Onboarding (plan.md §15): screen 1 uploads files, and screen 2 saves the org's URLs and researches its
-website. Only the website is researched; social URLs are saved and come back "saved, not connected".
+Onboarding (plan.md §15): screen 1 uploads files, and screen 2 saves the organization name and URLs and researches its
+website. The Miami Foundation name and website are prefilled for the demo; both can be changed for another nonprofit.
+The website and news are researched; social URLs are saved and come back "saved, not connected".
 
 ```tsx
 import { useUploadFiles, useRunContext } from "@/components/atomic-crm/providers/local/hooks";
@@ -83,13 +84,19 @@ upload.mutate(Array.from(input.files ?? []));          // multipart POST /ingest
 // upload.data → { donors, gifts, duplicates, message, raw }
 
 const research = useRunContext();                     // one call, up to 30 s
-research.mutate({ website, x_url, linkedin_url, instagram_url });
+research.mutate({ name, website, x_url, linkedin_url, instagram_url });
 // research.isPending → "Reading your website…"
 // research.data.sources → [{ label: "Website", state: "done", fact_count: 12 },
 //                          { label: "X", state: "saved_not_connected", status_text: "saved, not connected" }, …]
+// A saved source uses state: "cached". Partial fallback facts appear in this response
+// without replacing that source's stored facts.
 // research.data.served_from → "live" | "cache" | "fallback"
 //   "fallback" (live read failed/timed out): show "Showing saved context", detail as a tooltip
 ```
+
+The saved organization profile includes per-source `source_status`. The Impact & Story panel uses it to keep
+cached facts labeled after onboarding, while preserving each fact's source link and date. Snapshot mode also
+shows that its context is saved sample data and that the preview cannot run live research.
 
 Outside React (a script or test), call the same functions directly:
 `import { donorDeskMethods } from "@/components/atomic-crm/providers/local"`.

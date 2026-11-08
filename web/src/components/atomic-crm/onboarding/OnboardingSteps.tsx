@@ -65,6 +65,7 @@ import {
   SOCIAL_LABELS,
   SOCIAL_PLATFORMS,
   checkField,
+  EMPTY_LINKS,
   fieldsFromLinks,
   linksFromFields,
   onboardingStore,
@@ -676,12 +677,15 @@ export const OrganizationStep = ({
     const social = (platform: string) =>
       profile.socials.find((s) => s.platform === platform)?.url ?? "";
     const saved = fieldsFromLinks({
+      name: profile.name ?? "",
       website: profile.website ?? "",
       x: social("x"),
       linkedin: social("linkedin"),
       instagram: social("instagram"),
     });
     setFields((current) => ({
+      ...current,
+      name: current.name === EMPTY_LINKS.name ? saved.name : current.name,
       website: current.website || saved.website,
       x: current.x || saved.x,
       linkedin: current.linkedin || saved.linkedin,
@@ -697,7 +701,11 @@ export const OrganizationStep = ({
   // Inline check when leaving a field; an empty website waits for Continue.
   const blur = (key: keyof OrgLinks) => {
     const value =
-      key === "website" ? fields.website : socialFieldValue(key, fields[key]);
+      key === "website"
+        ? (fields.website ?? "")
+        : key === "name"
+          ? (fields.name ?? "")
+          : socialFieldValue(key, fields[key] ?? "");
     if (value !== fields[key]) set(key, value);
     const error = checkField(key, value);
     setErrors(({ [key]: _old, ...rest }) =>
@@ -739,6 +747,25 @@ export const OrganizationStep = ({
           Your organization.
         </h2>
         <p className="onb-org-subtitle">Start with your website.</p>
+        <div className="onb-field">
+          <label htmlFor={`${id}-name`}>Organization name</label>
+          <input
+            id={`${id}-name`}
+            className="onb-text-input"
+            type="text"
+            autoComplete="organization"
+            required
+            aria-required="true"
+            aria-invalid={errors.name ? true : undefined}
+            value={fields.name ?? ""}
+            onChange={(event) => set("name", event.target.value)}
+            onBlur={() => blur("name")}
+          />
+          {errors.name && <p className="onb-error">{errors.name}</p>}
+          <p className="onb-note">
+            Prefilled for this demo. Change it to research another organization.
+          </p>
+        </div>
         <PrefixField
           id={`${id}-website`}
           className="onb-org-website"

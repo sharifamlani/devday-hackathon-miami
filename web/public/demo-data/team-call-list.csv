@@ -1,0 +1,5 @@
+id,first_name,last_name,full_name,email_address,phone_number,contact_type,transaction_type,notes,source_location
+DEMO-TEAM-001,Christian,Gonzalez,Christian Gonzalez,,+13054922854,contact,contact,USER-PROVIDED DEMO CALL TARGET; first row by request. Confirm consent before any call.,row:1
+DEMO-TEAM-002,Faye,Smernou,Faye Smernou,,305-555-0196,contact,contact,TEAMMATE; fictional 555 placeholder only; do not call.,row:2
+DEMO-TEAM-003,Carlos,Gomez,Carlos Gomez,,305-555-0197,contact,contact,TEAMMATE; fictional 555 placeholder only; do not call.,row:3
+DEMO-TEAM-004,Sharif,Amlani,Sharif Amlani,,305-555-0198,contact,contact,TEAMMATE; fictional 555 placeholder only; do not call.,row:4

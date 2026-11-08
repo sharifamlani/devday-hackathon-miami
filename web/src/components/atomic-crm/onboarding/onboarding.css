@@ -231,6 +231,24 @@
   font-size: 13px;
   font-weight: 600;
 }
+.onb-text-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in oklab, var(--muted-foreground) 80%, transparent);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 15px;
+}
+.onb-text-input:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+.onb-text-input[aria-invalid="true"] {
+  border-color: var(--destructive);
+}
 .onb-error {
   display: flex;
   align-items: flex-start;
@@ -505,6 +523,41 @@
 .onb-receipt-line .onb-btn.text {
   padding: 0 4px;
   min-height: 32px;
+}
+.onb-structured-preview {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 13px;
+}
+.onb-structured-preview > summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.onb-structured-scroll {
+  max-width: 100%;
+  margin-top: 10px;
+  overflow-x: auto;
+}
+.onb-structured-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.onb-structured-scroll th,
+.onb-structured-scroll td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.onb-structured-scroll thead th {
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+.onb-structured-scroll p {
+  margin: 8px 0 0;
+  color: var(--muted-foreground);
 }
 .onb-fact-list {
   margin: 0;

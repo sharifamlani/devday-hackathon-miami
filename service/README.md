@@ -9,9 +9,15 @@ From the repo root, with the repo-root `.env` in place (key + model tiers, see `
 
 ```bash
 uv pip install --python .venv/Scripts/python.exe -r service/requirements.txt
+.venv/Scripts/python.exe -m playwright install chromium
 .venv/Scripts/python.exe -m service.db --rebuild          # empty database (schema only); load data by uploading data/sample_inputs/
 .venv/Scripts/python.exe -m uvicorn service.main:app --port 8000
 ```
+
+The ICP prospect verifier renders source pages in headless Chromium. Installing the service requirements adds
+the Python Playwright package; run `python -m playwright install chromium` once per environment to install its
+browser binary. On Windows, use the same `.venv/Scripts/python.exe` interpreter shown above. CI jobs that run
+`service/tests/test_icp.py` need both steps before pytest.
 
 `SCORE_AS_OF` defaults to `2026-11-08` (set in `service/config.py`); override it in `.env`.
 CORS allows the Vite dev servers on `localhost:5173` and `localhost:5174`.
@@ -30,7 +36,7 @@ CORS allows the Vite dev servers on `localhost:5173` and `localhost:5174`.
 | `POST /icp/run` | ideal donor profile + matching organization prospects, saved via `db.save_icp_run`. Cached unless `?refresh=true` | `OPENAI_MODEL_DEFAULT` + web search |
 | `GET /icp`, `GET /prospects`, `GET /prospects/{id}`, `POST /prospects/{id}/dismiss` | ICP + prospect reads (`routes_data.py`) | no |
 | `POST /prospects/{id}/outreach` | first-touch draft for a prospect, always status `draft` | `OPENAI_MODEL_DEFAULT` |
-| `POST /context/run` | context agent reads the org's website + social profiles, saved via `db.save_context`. Cached unless `"refresh": true` | `OPENAI_MODEL_DEFAULT` |
+| `POST /context/run` | context agent reads the organization's website and news; saves organization identity and sourced facts via `db.save_context` | `OPENAI_MODEL_DEFAULT` |
 | `GET /org-profile`, `GET /context` | the saved local context dataset (`routes_data.py`; `?source=`) | no |
 | `POST /calls/summarize` | live transcript summary, see [Call notes](#call-notes) | `OPENAI_MODEL_FAST`, else rules |
 | `POST /calls`, `GET /calls` | save a call note (upsert by id); list them newest first | no |
@@ -64,25 +70,29 @@ table; the Vercel snapshot never includes them (`donor_details[*].call_notes` is
 | Screen | Calls | Request | Response |
 |---|---|---|---|
 | **1. Upload your data** | `POST /ingest` | `multipart/form-data`, one or more files (`.xlsx`, `.md`, `.docx`) | Carlos's ingest summary; donors land in `donors.db`, then scoring + duplicate suggestions run |
-| **2. Tell us where you are online** | `POST /context/run` (synchronous, ≤ 30 s) | JSON `{"website", "x_url", "linkedin_url", "instagram_url", "refresh": false}`; any URL may be null | see below |
+| **2. Tell us about the organization** | `POST /context/run` (synchronous, ≤ 30 s) | JSON `{"name", "website", "x_url", "linkedin_url", "instagram_url", "refresh": false}`; social URLs may be null | see below |
 | after either | `GET /donors`, `GET /org-profile`, `GET /context` | — | the data the next screens show |
 
-`POST /context/run` reads the **website only**; social URLs are stored in `org_profile` and never fetched.
+`POST /context/run` reads the **website and news**; social URLs are stored in `org_profile` and never fetched.
 It returns:
 
 ```json
 {"state": "done" | "failed", "cached": false, "detail": null, "started_at": "...", "finished_at": "...",
- "sources": {"website":   {"status": "done" | "blocked" | "failed" | "not provided", "facts": 3, "detail": null},
+ "sources": {"website":   {"status": "done" | "cached" | "blocked" | "failed" | "not provided", "facts": 3, "detail": null},
              "news":      {"status": "...", "facts": 0, "detail": null},
              "x":         {"status": "saved, not connected" | "not provided", "facts": 0, "detail": "<url>"},
              "linkedin":  {...}, "instagram": {...}},
- "profile": {...}, "facts": [{"source", "url", "posted_at", "fact", "quote", "priority", "captured_at"}],
+ "profile": {...}, "facts": [{"source", "url", "posted_at", "fact", "quote", "priority", "captured_at", "cached"}],
  "saved": {"org_profile_id", "context_ids", "replaced_sources"}}
 ```
 
 If the read takes longer than `CONTEXT_DEADLINE_S` (30 s) or fails, it still answers 200 with `state: "failed"`,
-`cached: true`, the reason in `detail`, and the saved (or committed `service/context_cache.json`) context, so the
-screen can move on. A blocked site shows as `blocked`; it is never faked. Uploads need `python-multipart`
+`cached: true`, the reason in `detail`, and only context saved for the same website host, so the screen can move on.
+The response labels saved sources `cached`; for a partial live run, a saved source fills in only when that source
+failed or returned no facts. Successful live sources take precedence, and cached facts from failed sources are
+returned for display without replacing those saved rows in SQLite. A blocked site shows as `blocked`; it is never
+faked. Per-source `source_status` is retained on the organization profile so the dashboard can label saved facts
+after onboarding. The organization `name` is sent with `/context/run` and saved with the profile. Uploads need `python-multipart`
 (in `requirements.txt`).
 
 ## Chat and sending (plan.md §17)

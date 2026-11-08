@@ -692,6 +692,11 @@ export const parseOrgProfile = (raw: ApiOrgProfile): OrgProfile => ({
   }),
   priorities: asStringList(raw.priorities),
   voice: parseVoice(raw.voice),
+  source_status: Object.fromEntries(
+    Object.entries(
+      (fromJson(raw.source_status) as Record<string, unknown> | null) ?? {},
+    ).map(([source, status]) => [source, asText(status)]),
+  ),
   updated_at: raw.updated_at ?? null,
 });
 
@@ -705,6 +710,7 @@ const parseContextFact = (raw: ApiContextFact): ContextFact => ({
   priority: raw.priority ?? null,
   kind: raw.kind ?? null,
   title: raw.title ?? null,
+  cached: raw.cached === true || raw.cached === 1,
 });
 
 /** A list of facts, or {profile|org_profile, facts|org_context|items}. */
@@ -742,6 +748,7 @@ const sourceState = (status: string): SourceState => {
   if (s.startsWith("saved")) return "saved_not_connected";
   if (s.startsWith("not provided")) return "not_provided";
   if (s.startsWith("blocked")) return "blocked";
+  if (s.startsWith("cached")) return "cached";
   if (s.startsWith("done")) return "done";
   return "failed";
 };
@@ -770,7 +777,7 @@ export const parseContextRun = (raw: ApiContextRun): ContextRun => {
   return {
     status: raw.state === "done" ? "done" : "failed",
     served_from: servedFrom,
-    cached: servedFrom === "fallback",
+    cached: raw.cached ?? (servedFrom === "fallback"),
     detail: raw.detail ?? null,
     sources,
     profile: context.profile,

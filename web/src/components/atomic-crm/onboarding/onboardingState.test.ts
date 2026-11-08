@@ -293,6 +293,7 @@ describe("migrating v1 progress", () => {
       status: "in_progress",
       step: 0,
       links: {
+        name: "The Miami Foundation",
         website: "https://bayside.example.org/",
         x: "https://x.com/bayside",
         linkedin: "",
@@ -691,6 +692,7 @@ describe("the fields as typed, with grey prefixes", () => {
         instagram: "in/someone",
       }),
     ).toEqual({
+      name: "The Miami Foundation",
       website: "https://yourorg.org",
       x: "https://x.com/yourorg",
       linkedin: "https://www.linkedin.com/company/yourorg",
@@ -707,7 +709,7 @@ describe("the fields as typed, with grey prefixes", () => {
       instagram: "",
     };
     const { links } = validateLinks(linksFromFields(fieldsFromLinks(saved)));
-    expect(links).toEqual(saved);
+    expect(links).toEqual({ ...saved, name: "The Miami Foundation" });
   });
 
   it("checks one field on blur; an empty website waits for Continue", () => {

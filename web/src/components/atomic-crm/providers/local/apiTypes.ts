@@ -257,6 +257,7 @@ export interface ApiOrgProfile {
   instagram_url: string | null;
   priorities?: ApiJson<unknown>;
   voice?: ApiJson<unknown>;
+  source_status?: ApiJson<Record<string, string>>;
   updated_at?: string | null;
 }
 
@@ -272,6 +273,7 @@ export interface ApiContextFact {
   kind?: string | null;
   title?: string | null;
   captured_at?: string | null;
+  cached?: boolean | number;
 }
 
 /** GET /context, and the snapshot's "context" key. */

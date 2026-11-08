@@ -1,6 +1,6 @@
 # Kindred React landing page QA
 
-final result: passed
+Historical result: passed for the prior landing with upload/sample shortcuts. The current onboarding-only landing described in `README.md` has not had a visual QA pass; the screenshots and observations below document the earlier UI only.
 
 ## Scope and visual truth
 

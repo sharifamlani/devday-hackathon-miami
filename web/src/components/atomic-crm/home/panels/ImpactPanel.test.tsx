@@ -160,6 +160,11 @@ describe("ImpactPanel", () => {
     expect(view({ refreshedAt: null })).not.toContain("Last refreshed");
   });
 
+  it("labels facts served from cached research", () => {
+    const cachedFact = fact(30, "2026-10-15", { cached: true });
+    expect(view({ facts: [cachedFact] })).toContain("Saved research");
+  });
+
   it("S3: Who we serve is collapsed by default; expanded bars sum to the Community count", () => {
     expect(view()).toContain("Who we serve (15 people)");
     expect(view()).not.toContain("impact-bars-zip");

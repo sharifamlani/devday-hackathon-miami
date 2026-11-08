@@ -27,7 +27,13 @@ import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 /* ---------- Step 1: files ---------- */
 
-export const ACCEPTED_EXTENSIONS = ["xlsx", "docx", "md", "csv"] as const;
+export const ACCEPTED_EXTENSIONS = [
+  "xlsx",
+  "docx",
+  "md",
+  "csv",
+  "txt",
+] as const;
 /** For the file picker's accept attribute. */
 export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.map((e) => `.${e}`).join(
   ",",
@@ -55,7 +61,7 @@ export const skipReason = (file: { name: string; size: number }) => {
     return "This describes the example files; it isn't data.";
   if (name.startsWith(".")) return "Hidden system file.";
   if (!(ACCEPTED_EXTENSIONS as readonly string[]).includes(extensionOf(name)))
-    return "Gatherly reads .xlsx, .docx, .md and .csv files.";
+    return "Gatherly reads .xlsx, .docx, .md, .csv and .txt files.";
   if (file.size > MAX_FILE_BYTES) return "Over 10 MB.";
   if (file.size === 0) return "This file is empty.";
   return null;
@@ -506,7 +512,8 @@ export const contextSummary = (phase: ContextPhase): ContextSummary | null => {
     case "error":
       return {
         // The public preview refuses the read; that isn't a failed read of the website.
-        outcome: phase.message === PUBLIC_PREVIEW_MESSAGE ? "preview" : "failed",
+        outcome:
+          phase.message === PUBLIC_PREVIEW_MESSAGE ? "preview" : "failed",
         items: phase.run?.facts.length ?? 0,
         tasks: null,
       };

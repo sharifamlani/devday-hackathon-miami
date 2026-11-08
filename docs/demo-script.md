@@ -21,19 +21,20 @@ Community 15**), but the demo stays on **Givers**.
 Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run; the
 Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't read numbers off the preview.
 
-1. **Empty start.** Open **http://localhost:5173/** (the bare URL, not `#/welcome`: that's the marketing landing).
-   The app opens straight on setup (the **gatherly** wordmark, with **Step 1 of 2** on its own row below) with nothing behind it: no
-   people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–3): with
-   people already uploaded, a reload could skip the website step (#193 should prevent it; keep the habit).
-2. **Step 1, "Drag in your files."** Drop the **8 input files** from `data/sample_inputs/` on **Drop your files here**
-   (or click **Choose files**): `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`,
-   `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`,
-   `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`. Not
-   `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**.
-   (**Use the example files** loads the same eight with one click.) A full-screen processing view takes over: the
+1. **Empty start.** Open **http://localhost:5173/** (the bare URL). On an empty app, setup's first step is the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data** ("or drag and drop your files here (CSV, Excel, Word, notes)"), **Try sample data**, and Upload your list · Understand your donors · Reach out thoughtfully.
+   Nothing is behind it: no people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during
+   setup** (steps 1–3). If someone does after **Try sample data**, the landing comes back as if the import vanished,
+   but the data is already in: press **Skip for now** (bottom of the landing) to reach the dashboard, and do NOT click
+   **Try sample data** again (that would import twice).
+2. **The files.** Click **Try sample data**: it imports the 8 sample files for real (the agent reads and sorts them),
+   exactly like an upload. (Or **Upload donor data** → choose the 8 files from `data/sample_inputs/`
+   (`give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`, `check_deposit_log_q3_2026.docx`,
+   `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`, `community_intake_forms_2026.docx`,
+   `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`; not `answer_key.json` or `_README.md`) → **Bring your
+   donor list.** → **Import donor data**.) A full-screen processing view takes over: the
    **gatherly** wordmark, folders shuffling into a box, **Bringing your data together.** with a progress bar ("Reading
-   files and recognizing accounts."), then **Everything's in place.** ("Ready for your next step."). About 8 s after
-   **Import 8 files** (7.9 s in T1 on the freeze build) the results:
+   files and recognizing accounts."), then **Everything's in place.** ("Ready for your next step."). About 8 s
+   after the click the results:
    **Your donor data is ready.** "A clearer picture of your people." with the tiles **77 Accounts recognized** and
    **19 Duplicates removed** (source rows that matched an existing person exactly and were merged on upload; if the
    count isn't available the tile reads
@@ -69,25 +70,28 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    - the **CRM** tile (its heading opens the donor database): **Find a donor** and the donors needing attention with
      their badges (**Card failed**, **Late**, **New**);
    - **Files & drafts** (campaigns and invites the agents drafted);
-   - **Ask the agent…**: there are no suggestion chips; type a request or say it with the mic (e.g. *"Plan next
-     week"*, *"Enrich Desmond Achebe-Wells"*).
+   - the greeting **Good afternoon, Denise.** (**Good evening, Denise.** after 6 PM; Denise is the demo staff persona);
+   - **Ask the agent…** with three suggestion chips above it (e.g. **Enrich <the newest donor>**, **Who's late on a
+     usual gift?**, **Plan next week**; for the first ~25 s they read **Add your first donors / Who should I thank this
+     week? / Plan next week**, then settle once the website read lands). A chip only fills the box; press **Send** to run it. Or type, or say it with
+     the mic.
    The tile headings open their panels beside the chat. The icon rail on the left holds **Live transcript** and
    **Open Ask sidebar**.
 6. **Home chat agent.** First the duplicates, while the briefing is still on screen: on the briefing line **9
    possible duplicates to review.** click **Review** (it opens the inbox, with the duplicates banner), then **Ask the
    agent to fix**: the agent works the duplicates in the chat (about 6 s; 5.8 s in T1), and merging still waits for a
    click. (After "Plan next week" the briefing's **Review** scrolls out of reach; if it's gone, use the **CRM** tile's
-   banner → **Ask the agent to fix** instead.) Then in **Ask the agent…** type (or say) *"Plan next week"* (about 6 s:
+   banner → **Ask the agent to fix** instead.) Then click the chip **Plan next week** (it fills the box) and **Send**, or type (or say) it (about 6 s:
    first text 4.9 s, done 6.4 s in T1). The agent's step
    cards appear about 2 s after you ask and the reply types out live, so there's always something to point at. The conversation
    shows the agent's tool steps (e.g. **Get context**, **Get events**, **Get calendar**, **Get tasks**), then a plan for
    **November 9–15** with a priority per day, and it says it hasn't changed your calendar. (The wording varies run to
    run; say "a suggested week, built from the events and tasks, and nothing changed until you say so".) A step that
    changes something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
-7. **A task, worked by the agent.** In **Tasks** click the **Call Hye-jin Park** row: it goes straight to the agent
-   (the **ⓘ** beside it opens **Task details** instead). The chat shows **Work on this task: Call Hye-jin Park…**, then
-   its steps (e.g. **Get task**, **Get person**, **Prep call**, **Draft email**), a call sheet and a re-engagement draft
-   about her declined October gift (pending approval), and ends by asking **Mark done?** (about 28 s).
+7. **A call sheet (Sharif's Q2).** In **Ask the agent…** type *"Prep a call sheet for Priya Raman"* (verified on
+   LIVE; about 5 s): the agent's steps, then the card **Call sheet: Priya Raman** (her phone with a **Call** button,
+   GIVING, TALKING POINTS; RECENT CALLS if she has call notes). "Everything you need before you dial, from her record." (A task row in
+   **Tasks**, e.g. **Call Hye-jin Park**, does the same and adds a draft, about 28 s.)
 8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to donors who gave in the last 90 days."*
    (about 38 s): **25 thank-you email drafts are ready for review … Nothing has been sent**, with the organizations that
    need individual approval listed by name. Each draft cites a Foundation fact with its source (e.g. Give Miami Day's
@@ -96,16 +100,23 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    small-donor drafts** (e.g. 18), and the organizations waiting for individual approval. Nothing is sent from here
    unless someone clicks **Send approved messages**. (Use *"Give Miami Day donors"* again once the fix for uploaded
    Give Miami Day gifts merges: today that wording finds 0 donors.)
-9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
-   *"Add the Knight Foundation as a contact."* (about 3.5 s): **Add contact** · added organization John S. and James L.
-   Knight Foundation (person …, giver), with **Undo**. Then type *"Enrich John S. and James L. Knight Foundation"* (about 7 s): the steps **Find
-   people** and **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)"), then a reply
-   listing each fact with a **Source** link (e.g. its local-journalism and arts funding in the 26 communities where the
-   Knight brothers published newspapers) and the interest tags, asking whether to save them. Type *"Yes, save all of
-   them"* (about 8 s): **Accept enrichment** ("saved 4 facts and 4 interest tags") with **Undo**. "Nothing is saved until staff say
-   so, and every fact shows where it came from." (Never enrich a sample donor on stage: individuals aren't
-   researched (the step says so), and the sample organizations are fictional. The same research is on the **CRM** tile: expand the Knight row → **Enhance** →
-   **Save to profile**.)
+9. **Enrich on a real organization (Sharif's Q4).** The sample data is fictional, so add a real one: in **Ask the
+   agent…** type *"Search for the Gates Foundation in Seattle and add it to the CRM"*. Say the city: without it the
+   identity check finds nothing. The agent finds it, adds it (**Add contact**, with **Undo**) and usually researches
+   it in the same turn (about 22 s): the facts it found, each with a **Source** link, and the interest tags, asking
+   whether to save them. (If it only adds it, click the chip **Enrich Gates Foundation** → **Send**.) Type *"Yes, save all of them"*:
+   **Accept enrichment** with **Undo**. (#303 makes this save what was shown instead of researching again; until it
+   merges, if it researches again, say yes once more.) "Nothing is saved until staff say so, and every fact shows
+   where it came from."
+   **Fallback: the Knight Foundation.** Type *"Add the Knight Foundation as a contact."* (about 3.5 s): **Add contact**
+   · added organization John S. and James L. Knight Foundation (person …, giver), with **Undo**. Click the chip
+   **Enrich John S. and James L. Knight Foundation** and **Send** (about 7 s): **Find people** and **Enrich person**
+   ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)"), then the facts with **Source** links (e.g.
+   its local-journalism and arts funding in the 26 communities where the Knight brothers published newspapers) and the
+   tags. Type *"Yes, save all of them"* (about 8 s): **Accept enrichment** ("saved 4 facts and 4 interest tags") with
+   **Undo**. (Never enrich a sample donor on stage: individuals aren't researched (the step says so), and the sample
+   organizations are fictional. The same research is on the **CRM** tile: expand the row → **Enhance** → **Save to
+   profile**.)
 10. **Calendar.** In the briefing click **Open calendar** (or the calendar tile's heading). The panel reads
     **Calendar · Events** with **Add event**, **November 2026**, **Today** and the week (**‹ Nov 8 – 14 ›**), a day
     strip, and **THIS WEEK'S EVENTS** by day ("Nothing scheduled" on empty days): Sat 14 **♥ Give Miami Day — Early
@@ -220,7 +231,7 @@ If the laptop or network fails, switch to the Vercel preview tab (read-only samp
       files once to warm the cache, and empties the db again; the on-stage upload then replays fast and shows
       **9 possible duplicates**. Run it ~30 min before: it must end with **`PASS stage numbers: 77 people / 9`**
       (… duplicate suggestions); exit 1 means run it again.
-- [ ] **Browser:** Clear site data for localhost:5173 in the demo browser (or open a fresh incognito window), then check that the bare URL shows **Step 1 of 2**: the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL shows the landing instead of setup.
+- [ ] **Browser:** Clear site data for localhost:5173 in the demo browser (or open a fresh incognito window), then check that the bare URL shows the **gatherly** landing ("Less time on tasks. More time for people.", **Upload donor data** / **Try sample data**): the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL skips setup.
 - [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
 - [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
 - [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8001`; service

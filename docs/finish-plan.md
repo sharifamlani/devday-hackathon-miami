@@ -24,9 +24,9 @@ files a person drags in** and **the main-UI agent can do everything**.
 ### 1.2 First run
 ```
 1. Drag in the example files --> ingest (Carlos) --> people + gifts (tabs: Givers / Neighbors / Community)
-2. "Tell us about your organization": website (required) + X / LinkedIn / Instagram
+2. "Tell us about your organization": name + website (required), with X / LinkedIn / Instagram optional
 3. Context agent runs on its own, with live progress:
-      website + news + public posts --> context store (RAG, ordered by time, newest first)
+      website + news --> context store (RAG, ordered by time, newest first)
       --> events + audiences --> task generator --> alerts
 4. Dashboard: every panel and the agent read the people/gifts tables and the context store
    The daily refresh re-runs step 3: new items go on top, tasks re-generate

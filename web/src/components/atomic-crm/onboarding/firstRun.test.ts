@@ -33,12 +33,11 @@ import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 const file = (name: string, size = 1200) => ({ name, size });
 
 describe("which dropped files are imported", () => {
-  it("takes the example files from data/sample_inputs/", () => {
+  it("accepts supported files like those in demo-data/", () => {
     for (const name of [
-      "give_miami_day_export_2022-2025.xlsx",
-      "board_retreat_notes.md",
-      "check_deposit_log_q3_2026.docx",
-      "donors.CSV",
+      "team-call-list.csv",
+      "tech-philanthropist-gifts.csv",
+      "tech-philanthropist-profiles.txt",
     ])
       expect(skipReason(file(name))).toBeNull();
   });

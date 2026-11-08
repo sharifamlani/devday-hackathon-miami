@@ -46,6 +46,7 @@ export const SOCIAL_LABELS: Record<SocialPlatform, string> = {
 };
 
 export interface OrgLinks {
+  name?: string;
   website: string;
   x: string;
   linkedin: string;
@@ -53,6 +54,7 @@ export interface OrgLinks {
 }
 
 export const EMPTY_LINKS: OrgLinks = {
+  name: "The Miami Foundation",
   website: "",
   x: "",
   linkedin: "",
@@ -91,11 +93,7 @@ export interface FilesSummary {
  * failed: nothing was read · preview: the read-only public preview refused the read.
  */
 export type ContextOutcome =
-  | "done"
-  | "background"
-  | "saved"
-  | "failed"
-  | "preview";
+  "done" | "background" | "saved" | "failed" | "preview";
 export interface ContextSummary {
   outcome: ContextOutcome;
   items: number;
@@ -237,6 +235,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 const readLinks = (value: unknown): OrgLinks => {
   const raw = isObject(value) ? value : {};
   return {
+    name: text(raw.name) || EMPTY_LINKS.name,
     website: text(raw.website),
     x: text(raw.x),
     linkedin: text(raw.linkedin),
@@ -591,7 +590,9 @@ export const validateLinks = (
   links: OrgLinks,
 ): { links: OrgLinks; errors: LinkErrors } => {
   const errors: LinkErrors = {};
-  const next: OrgLinks = { ...links };
+  const next: OrgLinks = { ...EMPTY_LINKS, ...links };
+  if (!next.name?.trim()) errors.name = "Enter your organization's name.";
+  else next.name = next.name.trim();
   const website = normalizeUrl(links.website);
   if (!website.ok) errors.website = website.error;
   else if (!website.url) errors.website = WEBSITE_REQUIRED;
@@ -608,6 +609,7 @@ export const validateLinks = (
 
 /** The grey text before each field: the field holds only what follows it. */
 export const FIELD_PREFIX: Record<keyof OrgLinks, string> = {
+  name: "",
   website: "https://",
   x: "x.com/",
   linkedin: "linkedin.com/",
@@ -697,6 +699,7 @@ export const socialUrlFromField = (platform: SocialPlatform, field: string) => {
 
 /** The fields as shown, from saved links. */
 export const fieldsFromLinks = (links: OrgLinks): OrgLinks => ({
+  name: links.name || EMPTY_LINKS.name,
   website: websiteFromSaved(links.website),
   x: links.x ? socialFieldValue("x", links.x) : "",
   linkedin: links.linkedin ? socialFieldValue("linkedin", links.linkedin) : "",
@@ -710,6 +713,7 @@ const withScheme = (value: string) =>
 
 /** The links to validate, from the fields as typed. */
 export const linksFromFields = (fields: OrgLinks): OrgLinks => ({
+  name: fields.name?.trim() || EMPTY_LINKS.name,
   website: withScheme(fields.website.trim()),
   x: socialUrlFromField("x", fields.x),
   linkedin: socialUrlFromField("linkedin", fields.linkedin),
@@ -718,6 +722,8 @@ export const linksFromFields = (fields: OrgLinks): OrgLinks => ({
 
 /** One field checked on its own (on blur): an error, or null. Empty is not an error here. */
 export const checkField = (key: keyof OrgLinks, field: string) => {
+  if (key === "name")
+    return field.trim() ? null : "Enter your organization's name.";
   const links = linksFromFields({ ...EMPTY_LINKS, [key]: field });
   if (!links[key]) return null;
   const check =
