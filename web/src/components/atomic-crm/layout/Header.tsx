@@ -1,24 +1,14 @@
-import { useLocation } from "react-router";
-import { ThemeToggleButton } from "@/components/admin/theme-mode-toggle";
-import { UserMenu } from "@/components/admin/user-menu";
-
-import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { wordmarkText } from "../root/defaultConfiguration";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
-import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
-import { MotionMenuItems } from "./MotionMenuItems";
-import { PublicLinkMenuItem } from "./PublicLinkMenuItem";
-import { avatarSlot } from "./shellState";
 import { SampleDataBadge } from "./SampleDataBadge";
 
 /**
- * Top bar: the name as a text wordmark on the left; live transcript, theme,
- * Ask and the account avatar on the right.
+ * Top bar on every page, as on Home: the wordmark and the Sample data label. The page
+ * controls (live transcript, account) are in the left column (DashboardControls).
  */
 const Header = () => {
   const { title } = useConfigurationContext();
-  const onHome = useLocation().pathname === "/";
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
@@ -30,24 +20,6 @@ const Header = () => {
       </span>
       <SampleDataBadge />
       <span className="flex-1" />
-      {!onHome && (
-        <>
-          <span data-tour="voice" className="inline-flex">
-            <LiveTranscriptTrigger />
-          </span>
-          <ThemeToggleButton />
-          <span data-tour="ask" className="inline-flex">
-            <AskSidebarTrigger />
-          </span>
-          <span className={avatarSlot("size-10")}>
-            <UserMenu>
-              <RestartOnboardingMenuItem />
-              <PublicLinkMenuItem />
-              <MotionMenuItems />
-            </UserMenu>
-          </span>
-        </>
-      )}
       {/* No search field in the top bar; ⌘K / Ctrl+K still opens search. */}
       <span className="hidden">
         <GlobalSearchButton />

@@ -169,33 +169,11 @@ export const Q4ProgressTile = ({
       : null;
   const filled =
     percent == null ? 0 : Math.min(Math.max(percent, 0), 100) / 100;
-  const bodyId = useId();
-  const [collapsed, toggle] = useTileCollapsed("q4");
-  const summary = target
-    ? [
-        percent == null ? null : `${Math.round(percent)}%`,
-        formatCompactUsd(target.raised),
-        // Folded, the "Sample goal" note is hidden: the summary keeps the qualification.
-        percent != null && goalIsSample ? "sample goal" : null,
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : undefined;
+  // Always open (Christian): the quarter's progress is the first thing on Home, so it doesn't fold.
   return (
-    <section
-      aria-labelledby={headingId}
-      data-collapsed={collapsed || undefined}
-      className={cn(tile, "p-4")}
-    >
+    <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
       <TileHead
         id={headingId}
-        collapse={{
-          collapsed,
-          onToggle: toggle,
-          bodyId,
-          label: "quarter progress",
-          summary,
-        }}
         title={
           <Link
             to="/?workspace=impact"
@@ -208,7 +186,7 @@ export const Q4ProgressTile = ({
           </Link>
         }
       />
-      <TileBody id={bodyId} collapsed={collapsed}>
+      <div>
         {isPending ? (
           <Skeleton className="h-16 w-full rounded-xl" />
         ) : !target ? (
@@ -269,11 +247,6 @@ export const Q4ProgressTile = ({
                 </dt>
                 <dd className="font-semibold tabular-nums">
                   {formatCompactUsd(target.raised)}
-                  {goal != null && goalIsSample && (
-                    <span className="block text-[10px] font-normal text-muted-foreground">
-                      Sample goal
-                    </span>
-                  )}
                 </dd>
               </div>
             </dl>
@@ -284,7 +257,7 @@ export const Q4ProgressTile = ({
             </p>
           </div>
         )}
-      </TileBody>
+      </div>
     </section>
   );
 };
