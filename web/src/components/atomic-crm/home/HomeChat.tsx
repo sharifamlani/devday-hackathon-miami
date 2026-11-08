@@ -86,7 +86,11 @@ export const FocusTaskCard = ({
   };
 
   return (
-    <section aria-labelledby={headingId} className={cn(focusCard, "p-[18px]")}>
+    <section
+      data-tour="chat"
+      aria-labelledby={headingId}
+      className={cn(focusCard, "p-[18px]")}
+    >
       <p className="text-[11px] tracking-[0.08em] uppercase opacity-75">
         Task {index + 1} of {total} · {kindLabel(task.kind)}
         {task.source === "agent" ? " · Added by agent" : ""}
