@@ -1851,7 +1851,7 @@ No UI or code changes: this section only orders what is already on main.
 ### 22.2. The stage run (flow)
 ```
  T-30  +-----------------------------------------------+
-       | python scripts/demo_reset.py --warm            |  service stopped
+       | venv python: scripts\demo_reset.py --warm      |  service stopped
        |  -> "PASS stage numbers: 77 people / 9 ..."    |--(exit 1)--> run it again
        +-----------------------+-----------------------+
                                v
@@ -1930,7 +1930,9 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
       folder it runs from, so it runs from `C:\Users\Shari\dd-live-main`, **never the Dropbox repo**.
       1. Stop :8401 (the public copy: a second service with `PUBLIC_MODE=1` over LIVE's db; the IT lane owns it).
       2. Stop LIVE's service only: `scripts\live_stack.ps1 stop -Stack live -Only service`.
-      3. `cd C:\Users\Shari\dd-live-main; python scripts\demo_reset.py --warm --port 8001`. It must end with
+      3. From `C:\Users\Shari\dd-live-main`, with the repo venv's Python (the one `live_stack.ps1` uses; plain
+         `python` may lack the deps), in PowerShell:
+         `cd C:\Users\Shari\dd-live-main; & "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe" scripts\demo_reset.py --warm --port 8001`. It must end with
          **`PASS stage numbers: 77 people / 9 duplicate suggestions`**. Exit 1 means run it again.
       4. Start LIVE's service: `scripts\live_stack.ps1 start -Stack live -Only service`.
       5. Smokes 3–4 (22.4) on :8001 / :5173.
@@ -1970,7 +1972,7 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
    **Command:** `.venv/Scripts/python.exe scripts/smoke-openai.py` · **Expected:** `7/7`, exit 0.
    **If it fails →** check `.env` (`OPENAI_API_KEY`, `OPENAI_MODEL_*`), then rerun; don't start the demo on a failing key.
 2. **What it proves:** the upload reads the 8 files to the stage numbers, and the cache is warm.
-   **Command:** `cd C:\Users\Shari\dd-live-main; python scripts\demo_reset.py --warm --port 8001` (LIVE's service
+   **Command:** T-30 step 3 (from `dd-live-main`, the venv Python, `--warm --port 8001`; LIVE's service
    stopped; never from the Dropbox repo) · **Expected:** `PASS stage numbers: 77 people
    / 9 duplicate suggestions (expected 77 / 9, …)`, exit 0. **If it fails →** run it again (it retries the model read);
    twice FAIL means demo the counts the receipt shows and say "the agent sorted them".
@@ -1990,7 +1992,7 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
    **If it fails →** the snapshot is the fallback (see T-15); restart the tunnel only with 10+ minutes to spare, and
    only as `python scripts/public_tunnel.py on --port 8401` (never a bare `on`: it tunnels :8001).
 6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
-   **Command:** run 22.2 steps 1–5 in the browser, then `python scripts/demo_reset.py --check` (it approves the
+   **Command:** run 22.2 steps 1–5 in the browser, then `scripts\demo_reset.py --check` from `dd-live-main` with the same venv Python (it approves the
    suggested merges on a COPY of the db) · **Expected:** `PASS` lines for people / gifts / alerts against
    `answer_key.json` (68 people: 33 givers, 20 neighbors, 15 community; 131 gifts). **If it fails →** note which
    count differs, tell the lead, and demo without the merge step. Then reset (smoke 2) before T-30.
@@ -2021,7 +2023,7 @@ fallback before T-30.
 ### 22.7. Fallbacks (if X fails → say/do Y)
 | Step | If | Say / do |
 |---|---|---|
-| 1 Empty app | **Step 1 of 3** isn't showing, or the page errors | Don't start: stop the service, rerun `python scripts/demo_reset.py --warm` (it must PASS), restart, hard refresh. |
+| 1 Empty app | **Step 1 of 3** isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
 | 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: **Use the example files**, then continue. |
 | 2b Context | **Still reading your site.** | **Continue to the dashboard**: "It keeps reading in the background; the facts land in a minute." |
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
