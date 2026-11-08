@@ -304,3 +304,5 @@ Process incident: the #112 reviewer stopped another session's Vite on :5191 (it 
 | main #132 retro | a79ef67 | onboarding vitest 83/83 (#131 fix holds); first run → dashboard, POSTs ingest → context → tasks once; #128 gate survives (a new browser on a filled db skips onboarding); nit: the import summary says 132 gifts (includes the declined charge) vs 131 | OK (nit) |
 
 Pipeline: devday-hackathon-20 = the Integrate + Test Wheel (ports 8000/5173/8101/5174 reserved). Scope (Sharif): Givers first; Neighbors/Community issues informational unless they break the Givers flow or the counts.
+| #125 auto-merge flags (re-check) | fd4ca51 | split all → approve all = 68; approve all without split = 68; demo_reset --check PASS; dismissed stays dismissed; 5 alert tasks, 0 stale; negatives 409/404/422; e2e test passes alone | APPROVE |
+| #134 auto-merge review UI (on #126 e0bd3d8) | b36e204 | 15 "!" icons = API (12/2/1); keep → 14; split refetches without reload; labels Neighbor/Community member; 0 errors, no overflow at 390 | APPROVE |
