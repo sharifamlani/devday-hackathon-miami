@@ -1,0 +1,10 @@
+interest-tags: 17 slugs
+[fictional sample org] Ostrander-Pell Charitable Trust: HTTP 200 in 10s | tags [] | outside the 17: [] | unsourced: [] | identity: 
+[fictional sample org] Veloria Bay Foundation: HTTP 200 in 8s | tags [] | outside the 17: [] | unsourced: [] | identity: 
+[fictional sample org] Whitaker Family Charitable Fund: HTTP 200 in 11s | tags [] | outside the 17: [] | unsourced: [] | identity: 
+[fictional sample org] Veloria Bay Foundation: HTTP 200 in 6s | tags [] | outside the 17: [] | unsourced: [] | identity: 
+[real org] John S. and James L. Knight Foundation: HTTP 200 in 13s | tags [('arts_culture', 'museums', 'https://knightfoundation.org/wp-content/uploads/2022/11/Tax-'), ('civic_media', 'local_news', 'https://www.pressforwardsouthflorida.news/'), ('arts_culture', None, 'https://knightfoundation.org/'), ('community_development', None, 'https://knightfoundation.org/')] | outside the 17: [] | unsourced: [] | identity: 
+[real org] Frederick A. DeLuca Foundation: HTTP 200 in 16s | tags [('community_development', 'nonprofit_capacity', 'https://www.bgca.org/about-us/our-partners/the-frederick-a-d'), ('education', 'k12', 'https://www.bgca.org/about-us/our-partners/the-frederick-a-d'), ('youth_family', None, 'https://www.bgca.org/about-us/our-partners/the-frederick-a-d'), ('basic_needs', 'emergency_assistance', 'https://www.delucafdn.org/about-frederick-a-deluca/'), ('economic_mobility', 'workforce', 'https://www.delucafdn.org/about-frederick-a-deluca/')] | outside the 17: [] | unsourced: [] | identity: 
+[real org] McDermott Will & Schulte: HTTP 200 in 13s | tags [('basic_needs', 'hunger', 'https://www.mcdermottlaw.com/pro-bono/'), ('equity_rights', 'legal_aid', 'https://www.mcdermottlaw.com/pro-bono/'), ('youth_family', 'mentoring', 'https://www.mcdermottlaw.com/pro-bono/')] | outside the 17: [] | unsourced: [] | identity: 
+[made-up person] Zephyrine Quillabottom-Adeyemi: HTTP 200 in 0s | tags [] | outside the 17: [] | unsourced: [] | identity: 
+donor_interests rows before/after dry runs: 0/0 (0 writes expected)

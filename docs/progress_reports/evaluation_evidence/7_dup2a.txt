@@ -1,0 +1,23 @@
+before (ok gifts, total, orphans): (131, 1367535.0, 0)
+DG1 ['Maria Delgado', 'María Delgado-Ruiz']: auto-merged with '!' -> True | pending suggestion -> False
+DG2 ['Bob Nguyen', 'R. Nguyen', 'Robert Nguyen']: auto-merged with '!' -> True | pending suggestion -> True
+DG3 ['Tamarind Quay Hardware LLC', 'Tamarind Quay Hardware, LLC', 'Tamarind Quay Hdwe, L.L.C.']: auto-merged with '!' -> True | pending suggestion -> False
+DG4 ['Priscilla Okafor (priscilla.okafor.law@example.org)', 'Priscilla Okafor (priscilla.okafor@example.com)']: auto-merged with '!' -> False | pending suggestion -> False
+DG5 ['Elizabeth Fontaine', 'Liz Fontaine']: auto-merged with '!' -> True | pending suggestion -> True
+DG6 ['Harold Whitaker', 'Whitaker Family Charitable Fund']: auto-merged with '!' -> True | pending suggestion -> False
+open auto-merges: 15 | pending suggestions: 9
+GET /people/{id}/merges (auto_merged, merged_from): {8: (True, 2), 15: (True, 2), 19: (True, 3), 22: (True, 2), 33: (True, 3), 36: (True, 2), 39: (True, 2), 48: (True, 2), 54: (True, 2), 62: (True, 2), 67: (True, 2), 69: (True, 3), 73: (True, 3), 74: (True, 2), 76: (True, 2)}
+split 8 -> 200 {'action': 'split', 'person': {'id': 8, 'full_name': 'Samuel Achterberg', 'first_name': 'Samuel', 'last_name': 'Achterberg', 'org_name': None, 'donor_
+   totals after split: (131, 1367535.0, 0) | survivor gifts (4, 2175.0) -> (3, 675.0) | flag now: False
+keep 15 -> 200 | flag now: False | totals: (131, 1367535.0, 0)
+[ui] DonorShow #19 merge flag buttons: Traceback (most recent call last):
+  File "<stdin>", line 10, in <module>
+  File "C:\Users\Shari\scoop\persist\uv\python\versions\cpython-3.12-windows-x86_64-none\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 48: character maps to <undefined>
+[ui] DonorShow #19 '!' flag visible: 1
+[ui] popover: Liz F. liz.fontaine@example.com · check_deposit_log_q3_2026.docx, online_gifts_oct_nov_2026.xlsx · 1 gift Elizabeth Fontaine(kept record) liz.fontaine@example.com · give_miami_day_export_2022-2025.xlsx · 1 gift · same em
+[ui] Keep/Split buttons: ['Keep merged', 'Split back']
+[ui] People list '!' flags visible: 11
+console errors: []

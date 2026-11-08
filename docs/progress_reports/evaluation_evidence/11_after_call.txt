@@ -13,3 +13,8 @@ run 1: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_eve
 run 2: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_event': 1, 'add_context_note': 2} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
 run 3: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_event': 1, 'add_context_note': 2} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
 run 3 Apply -> {'tasks': 1, 'pledges': 1, 'research_facts': 2, 'rsvp': 1}
+--- after-call live (3 runs, model path) on 8ee6258:
+run 1: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_event': 1, 'add_context_note': 2} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 2: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_event': 1, 'add_context_note': 2} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 3: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_event': 1, 'add_context_note': 2} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 3 Apply -> {'tasks': 1, 'pledges': 1, 'research_facts': 2, 'rsvp': 1}

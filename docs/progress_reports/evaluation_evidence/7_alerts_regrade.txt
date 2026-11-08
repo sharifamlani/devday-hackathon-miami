@@ -1,0 +1,5 @@
+[pre-approval] alerts ['Hye-jin Park', 'Lucia Ferrante', 'Rafael Quintero', 'Teodoro Salinas', 'Walter Brandt']
+[pre-approval] alerts with an open call task: 5/5 | stale call tasks (no alert): []
+pending after approving all: 0
+[post-approval] alerts ['Hye-jin Park', 'Rafael Quintero', 'Teodoro Salinas', 'Veloria Bay Foundation', 'Walter Brandt']
+[post-approval] alerts with an open call task: 5/5 | stale call tasks (no alert): []

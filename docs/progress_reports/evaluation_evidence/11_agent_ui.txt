@@ -1,0 +1,6 @@
+1. write: task in API after 7s: True | Undo buttons on step cards: 1 | Tasks panel shows it (no reload): True
+   Undo: task still in API: False | card shows 'Undone': True | panel still shows it: False
+2. delete task 6: approval card shown: True | task untouched before click: True
+   Approve: task deleted in API: True after 5s | card says Approved: True
+console errors: []
+4xx/5xx: []
