@@ -645,3 +645,32 @@ def test_a_donor_merge_moves_shared_tasks_and_undo_moves_them_back(conn):
     assert tasks.get_task(conn, mine["id"])["person_id"] == keep
     dedupe.undo_merge(conn, res["merge_id"])
     assert tasks.get_task(conn, mine["id"])["person_id"] == drop
+
+
+# ---------- privacy: the public snapshot never carries the Donors tab's tasks ----------
+
+def test_a_donor_tab_task_never_reaches_the_snapshot(crm_env):
+    from service.export_snapshot import build_snapshot
+
+    client, conn, ana, _ = crm_env
+    client.post("/crm/tasks", json={"contact_id": ana, "type": "call", "text": "Private follow-up",
+                                    "due_date": AS_OF.isoformat()})
+    shared = client.post("/tasks", json={"kind": "call", "title": "Shared call", "person_id": ana,
+                                         "due": AS_OF.isoformat()}).json()
+    tasks.create_task(conn, kind="email", title="Agent email", person_id=ana, due=AS_OF.isoformat(), actor="agent")
+    edited = client.post("/crm/tasks", json={"contact_id": ana, "text": "Private, later edited by the agent",
+                                             "due_date": AS_OF.isoformat()}).json()
+    tasks.update_task(conn, edited["id"], actor="agent", title="Private, renamed by the agent")
+
+    snap = build_snapshot(conn, AS_OF, rescore=False)
+    text = json.dumps(snap)
+    for private in ("Private follow-up", "Private, later edited by the agent", "Private, renamed by the agent"):
+        assert private not in text
+    titles = {t["title"] for t in snap["tasks"]}
+    assert {"Shared call", "Agent email"} <= titles
+    assert {t["title"] for t in snap["tasks_today"]} >= {"Shared call", "Agent email"}
+    assert any(i["ref"] == f"task:{shared['id']}" for i in snap["calendar"])
+    open_today = sum(1 for t in snap["tasks_today"] if not t["done"])
+    assert snap["home_summary"]["tasks_today"] == open_today
+    # The live routes still show staff everything.
+    assert {t["title"] for t in client.get("/tasks", params={"person_id": ana}).json()} >= {"Private follow-up"}
