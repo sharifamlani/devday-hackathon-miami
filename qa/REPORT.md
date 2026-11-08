@@ -314,3 +314,6 @@ Pipeline: devday-hackathon-20 = the Integrate + Test Wheel (ports 8000/5173/8101
 | #123 composer dictation (3c) | edd5f06 | Dictate in the home composer: words in 2.5-2.8 s, appends, Esc restores, send → agent task, 0 db rows from dictation; 390 ok; snapshot mic disabled "needs the live service" | APPROVE |
 
 Possible main issue: #116 Ask-prompt dictation stays "listening" with no text (fake mic), also with #123 reverted; the same WAV works on home → real-mic check on the LIVE app requested (owner: voice lane).
+| #151 integration-wheel (final) | c0f1f1a | the tooling is safe (refused reset, PID verification, lock, ports, CORS); spare-port walk 14/16: 6c approval PASS (dry run, 0 sent), counts 33 / 131 / $1,367,535 / 5 at-risk | APPROVE |
+
+Product findings from the #151 walk on main 3ce79eb (routed): (1) the home Tasks tile shows 20 vs 21 open tasks due ≤ today (Faye home #152); (2) the Enrich button click is blocked by an overlapping div `flex min-h-9 … text-[13px]` (Givers flow, demo-visible).
