@@ -99,10 +99,6 @@ const LazyTranscriptPane = transcriptLoader
     )
   : null;
 
-const focusById = (id: string) =>
-  // After the panel unmounts, so focus doesn't land on a removed node.
-  requestAnimationFrame(() => document.getElementById(id)?.focus());
-
 /* ---------- The top-bar buttons ---------- */
 
 /** Opens and closes the Ask pane. Renders nothing outside an AskSessionProvider. */
@@ -170,7 +166,7 @@ export const LiveTranscriptTrigger = ({
       {recording && (
         <span
           aria-hidden
-          className="absolute top-px right-px size-2.5 rounded-full bg-[#e5534b] ring-2 ring-background motion-safe:animate-pulse"
+          className="absolute top-px right-px size-2.5 rounded-full bg-[#e5534b] ring-2 ring-background animate-pulse"
         />
       )}
     </button>
@@ -207,9 +203,11 @@ export const AskSidebar = ({
     target?.focus();
   }, [openedByUser, paneMode]);
 
+  // Focus goes back to the button that opened the pane, once the pane has left the page
+  // (closing runs inside a view transition, after the page behind it stops being inert).
   const close = () => {
-    session.closeSidebar();
-    focusById(voice ? VOICE_TRIGGER_ID : ASK_TRIGGER_ID);
+    const trigger = voice ? VOICE_TRIGGER_ID : ASK_TRIGGER_ID;
+    session.closeSidebar(() => document.getElementById(trigger)?.focus());
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -242,10 +240,7 @@ export const AskSidebar = ({
 
   const loading = (label: string) => (
     <p className="flex items-center gap-2 px-4 py-4 text-sm text-muted-foreground">
-      <Loader2
-        className="size-4 animate-spin motion-reduce:animate-none"
-        aria-hidden
-      />
+      <Loader2 className="size-4 animate-spin" aria-hidden />
       {label}
     </p>
   );

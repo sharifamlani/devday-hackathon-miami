@@ -426,10 +426,14 @@
 .onb-chevron[data-open="true"] {
   transform: rotate(180deg);
 }
+/* Reduced motion: the OS setting unless "Full motion" is chosen, or "Reduce motion". */
 @media (prefers-reduced-motion: reduce) {
-  .onb-chevron {
+  :root:not([data-motion="full"]) .onb-chevron {
     transition: none;
   }
+}
+:root[data-motion="reduce"] .onb-chevron {
+  transition: none;
 }
 .onb-files[hidden] {
   display: none;
@@ -681,10 +685,9 @@
   border-radius: 999px;
   background: var(--foreground);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .onb-bar span {
-    transition: width 0.9s linear;
-  }
+/* Stopped by the global reduced-motion rule (index.css, "Motion"). */
+.onb-bar span {
+  transition: width 0.9s linear;
 }
 .onb-bar-label {
   margin: 0;
@@ -714,10 +717,9 @@
     0 0 0 10px color-mix(in oklab, var(--brand) 22%, transparent),
     0 0 60px 24px color-mix(in oklab, var(--brand) 30%, transparent);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .onb-spin {
-    animation: onb-spin 1s linear infinite;
-  }
+/* Stopped by the global reduced-motion rule (index.css, "Motion"). */
+.onb-spin {
+  animation: onb-spin 1s linear infinite;
 }
 @keyframes onb-spin {
   to {

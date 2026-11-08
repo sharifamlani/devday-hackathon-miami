@@ -773,7 +773,7 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
                 className={cn(
                   "size-2.5 shrink-0 rounded-full",
                   live
-                    ? "bg-[#e5534b] motion-safe:animate-pulse"
+                    ? "bg-[#e5534b] animate-pulse"
                     : "bg-muted-foreground",
                 )}
               />

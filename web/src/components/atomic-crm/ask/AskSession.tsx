@@ -76,9 +76,19 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
     modeRef.current = mode;
     setPaneMode(mode);
   }, []);
-  const inPaneTransition = useCallback((change: () => void) => {
-    runZoomTransition({ kind: "pane", update: () => flushSync(change) });
-  }, []);
+  // after: runs once the change is on the page (still inside the transition).
+  const inPaneTransition = useCallback(
+    (change: () => void, after?: () => void) => {
+      runZoomTransition({
+        kind: "pane",
+        update: () => {
+          flushSync(change);
+          after?.();
+        },
+      });
+    },
+    [],
+  );
 
   const setSidebarOpen = useCallback(
     (open: boolean, byUser: boolean) =>
@@ -119,7 +129,10 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
           commitMode("ask");
           commitOpen(true, true);
         }),
-      closeSidebar: () => setSidebarOpen(false, true),
+      closeSidebar: (afterClose) =>
+        inPaneTransition(() => {
+          commitOpen(false, true);
+        }, afterClose),
       // The Ask buttons: open in Ask mode, switch to Ask if the pane shows
       // the transcript, close only when Ask is already showing.
       toggleSidebar: () =>
