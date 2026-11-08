@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home polish mockups</title>
+<style>
+  :root {
+    --background: #ffffff; --foreground: #242728; --surface: #f3f1ea; --muted: #5f6264;
+    --border: #e4e1d9; --brand: #f4d958; --tile: rgb(245 246 247 / 84%);
+    --ease-enter: cubic-bezier(0.32, 0.72, 0, 1); --motion-base: 200ms;
+    font-family: "Avenir Next", Avenir, Inter, -apple-system, system-ui, sans-serif;
+    color: var(--foreground); font-size: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--background); }
+  section.board { display: none; padding: 28px 32px 36px; }
+  section.board.show { display: block; }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .col > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .col > h2 b { color: #1b7f4b; }
+  .frame { border: 1px solid var(--border); border-radius: 18px; padding: 16px; background:
+      radial-gradient(ellipse at 0% 100%, rgb(244 217 88 / 16%), transparent 55%),
+      radial-gradient(ellipse at 100% 100%, rgb(196 220 120 / 18%), transparent 55%), #fff; position: relative; min-height: 120px; }
+  .note { margin-top: 10px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .note li { margin: 2px 0; }
+  svg.i { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  /* --- shared app bits --- */
+  .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; font-size: 12px; background: #fff; }
+  .rail { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 44px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #e8e07a; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .menu { position: absolute; width: 230px; background: #fff; border-radius: 12px; box-shadow: 0 12px 36px rgb(20 22 23 / 18%); border: 1px solid var(--border); padding: 6px; font-size: 13px; }
+  .menu .lbl { padding: 6px 8px 4px; color: var(--muted); font-size: 11.5px; }
+  .menu .it { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; }
+  .menu .it.on { background: var(--surface); }
+  .menu .sep { height: 1px; background: var(--border); margin: 5px 2px; }
+  .menu .ro { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border-radius: 8px; background: #f6f3e6; margin-bottom: 4px; }
+  .menu .ro small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 1px; }
+  .greet { font-size: 26px; letter-spacing: -0.02em; margin: 6px 0 0; }
+  /* --- destination tiles --- */
+  .dest { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tile { height: 38px; min-width: 38px; border-radius: 10px; border: 1px dashed #c9c5b8; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--foreground); background: #fff; padding: 0; font-size: 13px; white-space: nowrap; overflow: hidden;
+          transition: width var(--motion-base) var(--ease-enter), padding var(--motion-base) var(--ease-enter); }
+  .tile.sq { width: 38px; }
+  .tile.solid { border-style: solid; border-color: var(--border); }
+  .tile.filled { border-style: solid; border-color: var(--foreground); padding: 0 8px 0 10px; }
+  .tile.focus { outline: 2px solid #242728; outline-offset: 2px; }
+  .tile .x { color: var(--muted); display: inline-flex; }
+  .now-chips .chip { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 10px; border-radius: 10px; border: 1px dashed #c9c5b8; font-size: 13px; background: #fff; }
+  .now-chips .chip.solid { border-style: solid; border-color: var(--border); }
+  .now-chips .chip.filled { border-style: solid; border-color: var(--foreground); }
+  .tip { position: absolute; background: #242728; color: #fff; font-size: 11.5px; padding: 4px 8px; border-radius: 6px; }
+  .pop { position: absolute; width: 300px; background: #fff; border-radius: 12px; box-shadow: 0 12px 36px rgb(20 22 23 / 18%); border: 1px solid var(--border); padding: 6px; font-size: 13px; }
+  .pop .search { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 8px; padding: 8px 10px; color: var(--muted); margin-bottom: 4px; }
+  .pop .sec { padding: 6px 8px 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+  .pop .row { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 8px; }
+  .pop .row.on { background: var(--surface); }
+  .pop .row .d { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .pop .row.dim { color: #a3a5a6; }
+  /* --- overview tiles --- */
+  .ov { width: 290px; display: flex; flex-direction: column; gap: 8px; }
+  .ot { border-radius: 16px; background: radial-gradient(ellipse at 50% 50%, rgb(244 217 88 / 13%), transparent 74%), var(--tile); padding: 12px 14px; }
+  .ot .hd { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 15px; }
+  .ot .hd .sp { margin-left: auto; display: flex; gap: 6px; align-items: center; color: var(--muted); font-weight: 400; font-size: 12.5px; }
+  .chev { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+  .chev.focus { outline: 2px solid #242728; outline-offset: 1px; }
+  .ot .bd { margin-top: 8px; font-size: 13px; }
+  .ot.collapsed { padding-top: 9px; padding-bottom: 9px; }
+  .gauge { display: flex; align-items: center; gap: 14px; }
+  .gauge .g { width: 74px; height: 40px; border-radius: 74px 74px 0 0; border: 7px solid #ececec; border-bottom: 0; position: relative; }
+  .gauge .g::after { content: ""; position: absolute; inset: -7px; border-radius: 74px 74px 0 0; border: 7px solid var(--brand); border-bottom: 0; clip-path: inset(0 30% 0 0); }
+  .row2 { display: flex; justify-content: space-between; padding: 3px 0; }
+  .muted { color: var(--muted); }
+  .badge { font-size: 11.5px; color: var(--muted); }
+  .count { font-size: 12px; color: var(--muted); }
+  .anim { font-size: 11.5px; color: #8a6d00; background: #fdf6d3; border-radius: 6px; padding: 2px 6px; margin-left: 6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="building" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="rot" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+
+<!-- ============ 1. Sample data label ============ -->
+<section class="board" id="sample">
+  <h1>1 · "Sample data" moves from a floating pill into the profile menu</h1>
+  <p class="sub">Public sample build only. The team's rule 9 ("Name the limits. Never present a mock as live.") stays met, without the pill on every screen.</p>
+  <div class="pair">
+    <div class="col"><h2>Now</h2>
+      <div class="frame" style="height:440px">
+        <span class="pill" style="position:absolute;left:62px;top:14px">Sample data</span>
+        <div style="position:absolute;left:62px;top:56px" class="greet">Good morning.</div>
+        <div class="rail" style="position:absolute;left:12px;bottom:14px"><div class="avatar">A</div></div>
+        <ul class="note" style="position:absolute;left:62px;top:110px;margin:0;padding-left:16px;max-width:360px">
+          <li>The pill sits above every page (header, phone header, phone non-home pages).</li>
+          <li>It reads as a stray artifact on an otherwise clean canvas.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col"><h2><b>Proposed</b></h2>
+      <div class="frame" style="height:440px">
+        <div style="position:absolute;left:62px;top:24px" class="greet">Good morning.</div>
+        <div class="rail" style="position:absolute;left:12px;bottom:14px"><div class="avatar">A</div></div>
+        <div class="menu" style="left:58px;bottom:14px">
+          <div class="ro"><svg class="i"><use href="#eye"/></svg><div>Sample data · read-only<small>Every name and amount is made up. Changes stay in this browser.</small></div></div>
+          <div class="it"><svg class="i"><use href="#rot"/></svg>Set up again</div>
+          <div class="sep"></div>
+          <div class="lbl">Motion</div>
+          <div class="it on">Match system <svg class="i" style="margin-left:auto"><use href="#check"/></svg></div>
+          <div class="it">Reduce motion</div>
+          <div class="sep"></div>
+          <div class="it">Log out</div>
+        </div>
+      </div>
+      <ul class="note">
+        <li>The pill is removed from the header, the phone header and phone pages.</li>
+        <li>The label is the first line of the profile menu (snapshot build only).</li>
+        <li>Still said elsewhere: the landing's "Sample run (cached)" dialog, the tour card "This is the sample desk", "Sample goal" on the Q4 tile.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. Destination tiles ============ -->
+<section class="board" id="dest">
+  <h1>2 · Call note destinations: four equal tiles that widen as you fill them</h1>
+  <p class="sub">Live transcript pane, "Save this note to". Same pickers; cleaner start, clearer data.</p>
+  <div class="pair">
+    <div class="col"><h2>Now</h2>
+      <div class="frame now-chips" style="height:200px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;width:330px">
+          <span class="chip solid">Today</span>
+          <span class="chip filled"><svg class="i"><use href="#user"/></svg>Carmen Ibarra <svg class="i" style="color:#5f6264"><use href="#x"/></svg></span>
+          <span class="chip"><svg class="i"><use href="#users"/></svg>Add to group</span>
+          <span class="chip"><svg class="i"><use href="#folder"/></svg>Add to project</span>
+        </div>
+        <ul class="note" style="margin:14px 0 0;padding-left:16px">
+          <li>Wordy chips wrap onto two lines in the 400px pane.</li>
+          <li>Donor list mixes people and organizations under one person icon (Veloria Bay Foundation, Tamarind Quay Hardware, LLC).</li>
+          <li>Groups are 3 fixed filters; "Star donors 0" looks broken.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col"><h2><b>Proposed</b> · empty</h2>
+      <div class="frame" style="height:200px">
+        <div class="dest">
+          <span class="tile sq solid" title="Today"><svg class="i"><use href="#cal"/></svg></span>
+          <span class="tile sq focus"><svg class="i"><use href="#user"/></svg></span>
+          <span class="tile sq"><svg class="i"><use href="#users"/></svg></span>
+          <span class="tile sq"><svg class="i"><use href="#folder"/></svg></span>
+        </div>
+        <span class="tip" style="left:66px;top:62px">Add to donor</span>
+        <ul class="note" style="margin:46px 0 0;padding-left:16px">
+          <li>Four 38px squares in one row: Today, donor, group, project.</li>
+          <li>Icon-only, each with a tooltip and an accessible name ("Add to donor").</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pair" style="margin-top:24px">
+    <div class="col"><h2><b>Proposed</b> · picking a donor</h2>
+      <div class="frame" style="height:330px">
+        <div class="dest">
+          <span class="tile sq solid"><svg class="i"><use href="#cal"/></svg></span>
+          <span class="tile sq focus"><svg class="i"><use href="#user"/></svg></span>
+          <span class="tile sq"><svg class="i"><use href="#users"/></svg></span>
+          <span class="tile sq"><svg class="i"><use href="#folder"/></svg></span>
+        </div>
+        <div class="pop" style="left:16px;top:62px">
+          <div class="search"><svg class="i"><use href="#search"/></svg>Search donors</div>
+          <div class="sec">People</div>
+          <div class="row on"><svg class="i"><use href="#user"/></svg>Carmen Ibarra<span class="d">Miami</span></div>
+          <div class="row"><svg class="i"><use href="#user"/></svg>María Delgado-Ruiz<span class="d">Coral Gables</span></div>
+          <div class="row"><svg class="i"><use href="#user"/></svg>Annelise Moreau</div>
+          <div class="sec">Organizations</div>
+          <div class="row"><svg class="i"><use href="#building"/></svg>Veloria Bay Foundation<span class="d">Foundation</span></div>
+          <div class="row"><svg class="i"><use href="#building"/></svg>Tamarind Quay Hardware, LLC<span class="d">Business</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col"><h2><b>Proposed</b> · filled (tiles widen, animated)</h2>
+      <div class="frame" style="height:470px">
+        <div class="dest">
+          <span class="tile sq solid"><svg class="i"><use href="#cal"/></svg></span>
+          <span class="tile filled"><svg class="i"><use href="#user"/></svg>Carmen Ibarra<span class="x"><svg class="i"><use href="#x"/></svg></span></span>
+          <span class="tile filled"><svg class="i"><use href="#users"/></svg>Needs attention<span class="x"><svg class="i"><use href="#x"/></svg></span></span>
+          <span class="tile sq"><svg class="i"><use href="#folder"/></svg></span>
+        </div>
+        <div class="pop" style="left:16px;top:62px;width:280px">
+          <div class="search"><svg class="i"><use href="#search"/></svg>Search groups</div>
+          <div class="row on"><svg class="i"><use href="#users"/></svg>Needs attention<span class="d">17</span></div>
+          <div class="row"><svg class="i"><use href="#users"/></svg>Lapsed<span class="d">1</span></div>
+          <div class="row dim"><svg class="i"><use href="#users"/></svg>Star donors<span class="d">none yet</span></div>
+        </div>
+        <ul class="note" style="position:absolute;left:16px;bottom:10px;margin:0;padding-left:16px;max-width:560px">
+          <li>A chosen tile grows from 38px to fit its name + ✕ (width on <code>--motion-base</code>, <code>--ease-enter</code>); clearing shrinks it back.</li>
+          <li>Tiles wrap to a second row only when names run long.</li>
+          <li>Empty groups are greyed out ("none yet") instead of showing 0.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. Collapsible overview tiles ============ -->
+<section class="board" id="tiles">
+  <h1>3 · Left overview tiles collapse to their title row</h1>
+  <p class="sub">Q4 outreach, calendar, Tasks, CRM, Files &amp; drafts. One chevron per tile, remembered in this browser, animated on the shared motion variables.</p>
+  <div class="pair">
+    <div class="col"><h2>Now</h2>
+      <div class="frame" style="height:560px">
+        <div class="ov">
+          <div class="ot"><div class="hd">Q4 2026 outreach<span class="sp"><u>Impact &amp; story</u> <svg class="i"><use href="#arrow"/></svg></span></div>
+            <div class="bd gauge"><div class="g"></div><div><div class="muted" style="font-size:12px">Raised of $150k</div><b style="font-size:20px">$98.8k</b></div></div></div>
+          <div class="ot"><div class="hd">November<span class="sp"><svg class="i"><use href="#arrow"/></svg><svg class="i"><use href="#plus"/></svg></span></div>
+            <div class="bd"><div class="row2"><b>Today · Sun, Nov 8</b></div><div class="row2"><span class="muted">All day</span><span>10 reviews · 5 calls · 3 preps</span></div><div class="row2"><b>Sat, Nov 14</b></div><div class="row2"><span class="muted">All day</span><span>Give Miami Day – Early Giving</span></div></div></div>
+          <div class="ot"><div class="hd">Tasks <svg class="i"><use href="#arrow"/></svg><span class="sp">19 <svg class="i"><use href="#plus"/></svg></span></div>
+            <div class="bd"><div class="row2 muted">▾ Donor outreach <span>6</span></div><div class="row2">Call Rafael Quintero</div><div class="row2">Call Hye-jin Park</div><div class="row2">Call Lucia Ferrante</div></div></div>
+          <div class="ot"><div class="hd">CRM</div><div class="bd muted">Find a donor · 6 need a look</div></div>
+        </div>
+        <p class="note">Only the folders inside Tasks collapse; the tiles themselves can't.</p>
+      </div>
+    </div>
+    <div class="col"><h2><b>Proposed</b></h2>
+      <div class="frame" style="height:560px">
+        <div class="ov">
+          <div class="ot collapsed"><div class="hd"><span class="chev"><svg class="i"><use href="#right"/></svg></span>Q4 2026 outreach<span class="sp">66% · $98.8k</span></div></div>
+          <div class="ot"><div class="hd"><span class="chev"><svg class="i"><use href="#down"/></svg></span>November<span class="sp"><svg class="i"><use href="#arrow"/></svg><svg class="i"><use href="#plus"/></svg></span></div>
+            <div class="bd"><div class="row2"><b>Today · Sun, Nov 8</b></div><div class="row2"><span class="muted">All day</span><span>10 reviews · 5 calls · 3 preps</span></div><div class="row2"><b>Sat, Nov 14</b></div><div class="row2"><span class="muted">All day</span><span>Give Miami Day – Early Giving</span></div></div></div>
+          <div class="ot collapsed"><div class="hd"><span class="chev focus"><svg class="i"><use href="#right"/></svg></span>Tasks<span class="sp">19 today</span></div></div>
+          <div class="ot"><div class="hd"><span class="chev"><svg class="i"><use href="#down"/></svg></span>CRM</div><div class="bd muted">Find a donor · 6 need a look</div></div>
+          <div class="ot collapsed"><div class="hd"><span class="chev"><svg class="i"><use href="#right"/></svg></span>Files &amp; drafts<span class="sp">4</span></div></div>
+        </div>
+        <ul class="note">
+          <li>The chevron is a real button (<code>aria-expanded</code>, Enter/Space), left of the title. The title link keeps opening the panel (#204).</li>
+          <li>Collapsed tiles keep a one-line summary (66% · $98.8k, 19 today, 4) so nothing important hides.</li>
+          <li>The body animates height with <code>grid-template-rows: 0fr ↔ 1fr</code> on <code>--motion-base</code>; tiles below glide up. Reduce motion: instant.</li>
+          <li>The state is saved per tile in this browser.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const show = () => {
+    const id = (location.hash || "#sample").slice(1);
+    document.querySelectorAll("section.board").forEach((s) => s.classList.toggle("show", s.id === id));
+  };
+  addEventListener("hashchange", show); show();
+</script>
+</body>
+</html>
