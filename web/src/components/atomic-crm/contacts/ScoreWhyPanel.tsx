@@ -2,17 +2,34 @@ import type { DonorDetail } from "../providers/local/types";
 import { formatDay, formatUsd } from "./donorFormat";
 
 /** WHY: the Python score's inputs, and the model's plain-words reading of them. */
-export const ScoreWhyPanel = ({ donor }: { donor: DonorDetail }) => {
+export const ScoreWhyPanel = ({
+  donor,
+  title = "Why",
+  hideGifts = false,
+  className,
+  children,
+}: {
+  donor: DonorDetail;
+  title?: string;
+  /** The profile shows gifts in its own Giving history section. */
+  hideGifts?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+}) => {
   const recentGifts = [...donor.gifts]
     .sort((a, b) => b.gift_date.localeCompare(a.gift_date))
     .slice(0, 6);
   return (
-    <section aria-label="Why this donor" className="space-y-3 rounded-[22px] bg-surface p-5">
+    <section
+      aria-label="Why this donor"
+      className={className ?? "space-y-3 rounded-[22px] bg-surface p-5"}
+    >
       <PanelHeading
-        title="Why"
+        title={title}
         caption="Score computed in Python from gift history (score.py)"
       />
       <p className="text-sm leading-relaxed">{donor.why}</p>
+      {children}
       {donor.score_factors.length > 0 && (
         <dl className="grid grid-cols-2 gap-2.5 text-xs">
           {donor.score_factors.map((factor) => (
@@ -37,7 +54,7 @@ export const ScoreWhyPanel = ({ donor }: { donor: DonorDetail }) => {
           ))}
         </dl>
       )}
-      {recentGifts.length > 0 && (
+      {!hideGifts && recentGifts.length > 0 && (
         <div>
           <p className="mb-1.5 text-xs text-muted-foreground">
             Recent gifts ({donor.gift_count} total ·{" "}
