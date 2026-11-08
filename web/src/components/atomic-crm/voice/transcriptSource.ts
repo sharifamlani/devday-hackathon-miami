@@ -80,7 +80,7 @@ export const demoCallScript = (donorName: string): ScriptLine[] => {
     },
     {
       speaker: "them",
-      text: "Perfect, I'll update it today. And put me down for the Give Miami 5K on the 15th.",
+      text: "Perfect. And put me down for the Give Miami 5K on the 15th.",
     },
     {
       speaker: "you",
