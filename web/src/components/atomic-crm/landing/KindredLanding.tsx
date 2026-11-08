@@ -127,7 +127,12 @@ const useElapsed = (active: boolean) => {
   return seconds;
 };
 
-export const KindredLanding = () => {
+export const KindredLanding = ({
+  onPreviewUpload,
+}: {
+  /** Development-only click-through: no file is read or sent by this action. */
+  onPreviewUpload?: () => void;
+} = {}) => {
   const [areColorsPaused, setColorsPaused] = useState(false);
   const [isUploadOpen, setUploadOpen] = useState(false);
   const [isSampleOpen, setSampleOpen] = useState(false);
@@ -151,6 +156,7 @@ export const KindredLanding = () => {
     noKeyboard: true,
     disabled: pending,
     onDrop: (accepted, rejected) => {
+      if (onPreviewUpload) return onPreviewUpload();
       setResult(null);
       setError("");
       if (canUpload) {
@@ -209,7 +215,7 @@ export const KindredLanding = () => {
       aria-labelledby="kindred-heading"
     >
       <div className="kindred-landing-content">
-        {DATA_MODE === "snapshot" && (
+        {DATA_MODE === "snapshot" && !onPreviewUpload && (
           <div className="fixed right-4 top-4 z-10">
             <Badge
               variant="outline"
@@ -246,6 +252,7 @@ export const KindredLanding = () => {
             className="kindred-upload"
             type="button"
             onClick={() => {
+              if (onPreviewUpload) return onPreviewUpload();
               setResult(null);
               setError("");
               if (canUpload) open();
@@ -264,7 +271,9 @@ export const KindredLanding = () => {
         <button
           className="kindred-sample"
           type="button"
-          onClick={() => setSampleOpen(true)}
+          onClick={() =>
+            onPreviewUpload ? onPreviewUpload() : setSampleOpen(true)
+          }
         >
           Try sample data
         </button>
