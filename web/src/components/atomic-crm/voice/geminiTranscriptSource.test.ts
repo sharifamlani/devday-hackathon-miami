@@ -251,26 +251,38 @@ describe("geminiTranscriptSource", () => {
 });
 
 describe("warmUpCaptions", () => {
-  it("holds one suspended 16 kHz AudioContext, created once", () => {
-    const made: { sampleRate?: number; suspended: boolean }[] = [];
+  it("keeps one 16 kHz context, runs it briefly, and runs it again on the first pointer press", async () => {
+    const made: { sampleRate?: number; runs: number; state: string }[] = [];
     const Real = globalThis.AudioContext;
     globalThis.AudioContext = class {
-      rec: { sampleRate?: number; suspended: boolean };
+      rec: { sampleRate?: number; runs: number; state: string };
       constructor(o?: AudioContextOptions) {
-        this.rec = { sampleRate: o?.sampleRate, suspended: false };
+        this.rec = { sampleRate: o?.sampleRate, runs: 0, state: "suspended" };
         made.push(this.rec);
       }
+      resume() {
+        this.rec.runs += 1;
+        this.rec.state = "running";
+        return Promise.resolve();
+      }
       suspend() {
-        this.rec.suspended = true;
+        this.rec.state = "suspended";
         return Promise.resolve();
       }
     } as unknown as typeof AudioContext;
+    const settle = () => new Promise((r) => setTimeout(r, 0));
     try {
       warmUpCaptions();
       warmUpCaptions();
-      // at most one made here (none if the module's own warm-up already ran in local mode)
-      expect(made.length).toBeLessThanOrEqual(1);
-      for (const m of made) expect(m).toEqual({ sampleRate: 16000, suspended: true });
+      await settle();
+      expect(made).toHaveLength(1); // one context, however often it is warmed
+      expect(made[0]).toMatchObject({ sampleRate: 16000, runs: 2, state: "suspended" });
+      window.dispatchEvent(new PointerEvent("pointerdown")); // the first gesture brings the device up
+      await settle();
+      expect(made[0]).toMatchObject({ runs: 3, state: "suspended" });
+      window.dispatchEvent(new PointerEvent("pointerdown")); // only once
+      await settle();
+      expect(made[0].runs).toBe(3);
     } finally {
       globalThis.AudioContext = Real;
     }
