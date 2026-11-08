@@ -21,7 +21,6 @@
     radial-gradient(55% 45% at 100% 100%, var(--onb-glow-g), transparent 70%),
     #fff;
   outline: none;
-  animation: motion-fade-in var(--motion-base) var(--ease-enter) both;
 }
 
 .dark .onb-screen,
@@ -50,7 +49,6 @@
 /* The card never outgrows the screen: the step's body scrolls and its footer
    (the main button) stays in the same place on every step. */
 .onb-card {
-  animation: motion-enter var(--motion-slow) var(--ease-enter) both;
   width: 100%;
   max-width: 620px;
   max-height: calc(100vh - 32px);
@@ -162,9 +160,6 @@
   border-radius: 999px;
   background: var(--muted);
   box-shadow: inset 0 0 0 1px var(--border);
-  transition:
-    background-color var(--motion-slow) var(--ease-move),
-    box-shadow var(--motion-slow) var(--ease-move);
 }
 .onb-progress span[data-done="true"] {
   background: var(--foreground);
@@ -880,6 +875,208 @@
 .onb-screen h2[tabindex="-1"]:focus-visible,
 .onb-coach h2[tabindex="-1"]:focus-visible {
   outline: none;
+}
+
+/* Organization profile: approved compact card, isolated from the other setup steps. */
+.onb-screen:has(.onb-org-form) {
+  --foreground: #242728;
+  --muted-foreground: #6b7073;
+  --card: #fff;
+  --destructive: #a34135;
+  color-scheme: light;
+  background: #fff;
+  color: #242728;
+  font-family:
+    "Avenir Next",
+    Avenir,
+    "Inter Variable",
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.onb-card:has(.onb-org-form) {
+  position: relative;
+  isolation: isolate;
+  --org-pad: clamp(28px, 2.6vw, 40px);
+  width: min(100%, clamp(356px, 32vw, 472px));
+  padding: var(--org-pad);
+  gap: 0;
+  border: 1px solid #eeefeb;
+  border-radius: clamp(24px, 1.95vw, 30px);
+  background: #fff;
+  box-shadow: 0 3px 12px #24272804;
+  overflow: hidden;
+}
+.onb-card:has(.onb-org-form)::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  inset: 0 0 auto;
+  height: clamp(132px, 10.3vw, 158px);
+  background: url("/upload-art/organization-haze.png") center top / 100% 100%
+    no-repeat;
+}
+.onb-card:has(.onb-org-form) > .onb-head {
+  display: none;
+}
+.onb-org-form {
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(432px, 33.3vw, 516px);
+  max-height: calc(100dvh - var(--org-pad) - var(--org-pad) - 32px);
+}
+.onb-org-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+  margin: -3px;
+}
+.onb-org-wordmark {
+  margin: 0 0 clamp(36px, 2.9vw, 44px);
+  text-align: center;
+  font-size: clamp(22px, 1.8vw, 28px);
+  line-height: 1.2;
+  font-weight: 550;
+  letter-spacing: -0.6px;
+}
+.onb-org-form h2 {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(24px, 2.1vw, 32px);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  outline: none;
+}
+.onb-org-subtitle {
+  margin: 12px 0 clamp(30px, 2.5vw, 38px);
+  text-align: center;
+  font-size: clamp(14px, 1.2vw, 18px);
+  line-height: 1.5;
+  color: #62666a;
+}
+.onb-org-form .onb-field label {
+  font-size: clamp(13px, 1.04vw, 16px);
+  font-weight: 500;
+}
+.onb-org-form .onb-prefixed {
+  min-height: clamp(44px, 3.4vw, 52px);
+  border: 1px solid #d3d6d7;
+  border-radius: 10px;
+  background: #fff;
+}
+.onb-org-form .onb-prefixed:focus-within {
+  outline: 2px solid #9aa283;
+  outline-offset: 2px;
+}
+.onb-org-form .onb-prefixed[data-invalid="true"] {
+  border-color: #ad5144;
+}
+.onb-org-form .onb-prefixed input {
+  font-size: clamp(14px, 1.2vw, 18px);
+  color: #242728;
+}
+.onb-org-form .onb-prefixed input::placeholder {
+  color: #777c80;
+}
+.onb-org-website .onb-prefix {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  padding: 0;
+}
+.onb-org-website input {
+  padding-left: 14px;
+}
+.onb-org-form .onb-error {
+  color: #a34135;
+}
+.onb-org-form .onb-note {
+  font-size: 10.5px;
+  color: #74796f;
+}
+.onb-org-form .onb-prefix {
+  font-size: clamp(13px, 1.04vw, 16px);
+}
+.onb-org-social-toggle,
+.onb-org-finish {
+  padding: 0;
+  border: 0;
+  color: #242728;
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(13px, 1.04vw, 16px);
+  line-height: 1.5;
+}
+.onb-org-social-toggle {
+  align-self: flex-start;
+  margin: 18px 0 0;
+}
+.onb-org-form .onb-socials {
+  margin-top: 16px;
+}
+.onb-org-form .onb-socials[hidden] {
+  display: none;
+}
+.onb-org-actions {
+  flex: none;
+  padding-top: 28px;
+  text-align: center;
+}
+.onb-org-continue {
+  width: 100%;
+  min-height: clamp(44px, 3.4vw, 52px);
+  border: 0;
+  border-radius: 10px;
+  background: #080808;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(14px, 1.2vw, 18px);
+  font-weight: 500;
+}
+.onb-org-continue:hover {
+  background: #292c29;
+}
+.onb-org-finish {
+  margin-top: 20px;
+}
+.onb-org-form button:focus-visible {
+  outline: 2px solid #9aa283;
+  outline-offset: 4px;
+}
+@media (max-width: 440px) {
+  .onb-card:has(.onb-org-form) {
+    --org-pad: 24px;
+    padding: 28px var(--org-pad);
+  }
+  .onb-org-form {
+    max-height: calc(100dvh - 90px);
+  }
+  .onb-org-form h2 {
+    font-size: 24px;
+  }
+}
+@media (max-height: 600px) {
+  .onb-org-form {
+    min-height: 0;
+  }
+  .onb-org-wordmark {
+    margin-bottom: 22px;
+  }
+  .onb-org-actions {
+    padding-top: 20px;
+  }
 }
 
 /* Setup steps (OnboardingFlow.tsx): the card rises in, and each step slides in from the side

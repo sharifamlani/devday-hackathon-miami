@@ -65,7 +65,8 @@ def totals(path):
 
 
 def test_exact_identity_merges_are_recorded_and_flagged(setup):
-    path, c, _ = setup
+    path, c, result = setup
+    assert result["duplicates_removed"] == 2  # two exact-identity source records consolidated, not pending suggestions
     maria, priya, ann = person(c, "Maria Delgado"), person(c, "Priya Raman"), person(c, "Ann Lee")
     assert (maria["auto_merged"], maria["merged_from"]) == (True, 2)
     assert (priya["auto_merged"], priya["merged_from"]) == (False, 0)        # one person, one row lacked an email
@@ -146,7 +147,8 @@ def test_review_rejects_bad_action_and_unknown_person(setup):
 def test_dry_run_records_no_auto_merge(tmp_path):
     conn = db.connect(tmp_path / "dry.db")
     db.create_schema(conn)
-    ia.ingest_events(events(), "giver", conn, judgments={}, dry_run=True)
+    result = ia.ingest_events(events(), "giver", conn, judgments={}, dry_run=True)
+    assert result["duplicates_removed"] == 0
     assert conn.execute("SELECT COUNT(*) FROM auto_merges").fetchone()[0] == 0
     conn.close()
 

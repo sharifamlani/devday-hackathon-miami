@@ -1,3 +1,4 @@
+import { UploadProcessing } from "../upload/UploadProcessing";
 import {
   useCallback,
   useEffect,
@@ -83,9 +84,6 @@ import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 /** The laptop build talks to the service; the Vercel snapshot has no API. */
 const LIVE = DATA_MODE === "local";
-
-/** Measured on the 8 example files against the local service: about a minute. */
-const INGEST_TIME = "This usually takes about a minute.";
 
 const plural = (n: number, one: string, many: string) =>
   `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
@@ -318,7 +316,6 @@ export const FilesStep = ({
   const existing = people?.length ?? 0;
   const uploading = upload.isPending;
   const busy = uploading || loadingSample;
-  const elapsed = useElapsed(uploading);
   useReportBusy(busy, onBusy);
   // Saved in onboarding state right after ingest succeeds, so leaving or
   // reloading before Continue never asks for the same files again.
@@ -390,6 +387,16 @@ export const FilesStep = ({
     }
   };
 
+  if (uploading || (showReceipt && imported))
+    return (
+      <UploadProcessing
+        pending={uploading}
+        summary={imported}
+        onContinue={() => onContinue(imported)}
+        onReviewDuplicates={onReviewDuplicates}
+      />
+    );
+
   const collapsible = files.length > COLLAPSE_AFTER;
   const showList = !collapsible || listOpen;
 
@@ -425,7 +432,9 @@ export const FilesStep = ({
             ? "Importing…"
             : files.length
               ? `Import ${plural(files.length, "file", "files")}`
-              : "Continue"}
+              : showReceipt
+                ? "Create organization profile"
+                : "Continue"}
         </Primary>
       }
     >
@@ -576,12 +585,7 @@ export const FilesStep = ({
       )}
 
       <div aria-live="polite">
-        {uploading ? (
-          <p className="onb-status">
-            Reading your files and sorting people into tabs · {clock(elapsed)}.{" "}
-            {INGEST_TIME}
-          </p>
-        ) : status ? (
+        {status ? (
           <p className="onb-status" data-tone={status.tone}>
             {status.text}
           </p>
@@ -655,8 +659,9 @@ export const OrganizationStep = ({
   onBusy: _onBusy,
   ...frame
 }: StepFrameProps & { onContinue: (links: OrgLinks) => void }) => {
-  const { data } = useOnboarding();
+  const { data, finishLater } = useOnboarding();
   const { data: profile } = useOrgProfile();
+  const [socialsOpen, setSocialsOpen] = useState(false);
   const [fields, setFields] = useState<OrgLinks>(() =>
     fieldsFromLinks(data.links),
   );
@@ -706,7 +711,10 @@ export const OrganizationStep = ({
     const order: (keyof OrgLinks)[] = ["website", ...SOCIAL_PLATFORMS];
     const firstBad = order.find((key) => result.errors[key]);
     if (firstBad) {
-      document.getElementById(`${id}-${firstBad}`)?.focus();
+      if (firstBad !== "website") setSocialsOpen(true);
+      window.requestAnimationFrame(() =>
+        document.getElementById(`${id}-${firstBad}`)?.focus(),
+      );
       return;
     }
     setFields(fieldsFromLinks(result.links));
@@ -716,89 +724,103 @@ export const OrganizationStep = ({
   const errorCount = Object.keys(errors).length;
 
   return (
-    <StepForm
-      {...frame}
-      title={
-        <>
-          Tell us about your <strong>organization.</strong>
-        </>
-      }
-      lede="The agent reads your website and recent news for stories, events and facts to use in outreach. It never posts for you."
-      onSubmit={submit}
-      primary={<Primary>Continue</Primary>}
+    <form
+      className="onb-org-form"
+      aria-labelledby={`${id}-title`}
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
     >
-      <PrefixField
-        id={`${id}-website`}
-        data-autofocus=""
-        label="Website"
-        prefix={websitePrefix(fields.website)}
-        type="text"
-        inputMode="url"
-        autoComplete="url"
-        autoCapitalize="none"
-        spellCheck={false}
-        required
-        aria-required
-        placeholder="yourorg.org"
-        value={websiteInputText(fields.website)}
-        error={errors.website}
-        onChange={(e) =>
-          set("website", websiteFieldChange(fields.website, e.target.value))
-        }
-        onBlur={() => blur("website")}
-        hint={
-          LIVE
-            ? "Next, the agent reads your site and recent news. That takes about half a minute; if it runs longer, it keeps reading in the background while you start."
-            : "This preview shows saved sample context instead of reading your site."
-        }
-      />
-
-      <fieldset className="onb-socials">
-        <legend>
-          Social links <span className="onb-optional">(optional)</span>
-        </legend>
-        <p className="onb-note">
-          Saved for later; the agent doesn't read them yet. Paste a link or type
-          your handle.
+      <div className="onb-org-body">
+        <p className="onb-org-wordmark">kindred</p>
+        <h2 id={`${id}-title`} ref={frame.headingRef} tabIndex={-1}>
+          Your organization.
+        </h2>
+        <p className="onb-org-subtitle">Start with your website.</p>
+        <PrefixField
+          id={`${id}-website`}
+          className="onb-org-website"
+          data-autofocus=""
+          label="Website"
+          prefix={websitePrefix(fields.website)}
+          type="text"
+          inputMode="url"
+          autoComplete="url"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          aria-required
+          placeholder="yourorganization.org"
+          value={websiteInputText(fields.website)}
+          error={errors.website}
+          onChange={(e) =>
+            set("website", websiteFieldChange(fields.website, e.target.value))
+          }
+          onBlur={() => blur("website")}
+          hint={!LIVE ? "Preview uses sample context." : undefined}
+        />
+        <button
+          type="button"
+          className="onb-org-social-toggle"
+          aria-expanded={socialsOpen}
+          aria-controls={`${id}-socials`}
+          onClick={() => setSocialsOpen((open) => !open)}
+        >
+          {socialsOpen ? "− Hide social links" : "+ Add social links"}
+        </button>
+        <fieldset
+          id={`${id}-socials`}
+          className="onb-socials"
+          hidden={!socialsOpen}
+        >
+          <legend className="sr-only">Social links (optional)</legend>
+          <p className="onb-note">
+            Optional. Paste a link or enter your handle.
+          </p>
+          <div className="onb-fields">
+            {SOCIAL_PLATFORMS.map((platform) => (
+              <PrefixField
+                key={platform}
+                id={`${id}-${platform}`}
+                label={SOCIAL_LABELS[platform]}
+                prefix={FIELD_PREFIX[platform]}
+                type="text"
+                inputMode="url"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder={SOCIAL_PLACEHOLDER[platform]}
+                value={fields[platform]}
+                error={errors[platform]}
+                onChange={(e) => set(platform, e.target.value)}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData.getData("text");
+                  if (!pasted) return;
+                  e.preventDefault();
+                  set(platform, socialFieldValue(platform, pasted));
+                }}
+                onBlur={() => blur(platform)}
+              />
+            ))}
+          </div>
+        </fieldset>
+        <p className="sr-only" role="status">
+          {errorCount
+            ? `${errorCount} ${errorCount === 1 ? "field needs" : "fields need"} a fix.`
+            : ""}
         </p>
-        <div className="onb-fields">
-          {SOCIAL_PLATFORMS.map((platform) => (
-            <PrefixField
-              key={platform}
-              id={`${id}-${platform}`}
-              label={SOCIAL_LABELS[platform]}
-              prefix={FIELD_PREFIX[platform]}
-              type="text"
-              inputMode="url"
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              placeholder={SOCIAL_PLACEHOLDER[platform]}
-              value={fields[platform]}
-              error={errors[platform]}
-              onChange={(e) => set(platform, e.target.value)}
-              onPaste={(e) => {
-                const pasted = e.clipboardData.getData("text");
-                if (!pasted) return;
-                e.preventDefault();
-                set(platform, socialFieldValue(platform, pasted));
-              }}
-              onBlur={() => blur(platform)}
-            />
-          ))}
-        </div>
-      </fieldset>
-      <p className="sr-only" role="status">
-        {errorCount
-          ? `${errorCount} ${errorCount === 1 ? "field needs" : "fields need"} a fix.`
-          : ""}
-      </p>
-      {!LIVE && (
-        <p className="onb-note">
-          This preview keeps your links in this browser only.
-        </p>
-      )}
-    </StepForm>
+      </div>
+      <div className="onb-org-actions">
+        <button className="onb-org-continue" type="submit">
+          Continue
+        </button>
+        <button className="onb-org-finish" type="button" onClick={finishLater}>
+          Finish later
+        </button>
+      </div>
+    </form>
   );
 };
 

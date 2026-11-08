@@ -76,6 +76,8 @@ export interface FilesSummary {
   /** Declined charges the importer kept on record; they are not gifts and not in `gifts`. */
   declined?: number | null;
   duplicates: number | null;
+  /** Confirmed exact-identity consolidations; absent on older services. */
+  duplicatesRemoved?: number | null;
   files: number;
   /** People per tab, when the service reports it. */
   byTab: TabCounts | null;
@@ -259,8 +261,13 @@ const readFiles = (value: unknown): FilesSummary | null =>
     ? {
         people: count(value.people),
         gifts: count(value.gifts),
-        ...(count(value.declined) != null ? { declined: count(value.declined) } : {}),
+        ...(count(value.declined) != null
+          ? { declined: count(value.declined) }
+          : {}),
         duplicates: count(value.duplicates),
+        ...(count(value.duplicatesRemoved) != null
+          ? { duplicatesRemoved: count(value.duplicatesRemoved) }
+          : {}),
         files: count(value.files) ?? 0,
         byTab: readTabCounts(value.byTab),
         review: count(value.review),
