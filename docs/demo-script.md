@@ -20,65 +20,106 @@ Community 15**), but the demo stays on **Givers**.
 
 Button and heading text below is what's on screen on main today, in **bold**.
 
-1. **Empty start.** The app opens on the **Set up Donor Desk** dialog (**Step 1 of 3**) with nothing behind it: no
-   people, gifts, tasks or context. "Nothing is preloaded."
+1. **Empty start.** The app opens on the setup dialog (**Donor Desk · Step 1 of 3**) with nothing behind it: no
+   people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during setup** (steps 1–4): with
+   people already uploaded, a reload skips the website and context steps (fix in progress).
 2. **Step 1, "Drag in your files."** Drop the **8 input files** from `data/sample_inputs/` on **Drop your files here**
    (or click **Choose files**): `give_miami_day_export_2022-2025.xlsx`, `online_gifts_oct_nov_2026.xlsx`,
    `check_deposit_log_q3_2026.docx`, `donor_intake_forms_2026.docx`, `stock_and_daf_grants.docx`,
    `community_intake_forms_2026.docx`, `event_signin_sheet_nov1.xlsx`, `board_retreat_notes.md`. Not
    `answer_key.json` or `_README.md`. Under **Put them in** leave **Let the agent sort**, click **Import 8 files**
-   (it reads **Importing…**), then **Continue**. (**Use the example files** loads the same eight with one click.)
-3. **Step 2, "Tell us about your organization."** Type `miamifoundation.org` in the **Website** field (placeholder
-   **yourorg.org**) and click **Continue**. Social URLs are saved, not fetched.
-4. **Step 3, "Building your context."** It shows **Reading your website · m:ss**. "It reads the site and news and
-   keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing." The heading
-   becomes **Your desk is set up.** Click **Go to the dashboard** (if the site was slow or unreachable it says so and
-   the button reads **Continue to the dashboard**).
-5. **Dashboard (Overview).** Point at the glance links (**N gifts at risk**, **N possible duplicates**), **Plan
-   today**, **Coming up** (the next events, e.g. **6 days to Give Miami Day — Early Giving opens**) and today's
-   tasks in the sidebar. The rail: **Overview**, **Calendar**,
-   **Tasks**, **CRM**, **Projects**, **Files & drafts**, **Live transcript**, **Open Ask sidebar**.
-6. **Home chat agent.** In **Ask the agent…** type a request and click **Send**, or use a suggestion chip
-   (**Who should I thank this week?**, **Plan next week**). The conversation shows the agent's tool steps. A step
-   that changes something can be undone (**Undone**). Anything that sends, merges or deletes waits for a click.
-7. **A task, worked by the agent.** Click a task in the sidebar. The dialog reads e.g. **TASK 1 OF 15 · CALL** with
-   **Work on it with the agent**, **Call and transcribe**, **Draft email** and **Mark done**. Click **Work on it
-   with the agent**: the chat shows e.g. **Work on this task: Call Hye-jin Park…**, then its steps (**Get task**, **Get
-   person**, **Draft email**), and ends by asking **Mark done?**
-8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to Give Miami Day donors."* Open a
-   draft: it cites a success story, a use-of-funds line and an org-health line, each with its source. Big donors
-   and organizations need individual approval; nothing is sent from here.
+   (it reads **Importing…**, about 10 s on a warm cache). **Import finished: 77 people · 131 gifts (+1 declined charge
+   on record) from 8 files**, then **40 Givers · 22 Neighbors · 15 Community** and **9 possible duplicates to
+   review**. Click **Continue**. (**Use the example files** loads the same eight with one click.)
+3. **Step 2, "Tell us about your organization."** Type `miamifoundation.org` in the **Website** field and click
+   **Continue**. Social links are saved, not read.
+4. **Step 3, "Building your context."** It shows **Reading your website · m:ss** (about 30 s). "It reads the site and
+   news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing." The
+   heading becomes **Your desk is set up.** with e.g. **15 facts found about your organization** (website + news).
+   Click **Go to the dashboard** (if the site was slow it says so, the button reads **Continue to the dashboard**,
+   and the reading finishes in the background).
+5. **Dashboard (home).** A card offers **Your desk is ready. Want a one-minute tour?**: click **Not now**. Point at:
+   - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**);
+   - the week strip (**November · Nov 8 – 14**) and the agenda under it: **Today · Sunday, Nov 8** "9 reviews · 5 calls
+     · 3 preps · 1 email", Thu 12 **Prep list: Give Miami Day**, Sat 14 **Give Miami Day — Early Giving opens**, Sun 15
+     **The Give Miami 5K** (8:00 AM) and the Post-Race Festival (8:30 AM), Thu 19 **Give Miami Day**. "The agent found
+     these on the Foundation's site during setup and made the prep tasks.";
+   - **Tasks (18)**, grouped: **Donor outreach (6)** (failed cards, late gifts, a new donor), **Donor records (9)**
+     (possible duplicates), **Preparation (3)**. Clicking a task opens it for the agent (step 7);
+   - the **CRM** tile: **Find a donor**, **Open database**, and the donors needing attention with their badges
+     (**Card failed**, **Late**, **New**);
+   - **Files & drafts** (campaigns and invites the agents drafted);
+   - the chat (**Ask the agent…**) with its chips (**Enrich Gabriela Rincon**, **Who's late on a usual gift?**,
+     **Plan next week**).
+   **Open database** and the calendar's **↗** (**Open full calendar**) open a panel beside the chat. The icon rail on
+   the left holds **Live transcript** and **Open Ask sidebar**.
+6. **Home chat agent.** Click the chip **Plan next week** (about 10 s; **Thinking…** shows meanwhile). The conversation
+   shows the agent's tool steps (**Get events**, **Get calendar**, **Get tasks**, **Get alerts**), then **Next week:
+   November 9–15** with priorities, and "This is a proposed plan; I haven't changed your calendar." A step that changes
+   something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
+7. **A task, worked by the agent.** In **Tasks** click **Call Hye-jin Park**. The dialog reads e.g. **TASK 2 OF 18 ·
+   CALL** with **Work on it with the agent**, **Call and transcribe**, **Draft email** and **Mark done**. Click **Work
+   on it with the agent** (about 20 s): the chat shows **Work on this task: Call Hye-jin Park…**, then its steps (**Get
+   task**, **Get person**, **Draft email**), a re-engagement draft about her declined October gift (pending approval),
+   and ends by asking **Mark done?**
+8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to donors who gave in the last 90 days."*
+   (about 25 s): **25 thank-you email drafts are ready for review … Nothing has been sent**, with the organizations that
+   need individual approval listed by name. Each draft cites a Foundation fact with its source (e.g. Give Miami Day's
+   2025 record, linked to the Foundation's year in review). The campaign appears in **Files & drafts** as **Campaign:
+   Thank you · Email · 25 donors**. (Use *"Give Miami Day donors"* again once the fix for uploaded Give Miami Day gifts
+   merges: today that wording finds 0 donors. A campaign row doesn't open from Files & drafts yet: show a draft's
+   citation on the calendar's sample invite in step 10.)
 9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
-   *"Add the Knight Foundation as a contact."* It lands in **Givers**. Open **CRM** → **Find a donor**, search
-   *Knight* (placeholder **Name, email or organization**), and click **Enrich profile** (it reads **Enriching…**):
-   a dry run (nothing written) shows **Enrichment agent found (public web, review before saving):** with **Interest
-   areas** (**civic engagement & local news, arts & culture, community development, economic mobility**) and
-   **Facts**, each with its source link. Tick the ones to keep and click **Save to profile** (or **Discard**). The
-   same panel is on the donor's profile under **ENRICHMENT**. "Nothing is saved until staff accept, and every tag shows where it came from."
-10. **Calendar.** On the dashboard click **Open full calendar** (or rail → **Calendar**). Under **Calendar** ("The
+   *"Add the Knight Foundation as a contact."* (about 5 s): **added organization John S. and James L. Knight Foundation**,
+   with **Undo**. In the **CRM** tile click **Find a donor**, search *Knight* (placeholder **Name, email or
+   organization**), open **John S. and James L. Knight Foundation** (Giver · No gifts yet) and click **Enrich profile**
+   (it reads **Enriching…**): a dry run (nothing written) shows **Enrichment agent found (public web, review before
+   saving):** with **Interest areas** (**Civic Engagement & Local News, Arts & Culture, Community Development,
+   Economic Mobility**) and **Facts**, each with its **[src]** link, plus a public contact that's shown, not saved.
+   Click **Save to profile** (or **Close**). "Nothing is saved until staff accept, and every tag shows where it came
+   from."
+10. **Calendar.** On the dashboard click **Open full calendar** (or the **↗** on the week strip). Under **Calendar** ("The
     Foundation's events and your tasks, side by side.") sit the chip **Context updated today …** and **Refresh now**
     (re-reads the site, news and events; it shows **Refreshing…** until the pass is done). Filter pills
     **Fundraising**, **Stewardship**, **Events**, **Community outreach**, **Tasks**; **Today** / **Back** / **Next**
     over **November 2026**. The events the agent found at setup: Sat 14 **Give Miami Day — Early Giving opens**,
     Sun 15 **The Give Miami 5K** (8:00) and **The Give Miami 5K Post-Race Festival, a Party with a Purpose!** (8:30),
     Thu 19 **Give Miami Day**, plus the prep task Thu 12 **Prep list: Give Miami Day**. Click an event: its panel
-    shows a sample invite and **N drafts ready** for its audience (written in the background about a minute after
-    setup). Click **Review** to open that event's drafts (pending approval; nothing sent).
-11. **A call, transcribed.** On a task click **Call and transcribe**, or click the mic **Start live transcript**.
-    The panel shows **Listening** and the words as they're spoken (**Pause** / **Resume**); **Try the demo call**
-    plays a scripted call. Click **Generate summary**, or ask a question in **Ask about this call…**.
+    shows the audience counts, a **Sample invite (N drafts ready)** citing a Foundation fact with its source, and the
+    event's **Source** link (invites are written in the background about a minute after setup; drafts only). Don't
+    click **Review** yet: it re-plans for up to a minute (**Planning…**) before showing the batch (fix in progress).
+11. **A call, transcribed.** On a task click **Call and transcribe**, or click **Live transcript** in the rail: the panel
+    opens on **Listening** with **Demo call**, **Generate summary** and **Pause**. **Demo call** plays a scripted call
+    with Rosa (about 10 s). Click **Generate summary** (about 4 s): the summary and **Suggested next steps** (text her a
+    card-update link, sign her up for the beach cleanup), or ask a question in **Ask about this call**.
 12. **Dictation.** **Open Ask sidebar** and use **Dictate** to speak a question instead of typing it (**Stop
-    dictation** to finish; it needs the live service).
-13. **Duplicates review.** On **Givers**, the yellow banner reads e.g. **9 possible duplicates found**; click
-    **Review merges →** (or the home glance link **N possible duplicates**). Exact matches were already merged on
-    upload; these are the close calls, one pair at a time in **We found this donor twice** with its reason badges.
-    Pick the **Record to keep**, then **Merge ✓** (**Merging…**) or **Keep separate**. "Merge only
-    after a person approves; the gift history moves to the kept record." On the donor, **Merge history** → **Undo
-    merge** → **Confirm undo** puts both back. After the suggestions are approved the counts match the answer key:
-    68 people (33 givers, 20 neighbors, 15 community) and 131 gifts.
+    dictation** to finish; it needs the live service and a microphone: test it before going on stage).
+13. **Duplicates review.** Click **Open database**: on **Givers** the banner reads **9 possible duplicates found**;
+    click **Review merges →**. Exact matches were already merged on upload; these are the close calls, one pair at a
+    time in **We found this donor twice** with its reason badges (e.g. **similar name + same phone**, **90% match**,
+    **8 more after this one**). Pick the record to keep (**✓ Keep** / **Merge in**), then **Merge ✓** (**Merging…**) or
+    **Keep separate**. "Merge only after a person approves; the gift history moves to the kept record." On the donor,
+    **Merge history** → **Undo merge** → **Confirm undo** puts both back. After the suggestions are approved the
+    counts match the answer key: 68 people (33 givers, 20 neighbors, 15 community) and 131 gifts.
 
 > Not on screen yet (don't demo): the after-call **Apply** card (the backend proposes follow-ups from a call and
 > writes them on Apply, but no screen shows it yet). Out of scope: the Neighbors / Community tabs.
+
+### If it's slow (what to say)
+
+Timings are from the Nov 8 dress rehearsal on the laptop (warm cache). Every agent step shows **Thinking…** while it works.
+
+| Step | Can vary because | If it's slow or off, say |
+|---|---|---|
+| 4 Building your context (~30 s) | the site read runs close to its 30 s limit; the event search sometimes finds 3 of the 4 events at first | "It keeps reading in the background; the rest lands in a minute." Click **Continue to the dashboard**. |
+| 6 / 7 agent replies (10–20 s) | live model calls | "It's pulling the task, the donor's record and drafting; every step it takes shows here." |
+| 8 campaign (~25 s) | 25 live drafts | "Twenty-five personal drafts, each citing a real Foundation story. Nothing is sent without approval." |
+| 9 Enrich | fast while the research cache holds Knight; otherwise a live web search | "It's reading the public web; every tag will carry its source." |
+| 10 Review | re-plans for up to a minute (fix in progress) | Skip it: "The invites for this audience are already drafted, pending approval." |
+| 12 Dictation | needs a mic and the live service | Type the question instead. |
+| 13 duplicates | fixed by the warm cache | "Nine close calls" (not ten). |
+
+If the laptop or network fails, switch to the Vercel preview tab (read-only sample data) and say so.
 
 ### The call (Sharif writes)
 
@@ -119,7 +160,7 @@ Button and heading text below is what's on screen on main today, in **bold**.
 
 - [ ] **Reset and warm up:** `python scripts/demo_reset.py --warm` (service stopped). It empties the db, uploads the 8
       files once to warm the cache, and empties the db again; the on-stage upload then replays fast and shows
-      **10 possible duplicates**.
+      **9 possible duplicates**.
 - [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
 - [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
 - [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8000`; service
