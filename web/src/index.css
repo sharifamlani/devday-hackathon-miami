@@ -280,20 +280,7 @@ input[type="time"] {
 body {
   font-family: var(--font-sans);
   font-size: 14px;
-  /* White canvas, yellow glow bottom-left, green-yellow glow bottom-right. */
-  background:
-    radial-gradient(
-      55% 45% at 0% 100%,
-      var(--page-glow-yellow),
-      transparent 70%
-    ),
-    radial-gradient(
-      55% 45% at 100% 100%,
-      var(--page-glow-green),
-      transparent 70%
-    ),
-    var(--background);
-  background-attachment: fixed;
+  background: var(--background);
 }
 
 /* The mobile pull-to-refresh (see layout/PullToRefresh.tsx) owns the overscroll

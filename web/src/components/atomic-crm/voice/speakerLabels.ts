@@ -1,27 +1,35 @@
 import { API_URL, DATA_MODE } from "../providers/local/config";
 import type { TranscriptLine } from "./callNotes";
-import type { CallRecording, RecordingSource } from "./geminiTranscriptSource";
+import { takeCallRecordings, type CallRecording, type RecordingSource } from "./geminiTranscriptSource";
 import { firstName, type TranscriptSource } from "./transcriptSource";
 
 /**
- * After the call: send the recording to POST /transcribe/file (Gemini with
- * speaker diarization) and replace the live "You" lines with labelled
+ * After the call: send each recorded stretch to POST /transcribe/file (Gemini
+ * with speaker diarization) and replace its live "You" lines with labelled
  * you/them lines, so the pane's promise ("cleans up the transcript and labels
- * speakers") holds. Every failure keeps the live lines: no recording, no
- * service (snapshot mode), an error, an empty answer, or over LABEL_TIMEOUT_MS.
+ * speakers") holds.
  *
- * The pane restarts the mic source after each pause, so a recording covers
- * only the stretch since the last resume: just those lines (the last
- * `recording.lines`) are replaced, and earlier lines stay as they were.
+ * A call is one stretch per mic session: the pane's Pause stops the source and
+ * Resume starts a new one, and each stopped source leaves its stretch on the
+ * call tape (geminiTranscriptSource.ts). Stretches are matched to the
+ * transcript from the end backwards by the exact text of the lines they
+ * produced, so a stretch that doesn't line up (an abandoned call, a demo
+ * stretch in between) labels nothing rather than the wrong lines.
+ *
+ * Every failure keeps live lines, per stretch: no recording, no service
+ * (snapshot mode), an error, an empty answer, or not back within
+ * LABEL_TIMEOUT_MS (one budget for all stretches, sent in parallel).
  */
 
 export const LABEL_TIMEOUT_MS = 10_000;
 
 export interface LabelResult {
   lines: TranscriptLine[];
-  /** True when lines came from the speaker pass. */
+  /** True when at least one stretch was relabelled. */
   labeled: boolean;
-  /** Why the live lines were kept, for the log. */
+  /** Stretches relabelled, out of those that matched the transcript. */
+  stretches: { labeled: number; matched: number };
+  /** Why live lines were kept, for the log. */
   reason?: string;
 }
 
@@ -29,18 +37,37 @@ const isRecordingSource = (s: TranscriptSource | null): s is RecordingSource =>
   !!s && typeof (s as Partial<RecordingSource>).finishRecording === "function";
 
 /**
- * Take the call recording from the running source. Call it before stopping the
- * source; null for sources that don't record (demo, browser recognizer).
+ * Take every stretch of the call: the running source's (if it records) plus
+ * those left by sources a pause already stopped. Call it before stopping the
+ * source. Empties the tape.
  */
-export const takeRecording = (source: TranscriptSource | null): Promise<CallRecording | null> | null =>
-  isRecordingSource(source) ? source.finishRecording() : null;
+export const takeRecording = (source: TranscriptSource | null): Promise<CallRecording[]> => {
+  if (isRecordingSource(source)) void source.finishRecording();
+  return takeCallRecordings();
+};
 
-/** Swap the stretch a recording covers for its labelled lines, on the pane's call clock. */
-export const mergeLabeled = (live: TranscriptLine[], covered: number, labeled: TranscriptLine[]): TranscriptLine[] => {
-  const keep = live.slice(0, Math.max(0, live.length - covered));
-  const start = covered > 0 ? live[live.length - covered].at : (live.at(-1)?.at ?? 0);
-  const shift = start - (labeled[0]?.at ?? 0);
-  return [...keep, ...labeled.map((l) => ({ ...l, at: Math.max(0, Math.round(l.at + shift)) }))];
+/** Which live lines each stretch covers: [start, end) ranges, matched from the end by text. */
+export const matchStretches = (
+  live: TranscriptLine[],
+  stretches: CallRecording[],
+): { stretch: CallRecording; start: number; end: number }[] => {
+  const matched: { stretch: CallRecording; start: number; end: number }[] = [];
+  let end = live.length;
+  for (let i = stretches.length - 1; i >= 0; i -= 1) {
+    const { texts } = stretches[i];
+    if (!texts.length) continue; // heard nothing that became a line: nothing to relabel
+    const start = end - texts.length;
+    if (start < 0 || texts.some((t, k) => live[start + k].text !== t)) break; // earlier stretches don't line up either
+    matched.unshift({ stretch: stretches[i], start, end });
+    end = start;
+  }
+  return matched;
+};
+
+/** Labelled lines for one stretch, moved onto the pane's call clock at `startAt`. */
+const onPaneClock = (labeled: TranscriptLine[], startAt: number): TranscriptLine[] => {
+  const shift = startAt - (labeled[0]?.at ?? 0);
+  return labeled.map((l) => ({ ...l, at: Math.max(0, Math.round(l.at + shift)) }));
 };
 
 export interface LabelOptions {
@@ -54,36 +81,64 @@ export interface LabelOptions {
 }
 
 export const labelSpeakers = async (
-  recording: Promise<CallRecording | null> | null,
+  recordings: Promise<CallRecording[]> | null,
   liveLines: TranscriptLine[],
   { donorName, timeoutMs = LABEL_TIMEOUT_MS, fetchImpl = fetch, local = DATA_MODE === "local" }: LabelOptions,
 ): Promise<LabelResult> => {
-  const keep = (reason: string): LabelResult => ({ lines: liveLines, labeled: false, reason });
-  if (!recording || !local) return keep("no recording or no service");
+  const keep = (reason: string, matched = 0): LabelResult =>
+    ({ lines: liveLines, labeled: false, stretches: { labeled: 0, matched }, reason });
+  if (!recordings || !local) return keep("no recording or no service");
   const abort = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<LabelResult>((resolve) => {
+  const timedOut = new Promise<"timeout">((resolve) => {
     timer = setTimeout(() => {
       abort.abort();
-      resolve(keep(`speaker pass took over ${timeoutMs / 1000} s`));
+      resolve("timeout");
     }, timeoutMs);
   });
-  const pass = (async (): Promise<LabelResult> => {
-    const rec = await recording;
-    if (!rec || !rec.audio.size) return keep("empty recording");
+
+  const labelOne = async (rec: CallRecording): Promise<TranscriptLine[] | null> => {
+    if (!rec.audio.size) return null;
     const form = new FormData();
     form.append("audio", rec.audio, rec.audio.type.includes("ogg") ? "call.ogg" : "call.webm");
     form.append("first_speaker", "you");
     form.append("you_name", "You");
     form.append("them_name", donorName ? firstName(donorName) : "Them");
     const response = await fetchImpl(`${API_URL}/transcribe/file`, { method: "POST", body: form, signal: abort.signal });
-    if (!response.ok) return keep(`speaker pass HTTP ${response.status}`);
+    if (!response.ok) return null;
     const { segments } = (await response.json()) as { segments?: TranscriptLine[] };
-    if (!segments?.length) return keep("speaker pass heard nothing");
-    return { lines: mergeLabeled(liveLines, Math.min(rec.lines, liveLines.length), segments), labeled: true };
-  })().catch((error: unknown) => keep(`speaker pass failed: ${String(error)}`));
+    return segments?.length ? segments : null;
+  };
+
   try {
-    return await Promise.race([pass, timeout]);
+    const stretches = await Promise.race([recordings, timedOut]);
+    if (stretches === "timeout") return keep(`recording not ready within ${timeoutMs / 1000} s`);
+    const matched = matchStretches(liveLines, stretches);
+    if (!matched.length) return keep(stretches.length ? "recording doesn't match the transcript" : "no recording");
+    // Each stretch's answer lands here as it arrives; a timeout keeps whatever came back.
+    const results: (TranscriptLine[] | null)[] = matched.map(() => null);
+    const all = Promise.all(
+      matched.map((m, i) => labelOne(m.stretch).then((r) => (results[i] = r), () => null)),
+    );
+    const outcome = await Promise.race([all.then(() => "done" as const), timedOut]);
+
+    const lines: TranscriptLine[] = [];
+    let at = 0;
+    matched.forEach((m, i) => {
+      lines.push(...liveLines.slice(at, m.start));
+      const labeled = results[i];
+      lines.push(...(labeled ? onPaneClock(labeled, liveLines[m.start].at) : liveLines.slice(m.start, m.end)));
+      at = m.end;
+    });
+    lines.push(...liveLines.slice(at));
+    const done = results.filter(Boolean).length;
+    if (!done) return keep(outcome === "timeout" ? `speaker pass took over ${timeoutMs / 1000} s` : "speaker pass failed", matched.length);
+    return {
+      lines,
+      labeled: true,
+      stretches: { labeled: done, matched: matched.length },
+      reason: done < matched.length ? `${matched.length - done} stretch(es) kept live lines` : undefined,
+    };
   } finally {
     clearTimeout(timer);
   }

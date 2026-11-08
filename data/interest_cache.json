@@ -1,0 +1,295 @@
+{
+  "John S. and James L. Knight Foundation": {
+    "identity_match": "confirmed",
+    "identity_basis": [
+      "The official contact page names John S. and James L. Knight Foundation and lists Miami, Florida.",
+      "The official website identifies the organization as Knight Foundation."
+    ],
+    "facts": [
+      {
+        "id": "0a0a9f71b48e",
+        "fact": "Knight Foundation invests in local journalism, arts and culture, and community development in 26 cities and towns where the Knight brothers published newspapers.",
+        "source_url": "https://knightfoundation.org/about/",
+        "retrieved_at": "2026-11-08T03:18:49+00:00"
+      },
+      {
+        "id": "f0a227ba3c26",
+        "fact": "In 2023, Knight announced a $150 million commitment through Press Forward to support local news over five years.",
+        "source_url": "https://knightfoundation.org/what-we-fund/journalism/",
+        "retrieved_at": "2026-11-08T03:18:49+00:00"
+      },
+      {
+        "id": "8955155f1dc4",
+        "fact": "Its arts program prioritizes strengthening cultural ecosystems rather than standalone projects.",
+        "source_url": "https://knightfoundation.org/programs/arts/",
+        "retrieved_at": "2026-11-08T03:18:49+00:00"
+      },
+      {
+        "id": "1e137d89dbab",
+        "fact": "Its economic mobility strategy supports entrepreneurs and projects that expand local economic opportunity.",
+        "source_url": "https://knightfoundation.org/how-we-fund/",
+        "retrieved_at": "2026-11-08T03:18:49+00:00"
+      }
+    ],
+    "interests": [
+      {
+        "id": "civic_media",
+        "tag": "civic_media",
+        "label": "Civic Engagement & Local News",
+        "sub_tag": "local_news",
+        "confidence": "high",
+        "evidence": "In 2023, Knight announced a $150 million commitment, as part of Press Forward.",
+        "source_url": "https://knightfoundation.org/what-we-fund/journalism/",
+        "source_type": "named_gift"
+      },
+      {
+        "id": "arts_culture",
+        "tag": "arts_culture",
+        "label": "Arts & Culture",
+        "sub_tag": null,
+        "confidence": "medium",
+        "evidence": "We prioritize investments that strengthen a city’s broader cultural ecosystem rather than standalone projects.",
+        "source_url": "https://knightfoundation.org/programs/arts/",
+        "source_type": "statement"
+      },
+      {
+        "id": "community_development",
+        "tag": "community_development",
+        "label": "Community Development",
+        "sub_tag": null,
+        "confidence": "medium",
+        "evidence": "The foundation invests in local journalism, arts and culture and community development",
+        "source_url": "https://knightfoundation.org/about/",
+        "source_type": "statement"
+      },
+      {
+        "id": "economic_mobility",
+        "tag": "economic_mobility",
+        "label": "Economic Mobility",
+        "sub_tag": "small_business",
+        "confidence": "medium",
+        "evidence": "Expanding local economic opportunity by supporting entrepreneurs",
+        "source_url": "https://knightfoundation.org/how-we-fund/",
+        "source_type": "statement"
+      }
+    ],
+    "contact": {
+      "employer": null,
+      "title": null,
+      "linkedin_url": "https://www.linkedin.com/company/knightfoundation/",
+      "public_email": null,
+      "public_phone": "(305) 908-2600",
+      "website": "https://knightfoundation.org/",
+      "location": {
+        "city": "Miami",
+        "region": "Florida",
+        "country": "United States"
+      },
+      "source_urls": [
+        "https://knightfoundation.org/contact-us/",
+        "https://www.linkedin.com/company/knightfoundation/"
+      ]
+    },
+    "notes": "The donor is an institutional grantmaker, not an individual. Contact details are organization-level; employer and title are not applicable.",
+    "searched_at": "2026-11-08T03:18:49+00:00"
+  },
+  "Frederick A. DeLuca Foundation": {
+    "identity_match": "confirmed",
+    "identity_basis": [
+      "Exact foundation name matches its official website and Florida corporate registry.",
+      "Documented partnership with The Miami Foundation confirms its Miami-area philanthropic activity.",
+      "Registered location is Pompano Beach, Florida, rather than Miami; EIN is 65-0755554."
+    ],
+    "facts": [
+      {
+        "id": "3a9fd467f469",
+        "fact": "The foundation prioritizes economic mobility, youth and families, and responsive funding for nonprofit capacity building and Florida crisis relief.",
+        "source_url": "https://www.delucafdn.org/about-frederick-a-deluca/",
+        "retrieved_at": "2026-11-08T03:19:29+00:00"
+      },
+      {
+        "id": "ea7489b3ac5e",
+        "fact": "A 2023 grant to Boys & Girls Clubs of America supported nine South Florida Clubs through academic programming, staff training, fundraising support and improved data systems.",
+        "source_url": "https://www.bgca.org/about-us/our-partners/the-frederick-a-deluca-foundation/?form=donate",
+        "retrieved_at": "2026-11-08T03:19:29+00:00"
+      },
+      {
+        "id": "205f13f71367",
+        "fact": "The foundation lists Elisabeth DeLuca as president and Jonathan DeLuca and Suzanne Greco as directors.",
+        "source_url": "https://www.delucafdn.org/about/",
+        "retrieved_at": "2026-11-08T03:19:29+00:00"
+      },
+      {
+        "id": "4015836a5a1b",
+        "fact": "Young Musicians Unite recognizes the foundation in its $500,000–$999,999 supporter tier.",
+        "source_url": "https://ymu.org/supporters",
+        "retrieved_at": "2026-11-08T03:19:29+00:00"
+      }
+    ],
+    "interests": [
+      {
+        "id": "arts_culture",
+        "tag": "arts_culture",
+        "label": "Arts & Culture",
+        "sub_tag": "music",
+        "confidence": "high",
+        "evidence": "Young Musicians Unite lists The Frederick A. DeLuca Foundation under its $500,000–$999,999 supporter tier.",
+        "source_url": "https://ymu.org/supporters",
+        "source_type": "named_gift"
+      },
+      {
+        "id": "community_development",
+        "tag": "community_development",
+        "label": "Community Development",
+        "sub_tag": "nonprofit_capacity",
+        "confidence": "high",
+        "evidence": "The 2023 BGCA grant funded staff training in program implementation and fundraising, alongside improved data efficiency.",
+        "source_url": "https://www.bgca.org/about-us/our-partners/the-frederick-a-deluca-foundation/?form=donate",
+        "source_type": "named_gift"
+      },
+      {
+        "id": "education",
+        "tag": "education",
+        "label": "Education",
+        "sub_tag": "k12",
+        "confidence": "high",
+        "evidence": "BGCA reports a 2023 foundation grant supporting nine South Florida Clubs, including academic success programming to reduce learning loss.",
+        "source_url": "https://www.bgca.org/about-us/our-partners/the-frederick-a-deluca-foundation/?form=donate",
+        "source_type": "named_gift"
+      },
+      {
+        "id": "youth_family",
+        "tag": "youth_family",
+        "label": "Youth & Family",
+        "sub_tag": null,
+        "confidence": "high",
+        "evidence": "A 2023 grant supported nine South Florida Boys & Girls Clubs and strengthened their capacity to serve youth.",
+        "source_url": "https://www.bgca.org/about-us/our-partners/the-frederick-a-deluca-foundation/?form=donate",
+        "source_type": "named_gift"
+      },
+      {
+        "id": "basic_needs",
+        "tag": "basic_needs",
+        "label": "Food & Basic Needs",
+        "sub_tag": "disaster_relief",
+        "confidence": "medium",
+        "evidence": "Responding to emerging community needs including nonprofit capacity building and Florida- based crisis relief efforts.",
+        "source_url": "https://www.delucafdn.org/about-frederick-a-deluca/",
+        "source_type": "statement"
+      },
+      {
+        "id": "economic_mobility",
+        "tag": "economic_mobility",
+        "label": "Economic Mobility",
+        "sub_tag": null,
+        "confidence": "medium",
+        "evidence": "Providing educational and professional pathways for individuals to support themselves and their families.",
+        "source_url": "https://www.delucafdn.org/about-frederick-a-deluca/",
+        "source_type": "statement"
+      }
+    ],
+    "contact": {
+      "employer": null,
+      "title": null,
+      "linkedin_url": null,
+      "public_email": null,
+      "public_phone": null,
+      "website": "https://www.delucafdn.org/",
+      "location": {
+        "city": "Pompano Beach",
+        "region": "Florida",
+        "country": "United States"
+      },
+      "source_urls": [
+        "https://www.delucafdn.org/",
+        "https://projects.propublica.org/nonprofits/organizations/650755554"
+      ]
+    },
+    "notes": "Organization-level record. Miami is a documented service area, not the registered city. The website also represents the separate Elisabeth C. DeLuca Foundation; interests here use evidence explicitly tied to the Frederick A. DeLuca Foundation. No reliably verified public professional email or telephone was found.",
+    "searched_at": "2026-11-08T03:19:29+00:00"
+  },
+  "McDermott Will & Schulte": {
+    "identity_match": "confirmed",
+    "identity_basis": [
+      "Exact organization name appears on the firm's official website.",
+      "Official Miami office page confirms the city supplied.",
+      "The Miami Foundation identifies the firm as a local pro bono partner."
+    ],
+    "facts": [
+      {
+        "id": "5a00782d14a8",
+        "fact": "The firm's pro bono leadership includes Jayme Cassidy, Pro Bono Transactions Counsel based in Miami.",
+        "source_url": "https://www.mcdermottlaw.com/pro-bono/",
+        "retrieved_at": "2026-11-08T03:19:53+00:00"
+      },
+      {
+        "id": "7f16086ee7ed",
+        "fact": "Lawyers for Good Government recognized the firm with its 2026 Pro Bono Award after its lawyers contributed more than 1,200 hours supporting the organization in 2025.",
+        "source_url": "https://www.mcdermottlaw.com/news/mcdermott-will-schulte-honored-with-2026-pro-bono-award-by-lawyers-for-good-government/",
+        "retrieved_at": "2026-11-08T03:19:53+00:00"
+      }
+    ],
+    "interests": [
+      {
+        "id": "equity_rights",
+        "tag": "equity_rights",
+        "label": "Equity & Civil Rights",
+        "sub_tag": "legal_aid",
+        "confidence": "medium",
+        "evidence": "The firm states: \"We represent individuals seeking safety, freedom, and fairness.\" Its pro bono program expands access to justice for people unable to secure representation.",
+        "source_url": "https://www.mcdermottlaw.com/pro-bono/",
+        "source_type": "statement"
+      }
+    ],
+    "contact": {
+      "employer": null,
+      "title": null,
+      "linkedin_url": "https://www.linkedin.com/company/mcdermott-will-and-schulte",
+      "public_email": null,
+      "public_phone": "+1 305 358 3500",
+      "website": "https://www.mcdermottlaw.com/",
+      "location": {
+        "city": "Miami",
+        "region": "Florida",
+        "country": "United States"
+      },
+      "source_urls": [
+        "https://www.mcdermottlaw.com/offices/miami/",
+        "https://www.mcdermottlaw.com/",
+        "https://www.linkedin.com/company/mcdermott-will-and-schulte"
+      ]
+    },
+    "notes": "Organizational donor, not an individual. The public email belongs to Miami office administrator Beatriz Soriano; it is not a designated philanthropy inbox. Documented Miami support is in-kind legal service, not a confirmed cash gift. Firmwide legal-aid evidence is distinguished from the local partnership.",
+    "searched_at": "2026-11-08T03:19:53+00:00"
+  },
+  "Amazon": {
+    "identity_match": "confirmed",
+    "identity_basis": [
+      "Corporate donor name Amazon matches The Miami Foundation's announcement.",
+      "Documented grants to Miami-Dade and South Dade nonprofits match the supplied geography."
+    ],
+    "facts": [
+      {
+        "id": "656fd4187183",
+        "fact": "In January 2021, Amazon announced $500,000 for United Way organizations serving Miami-Dade and Broward counties during the pandemic.",
+        "source_url": "https://www.gflalliance.org/news/2021/01/28/press-releases/south-florida-united-ways-to-receive-500-000-from-amazon/",
+        "retrieved_at": "2026-11-08T03:20:34+00:00"
+      }
+    ],
+    "interests": [
+      {
+        "id": "basic_needs",
+        "tag": "basic_needs",
+        "label": "Food & Basic Needs",
+        "sub_tag": "emergency_assistance",
+        "confidence": "high",
+        "evidence": "Amazon's $500,000 United Way donation supported pandemic relief; the announcement describes utility assistance and support for local food banks.",
+        "source_url": "https://www.gflalliance.org/news/2021/01/28/press-releases/south-florida-united-ways-to-receive-500-000-from-amazon/",
+        "source_type": "named_gift"
+      }
+    ],
+    "contact": {},
+    "notes": "Researched Amazon as a corporate donor, not Jeff Bezos or his separate philanthropic entities. Miami is treated as the giving geography, not a verified headquarters location. No direct public philanthropy email or phone was verified.",
+    "searched_at": "2026-11-08T03:20:34+00:00"
+  }
+}

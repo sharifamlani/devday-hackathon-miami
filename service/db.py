@@ -404,6 +404,51 @@ CREATE TABLE IF NOT EXISTS context_refresh_log (
 SCHEMA += EVENTS_SCHEMA
 TABLES = ["context_refresh_log", "event_drafts", "event_audience", "events"] + TABLES
 
+# B1 interest areas (plan §21.2.6, docs/research/interest-areas.md): 17 reference tags, seeded from
+# service/interests.py, and each person's tags with evidence. Own block so other branches merge cleanly;
+# `donors` is untouched. Staff tags are never overwritten; a removed tag keeps its row.
+INTEREST_SCHEMA = """
+CREATE TABLE IF NOT EXISTS interest_tags (
+    slug        TEXT PRIMARY KEY,
+    label       TEXT NOT NULL,
+    definition  TEXT NOT NULL,
+    ntee_groups TEXT NOT NULL,         -- JSON list, e.g. ["A"]
+    gmd_area    TEXT,                  -- Miami Foundation / Give Miami Day mapping
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    active      INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS interest_subtags (
+    tag_slug    TEXT NOT NULL REFERENCES interest_tags(slug),
+    sub_slug    TEXT NOT NULL,
+    label       TEXT NOT NULL,
+    PRIMARY KEY (tag_slug, sub_slug)
+);
+
+CREATE TABLE IF NOT EXISTS donor_interests (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    donor_id    INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+    tag         TEXT NOT NULL REFERENCES interest_tags(slug),
+    sub_tag     TEXT,
+    confidence  TEXT NOT NULL CHECK (confidence IN ('high', 'medium', 'low')),
+    evidence    TEXT NOT NULL,         -- short quote or paraphrase, <= 300 chars
+    source_url  TEXT,                  -- required when set_by = 'agent'
+    source_type TEXT CHECK (source_type IN ('board_seat', 'named_gift', 'named_fund', 'statement',
+                'event_sponsor', 'volunteer', 'event_attendance', 'social', 'staff_note', 'other')),
+    found_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    set_by      TEXT NOT NULL CHECK (set_by IN ('agent', 'staff')),
+    status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'removed')),
+    removed_by  TEXT,                  -- who removed it; keeps the agent from re-adding it
+    CHECK (set_by = 'staff' OR source_url IS NOT NULL)
+);
+-- One row per person, tag and sub-tag (a missing sub-tag counts as one value, unlike a plain UNIQUE)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_donor_interests_unique ON donor_interests(donor_id, tag, COALESCE(sub_tag, ''));
+CREATE INDEX IF NOT EXISTS idx_donor_interests_tag ON donor_interests(tag, status);
+"""
+SCHEMA += INTEREST_SCHEMA   # the 17 tags are seeded by service.interests.ensure_seeded, not here: create_schema
+                            # runs on every request, so it must stay write-free once the tables exist
+TABLES = ["donor_interests", "interest_subtags", "interest_tags"] + TABLES
+
 # §21 B11/B12 (service/tasks.py): tasks and the log of every agent or staff write, with undo.
 TASKS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS tasks (
@@ -531,6 +576,25 @@ CRM_DEFAULT_TAGS = [
     (6, "Legacy society", "#eddcd2"),
 ]
 
+# B6 after-call agent (86): a pledge is a promise, never money raised; it lives apart from gifts and no total
+# or score reads it.
+PLEDGES_SCHEMA = """
+CREATE TABLE IF NOT EXISTS pledges (
+    id           INTEGER PRIMARY KEY,
+    person_id    INTEGER NOT NULL REFERENCES donors(id) ON DELETE CASCADE,
+    amount       REAL NOT NULL CHECK (amount > 0),
+    frequency    TEXT NOT NULL DEFAULT 'one_time' CHECK (frequency IN ('one_time', 'monthly', 'annual')),
+    expected_by  TEXT,                          -- YYYY-MM-DD when the donor named a date
+    status       TEXT NOT NULL DEFAULT 'pledged' CHECK (status IN ('pledged', 'fulfilled', 'cancelled')),
+    note         TEXT,                          -- the words from the call it rests on
+    call_note_id TEXT REFERENCES call_notes(id) ON DELETE SET NULL,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_pledges_person ON pledges(person_id);
+"""
+SCHEMA += PLEDGES_SCHEMA
+TABLES = ["pledges"] + TABLES
+
 CONTACT_TYPES = ("giver", "neighbor", "community")
 # Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
 DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
@@ -551,7 +615,10 @@ ADDED_COLUMNS = {
                     "staff_name": "TEXT"},          # greeting name, set in onboarding step 2
     # A declined or failed charge is kept on record but never counted in totals or scoring.
     "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed'))"},
+    # One task store: the Donors tab's react-admin fields as sent (type, text, due_date, done_date, sales_id), JSON.
+    "tasks": {"crm": "TEXT"},
     # §21.2.3 context store (86): what each fact is, a short title, its embedding, and whether it came from cache
+    "event_audience": {"rsvp": "TEXT CHECK (rsvp IN ('yes', 'no', 'maybe'))"},   # B6: said on a call
     "org_context": {
         "kind": "TEXT CHECK (kind IN ('success_story', 'program_update', 'use_of_funds', 'org_health', 'event', 'news', 'other'))",
         "title": "TEXT",

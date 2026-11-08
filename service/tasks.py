@@ -130,11 +130,12 @@ def create_task(conn: sqlite3.Connection, *, kind: str, title: str, actor: str =
     values = _check({"kind": kind, "title": title, "source": fields.pop("source", actor), **fields})
     _require_person(conn, values.get("person_id"))
     values.update(_raw or {})
-    cols = list(values) + ["gen_key", "created_at", "updated_at"]
     now = _now()
+    values = {"created_at": now, "updated_at": now, **values, "gen_key": gen_key}   # a migrated row keeps its stamps
+    cols = list(values)
     cur = conn.execute(
         f"INSERT OR IGNORE INTO tasks ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
-        [*values.values(), gen_key, now, now])
+        list(values.values()))
     if cur.rowcount == 0:
         return None
     row = _row(conn, cur.lastrowid)
@@ -514,3 +515,127 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# ---------- the Donors tab's tasks (routes_crm /crm/tasks): one store ----------
+# react-admin's task record {id, contact_id, type, text, due_date, done_date, sales_id, created_at, updated_at}
+# is a view of a tasks row with person_id = contact_id. The fields as the browser sent them live in tasks.crm
+# (JSON) so they round-trip exactly; whenever a row was changed elsewhere (the agent, /tasks, the generator),
+# the view is rebuilt from the row instead.
+
+CRM_KINDS = {"call": "call", "email": "email"}        # any other react-admin type is kind 'other'
+CRM_SORTS = {"id", "due_date", "done_date", "contact_id", "type", "created_at", "updated_at"}
+
+
+def _crm_kind(crm_type: str | None) -> str:
+    return CRM_KINDS.get((crm_type or "").lower(), "other")
+
+
+def _crm_title(text: str | None) -> str:
+    return (text or "").strip() or "Task"
+
+
+def to_crm(row: dict) -> dict:
+    crm = json.loads(row.get("crm") or "{}")
+    sent_type = crm.get("type")
+    type_ = sent_type if sent_type and _crm_kind(sent_type) == row["kind"] else (
+        row["kind"] if row["kind"] in CRM_KINDS else "none")
+    text = crm["text"] if "text" in crm and _crm_title(crm["text"]) == row["title"] else row["title"]
+    sent_due = crm.get("due_date")
+    due = sent_due if sent_due and row["due"] and sent_due[:10] == row["due"] else row["due"]
+    done = (crm.get("done_date") or row["done_at"]) if row["done"] else None
+    return {"id": row["id"], "contact_id": row["person_id"], "type": type_, "text": text, "due_date": due,
+            "done_date": done, "sales_id": crm.get("sales_id"), "created_at": row["created_at"],
+            "updated_at": row["updated_at"]}
+
+
+def migrate_crm_tasks(conn: sqlite3.Connection) -> int:
+    """Copy crm_tasks rows (written before the stores were joined) into tasks, once each. Returns how many."""
+    if not _has_table(conn, "crm_tasks"):
+        return 0
+    copied = 0
+    for r in conn.execute("SELECT * FROM crm_tasks WHERE 'crm:' || id NOT IN "
+                          "(SELECT gen_key FROM tasks WHERE gen_key LIKE 'crm:%') ORDER BY id").fetchall():
+        person = r["contact_id"] if conn.execute("SELECT 1 FROM donors WHERE id = ?", (r["contact_id"],)).fetchone() else None
+        crm = {k: r[k] for k in ("type", "text", "due_date", "done_date", "sales_id")}
+        raw = {"crm": json.dumps(crm), "created_at": r["created_at"], "updated_at": r["updated_at"]}
+        if r["done_date"]:
+            raw.update(done=1, done_at=r["done_date"])
+        if create_task(conn, kind=_crm_kind(r["type"]), title=_crm_title(r["text"]), actor="staff",
+                       gen_key=f"crm:{r['id']}", person_id=person, due=r["due_date"][:10], _raw=raw):
+            copied += 1
+    return copied
+
+
+def _crm_rows(conn: sqlite3.Connection) -> list[dict]:
+    return [dict(r) for r in conn.execute("SELECT * FROM tasks WHERE deleted_at IS NULL AND person_id IS NOT NULL")]
+
+
+def crm_list(conn: sqlite3.Connection, *, contact_id: int | None = None, sales_id: str | None = None,
+             ids: list[int] | None = None, sort: str = "due_date", order: str = "ASC",
+             page: int = 1, per_page: int = 25) -> tuple[list[dict], int]:
+    if sort not in CRM_SORTS:
+        raise TaskError(f"can't sort tasks by {sort}")
+    records = [to_crm(r) for r in _crm_rows(conn)]
+    if contact_id is not None:
+        records = [r for r in records if r["contact_id"] == contact_id]
+    if sales_id is not None:
+        records = [r for r in records if r["sales_id"] is not None and str(r["sales_id"]) == str(sales_id)]
+    if ids is not None:
+        wanted = set(ids)
+        records = [r for r in records if r["id"] in wanted]
+    desc = order.upper() == "DESC"
+    present = sorted((r for r in records if r[sort] is not None), key=lambda r: (str(r[sort]) if sort not in
+                     ("id", "contact_id") else r[sort], r["id"]), reverse=desc)
+    ordered = present + sorted((r for r in records if r[sort] is None), key=lambda r: r["id"], reverse=desc)
+    start = (page - 1) * per_page
+    return ordered[start:start + per_page], len(ordered)
+
+
+def crm_get(conn: sqlite3.Connection, task_id: int) -> dict | None:
+    row = _row(conn, task_id)
+    return to_crm(row) if row and row["person_id"] is not None else None
+
+
+def crm_create(conn: sqlite3.Connection, record: dict) -> dict:
+    """POST /crm/tasks: a staff task for the donor, in the one tasks table."""
+    crm = {k: record.get(k) for k in ("type", "text", "due_date", "done_date", "sales_id")}
+    raw = {"crm": json.dumps(crm)}
+    if record.get("done_date"):
+        raw.update(done=1, done_at=record["done_date"])
+    task, _ = create_task(conn, kind=_crm_kind(record.get("type")), title=_crm_title(record.get("text")),
+                          actor="staff", person_id=record["contact_id"], due=record["due_date"][:10], _raw=raw)
+    return to_crm(_row(conn, task["id"]))
+
+
+def crm_update(conn: sqlite3.Connection, task_id: int, sent: dict) -> dict | None:
+    """PATCH /crm/tasks/{id}: only the fields sent change. None when there is no such task."""
+    row = _row(conn, task_id)
+    if row is None or row["person_id"] is None:
+        return None
+    current = to_crm(row)
+    crm = {**{k: current[k] for k in ("type", "text", "due_date", "done_date", "sales_id")}, **{
+        k: v for k, v in sent.items() if k in ("type", "text", "due_date", "done_date", "sales_id")}}
+    fields: dict = {}
+    raw: dict = {"crm": json.dumps(crm)}
+    if "type" in sent:
+        fields["kind"] = _crm_kind(sent["type"])
+    if "text" in sent:
+        fields["title"] = _crm_title(sent["text"])
+    if "due_date" in sent:
+        fields["due"] = sent["due_date"][:10]
+    if "contact_id" in sent:
+        fields["person_id"] = sent["contact_id"]
+    if "done_date" in sent:
+        raw.update(done=1 if sent["done_date"] else 0, done_at=sent["done_date"] or None)
+    action = "complete_task" if set(sent) == {"done_date"} else "update_task"
+    update_task(conn, task_id, actor="staff", _action=action, _raw=raw, **fields)
+    return to_crm(_row(conn, task_id))
+
+
+def crm_delete(conn: sqlite3.Connection, task_id: int) -> dict | None:
+    row = _row(conn, task_id)
+    if row is None or row["person_id"] is None:
+        return None
+    delete_task(conn, task_id, actor="staff")
+    return to_crm(row)

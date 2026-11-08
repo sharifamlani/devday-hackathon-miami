@@ -19,7 +19,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from service import tasks
+from service import agent_writes, tasks
 from service.routes_data import get_conn
 
 router = APIRouter(tags=["tasks"])
@@ -110,7 +110,8 @@ def get_artifacts(limit: int = Query(50, ge=1, le=500), conn: sqlite3.Connection
 
 @router.post("/undo/{token}")
 def post_undo(token: str, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    """One undo for every agent write: "int_…" tokens belong to interests (42), the rest to tasks."""
+    """One undo for every agent write: "int_…" tokens belong to interests (42); the rest go through
+    agent_writes.undo, which hands task tokens to tasks.undo and reverts the agent's other writes (B10)."""
     if token.startswith("int_"):
         try:
             from service import interests
@@ -120,4 +121,4 @@ def post_undo(token: str, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
             return interests.undo(conn, token)
         except (ValueError, KeyError) as exc:   # a malformed token (bad base64 / JSON) is a ValueError
             raise HTTPException(422, f"bad interest undo token: {exc}")
-    return _call(tasks.undo, conn, token)
+    return _call(agent_writes.undo, conn, token)

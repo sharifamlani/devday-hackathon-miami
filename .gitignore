@@ -38,3 +38,6 @@ data/outreach_drafts.json
 data/context_live.json
 data/events_live.json
 data/event_drafts.json
+
+# Ingest model-answer cache (service/ingest_adapter.py): replays the same people for the same files
+data/ingest_cache/

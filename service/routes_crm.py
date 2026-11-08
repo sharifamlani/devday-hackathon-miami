@@ -10,6 +10,7 @@ Shaped for react-admin's dataProvider (web/src/components/atomic-crm/providers/l
     PATCH  /crm/{resource}/{id}     → the saved record                update (only the fields sent change)
     DELETE /crm/{resource}/{id}     → the record as it was            delete
         resource: contact_notes | tasks | tags.  GET /crm/tags?contact_id= lists that donor's tags.
+        tasks are rows of the shared tasks table (service/tasks.py): the home, calendar and agent see them too.
 
     GET    /crm/contacts            → [{contact_id, tags: [tag ids], background, last_seen}]
     PATCH  /crm/contacts/{id}       {tags?, background?, last_seen?} → that donor's row
@@ -29,7 +30,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from service import db
+from service import db, tasks
 from service.routes_data import get_conn
 
 log = logging.getLogger("service.crm")
@@ -197,6 +198,13 @@ def parse_ids(raw: str | None) -> list[int] | None:
         raise HTTPException(422, "ids must be a comma-separated list of numbers")
 
 
+def task_store(conn: sqlite3.Connection):
+    """Tasks live in the one tasks table (service/tasks.py), shared with the home, the calendar and the agent.
+    crm_tasks rows saved before that are copied in once."""
+    tasks.migrate_crm_tasks(conn)
+    return tasks
+
+
 def validated(model: type[BaseModel], body: Any) -> BaseModel:
     try:
         return model.model_validate(body)
@@ -240,14 +248,16 @@ def list_records(resource: Resource, contact_id: int | None = Query(None),
     field = sort or default_sort
     if field not in SORTS[resource]:
         raise HTTPException(422, f"can't sort {resource} by {field}")
-    data, total = db.crm_list(conn, resource, contact_id=contact_id, sales_id=sales_id, ids=parse_ids(ids),
-                              sort=field, order=(order or default_order).upper(), page=page, per_page=per_page)
+    query = dict(contact_id=contact_id, sales_id=sales_id, ids=parse_ids(ids), sort=field,
+                 order=(order or default_order).upper(), page=page, per_page=per_page)
+    data, total = (task_store(conn).crm_list(conn, **query) if resource == "tasks"
+                   else db.crm_list(conn, resource, **query))
     return {"data": data, "total": total}
 
 
 @router.get("/{resource}/{record_id}")
 def get_record(resource: Resource, record_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    found = db.crm_get(conn, resource, record_id)
+    found = task_store(conn).crm_get(conn, record_id) if resource == "tasks" else db.crm_get(conn, resource, record_id)
     if found is None:
         raise HTTPException(404, f"{resource} {record_id} not found")
     return found
@@ -258,7 +268,7 @@ def create_record(resource: Resource, body: dict = Body(...), conn: sqlite3.Conn
     record = validated(CREATE_MODELS[resource], body).model_dump()
     if "contact_id" in record:
         require_donor(conn, record["contact_id"])
-    saved = db.crm_create(conn, resource, record)
+    saved = task_store(conn).crm_create(conn, record) if resource == "tasks" else db.crm_create(conn, resource, record)
     log.info("crm: %s %s created%s", resource, saved["id"],
              f" for donor {record['contact_id']}" if "contact_id" in record else "")
     return saved
@@ -273,7 +283,8 @@ def update_record(resource: Resource, record_id: int, body: dict = Body(...),
         raise HTTPException(422, f"{cleared[0]} can't be empty")
     if sent.get("contact_id") is not None:
         require_donor(conn, sent["contact_id"])
-    saved = db.crm_update(conn, resource, record_id, sent)
+    saved = (task_store(conn).crm_update(conn, record_id, sent) if resource == "tasks"
+             else db.crm_update(conn, resource, record_id, sent))
     if saved is None:
         raise HTTPException(404, f"{resource} {record_id} not found")
     log.info("crm: %s %s updated (%s)", resource, record_id, ", ".join(sorted(sent)) or "nothing")
@@ -282,7 +293,7 @@ def update_record(resource: Resource, record_id: int, body: dict = Body(...),
 
 @router.delete("/{resource}/{record_id}")
 def delete_record(resource: Resource, record_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    removed = db.crm_delete(conn, resource, record_id)
+    removed = task_store(conn).crm_delete(conn, record_id) if resource == "tasks" else db.crm_delete(conn, resource, record_id)
     if removed is None:
         raise HTTPException(404, f"{resource} {record_id} not found")
     log.info("crm: %s %s deleted", resource, record_id)
