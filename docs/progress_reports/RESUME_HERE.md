@@ -54,3 +54,15 @@ Enrich only the hand-added real org.
 ## Watches to re-arm after compaction
 Main-merge monitor (45 s fetch, flags Christian/Faye) and Slack cron on #codex-dev-day-hackathon (C0CFX659JEQ, baseline 21:34 EST Nov 7).
 Prod: https://devday-donor-desk.vercel.app. Lead deploys by hand only if 12 is down (from C:/Users/Shari/wt/main-check/web, .vercel/project.json copied from ../dd-deploy/web).
+
+## Update ~2:30 AM
+- Merged: #108 (c28e2ac), #109 (9a02c05). Main green except intermittent test_ingest_adapter e2e (fuzzy Tamarind Quay count) — 8b fixing dedupe (individual with org_name treated as org).
+- #111 approved at 56dd69f but head moved to ce7ff67 (add_contact, default giver, known_name) → in-session re-review running.
+- #112 approved by 90 at 815be5d (decided cards labelled); QA formal pass pending; merges after #107.
+- New PRs: #114 (8b demo_reset.py; in QA). 80 tabs PR, 42 Enrich UI PR, Agent Phone dictation PR coming.
+- c9 scorecard (eval/scorecard @981c4a8): 8 PASS / 3 FAIL / 3 wait-on-#107.
+  FAIL campaigns (declined Oct 10 Park charge thanked) → 86; FAIL challenge-2b (tasks stale after merges) → 3a;
+  FAIL after-call extra tag_interest → 86; FAIL challenge-2a (exact-match groups auto-merged without staff approval)
+  → **SHARIF DECISION**: lead recommends showing exact matches as one-click high-confidence pending cards.
+  Findings: Whitaker fund mis-enriched by name-only match → 42 identity rule; live transcript drops a word at
+  segment boundaries → Agent Phone.
