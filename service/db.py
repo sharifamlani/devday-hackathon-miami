@@ -399,27 +399,6 @@ CREATE TABLE IF NOT EXISTS context_refresh_log (
 SCHEMA += EVENTS_SCHEMA
 TABLES = ["context_refresh_log", "event_drafts", "event_audience", "events"] + TABLES
 
-# B3 voice (plan §21.2.7): one row per saved call. Dictation never writes here. Own block so other
-# branches editing db.py merge cleanly; person_id is a donors.id (no FK, donors stays untouched).
-CALL_NOTES_SCHEMA = """
-CREATE TABLE IF NOT EXISTS call_notes (
-    id            INTEGER PRIMARY KEY,
-    person_id     INTEGER NOT NULL,
-    title         TEXT NOT NULL,
-    folder        TEXT NOT NULL DEFAULT 'Call notes',
-    transcript    TEXT NOT NULL DEFAULT '',
-    segments      TEXT NOT NULL DEFAULT '[]',   -- JSON [{speaker, text, start, end}]
-    staff_name    TEXT,
-    contact_name  TEXT,
-    duration_s    REAL,
-    summary       TEXT,                         -- null when the model was unavailable
-    created_at    TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS call_notes_person ON call_notes (person_id, created_at);
-"""
-SCHEMA += CALL_NOTES_SCHEMA
-TABLES = ["call_notes"] + TABLES
-
 CONTACT_TYPES = ("giver", "neighbor", "community")
 # Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
 DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")

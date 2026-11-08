@@ -142,22 +142,27 @@ def group_words(words: list[dict]) -> list[dict]:
     return segments
 
 
-def name_speakers(segments: list[dict], staff_name: str | None, contact_name: str | None) -> list[dict]:
-    """Label speakers by first appearance: the first voice is the staff member (they place the call), the
-    second the contact, any others "Speaker N". A guess the save modal lets the person correct."""
-    order: list[str] = []
+def to_transcript_lines(segments: list[dict], first_speaker: str = "you", you_name: str | None = None,
+                        them_name: str | None = None) -> list[dict]:
+    """Diarized segments -> routes_calls.TranscriptLine dicts [{speaker: you|them, name, text, at}].
+
+    By first appearance: the first voice is `first_speaker` (the staff member places the call, so "you" by
+    default), every other voice is the other side. A guess the save modal lets the person correct."""
+    first = next((s["speaker"] for s in segments), None)
+    other = "them" if first_speaker == "you" else "you"
+    names = {"you": you_name or "You", "them": them_name or "Them"}
+    lines = []
     for s in segments:
-        if s["speaker"] not in order:
-            order.append(s["speaker"])
-    names = {spk: ([staff_name, contact_name][i] if i < 2 else None) or f"Speaker {i + 1}"
-             for i, spk in enumerate(order)}
-    return [{**s, "speaker": names[s["speaker"]]} for s in segments]
+        side = first_speaker if s["speaker"] == first else other
+        lines.append({"speaker": side, "name": names[side], "text": s["text"], "at": float(s.get("start") or 0)})
+    return lines
 
 
 def transcribe_file(audio: bytes, mime_type: str) -> list[dict]:
     """The whole recording -> [{speaker, text, start, end}] with raw labels (spk:0, spk:1, ...)."""
     model = FILE_MODEL if FILE_MODEL.startswith("models/") else f"models/{FILE_MODEL}"
-    result = _client("v1beta").interactions.create(
+    client = _client("v1beta")   # keep a reference: a dropped Client closes its HTTP session mid-request
+    result = client.interactions.create(
         model=model,
         input=[{"type": "audio", "data": base64.b64encode(audio).decode(), "mime_type": mime_type}],
         generation_config={"transcription_config": {"mode": {
