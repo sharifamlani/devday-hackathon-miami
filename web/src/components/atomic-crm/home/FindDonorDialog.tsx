@@ -124,10 +124,10 @@ export const FindDonorDialog = ({
                           {initials(donor.full_name)}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">
+                          <span className="block text-sm font-semibold [overflow-wrap:anywhere]">
                             {donor.full_name}
                           </span>
-                          <span className="block truncate text-xs text-muted-foreground">
+                          <span className="block text-xs text-muted-foreground [overflow-wrap:anywhere]">
                             {["Giver", donorMeta(donor)]
                               .filter(Boolean)
                               .join(" · ")}
@@ -164,9 +164,10 @@ export const FindDonorDialog = ({
 };
 
 const Fact = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="rounded-xl bg-surface px-3 py-2">
+  <div className="min-w-0 rounded-xl bg-surface px-3 py-2">
     <dt className="text-xs text-muted-foreground">{label}</dt>
-    <dd className="truncate font-semibold">{value}</dd>
+    {/* Wraps, never truncates: contacts stay fully visible (Sharif). */}
+    <dd className="font-semibold [overflow-wrap:anywhere]">{value}</dd>
   </div>
 );
 
@@ -227,7 +228,7 @@ const DonorSummaryView = ({
           {initials(donor.full_name)}
         </span>
         <div className="min-w-0">
-          <p className="truncate font-semibold">{donor.full_name}</p>
+          <p className="font-semibold [overflow-wrap:anywhere]">{donor.full_name}</p>
           <p className="text-sm text-muted-foreground">{donor.why_short}</p>
         </div>
       </div>
