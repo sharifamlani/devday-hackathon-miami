@@ -1,0 +1,333 @@
+/* One shell at every width: tools stay reachable without competing columns. */
+.desk-app-shell {
+  display: flex;
+  height: 100dvh;
+  min-width: 0;
+  gap: 20px;
+  padding: 16px;
+  overflow: hidden;
+}
+.desk-sidebar {
+  display: flex;
+  flex: 0 0 52px;
+  min-width: 0;
+  height: 100%;
+  gap: 12px;
+  position: relative;
+  z-index: 20;
+}
+.desk-sidebar.is-expanded {
+  flex-basis: 340px;
+  width: 340px;
+}
+.desk-icon-rail {
+  display: flex;
+  flex: 0 0 48px;
+  width: 48px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.desk-sidebar-toggle {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--strong);
+  color: var(--brand);
+  margin-bottom: 12px;
+}
+.desk-tool {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 14px;
+  color: var(--muted-foreground);
+  transition: background 0.15s;
+}
+.desk-tool:hover,
+.desk-tool.is-active {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.desk-tool:focus-visible,
+.desk-sidebar-toggle:focus-visible,
+.desk-popover-heading button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.desk-utilities {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 20px;
+}
+.desk-sidebar-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.desk-sidebar-heading {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px 20px;
+}
+.desk-sidebar-heading > a {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.desk-sidebar-heading > span {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.desk-sidebar-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  min-height: 0;
+  flex: 1;
+  padding: 0 4px 8px 0;
+}
+.desk-sidebar-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 12px;
+  scroll-margin: 12px;
+}
+.desk-sidebar-section > .home-tile,
+.desk-popover-body > .home-tile {
+  padding: 14px;
+  min-width: 0;
+}
+.desk-sidebar-section .home-project-list {
+  max-height: 220px;
+}
+.desk-sidebar-section .home-project-threads {
+  padding-left: 12px;
+}
+.desk-sidebar-section h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.desk-sidebar-section .home-project-thread {
+  min-width: 0;
+}
+.desk-sidebar-section .home-quarter-summary {
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+}
+.desk-sidebar-section .home-quarter-gauge,
+.desk-sidebar-section .home-quarter-arc {
+  width: 76px;
+}
+.desk-sidebar-section .home-quarter-summary dd {
+  font-size: 20px;
+}
+.desk-data-mode {
+  padding: 10px 8px 2px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.desk-tool-popover {
+  width: min(380px, calc(100vw - 92px));
+  max-height: min(760px, calc(100dvh - 32px));
+  padding: 12px;
+  border-radius: 22px;
+  gap: 12px;
+  box-shadow: 0 12px 48px #24272820;
+}
+.desk-popover-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 4px;
+}
+.desk-popover-heading button {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+}
+.desk-popover-body {
+  overflow-y: auto;
+  min-height: 0;
+  display: grid;
+  gap: 10px;
+  scrollbar-width: thin;
+}
+.desk-crm-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.desk-crm-links > a,
+.desk-panel-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--muted);
+}
+.desk-crm-links > a:hover,
+.desk-panel-link:hover {
+  background: var(--accent);
+}
+.desk-home {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.desk-home > .home-conversation {
+  height: 100%;
+  max-width: 1000px;
+  margin-inline: auto;
+  min-height: 0;
+}
+.desk-home > .home-conversation[hidden] {
+  display: none;
+}
+.desk-main-panel {
+  width: 100%;
+  min-width: 0;
+}
+.desk-panel-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 0 auto 20px;
+  max-width: 1152px;
+}
+.desk-panel-toolbar > a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  padding: 4px 8px;
+}
+.desk-panel-toolbar > a:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.desk-directory-filters {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(680px, 80dvh);
+  overflow-y: auto;
+  border-radius: 20px;
+  padding: 20px;
+}
+.desk-directory-filters > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+@media (max-width: 1099px) {
+  .desk-sidebar.is-expanded {
+    flex-basis: 52px;
+    width: 52px;
+  }
+  .desk-sidebar.is-expanded .desk-sidebar-content {
+    position: fixed;
+    top: 16px;
+    bottom: 16px;
+    left: 76px;
+    width: min(300px, calc(100vw - 92px));
+    padding: 12px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 16px 64px #24272830;
+    z-index: 30;
+  }
+}
+@media (max-width: 767px) {
+  .desk-app-shell {
+    gap: 8px;
+    padding: 10px;
+  }
+  .desk-sidebar {
+    flex-basis: 44px;
+    gap: 0;
+  }
+  .desk-sidebar.is-expanded {
+    flex-basis: 44px;
+  }
+  .desk-icon-rail {
+    width: 42px;
+    flex-basis: 42px;
+    gap: 5px;
+  }
+  .desk-sidebar-toggle {
+    width: 40px;
+    height: 40px;
+  }
+  .desk-tool {
+    width: 38px;
+    height: 38px;
+  }
+  .desk-sidebar.is-expanded .desk-sidebar-content {
+    top: 10px;
+    bottom: 10px;
+    left: 60px;
+    width: calc(100vw - 72px);
+  }
+  .desk-home .home-greeting {
+    padding: 16px 8px 0;
+  }
+  .desk-home .home-thread {
+    padding: 16px 8px;
+  }
+  .desk-home .home-composer {
+    padding: 8px 0 12px;
+  }
+  .desk-home .home-greeting h1 {
+    font-size: 24px;
+  }
+  .desk-directory-filters > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .desk-utilities {
+    gap: 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .desk-tool {
+    transition: none;
+  }
+}
+
+.desk-sidebar-scrim {
+  display: none;
+}
+@media (max-width: 1099px) {
+  .desk-sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0 0 0 68px;
+    z-index: 19;
+    background: rgb(36 39 40 / 14%);
+    border: 0;
+  }
+}

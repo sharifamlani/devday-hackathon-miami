@@ -80,7 +80,7 @@ const DonorShowContent = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-3 px-4 pt-4 pb-24 md:px-0 md:pt-0">
+    <div className="@container mx-auto w-full max-w-6xl space-y-3 px-4 pt-4 pb-24 md:px-0 md:pt-0">
       <Link
         to="/contacts"
         className="inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
@@ -97,23 +97,23 @@ const DonorShowContent = () => {
       />
       <DuplicateBanner donorId={record.id} />
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0">
-          <Tabs
-            value={tab}
-            onValueChange={(value) =>
-              setSearchParams({ tab: String(value) }, { replace: true })
-            }
-            className="w-full"
-          >
-            <TabsList className="h-10 w-full sm:w-fit">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="tasks">
-                Tasks{record.nb_tasks ? ` (${record.nb_tasks})` : ""}
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="overview" className="mt-1 space-y-3">
+      <Tabs
+        value={tab}
+        onValueChange={(value) =>
+          setSearchParams({ tab: String(value) }, { replace: true })
+        }
+        className="w-full"
+      >
+        <TabsList className="h-10 w-full sm:w-fit">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="tasks">
+            Tasks{record.nb_tasks ? ` (${record.nb_tasks})` : ""}
+          </TabsTrigger>
+        </TabsList>
+        <div className="grid items-start gap-3 @min-[900px]:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
+            <TabsContent value="overview" className="mt-0 space-y-3">
               <Overview
                 record={record}
                 donor={donor.data}
@@ -121,10 +121,7 @@ const DonorShowContent = () => {
               />
             </TabsContent>
             <TabsContent value="notes" className="mt-1">
-              <ProfileSection
-                title="Notes"
-                caption="Your team's private notes"
-              >
+              <ProfileSection title="Notes" caption="Your team's private notes">
                 <InfiniteListBase
                   resource="contact_notes"
                   filter={{ contact_id: record.id }}
@@ -157,10 +154,10 @@ const DonorShowContent = () => {
                 <ContactTasksList />
               </ProfileSection>
             </TabsContent>
-          </Tabs>
+          </div>
+          <ProfileAside record={record} />
         </div>
-        <ProfileAside record={record} />
-      </div>
+      </Tabs>
     </div>
   );
 };
