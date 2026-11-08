@@ -5,10 +5,12 @@ plan_event_outreach("all_upcoming" | event_id) runs, per event:
   address, else a text if there's a phone, else skipped) -> ONE campaign (intent 'event_invite',
   campaigns.event_id) via routes_campaigns, so approval works exactly as for any batch: orgs, star and big
   donors need per-item approval, and nothing is sent until a human approves it with POST /send.
-An event that already has a batch returns that batch instead of drafting again. Community invites never
+An event that already has a batch returns that batch instead of drafting again; an event whose invites were
+already written (setup or a refresh: event_drafts) gets its batch from those, with no model calls. Community invites never
 carry a donation ask (events_agent's ask_line + check_invite). Until data's contact_type lands, only Givers
 exist, and each event says so.
 """
+import json
 import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -70,7 +72,6 @@ def short_date(starts_at: str) -> str:
 
 def invite_row(event: dict, person: dict) -> dict:
     """One message for one person, or {"skip": reason}."""
-    from service.campaign_agent import CampaignDraft
 
     channel = "email" if person.get("email") else "text" if person.get("phone") else None
     if channel is None:
@@ -79,7 +80,13 @@ def invite_row(event: dict, person: dict) -> dict:
         invite = events_agent().draft_event_invite(event, person)
     except Exception as e:   # the invite failed its own checks twice, or the model failed: leave it out
         return {"skip": f"invite not drafted ({type(e).__name__}: {e})"[:200]}
-    body = invite["email_body"] if channel == "email" else invite["sms"]
+    return row_from_invite(person, channel, invite)
+
+
+def row_from_invite(person: dict, channel: str, invite: dict) -> dict:
+    """A campaign row from one invite (draft_event_invite's shape), freshly drafted or saved earlier."""
+    from service.campaign_agent import CampaignDraft
+    body = (invite.get("email_body") or "") if channel == "email" else (invite.get("sms") or "")
     used = list(invite.get("facts_used", []))
     note = None
     if channel == "email":                       # §21.2.4: the invite tells the story too, each line cited
@@ -126,12 +133,64 @@ def summary(conn: sqlite3.Connection, event: dict, batch_id: int | None, **extra
     return out
 
 
+def saved_invites(conn: sqlite3.Connection, event_id: int) -> list[dict]:
+    """The invites already written for this event (setup or a refresh), newest per person."""
+    try:
+        rows = conn.execute(
+            "SELECT d.donor_id, d.subject, d.body, d.sms, d.facts_used FROM outreach_drafts d "
+            "JOIN event_drafts ed ON ed.draft_id = d.id WHERE ed.event_id = ? ORDER BY d.id", (event_id,)).fetchall()
+    except sqlite3.OperationalError:   # no event_drafts table on this branch's db
+        return []
+    out = {}
+    for donor_id, subject, body, sms, facts in rows:
+        out[donor_id] = {"subject": subject, "email_body": body, "sms": sms,
+                         "facts_used": json.loads(facts) if facts else []}
+    return [{"person_id": k, **v} for k, v in out.items()]
+
+
+def batch_from_saved_invites(conn: sqlite3.Connection, event: dict, people: list[dict],
+                             givers_only: bool) -> dict | None:
+    """Review on an event whose invites were already written: put those drafts in its pending batch at once
+    (no model calls), with the same channel and story rules as a fresh invite. None if there are none."""
+    from service import routes_campaigns as rc
+
+    saved = saved_invites(conn, event["id"])
+    if not saved:
+        return None
+    by_id = {p["id"]: p for p in people}
+    rows, skipped = [], []
+    for inv in saved[:rc.MAX_DONORS]:
+        person = by_id.get(inv["person_id"])
+        if person is None:                      # merged away or deleted since the invite was written
+            continue
+        channel = "email" if person.get("email") else "text" if person.get("phone") else None
+        if channel is None:
+            skipped.append({"person_id": person["id"], "full_name": person["full_name"],
+                            "reason": "no email or phone on file"})
+            continue
+        rows.append(row_from_invite(person, channel, inv))
+    kind = events_agent().event_kind(event) if hasattr(events_agent(), "event_kind") else None
+    note = GIVERS_ONLY_NOTE if givers_only and kind != "giving" else None
+    base = {"event_kind": kind, "audience": len(rows) + len(skipped), "skipped": skipped, "note": note,
+            "existing": False, "from_saved_invites": True}
+    if not rows:
+        return summary(conn, event, None, drafts=0, reason="no one in the audience can be reached", **base)
+    channels = {r["channel"] for r in rows}
+    name = f"{event['title']} · {short_date(event['starts_at'])} · {len(rows)} {'person' if len(rows) == 1 else 'people'}"
+    batch_id = rc.insert_campaign(conn, name, "event_invite", channels.pop() if len(channels) == 1 else "mixed",
+                                  "calendar agent", rows, event_id=event["id"])
+    return summary(conn, event, batch_id, **base)
+
+
 def plan_event(conn: sqlite3.Connection, event: dict, people: list[dict], givers_only: bool) -> dict:
     from service import routes_campaigns as rc
 
     found = existing_batch(conn, event["id"])
     if found is not None:
         return summary(conn, event, found, existing=True)
+    ready = batch_from_saved_invites(conn, event, people, givers_only)   # setup already wrote them: seconds, not a minute
+    if ready is not None:
+        return ready
 
     audience = events_agent().suggest_audience(event, people, rationale=False)
     by_id = {p["id"]: p for p in people}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CircleX, Merge } from "lucide-react";
 import { useNotify } from "ra-core";
+import { useNavigate } from "react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { sendToAgent } from "../home/agentChat";
+import { DATA_MODE } from "../providers/local/config";
+import { useAgentRefetch } from "../providers/local/refetch";
 import {
   useDismissDuplicate,
   useDuplicates,
@@ -30,6 +34,8 @@ import { formatUsd } from "./donorFormat";
 export const DuplicateBanner = ({ donorId }: { donorId?: number } = {}) => {
   const { data: duplicates } = useDuplicates();
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const refetch = useAgentRefetch();
   // On a donor profile, only the pairs that include this donor.
   const pending = (duplicates ?? []).filter(
     (pair) =>
@@ -60,13 +66,28 @@ export const DuplicateBanner = ({ donorId }: { donorId?: number } = {}) => {
                 .join(", ")}`
             : `${pending.length} possible duplicate${pending.length === 1 ? "" : "s"} found`}
         </span>
-        <Button
-          size="sm"
-          className="min-h-11 rounded-[28px] bg-primary px-5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          onClick={() => setOpen(true)}
-        >
-          Review merges →
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            className="min-h-11 rounded-[28px] bg-primary px-5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            onClick={() => setOpen(true)}
+          >
+            Review merges →
+          </Button>
+          {donorId == null && DATA_MODE === "local" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-11 rounded-[28px] px-5 text-xs font-medium"
+              onClick={() => {
+                navigate("/");
+                void sendToAgent("Fix the duplicate records", refetch);
+              }}
+            >
+              Ask the agent to fix
+            </Button>
+          )}
+        </div>
       </div>
       {open && (
         <DuplicateMergeDialog
