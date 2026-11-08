@@ -102,7 +102,7 @@ const when = (iso: string) =>
 interface CalEvent extends RbcEvent {
   id: number | string;
   family: Family | "plan";
-  /** Set for dated tasks (live: GET /calendar; snapshot build: the local plan). */
+  /** Set for dated tasks (live: GET /calendar; snapshot: the calendar feed). */
   task?: CalTask;
 }
 
