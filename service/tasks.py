@@ -431,7 +431,7 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
     # gen_key ("duplicates:<random>") and keeps its group in `members`. Each pass, a group takes the unclaimed
     # task sharing the most members with it, open tasks first; a task serves at most one group. Extra open tasks
     # on a joined group are retired (members and gen_key cleared, so they never match again). A done or
-    # staff-deleted review means that group was handled and is not reopened.
+    # staff-deleted review means that group was handled; only a new member brings a fresh review task.
     reviews = [dict(r) for r in conn.execute(
         "SELECT * FROM tasks WHERE kind = 'review' AND gen_key LIKE 'duplicates:%' AND members IS NOT NULL ORDER BY id")]
     for r in reviews:
@@ -451,6 +451,9 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
         keep = candidates[0]
         claimed.add(keep["id"])
         if keep["deleted_at"] or keep["done"]:
+            # Handled before. A member that wasn't in that review needs a look: a fresh task for the whole group.
+            if group - keep["member_set"]:
+                add(f"duplicates:{uuid.uuid4().hex}", kind="review", _raw={"members": json.dumps(ids)}, **fields)
             continue
         for r in candidates[1:]:
             if not (r["deleted_at"] or r["done"]):

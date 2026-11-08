@@ -84,7 +84,7 @@ def test_context_run_state_reflects_sources(db_file, monkeypatch, website, news,
     assert r.status_code == 200
     body = r.json()
     assert body["state"] == state
-    assert body["served_from"] == "cache" and body["cached"] is False
+    assert body["served_from"] == "live" and body["cached"] is False      # the site is read on every run
     assert body["sources"]["linkedin"]["status"] == "saved, not connected"
 
 
@@ -124,6 +124,15 @@ def test_fallback_rows_say_cached_not_done(db_file, monkeypatch):
     assert body["sources"]["website"]["status"] == "cached (fallback)"
     assert body["sources"]["news"]["status"] == "cached (fallback)"
     assert len(body["facts"]) == 2
+    assert all(f["cached"] is True for f in body["facts"])               # the UI labels each one "cached"
+
+
+def test_context_run_reads_live_even_when_refresh_is_false(db_file, monkeypatch):
+    seen = []
+    monkeypatch.setattr(org_context, "build_context",
+                        lambda urls, refresh=False: seen.append(refresh) or context_result("ok", "ok"))
+    TestClient(app).post("/context/run", json={"website": "https://example.org", "refresh": False})
+    assert seen == [True]
 
 
 def test_fallback_never_serves_another_orgs_context(db_file, monkeypatch):

@@ -5,7 +5,7 @@ Pipeline (docs/briefs/icp-and-prospects.md):
     2. build_icp(stats, facts)  agent, structured output: traits, each backed by {donor, fact, url} evidence
     3. find_prospects(...)      agent + web search: South Florida ORGANIZATIONS matching the ICP, 2+ sourced
                                 facts each (URL must return 200), fit_score computed in Python
-    4. run_icp(refresh)         cache-first composition; refresh=True runs live and rewrites the cache
+    4. run_icp(refresh)         live composition; data/icp_cache.json only if the live run fails (flagged cached)
 
 These functions are pure: they never write icp_profile/prospects. db.save_icp_run(conn, run_icp()) does.
 
@@ -478,11 +478,35 @@ async def run_searches(briefs: list[str], timeout_s: float | None = None) -> lis
     return [p for batch in await asyncio.gather(*(one(b) for b in briefs)) for p in batch]
 
 
+def cached_prospects() -> list[dict]:
+    """data/icp_cache.json's prospects, each (and each of its facts) flagged cached=True. The facts are saved
+    as JSON with the prospect, so the flag reaches the UI without a schema change."""
+    return [{**p, "cached": True, "facts": [{**f, "cached": True} for f in p.get("facts", [])]}
+            for p in read_cache()["prospects"]]
+
+
 def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False,
-                   precompute: bool = False) -> list[dict]:
-    """6-10 South Florida organizations matching the ICP, each with 2+ facts whose URLs return 200."""
-    if not refresh and ICP_CACHE.exists():
-        return read_cache()["prospects"]
+                   precompute: bool = False, use_cache: bool = False) -> list[dict]:
+    """6-10 South Florida organizations matching the ICP, each with 2+ facts whose URLs return 200.
+
+    Always a live search. The committed data/icp_cache.json is read only when the live search raises or
+    finds nothing at all (and not on refresh / precompute), flagged cached=True. use_cache=True serves it
+    directly: the precompute pipeline's explicit snapshot build, never the app.
+    """
+    if use_cache and not refresh and ICP_CACHE.exists():
+        return cached_prospects()
+    try:
+        prospects = search_prospects(icp, exclude_names, precompute)
+    except Exception:
+        if refresh or precompute or not ICP_CACHE.exists():
+            raise
+        return cached_prospects()
+    if not prospects and not refresh and not precompute and ICP_CACHE.exists():
+        return cached_prospects()
+    return prospects
+
+
+def search_prospects(icp: dict, exclude_names: set[str], precompute: bool) -> list[dict]:
     excluded = {normalize(n) for n in exclude_names}
     brief = {"icp": [{"trait": t["trait"], "value": t["value"]} for t in icp["traits"]],
              "recent_focus": [{"fact": c["fact"], "priority": c["priority"], "posted_at": c.get("posted_at")}
@@ -491,6 +515,8 @@ def find_prospects(icp: dict, exclude_names: set[str], refresh: bool = False,
     # Two searches in parallel (companies, foundations) for a wider pool: many sources fail the page check
     briefs = [json.dumps({**brief, "search_for": kind}, indent=1) for kind in SEARCH_KINDS]
     found = asyncio.run(run_searches(briefs, CACHE_SEARCH_TIMEOUT_S if precompute else SEARCH_TIMEOUT_S))
+    if not found:
+        return []
 
     seen, candidates = set(), []
     for p in found:
@@ -533,13 +559,18 @@ def write_cache(run: dict) -> None:
     ICP_CACHE.write_text(json.dumps(run, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def build_profile(refresh: bool = False) -> dict:
-    """The ICP {traits, stats, evidence}: from the cache, or built live from donors.db."""
-    if not refresh and ICP_CACHE.exists():
-        return read_cache()["icp"]
+def build_profile(refresh: bool = False, use_cache: bool = False) -> dict:
+    """The ICP {traits, stats, evidence}, built live from donors.db. The cache is read only if that raises
+    (refresh=False), flagged cached=True; use_cache=True serves it directly (the precompute pipeline)."""
+    if use_cache and not refresh and ICP_CACHE.exists():
+        return {**read_cache()["icp"], "cached": True}
     conn = db.connect()
     try:
         return {**build_icp(icp_stats(conn), org_facts(conn)), "recent_context": recent_context(conn)}
+    except Exception:
+        if refresh or not ICP_CACHE.exists():
+            raise
+        return {**read_cache()["icp"], "cached": True}
     finally:
         conn.close()
 
@@ -575,26 +606,42 @@ def merge_prospects(new: list[dict], old: list[dict]) -> list[dict]:
     return merged[:MAX_PROSPECTS]
 
 
-def run_icp(refresh: bool = False, precompute: bool = False) -> dict:
-    """{generated_at, icp, prospects}. Cached unless refresh=True; a live run rewrites data/icp_cache.json.
+def cached_run() -> dict:
+    run = read_cache()
+    return {**run, "icp": {**run["icp"], "cached": True}, "prospects": cached_prospects(), "cached": True}
 
-    precompute=True (the --cache CLI, run before the demo) gives the searches a longer deadline.
+
+def run_icp(refresh: bool = False, precompute: bool = False, use_cache: bool = False) -> dict:
+    """{generated_at, icp, prospects}, always built live from donors.db + a web search.
+
+    data/icp_cache.json is read only when that raises or the search finds nothing (and not on refresh /
+    precompute): the run, its icp and every prospect come back flagged cached=True. Only precompute=True (the
+    --cache CLI, run before the demo; it also gives the searches a longer deadline) rewrites the cache.
+    use_cache=True serves the cache directly: the precompute pipeline's explicit snapshot build, never the app.
     """
-    if not refresh and ICP_CACHE.exists():
-        return read_cache()
-    conn = db.connect()
+    if use_cache and not refresh and ICP_CACHE.exists():
+        return cached_run()
     try:
-        donor_names = {r[0] for r in conn.execute("SELECT full_name FROM donors")}
-        donor_names |= {r[0] for r in conn.execute("SELECT org_name FROM donors WHERE org_name IS NOT NULL")}
-        icp = {**build_icp(icp_stats(conn), org_facts(conn)), "recent_context": recent_context(conn)}
-    finally:
-        conn.close()
-    prospects = find_prospects(icp, donor_names, refresh=True, precompute=precompute)
+        conn = db.connect()
+        try:
+            donor_names = {r[0] for r in conn.execute("SELECT full_name FROM donors")}
+            donor_names |= {r[0] for r in conn.execute("SELECT org_name FROM donors WHERE org_name IS NOT NULL")}
+            icp = {**build_icp(icp_stats(conn), org_facts(conn)), "recent_context": recent_context(conn)}
+        finally:
+            conn.close()
+        prospects = find_prospects(icp, donor_names, refresh=refresh, precompute=precompute)
+    except Exception:
+        if refresh or precompute or not ICP_CACHE.exists():
+            raise
+        return cached_run()
     if precompute and ICP_CACHE.exists():
         prospects = merge_prospects(prospects, reverify(read_cache()["prospects"], icp, donor_names))
     run = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "icp": icp,
            "prospects": prospects}
-    write_cache(run)
+    if prospects and all(p.get("cached") for p in prospects):
+        return {**run, "cached": True}                 # the search failed: not a fresh run, never rewrite the cache
+    if precompute:
+        write_cache(run)
     return run
 
 
