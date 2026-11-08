@@ -37,9 +37,7 @@ export function hotkeyFor(e: KeyLike): Hotkey | null {
 /** The tile a panel zooms out of, if it is on screen. */
 export function tileFor(view: WorkspaceView): HTMLElement | null {
   const el = document.querySelector<HTMLElement>(
-    view === "calendar"
-      ? ".home-agenda"
-      : `[data-zoom-source="${view}"]`,
+    `[data-zoom-source="${view}"]`,
   );
   return el && el.offsetParent !== null ? el : null;
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import {
   DICTATION_TOGGLE_EVENT,
   hotkeyFor,
@@ -17,8 +17,10 @@ const mods = { altKey: false, ctrlKey: false, shiftKey: false, metaKey: false };
 
 const Probe = () => {
   useWorkspaceHotkeys();
+  const loc = useLocation();
   return (
     <>
+      <i data-loc={loc.pathname + loc.search} />
       <textarea data-testid="composer" />
       <div data-zoom-source="tasks" />
     </>
@@ -110,7 +112,11 @@ describe("useWorkspaceHotkeys", () => {
 
   it("S-neg: off Home it navigates instead of toggling", async () => {
     await mount("/contacts");
-    press({ code: "KeyC", altKey: true });
+    const e = press({ code: "KeyC", altKey: true });
     expect(toggle).not.toHaveBeenCalled();
+    expect(e.defaultPrevented).toBe(true);
+    await expect
+      .poll(() => document.querySelector("[data-loc]")?.getAttribute("data-loc"))
+      .toBe("/?workspace=calendar");
   });
 });

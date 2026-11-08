@@ -39,7 +39,6 @@ import {
   PANEL_TITLES,
 } from "./panels/PanelFrame";
 import { useWorkspaceView } from "./workspaceView";
-import { useWorkspaceHotkeys } from "./useWorkspaceHotkeys";
 import "./dashboard.css";
 import "./zoom.css";
 
@@ -49,7 +48,6 @@ import "./zoom.css";
 export const HomePage = () => {
   const overview = useOverview();
   const { view: panel, closeWorkspace } = useWorkspaceView();
-  useWorkspaceHotkeys();
   const targets = useTargets();
   // "Today" is the service's as-of date (the demo runs as of Nov 8), not this
   // browser's clock; the browser's date only holds until /targets answers.
