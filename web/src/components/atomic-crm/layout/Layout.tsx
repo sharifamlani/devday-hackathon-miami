@@ -1,3 +1,4 @@
+import { OverviewProvider } from "../home/OverviewProvider";
 import { Suspense, type ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Notification } from "@/components/admin/notification";
@@ -28,7 +29,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <DataImportProvider>
       <AskSessionProvider>
-        <LayoutShell>{children}</LayoutShell>
+        <OverviewProvider>
+          <LayoutShell>{children}</LayoutShell>
+        </OverviewProvider>
       </AskSessionProvider>
       <Notification />
     </DataImportProvider>
