@@ -298,3 +298,4 @@ Main 5ecf010 baseline: answer key unchanged; ingest_check cold + 2 warm, 0 FAIL,
 | #114 → #110/#113 | — | the calendar pair moved to reviewer db; my reviewer was stopped and its 3 processes ended by PID | — |
 
 Process incident: the #112 reviewer stopped another session's Vite on :5191 (it killed by port owner). Rule tightened to own recorded PIDs only. Disk hit 99%; QA node_modules (verified not junctions) deleted, C: free 7.9 GB.
+| #125 auto-merge "!" flag (a4) | d91e40f | flag = 15 exact same-email merges with differing names; keep-all / split-all keep 131 / $1,367,535, 0 orphans; fuzzy pending 11 = main; routes 404/422/409; ingest_check 0 FAIL; split → approve-all gives 69 not 68 (Marrow Lane Print not re-suggested; routes_data.py:530) | CHANGES |
