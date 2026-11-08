@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DATA_MODE, MOCK_ENDPOINTS } from "./config";
 import { ApiError, request } from "./httpClient";
 import { knownRoutes, routeExists } from "./routes";
+import { loadSnapshot } from "./snapshotClient";
 
 /**
  * One call path for every plan.md §21.5 endpoint (B9). Where a call goes:
@@ -77,10 +79,20 @@ const loggedMocks = new Set<string>();
 
 export const LIVE_ONLY = "This needs the live API; the snapshot build doesn’t have it.";
 
+/** Sample data is read-only: a refused write says so on screen (one toast, deduplicated by id). */
+export const SAMPLE_READ_ONLY = "Sample data is read-only here. Changes need the live app.";
+export const READ_ONLY_TOAST_ID = "snapshot-read-only";
+
 export interface CallOptions<T> {
   body?: unknown;
   /** Snapshot builds return this for reads instead of calling. */
   snapshotValue?: T;
+  /**
+   * Snapshot builds read the answer from snapshot.json (export_snapshot.py);
+   * returning undefined (key missing in an older export) falls back to
+   * snapshotValue.
+   */
+  snapshot?: (snap: Record<string, unknown>) => T | undefined;
 }
 
 /**
@@ -95,7 +107,12 @@ export const call = async <T>(
 ): Promise<T> => {
   const source = await sourceOf(method, path);
   if (source === "snapshot") {
+    if (options.snapshot) {
+      const value = options.snapshot((await loadSnapshot()) as unknown as Record<string, unknown>);
+      if (value !== undefined) return value;
+    }
     if ("snapshotValue" in options) return options.snapshotValue as T;
+    if (method !== "GET") toast.error(SAMPLE_READ_ONLY, { id: READ_ONLY_TOAST_ID });
     throw new Error(LIVE_ONLY);
   }
   if (source === "mock") {

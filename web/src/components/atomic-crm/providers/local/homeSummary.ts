@@ -15,7 +15,8 @@ export interface HomeSummary {
 }
 
 /** Badge from alerts and gift history (docs/ui-integration.md §1 row 8). */
-export type AttentionBadge = "card_failed" | "late" | "new" | "thanked" | "not_yet" | (string & {});
+// The service sends "failed" for a failed card payment; "card_failed" is accepted too.
+export type AttentionBadge = "failed" | "card_failed" | "late" | "new" | "thanked" | "not_yet" | (string & {});
 
 export interface AttentionPerson {
   id: number;
@@ -47,21 +48,26 @@ export const homeKeys = {
 /* ---------- API ---------- */
 
 export const getHomeSummary = () =>
-  call<HomeSummary | null>("Today at a glance", "GET", "/home/summary", { snapshotValue: null });
+  call<HomeSummary | null>("Today at a glance", "GET", "/home/summary", {
+    snapshotValue: null,
+    snapshot: (s) => s.home_summary as HomeSummary | undefined,
+  });
 
 export const getPeopleAttention = (limit = 6) =>
   call<AttentionPerson[]>("The attention list", "GET", `/people/attention${qs({ limit })}`, {
     snapshotValue: [],
+    snapshot: (s) => (s.people_attention as AttentionPerson[] | undefined)?.slice(0, limit),
   });
 
 export const getTargetQuarters = (asOf?: string) =>
   call<TargetQuarters | null>("Quarter totals", "GET", `/targets/quarters${qs({ as_of: asOf })}`, {
     snapshotValue: null,
+    snapshot: (s) => s.target_quarters as TargetQuarters | undefined,
   });
 
 /* ---------- Hooks ---------- */
 
-/** null in the snapshot build (live only). */
+/** In the snapshot build: home_summary from snapshot.json (null if an older export lacks it). */
 export const useHomeSummary = () => useQuery({ queryKey: homeKeys.summary, queryFn: getHomeSummary });
 
 export const usePeopleAttention = (limit = 6) =>
