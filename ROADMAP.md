@@ -213,7 +213,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
-| U1 | Problem-solution mapping refreshed to main@8ee6258; §3.6 Home v3 | 9e | ⏳ | — (PR docs/mapping-refresh) | `docs/problem-solution-mapping.md` |
+| U1 | Problem-solution mapping refreshed to main@8ee6258; §3.6 Home v3 | 9e | ✅ | Nov 8 · PR #140 `04be0ee` | `docs/problem-solution-mapping.md` |
 | U2 | Agenda sidebar: day-grouped list calendar on Home, Projects section removed (PR2 feat/agenda-sidebar) | 9e | ⏸ | — | mapping §3.6 (D2, D3) |
 | U3 | Zoom panels framework + View Transitions animation + `scripts/verify_home_zoom.py` (PR3 feat/zoom-panels) | 9e | ⏸ | — | mapping §3.6 (D1, D6) |
 | U4 | Tasks panel (PR3b feat/tasks-panel) | 9e | ⏸ | — | mapping §3.6 |
