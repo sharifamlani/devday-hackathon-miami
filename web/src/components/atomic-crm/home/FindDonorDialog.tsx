@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { SourceLink } from "../contacts/ResearchPanel";
 import { formatUsd } from "../contacts/donorFormat";
 import { DATA_MODE } from "../providers/local/config";
+import { usePeople } from "../providers/local/crmHooks";
+import { TAB_LABELS } from "../providers/local/crmTypes";
 import { useDonor, useEnrichDonor } from "../providers/local/hooks";
 import type { DonorDetail, DonorSummary } from "../providers/local/types";
 import {
@@ -22,6 +24,7 @@ import {
   maskEmail,
   searchDonors,
 } from "./homeData";
+import { searchPeople } from "./searchPeople";
 import { focusRing, tagTone } from "./tile";
 
 const pill = cn(
@@ -29,9 +32,18 @@ const pill = cn(
   focusRing,
 );
 
+/** Singular tab names for the label on each result. */
+const TAB_ONE = {
+  giver: "Giver",
+  neighbor: "Neighbor",
+  community: "Community",
+};
+
 /**
- * "Find a donor" from the CRM tile: search by name, email or organization,
- * pick one, see the essentials and any research the enrich agent saved.
+ * "Find a donor" from the CRM tile: search all three tabs (Givers, Neighbors,
+ * Community) by name, email or organization; each result says its tab. Pick a
+ * giver to see the essentials and any research the enrich agent saved; a
+ * neighbor or community member opens their full record.
  * "Enrich profile" runs the enrich agent on the live service; the static
  * snapshot only shows what was saved.
  */
@@ -50,6 +62,17 @@ export const FindDonorDialog = ({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const inputId = useId();
   const results = useMemo(() => searchDonors(donors, query), [donors, query]);
+  const neighbors = usePeople("neighbor", open);
+  const community = usePeople("community", open);
+  const others = useMemo(
+    () =>
+      searchPeople(
+        [...(neighbors.data?.people ?? []), ...(community.data?.people ?? [])],
+        query,
+      ),
+    [neighbors.data, community.data, query],
+  );
+  const total = results.length + others.length;
 
   const close = (next: boolean) => {
     onOpenChange(next);
@@ -88,15 +111,16 @@ export const FindDonorDialog = ({
             </div>
             <p aria-live="polite" className="sr-only">
               {query.trim()
-                ? `${results.length} ${results.length === 1 ? "match" : "matches"}`
+                ? `${total} ${total === 1 ? "match" : "matches"}`
                 : ""}
             </p>
-            {query.trim() && results.length === 0 ? (
+            {query.trim() && total === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No donor matches “{query.trim()}”.
+                No one in Givers, Neighbors or Community matches “{query.trim()}
+                ”.
               </p>
             ) : (
-              <ul className="-mx-1 grid gap-0.5" aria-label="Donors">
+              <ul className="-mx-1 grid gap-0.5" aria-label="People">
                 {results.map((donor) => {
                   const tag = donorTag(donor);
                   return (
@@ -120,7 +144,9 @@ export const FindDonorDialog = ({
                             {donor.full_name}
                           </span>
                           <span className="block truncate text-xs text-muted-foreground">
-                            {donorMeta(donor)}
+                            {[TAB_ONE.giver, donorMeta(donor)]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </span>
                         </span>
                         <span
@@ -135,6 +161,45 @@ export const FindDonorDialog = ({
                     </li>
                   );
                 })}
+                {others.map((person) => (
+                  <li key={person.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        close(false);
+                        onOpenRecord(person.id);
+                      }}
+                      className={cn(
+                        "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-1 py-2 text-left hover:bg-surface",
+                        focusRing,
+                      )}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="grid size-8 shrink-0 place-items-center rounded-full bg-quiet text-[11px] font-bold text-quiet-foreground"
+                      >
+                        {initials(person.name)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">
+                          {person.name}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {[
+                            TAB_ONE[person.tab],
+                            person.city,
+                            person.email && maskEmail(person.email),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold">
+                        {TAB_LABELS[person.tab]}
+                      </span>
+                    </button>
+                  </li>
+                ))}
               </ul>
             )}
           </>
