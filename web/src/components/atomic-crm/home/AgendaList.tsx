@@ -300,12 +300,15 @@ export const AgendaList = ({
         ) : (
           <div key={day ?? "week"} className="motion-fade-in">
             <TimeGrid
-              days={day ? [day] : strip.map((d) => d.date)}
+              // The week stays under the strip; a selected day shows its events side by side in its column.
+              days={strip.map((d) => d.date)}
+              selected={day}
+              // The tile's columns are narrow: an overlap stays one readable block; the day plan has the detail.
+              selectedLanes={false}
               today={today}
               events={feed.data ?? []}
-              // Week: a block opens that day's view; day view: it opens the day plan.
-              onOpenEvent={day ? onOpenDay : selectDay}
-              detailed={!!day}
+              // The selected day's blocks open its plan; another day's block selects that day.
+              onOpenEvent={(date) => (date === day ? onOpenDay(date) : selectDay(date))}
             />
             {day && (
               <button

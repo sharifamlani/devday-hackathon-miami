@@ -717,6 +717,9 @@
 .home-cal-column[data-today] {
   background: color-mix(in srgb, var(--brand, #f4d958) 8%, transparent);
 }
+.home-cal-column[data-selected] {
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
 .home-cal-slot {
   position: absolute;
   display: flex;

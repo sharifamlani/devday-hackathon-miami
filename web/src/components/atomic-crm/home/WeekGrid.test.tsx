@@ -166,4 +166,63 @@ describe("TimeGrid", () => {
     expect(document.querySelectorAll(".home-cal-column")).toHaveLength(1);
     await expect.element(screen.getByText("8:00")).toBeVisible();
   });
+
+  const rectOf = (el: Element) => el.getBoundingClientRect();
+  const inside = (inner: DOMRect, outer: DOMRect) =>
+    inner.left >= outer.left - 1 && inner.right <= outer.right + 1;
+
+  it("a selected day keeps the week: two events in the same slot share the Thu column at half width", async () => {
+    const thu = WEEK[4];
+    await render(
+      <div style={{ width: 700 }}>
+        <TimeGrid
+          days={WEEK}
+          selected={thu}
+          today="2026-11-08"
+          events={[ev("Board coffee", thu, "08:00"), ev("Donor breakfast", thu, "08:00")]}
+          onOpenEvent={() => {}}
+        />
+      </div>,
+    );
+    const columns = [...document.querySelectorAll(".home-cal-column")];
+    expect(columns).toHaveLength(7);
+    const col = columns[4];
+    expect(col.hasAttribute("data-selected")).toBe(true);
+    const slots = [...col.querySelectorAll(".home-cal-slot")];
+    expect(slots).toHaveLength(2);
+    const c = rectOf(col);
+    for (const slot of slots) {
+      const r = rectOf(slot);
+      expect(inside(r, c)).toBe(true);
+      expect(Math.abs(r.width - c.width / 2)).toBeLessThan(4);
+    }
+    // No block lands in another day's column.
+    for (const [i, other] of columns.entries())
+      if (i !== 4) expect(other.querySelectorAll(".home-cal-slot")).toHaveLength(0);
+  });
+
+  it("the demo's Sunday: the 5K at 8:00 and the festival at 8:30 sit side by side inside Sunday", async () => {
+    const sun = WEEK[0];
+    const screen = await render(
+      <div style={{ width: 700 }}>
+        <TimeGrid
+          days={WEEK}
+          selected={sun}
+          today="2026-11-08"
+          events={[
+            ev("The Give Miami 5K", sun, "08:00"),
+            ev("The Give Miami 5K Post-Race Festival", sun, "08:30"),
+          ]}
+          onOpenEvent={() => {}}
+        />
+      </div>,
+    );
+    const col = document.querySelectorAll(".home-cal-column")[0];
+    const slots = [...col.querySelectorAll(".home-cal-slot")].map(rectOf);
+    expect(slots).toHaveLength(2);
+    const c = rectOf(col);
+    expect(slots.every((r) => inside(r, c))).toBe(true);
+    expect(slots[0].right).toBeLessThanOrEqual(slots[1].left + 1); // side by side, not stacked across days
+    await expect.element(screen.getByText("8:30")).toBeVisible();
+  });
 });
