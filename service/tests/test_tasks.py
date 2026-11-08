@@ -286,3 +286,25 @@ def test_routes_crud_undo_generate_calendar_artifacts(client):
     assert client.post("/tasks/generate").json() == {"created": 0, "tasks": []}
     assert client.get("/calendar", params={"from": "2026-11-01", "to": "2026-11-30"}).json()[0]["ref"] == f"task:{task_id}"
     assert client.get("/artifacts").json() == []
+
+
+# ---------- hooks ----------
+
+def test_upload_hook_generates_tasks_once(tmp_path, monkeypatch):
+    """ingest_events runs the generator after dedupe: alerts and new donors become tasks; dry runs add nothing."""
+    from service import ingest_adapter as ia
+    from service.tests.test_ingest_adapter import _events, _judgments
+
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    dry = db.connect(tmp_path / "dry.db")
+    db.create_schema(dry)
+    ia.ingest_events(_events(), "auto", dry, judgments=_judgments(), dry_run=True)
+    assert dry.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 0
+
+    conn = db.connect(tmp_path / "t.db")
+    db.create_schema(conn)
+    ia.ingest_events(_events(), "auto", conn, judgments=_judgments())
+    made = tasks.list_tasks(conn, as_of=AS_OF)
+    assert {(t["kind"], t["title"]) for t in made} == {("call", "Call Ann Lee"), ("email", "Welcome Hye Park")}
+    assert all(t["source"] == "generator" for t in made)
+    assert tasks.generate(conn, AS_OF)["created"] == 0

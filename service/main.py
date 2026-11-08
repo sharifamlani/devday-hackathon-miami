@@ -561,6 +561,7 @@ def org_urls(conn: sqlite3.Connection) -> dict | None:
 
 def run_refresh() -> dict:
     """One refresh pass on the saved org. 86's refresh never wipes good data on a failed source."""
+    from service import tasks
     from service.refresh import refresh
 
     conn = db.connect()
@@ -569,7 +570,9 @@ def run_refresh() -> dict:
         urls = org_urls(conn)
         if urls is None:
             return {"state": "failed", "detail": "no website saved yet: run onboarding first", "changes": None}
-        return {"state": "done", "detail": None, "changes": refresh(conn, urls)}
+        changes = refresh(conn, urls)
+        tasks.generate(conn)   # §21 B11: new events -> prep tasks
+        return {"state": "done", "detail": None, "changes": changes}
     finally:
         conn.close()
 
