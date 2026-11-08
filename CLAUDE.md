@@ -101,7 +101,7 @@ Never create a top-level `agents/` folder or `agents.py`: it shadows the Agents 
 7. **Lift working code, don't rewrite it** (`docs/hackathon-kit/tech-notes.md`).
 8. **Verify against the real system.** HTTP 200 isn't success. Walk production after every deploy.
 9. **Name the limits.** Never present a mock as live.
-10. **Claude Code and Codex were both used to write code (Sharif, Sun Nov 8).** The README says so. The
+10. **Claude Code and Codex were both used to write code (Sharif, Sun Nov 8).** The
     OpenAI API and Agents SDK remain required and must be visibly used.
 11. **Never push to `main` directly.** Another coder shares the repo: work on a branch, open a PR.
 12. **The repo goes public with an MIT license by Sun 4:45 PM** (organizer rule). Nothing private in history.
