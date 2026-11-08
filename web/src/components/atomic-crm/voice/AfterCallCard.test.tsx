@@ -22,7 +22,7 @@ vi.mock("../providers/local/voice", () => ({
   useAfterCall: () => ({ apply: { mutate: api.mutate } }),
 }));
 
-const { AfterCallCard, checkRsvp, confidentMatch, foldName, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
+const { AfterCallCard, checkRsvp, confidentMatch, eventDate, foldName, forgetProposals, withMatchedDonor } = await import("./AfterCallCard");
 
 const ROSA: AfterCallProposal = {
   steps: ["Read the call", "Matched the Beach Cleanup on Sat Nov 21"],
@@ -365,6 +365,13 @@ describe("checkRsvp tells same-named events apart (a4's review)", () => {
   });
   it("the right name on another date is flagged by the spoken day", () => {
     expect(checkRsvp(rsvp(5), calendar)?.mismatch).toBe(true);
+  });
+  // 82's review: a date-only start parsed as UTC midnight is the evening before in Miami.
+  it("a date-only event is on its own day: Give Miami Day on the 19th is not a mismatch", () => {
+    const day = { ...rsvp(6), evidence: "Count me in for Give Miami Day on the 19th." };
+    expect(checkRsvp(day, [ev(6, "Give Miami Day", "2026-11-19")])?.mismatch).toBe(false);
+    expect(eventDate("2026-11-19")).toBe("Thu, Nov 19");
+    expect(eventDate("2026-11-15T08:00")).toBe("Sun, Nov 15");
   });
 });
 

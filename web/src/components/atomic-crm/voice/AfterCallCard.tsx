@@ -93,6 +93,13 @@ export const confidentMatch = (
  * label still names the 5K. So the card shows the real target, and flags it when the target's
  * title has distinctive words that weren't said.
  */
+/**
+ * An event's start as a local time. A date-only value ("2026-11-19", Give Miami Day) would parse as
+ * UTC midnight, which in Miami is the evening before: the card would say Wed Nov 18 and flag "the
+ * 19th" as the wrong day (82's review). Read it as local midnight instead.
+ */
+export const eventStart = (startsAt: string) =>
+  new Date(/^\d{4}-\d{2}-\d{2}$/.test(startsAt) ? `${startsAt}T00:00` : startsAt);
 export type RsvpCheck = { event: CrmEvent | null; mismatch: boolean };
 // Short words matter here: "5k", "day", "give", "race" are what tell "The Give Miami 5K" from
 // "Give Miami Day" or the 5K's Post-Race Festival (a4's review). Only filler words are ignored.
@@ -113,12 +120,12 @@ export const checkRsvp = (action: AfterCallAction, events: CrmEvent[] | undefine
   const said = new Set(words(spoken));
   const unsaid = words(event.title).filter((w) => !said.has(w));
   const day = spokenDay(spoken);
-  const otherDay = day != null && new Date(event.starts_at).getDate() !== day;
+  const otherDay = day != null && eventStart(event.starts_at).getDate() !== day;
   return { event, mismatch: unsaid.length > 0 || otherDay };
 };
 
-const eventDate = (startsAt: string) =>
-  new Date(startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+export const eventDate = (startsAt: string) =>
+  eventStart(startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
 /** The note's destinations with the matched donor added, unless a donor is already set. */
 export const withMatchedDonor = (destinations: NoteDestination[], person: MatchedPerson): NoteDestination[] =>
