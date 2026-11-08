@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DATA_MODE, MOCK_ENDPOINTS } from "./config";
 import { ApiError, request } from "./httpClient";
 import { knownRoutes, routeExists } from "./routes";
+import { loadSnapshot } from "./snapshotClient";
 
 /**
  * One call path for every plan.md §21.5 endpoint (B9). Where a call goes:
@@ -81,6 +82,12 @@ export interface CallOptions<T> {
   body?: unknown;
   /** Snapshot builds return this for reads instead of calling. */
   snapshotValue?: T;
+  /**
+   * Snapshot builds read the answer from snapshot.json (export_snapshot.py);
+   * returning undefined (key missing in an older export) falls back to
+   * snapshotValue.
+   */
+  snapshot?: (snap: Record<string, unknown>) => T | undefined;
 }
 
 /**
@@ -95,6 +102,10 @@ export const call = async <T>(
 ): Promise<T> => {
   const source = await sourceOf(method, path);
   if (source === "snapshot") {
+    if (options.snapshot) {
+      const value = options.snapshot((await loadSnapshot()) as unknown as Record<string, unknown>);
+      if (value !== undefined) return value;
+    }
     if ("snapshotValue" in options) return options.snapshotValue as T;
     throw new Error(LIVE_ONLY);
   }
