@@ -38,8 +38,12 @@
 | C2 | **Duplicate review:** 6/6 sample duplicate groups found; staff approve each merge; gift history is kept on the survivor. | Givers → Review duplicates | ✅ #65 |
 | C2 | **Late gifts found in time:** Park and Quintero failed, Salinas/Brandt/Veloria late, all flagged on the sample data. | gift alerts | ~ backend merged (#48); no screen reads it yet |
 
-**Transcription model:** the wireframe session mentioned Gemini. We should use OpenAI transcription instead
-(`gpt-4o-transcribe` or the Realtime API), because the rubric scores OpenAI use and Gemini adds a second key.
+**Transcription model: Google (Sharif, Sat Nov 7 night).** Transcription runs on Google's Gemini API with the
+`GEMINI_API_KEY` already in `.env`: the Gemini Live API (input-audio transcription) for the live transcript, or a
+Gemini Flash call (`GOOGLE_FLASH_MODEL`) on each audio chunk if Live is not ready in time. It sits behind one
+`transcribe()` function, so OpenAI `gpt-4o-transcribe` can stand in as the fallback. The call summary and
+save-to-profile step stay on the OpenAI Agents SDK, so the OpenAI work stays visible to judges. Google Cloud
+Speech-to-Text (Chirp) is not used: it needs a GCP project and service account we don't have set up.
 
 ## 3. UI wireframes
 
@@ -153,7 +157,7 @@ agent's 3-line summary (interests, next step).
 ## 4. Build order for what is still open
 
 1. Home layout (3.2): Christian owns the UI, so this goes to him as a request, not a branch of ours.
-2. Voice-first panel (3.3), with OpenAI transcription and save-to-profile.
+2. Voice-first panel (3.3): Google Gemini transcription, OpenAI agent summary, save-to-profile.
 3. Enrich button on the profile (3.4), wired to the existing enrichment agent.
 4. Wire `GET /alerts` into the money-raised card and to-do list (backend already merged in #48).
 5. Stretch: Community impact snapshot (P5); payout-change hold (P7) stays a named limit.
@@ -192,10 +196,10 @@ agent's 3-line summary (interests, next step).
 
 | Option | How it works | Effort | Demo risk |
 |---|---|---|---|
-| **A. Laptop mic (build this)** | 🎙 opens the panel; the browser records; `POST /transcribe` sends audio chunks to OpenAI (`gpt-4o-transcribe`), so the transcript fills in every few seconds. Save writes an atomic-crm **note** on the chosen person (notes with attachments already exist), plus a 3-line agent summary. A phone call on speaker next to the laptop works the same way. | ~2 h | low: no telephony, works offline from webhooks |
-| **B. Real phone call (stretch)** | Staff dial our Twilio number from their phone (or click "Call" and Twilio rings their phone first), then Twilio bridges to the donor with recording on. When the call ends, Twilio's recording webhook hands the audio to the same transcribe + save step. | ~3 h on top of A | medium: needs a public URL for Twilio's webhook (a tunnel to the laptop), a voice-capable number, and a trial account only reaches verified numbers |
+| **A. Laptop mic (build this)** | 🎙 opens the panel; the browser records; `POST /transcribe` sends audio chunks to Google Gemini (Live API, or Flash per chunk), so the transcript fills in every few seconds. Save writes an atomic-crm **note** on the chosen person (notes with attachments already exist), plus a 3-line agent summary. A phone call on speaker next to the laptop works the same way. | ~2 h | low: no telephony, works offline from webhooks |
+| **B. Real phone call (stretch)** | Staff dial our Twilio number from their phone (or click "Call" and Twilio rings their phone first), then Twilio bridges to the donor with recording on. When the call ends, Twilio's recording webhook hands the audio to the same Gemini transcribe + save step. | ~3 h on top of A | medium: needs a public URL for Twilio's webhook (a tunnel to the laptop), a voice-capable number, and a trial account only reaches verified numbers |
 
 Guardrails for B: **Florida requires every party's consent to record a call**, so the call opens with a spoken
 "this call is recorded" notice before bridging. A person makes the call; no AI voice speaks (the
-no-AI-calls rule stands). A live transcript during a phone call (Twilio media streams → OpenAI Realtime)
+no-AI-calls rule stands). A live transcript during a phone call (Twilio media streams → Gemini Live)
 is post-demo.
