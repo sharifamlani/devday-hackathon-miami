@@ -75,10 +75,19 @@ export const authProvider: AuthProvider = {
   getIdentity: () => {
     const userItem = localStorage.getItem(USER_STORAGE_KEY);
     const user = userItem ? (JSON.parse(userItem) as Sale) : null;
+    // The built-in demo login is "Jane Doe" with a stock photo: placeholder
+    // data. For it, show a neutral label and no photo.
+    if (!user || user.email === DEFAULT_USER.email) {
+      return Promise.resolve({
+        id: user?.id ?? 0,
+        fullName: "Account",
+        avatar: undefined,
+      });
+    }
     return Promise.resolve({
-      id: user?.id ?? 0,
-      fullName: user ? `${user.first_name} ${user.last_name}` : "Jane Doe",
-      avatar: user?.avatar?.src,
+      id: user.id,
+      fullName: `${user.first_name} ${user.last_name}`,
+      avatar: user.avatar?.src,
     });
   },
   async getAuthorizationDetails() {

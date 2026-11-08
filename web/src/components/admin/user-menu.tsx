@@ -52,6 +52,7 @@ export function UserMenu({ children }: UserMenuProps) {
           render={
             <Button
               variant="ghost"
+              aria-label="Account menu"
               className="relative h-8 w-8 ml-2 rounded-full"
             />
           }

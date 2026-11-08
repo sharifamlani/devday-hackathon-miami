@@ -1,4 +1,10 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { FileText, Pause, Play, Upload } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 
@@ -8,6 +14,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useOnboarding } from "../onboarding/onboardingState";
 import { DATA_MODE, donorDeskMethods } from "../providers/local";
 import type { IngestResult } from "../providers/local/types";
 import "./kindred-landing.css";
@@ -28,14 +35,30 @@ const getHash = () => window.location.hash;
 export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
   const hash = useSyncExternalStore(subscribeToHash, getHash, () => "");
   // Live mode: the bare URL shows the landing only while the app has no people
-  // yet; once the example files (or a list) are in, it goes straight to the
-  // board. "#/welcome" always shows the landing. The read-only snapshot build
-  // always has people, so it keeps the landing as its front door.
+  // and first-run setup is done or skipped; otherwise it goes straight to the
+  // board (where onboarding opens when it is still to do). "#/welcome" always
+  // shows the landing. The read-only snapshot build always has people, so it
+  // keeps the landing as its front door.
   const hasPeople = useHasPeople();
+  // One front door: while first-run setup is still to do, the empty app goes
+  // straight into it (onboarding step 1 is where files are uploaded, once).
+  // The landing is for an empty app whose setup was already finished or skipped.
+  const { data: onboarding } = useOnboarding();
+  const setupPending = DATA_MODE === "local" && !onboarding.completedAt;
+  // useHasPeople reads /donors once, on mount: for an app that started empty it
+  // stays false. When setup finishes in this page load its files have been
+  // imported, so the board stays; the landing is never the next screen.
+  const sawSetupPending = useRef(false);
+  if (setupPending) sawSetupPending.current = true;
+  const justFinishedSetup = sawSetupPending.current && !setupPending;
   if (hash === "#/welcome") return <KindredLanding />;
   if (hash !== "") return children;
   if (hasPeople === null) return null;
-  return hasPeople ? children : <KindredLanding />;
+  return hasPeople || setupPending || justFinishedSetup ? (
+    children
+  ) : (
+    <KindredLanding />
+  );
 };
 
 /** null while the live service is being asked; always false in snapshot mode. */
@@ -61,8 +84,12 @@ const useHasPeople = (): boolean | null => {
 const ACCEPTED_FILES = ".csv,.xlsx,.docx,.md,.txt";
 const ACCEPTED_TYPES = {
   "text/csv": [".csv"],
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+    ".xlsx",
+  ],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+    ".docx",
+  ],
   "text/markdown": [".md"],
   "text/plain": [".txt"],
 };
@@ -277,9 +304,13 @@ const summarize = (result: IngestResult) => {
   const parts = [
     result.donors != null ? `${result.donors} donors` : null,
     result.gifts != null ? `${result.gifts} gifts` : null,
-    result.duplicates != null ? `${result.duplicates} possible duplicates` : null,
+    result.duplicates != null
+      ? `${result.duplicates} possible duplicates`
+      : null,
   ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : (result.message ?? "Your files were imported.");
+  return parts.length
+    ? parts.join(" · ")
+    : (result.message ?? "Your files were imported.");
 };
 
 /**
@@ -319,9 +350,15 @@ const SampleDialog = ({
     setPending(true);
     try {
       // No target: uploadFiles defaults to "auto", the agent sorts them.
-      setResult(await donorDeskMethods.uploadFiles(await loadSampleFiles(files)));
+      setResult(
+        await donorDeskMethods.uploadFiles(await loadSampleFiles(files)),
+      );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "We couldn’t import the sample files.");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "We couldn’t import the sample files.",
+      );
     } finally {
       setPending(false);
     }
@@ -357,7 +394,9 @@ const SampleDialog = ({
                   <li key={file.name}>
                     <FileText aria-hidden="true" size={16} strokeWidth={1.7} />
                     <span className="kindred-sample-name">{file.name}</span>
-                    <span className="kindred-sample-size">{formatBytes(file.bytes)}</span>
+                    <span className="kindred-sample-size">
+                      {formatBytes(file.bytes)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -392,7 +431,8 @@ const SampleDialog = ({
         )}
         {error && canUpload && files && (
           <p className="kindred-sample-target">
-            You can also drag the example files from <code>data/sample_inputs/</code> into the app yourself.
+            You can also drag the example files from{" "}
+            <code>data/sample_inputs/</code> into the app yourself.
           </p>
         )}
       </DialogContent>

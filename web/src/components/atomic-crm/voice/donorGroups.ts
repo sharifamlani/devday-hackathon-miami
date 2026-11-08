@@ -1,11 +1,6 @@
 import type { DonorSummary } from "../providers/local/types";
 
-/**
- * The donor lists the Projects sidebar shows under "Donor lists"
- * (layout/ProjectsSidebar.tsx, useGroups). Same ids and labels, so a call
- * note filed to a group points at the same list. Keep the two in step until
- * the sidebar exports its list definitions.
- */
+/** The donor lists a call note can be filed to. */
 export interface DonorGroup {
   id: string;
   label: string;

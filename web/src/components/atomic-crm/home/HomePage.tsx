@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { useGetIdentity } from "ra-core";
 import { useSearchParams } from "react-router";
 
+import { DATA_MODE } from "../providers/local/config";
 import {
   Dialog,
   DialogContent,
@@ -10,33 +10,38 @@ import {
 } from "@/components/ui/dialog";
 import { DonorDrawer } from "../contacts/DonorDrawer";
 import { ImportDonorsDialog } from "../import/ImportDonorsDialog";
-import { useEvents } from "../providers/local/crmHooks";
-import { useCampaigns, useDonors, useTargets } from "../providers/local/hooks";
-import { eventDays } from "../calendar/planLayer";
-import { computeDayMarks } from "../outreach/calendarMonth";
+import {
+  useCampaigns,
+  useDonors,
+  useOrgProfile,
+  useTargets,
+} from "../providers/local/hooks";
+import { useHomeData } from "../providers/local/homeFeed";
+import { useCompleteTask } from "../providers/local/tasks";
 import { isIsoDate, toIsoDate } from "../outreach/dates";
 import { DayPlanner } from "../outreach/DayPlanner";
 import { useOutreachPlan } from "../outreach/outreachPlan";
 import { recommendOutreach } from "../outreach/recommend";
-import { useCallNotes } from "../voice/callNotes";
 import { FindDonorDialog } from "./FindDonorDialog";
 import {
   ArtifactsTile,
+  CrmTile,
+  GlanceTile,
   Q4ProgressTile,
   TasksTile,
   WeekTile,
 } from "./HomeCards";
 import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
 import {
-  agendaLines,
-  buildTasks,
-  donorFacts,
+  agendaFromCalendar,
+  artifactRows,
+  calendarMarks,
   draftEmailHref,
   firstName,
   giveMiamiDay,
   goalEnds,
   greeting,
-  toRecCampaigns,
+  tasksFromApi,
   weekDays,
   type HomeTask,
 } from "./homeData";
@@ -46,23 +51,23 @@ import "./dashboard.css";
  * Task actions remain available in a dialog selected from the project list.
  */
 export const HomePage = () => {
-  const today = toIsoDate(new Date());
-  const { identity } = useGetIdentity();
-  const donors = useDonors();
   const targets = useTargets();
+  // "Today" is the service's as-of date (the demo runs as of Nov 8), not this
+  // browser's clock; the browser's date only holds until /targets answers.
+  const today = targets.data?.quarter?.as_of ?? toIsoDate(new Date());
+  const live = DATA_MODE === "local";
+  const home = useHomeData(today);
+  const donors = useDonors();
   const campaigns = useCampaigns();
-  const events = useEvents();
   const plan = useOutreachPlan();
-  const notes = useCallNotes();
+  const profile = useOrgProfile();
+  const completeTask = useCompleteTask();
   const [params, setParams] = useSearchParams();
   const [donorId, setDonorId] = useState<number | null>(null);
   const [findOpen, setFindOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
   const [status, setStatus] = useState("");
 
   const planParam = params.get("plan");
@@ -75,41 +80,35 @@ export const HomePage = () => {
     setParams(next, { replace: true });
   };
 
+  const summary = home.summary.data ?? null;
   const gmd = giveMiamiDay(targets.data, today);
   const donorList = useMemo(() => donors.data ?? [], [donors.data]);
   const campaignList = useMemo(() => campaigns.data ?? [], [campaigns.data]);
-  const eventList = useMemo(() => eventDays(events.data ?? []), [events.data]);
-  const donorById = useMemo(
-    () => new Map(donorList.map((d) => [d.id, d])),
-    [donorList],
+  const calendarItems = useMemo(
+    () => home.calendar.data ?? [],
+    [home.calendar.data],
   );
+  // Nothing uploaded yet: the empty states say so instead of "all caught up".
+  const hasData = !donors.isPending && donorList.length > 0;
 
+  // The day planner's own suggestions (its plan lives in this browser).
   const recommend = (limit: number) =>
     recommendOutreach(donorList, {
       today,
       plan: plan.items,
-      campaigns: toRecCampaigns(campaignList),
+      campaigns: campaignList
+        .filter((c) => c.status === "draft")
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          drafts: c.counts.draft,
+          ends_on: null,
+        })),
       giveMiamiDay: gmd,
       limit,
     });
-  const recommendations = useMemo(
-    () => recommend(6),
-    // recommend reads exactly these
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [donorList, today, plan.items, campaignList, gmd],
-  );
 
-  const tasks = useMemo(
-    () =>
-      buildTasks({
-        today,
-        plan: plan.items,
-        recommendations,
-        donors: donorList,
-        dismissed,
-      }),
-    [today, plan.items, recommendations, donorList, dismissed],
-  );
+  const tasks = useMemo(() => tasksFromApi(home.tasks.data), [home.tasks.data]);
   const focusIndex = Math.max(
     0,
     tasks.findIndex((t) => t.key === selectedKey),
@@ -118,49 +117,40 @@ export const HomePage = () => {
 
   const marks = useMemo(
     () =>
-      computeDayMarks({
-        plan: plan.items,
+      calendarMarks({
+        items: calendarItems,
         campaignEnds: goalEnds(targets.data),
-        events: eventList,
         giveMiamiDay: gmd,
       }),
-    [plan.items, targets.data, eventList, gmd],
+    [calendarItems, targets.data, gmd],
   );
   const agenda = useMemo(
     () =>
-      agendaLines({
+      agendaFromCalendar({
         today,
-        events: eventList,
-        plan: plan.items,
-        giveMiamiDay: gmd,
+        items: calendarItems,
+        nextEvent: summary?.next_event,
       }),
-    [today, eventList, plan.items, gmd],
+    [today, calendarItems, summary?.next_event],
+  );
+  const artifacts = useMemo(
+    () => artifactRows(home.artifacts.data),
+    [home.artifacts.data],
   );
 
-  const focusFacts = (task: HomeTask | null): string[] => {
-    if (!task) return [];
-    if (task.donorId != null) {
-      const donor = donorById.get(task.donorId);
-      return donor ? donorFacts(donor) : [];
-    }
-    const campaign = campaignList.find((c) => c.id === task.campaignId);
-    return campaign
-      ? [
-          `${campaign.counts.draft} ${campaign.counts.draft === 1 ? "draft" : "drafts"} waiting`,
-          `${campaign.counts.total} recipients`,
-        ]
-      : [];
-  };
-
   const markDone = (task: HomeTask) => {
-    if (task.planItemId) plan.update(task.planItemId, { done: true });
-    else setDismissed((prev) => new Set(prev).add(task.key));
-    const next = tasks.filter((t) => t.key !== task.key)[0] ?? null;
-    setSelectedKey(next?.key ?? null);
-    setTaskOpen(false);
-    setStatus(
-      `Marked done: ${task.title}.${next ? ` Next: ${next.title}.` : ""}`,
-    );
+    completeTask.mutate(task.id, {
+      onSuccess: () => {
+        const next = tasks.filter((t) => t.key !== task.key)[0] ?? null;
+        setSelectedKey(next?.key ?? null);
+        setTaskOpen(false);
+        setStatus(
+          `Marked done: ${task.title}.${next ? ` Next: ${next.title}.` : ""}`,
+        );
+      },
+      onError: (error) =>
+        setStatus(`Couldn’t mark that done: ${error.message}`),
+    });
   };
 
   const dayNotes = (date: string) => [
@@ -168,11 +158,21 @@ export const HomePage = () => {
     ...goalEnds(targets.data)
       .filter((end) => end.date === date)
       .map((end) => `${end.label} ends`),
-    ...eventList.filter((e) => e.date === date).map((e) => e.label),
+    ...calendarItems
+      .filter(
+        (item) => item.kind === "event" && item.date.slice(0, 10) === date,
+      )
+      .map((item) => item.title),
   ];
 
-  const name = firstName(identity?.fullName);
-  const loading = donors.isPending || targets.isPending;
+  // Staff name: the org profile's if it ever carries one; no name at all
+  // reads as a plain greeting (onboarding no longer asks for one).
+  const staffName = (
+    profile.data as { staff_name?: string | null } | null | undefined
+  )?.staff_name;
+  const name = firstName(staffName);
+  const summaryPending = home.summary.isPending;
+  const tasksPending = home.tasks.isPending;
 
   return (
     <div className="home-design @container h-full">
@@ -183,7 +183,24 @@ export const HomePage = () => {
         <aside aria-label="Workspace overview" className="home-overview">
           <Q4ProgressTile
             target={targets.data?.quarter}
+            goal={targets.data?.quarter?.goal ?? null}
+            goalIsSample={targets.data?.quarter?.goal_is_sample ?? false}
             isPending={targets.isPending}
+          />
+          <GlanceTile
+            today={today}
+            atRisk={summary ? summary.gifts_at_risk : null}
+            duplicates={summary ? summary.duplicates : null}
+            tasks={summary ? summary.tasks_today : null}
+            nextEvent={
+              summary?.next_event
+                ? {
+                    title: summary.next_event.title,
+                    days: summary.next_event.days,
+                  }
+                : null
+            }
+            isPending={summaryPending}
           />
           <WeekTile
             today={today}
@@ -194,15 +211,26 @@ export const HomePage = () => {
           />
           <TasksTile
             tasks={tasks}
+            hasData={hasData}
+            live={live}
             selectedKey={focus?.key ?? null}
             onSelect={(key) => {
               setSelectedKey(key);
               setTaskOpen(true);
             }}
             onPlan={() => openDay(today)}
-            isPending={donors.isPending}
+            isPending={tasksPending}
           />
-          <ArtifactsTile notes={notes} campaigns={campaignList} />
+          <CrmTile
+            people={home.attention.data ?? []}
+            hasData={hasData}
+            live={live}
+            isPending={home.attention.isPending}
+            error={home.attention.error}
+            onFind={() => setFindOpen(true)}
+            onOpenDonor={setDonorId}
+          />
+          <ArtifactsTile rows={artifacts} />
         </aside>
 
         {/* Center */}
@@ -224,7 +252,12 @@ export const HomePage = () => {
             </h1>
           </div>
           <AgentThread />
-          <Composer onUploadList={() => setImportOpen(true)} />
+          <Composer
+            onUploadList={() => setImportOpen(true)}
+            suggestions={
+              summary?.suggestions?.length ? summary.suggestions : undefined
+            }
+          />
         </section>
       </div>
       <Dialog open={taskOpen && !!focus} onOpenChange={setTaskOpen}>
@@ -237,20 +270,12 @@ export const HomePage = () => {
             task={focus}
             index={focusIndex}
             total={tasks.length}
-            facts={focusFacts(focus)}
-            draftHref={
-              focus
-                ? draftEmailHref(
-                    focus,
-                    focus.donorId != null
-                      ? donorById.get(focus.donorId)
-                      : undefined,
-                  )
-                : null
-            }
+            draftHref={focus ? draftEmailHref(focus) : null}
             onAction={() => setTaskOpen(false)}
             onDone={markDone}
-            isPending={loading}
+            isPending={tasksPending}
+            hasData={hasData}
+            live={live}
           />
         </DialogContent>
       </Dialog>
