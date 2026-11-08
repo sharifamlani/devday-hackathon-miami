@@ -68,10 +68,11 @@ def build_snapshot(conn, as_of: date | None = None, rescore: bool = True) -> dic
     if rescore:
         score.run(conn, as_of)
         dedupe.run(conn)
-    donors = list_donors(conn)
-    as_of_values = sorted({d["score_as_of"] for d in donors if d.get("score_as_of")})
-    # Tasks first (idempotent; home_snapshot runs it too): people rows' next_step reads them.
+    # Tasks first (idempotent; home_snapshot runs it too): every next_step below reads them.
     tasks.generate(conn, as_of or score.default_as_of())
+    # next_step without the Donors tab's private tasks (tasks.crm), everywhere the snapshot carries it
+    donors = tasks.with_next_steps(conn, list_donors(conn), as_of, public_only=True)
+    as_of_values = sorted({d["score_as_of"] for d in donors if d.get("score_as_of")})
     return {
         "meta": {
             "as_of": as_of_values[-1] if as_of_values else None,
@@ -138,7 +139,8 @@ def snapshot_id(donors: list[dict]) -> str:
 
 def snapshot_donor(donor_id: int, conn) -> dict:
     """GET /donors/{id}, minus saved call notes: transcripts stay on the laptop, never in the public snapshot."""
-    return {**get_donor(donor_id, conn), "call_notes": []}
+    detail = tasks.with_next_steps(conn, [get_donor(donor_id, conn)], public_only=True)[0]
+    return {**detail, "call_notes": []}
 
 
 # The snapshot has a 2 MB budget. Each event lists at most this many drafted invites; every invite is still in its

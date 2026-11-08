@@ -98,7 +98,7 @@ def list_donors(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
     """Givers only: the call-today list. Every tab's people come from GET /people."""
     rows = conn.execute(DONOR_WITH_SCORE + " WHERE d.contact_type = 'giver'"
                         " ORDER BY s.score IS NULL, s.score DESC, d.id").fetchall()
-    return [_donor_out(r) for r in rows]
+    return tasks.with_next_steps(conn, [_donor_out(r) for r in rows])   # next_step: the giver's next open task (3a)
 
 
 @router.get("/donors/{donor_id}")
@@ -106,7 +106,7 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
     row = conn.execute(DONOR_WITH_SCORE + " WHERE d.id = ?", (donor_id,)).fetchone()
     if row is None:
         raise HTTPException(404, f"donor {donor_id} not found")
-    donor = _donor_out(row)
+    donor = tasks.with_next_steps(conn, [_donor_out(row)])[0]   # next_step (3a)
     donor["gifts"] = [dict(r) for r in conn.execute(
         "SELECT * FROM gifts WHERE donor_id = ? ORDER BY gift_date DESC", (donor_id,))]
     donor["research_facts"] = [dict(r) for r in conn.execute(
