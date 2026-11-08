@@ -233,7 +233,7 @@ If the laptop or network fails, switch to the Vercel preview tab (read-only samp
       files once to warm the cache, and empties the db again; the on-stage upload then replays fast and shows
       **9 possible duplicates**. Run it ~30 min before: it must end with **`PASS stage numbers: 77 people / 9`**
       (… duplicate suggestions); exit 1 means run it again.
-- [ ] **Browser:** Clear site data for localhost:5173 in the demo browser (or open a fresh incognito window), then check that the bare URL shows the **gatherly** landing ("Less time on tasks. More time for people.", **Upload donor data** / **Try sample data**): the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL skips setup.
+- [ ] **Browser:** After the reset, open a NEW incognito window (close any old one first) at http://localhost:5173/, never a rehearsal tab: the home chat thread lives in the tab's sessionStorage (`donor-desk-agent-chat`), so a reused tab shows the rehearsal conversation after the reset. Then check that the bare URL shows the **gatherly** landing ("Less time on tasks. More time for people.", **Upload donor data** / **Try sample data**): the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL skips setup.
 - [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
 - [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
 - [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8001`; service
