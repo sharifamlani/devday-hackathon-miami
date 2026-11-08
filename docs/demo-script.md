@@ -86,10 +86,10 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    **November 9–15** with a priority per day, and it says it hasn't changed your calendar. (The wording varies run to
    run; say "a suggested week, built from the events and tasks, and nothing changed until you say so".) A step that
    changes something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
-7. **A task, worked by the agent.** In **Tasks** click the **Call Hye-jin Park** row: it goes straight to the agent
-   (the **ⓘ** beside it opens **Task details** instead). The chat shows **Work on this task: Call Hye-jin Park…**, then
-   its steps (e.g. **Get task**, **Get person**, **Prep call**, **Draft email**), a call sheet and a re-engagement draft
-   about her declined October gift (pending approval), and ends by asking **Mark done?** (about 28 s).
+7. **A call sheet (Sharif's Q2).** In **Ask the agent…** type *"Prep a call sheet for Priya Raman"* (verified on
+   LIVE; about 5 s): the agent's steps, then the card **Call sheet: Priya Raman** (her phone with a **Call** button,
+   GIVING, RECENT CALLS, TALKING POINTS). "Everything you need before you dial, from her record." (A task row in
+   **Tasks**, e.g. **Call Hye-jin Park**, does the same and adds a draft, about 28 s.)
 8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to donors who gave in the last 90 days."*
    (about 38 s): **25 thank-you email drafts are ready for review … Nothing has been sent**, with the organizations that
    need individual approval listed by name. Each draft cites a Foundation fact with its source (e.g. Give Miami Day's
@@ -98,17 +98,23 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    small-donor drafts** (e.g. 18), and the organizations waiting for individual approval. Nothing is sent from here
    unless someone clicks **Send approved messages**. (Use *"Give Miami Day donors"* again once the fix for uploaded
    Give Miami Day gifts merges: today that wording finds 0 donors.)
-9. **Enrich on a real organization.** The sample data is fictional, so add a real one: in **Ask the agent…** type
-   *"Add the Knight Foundation as a contact."* (about 3.5 s): **Add contact** · added organization John S. and James L.
-   Knight Foundation (person …, giver), with **Undo**. The first chip now reads **Enrich John S. and James L. Knight Foundation**: click it and **Send** (or type
-   it; about 7 s): the steps **Find
-   people** and **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)"), then a reply
-   listing each fact with a **Source** link (e.g. its local-journalism and arts funding in the 26 communities where the
-   Knight brothers published newspapers) and the interest tags, asking whether to save them. Type *"Yes, save all of
-   them"* (about 8 s): **Accept enrichment** ("saved 4 facts and 4 interest tags") with **Undo**. "Nothing is saved until staff say
-   so, and every fact shows where it came from." (Never enrich a sample donor on stage: individuals aren't
-   researched (the step says so), and the sample organizations are fictional. The same research is on the **CRM** tile: expand the Knight row → **Enhance** →
-   **Save to profile**.)
+9. **Enrich on a real organization (Sharif's Q4).** The sample data is fictional, so add a real one: in **Ask the
+   agent…** type *"Search for the Gates Foundation in Seattle and add it to the CRM"*. Say the city: without it the
+   identity check finds nothing. The agent finds it and adds it (**Add contact**, with **Undo**); the first chip then
+   reads **Enrich <the foundation's name>**: click it and **Send** (or type it). The agent lists the facts it found,
+   each with a **Source** link, and the interest tags, and asks whether to save them. Type *"Yes, save all of them"*:
+   **Accept enrichment** with **Undo**. (#303 makes this save what was shown instead of researching again; until it
+   merges, if it researches again, say yes once more.) "Nothing is saved until staff say so, and every fact shows
+   where it came from."
+   **Fallback: the Knight Foundation.** Type *"Add the Knight Foundation as a contact."* (about 3.5 s): **Add contact**
+   · added organization John S. and James L. Knight Foundation (person …, giver), with **Undo**. Click the chip
+   **Enrich John S. and James L. Knight Foundation** and **Send** (about 7 s): **Find people** and **Enrich person**
+   ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)"), then the facts with **Source** links (e.g.
+   its local-journalism and arts funding in the 26 communities where the Knight brothers published newspapers) and the
+   tags. Type *"Yes, save all of them"* (about 8 s): **Accept enrichment** ("saved 4 facts and 4 interest tags") with
+   **Undo**. (Never enrich a sample donor on stage: individuals aren't researched (the step says so), and the sample
+   organizations are fictional. The same research is on the **CRM** tile: expand the row → **Enhance** → **Save to
+   profile**.)
 10. **Calendar.** In the briefing click **Open calendar** (or the calendar tile's heading). The panel reads
     **Calendar · Events** with **Add event**, **November 2026**, **Today** and the week (**‹ Nov 8 – 14 ›**), a day
     strip, and **THIS WEEK'S EVENTS** by day ("Nothing scheduled" on empty days): Sat 14 **♥ Give Miami Day — Early
