@@ -398,8 +398,8 @@ def _call_chips(f: dict | None, today: date) -> list[str]:
 def _alert_why(alert: dict, today: date) -> str:
     cadence = (alert.get("cadence") or "regular").replace("_gmd", " (Give Miami Day)")
     if alert["kind"] == "failed":
-        return f"{cadence.capitalize()} gift on {nice_date(alert['expected_date'], today)} failed, with no gift since."
-    return (f"{cadence.capitalize()} giver; the gift due {nice_date(alert['expected_date'], today)} "
+        return f"{cadence[:1].upper() + cadence[1:]} gift on {nice_date(alert['expected_date'], today)} failed, with no gift since."
+    return (f"{cadence[:1].upper() + cadence[1:]} giver; the gift due {nice_date(alert['expected_date'], today)} "
             f"is {alert['days_late']} days late.")
 
 

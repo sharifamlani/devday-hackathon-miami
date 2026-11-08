@@ -729,10 +729,11 @@
 .onb-offer {
   --onb-tglow-y: rgba(244, 217, 88, 0.17);
   --onb-tglow-g: rgba(196, 220, 120, 0.2);
+  /* Top right, under the header: the bottom of the screen is the home chat's composer (Send, mic). */
   position: fixed;
   z-index: 50;
   right: 16px;
-  bottom: 16px;
+  top: 72px;
   width: min(380px, calc(100vw - 32px));
   padding: 16px;
   display: grid;
@@ -789,13 +790,13 @@
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
 }
-/* Phones: above the bottom navigation bar */
+/* Phones: under the fixed 56px header, clear of the composer and the bottom navigation */
 @media (max-width: 767px) {
   .onb-offer {
     left: 16px;
     right: 16px;
     width: auto;
-    bottom: calc(96px + env(safe-area-inset-bottom));
+    top: calc(64px + env(safe-area-inset-top));
   }
 }
 

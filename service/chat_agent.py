@@ -165,7 +165,7 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
                   and (not name or name.strip().lower() in (p.get("full_name") or "").lower())]
         people = with_gifts_and_interests(people, no_gift_in_days, interest)[:min(limit, 50)]
         keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status",
-                "last_gift_date", "interests")
+                "last_gift_date", "interests", "next_step")
         return {"people": [{k: p.get(k) for k in keep} for p in people], "count": len(people)}
     if ctx.context.tab not in ("givers", "home", "calendar"):
         return not_loaded(ctx.context)
@@ -184,6 +184,9 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
                  "JOIN donor_scores s ON s.donor_id = d.id" + (" WHERE " + " AND ".join(where) if where else "")
                  + " ORDER BY s.score DESC", tuple(args))
     rows = with_gifts_and_interests(rows, no_gift_in_days, interest)[:min(limit, 50)]
+    t = tasks_module()                  # the same next_step GET /people shows: the giver's next open task
+    if t is not None:
+        with_conn(t.with_next_steps, rows)
     return {"people": rows, "count": len(rows)}
 
 

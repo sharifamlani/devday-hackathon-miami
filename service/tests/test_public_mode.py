@@ -264,7 +264,7 @@ def test_call_notes_and_staff_notes_never_appear_in_any_allowed_get(client):
                                            "due_date": due})
     assert made.status_code in (200, 201), made.text
     assert marker in client.get(f"/donors/{donor_id}").text           # local mode still shows it
-    for path in ("/tasks", "/tasks?due=today", "/calendar", "/people?type=giver"):
+    for path in ("/tasks", "/tasks?due=today", "/calendar", "/people?type=giver", "/donors", f"/donors/{donor_id}"):
         assert private in client.get(path).text, path                  # ... and the private task
     public_mode.set_enabled(True)
     h = {"Origin": VERCEL}

@@ -43,3 +43,6 @@ data/event_drafts.json
 data/ingest_cache/
 .public-tunnel.json
 .public-tunnel.log
+
+# vitest browser-mode failure screenshots (never commit)
+web/.vitest/
