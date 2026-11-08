@@ -1233,6 +1233,7 @@ browser-direct Gemini with a long-lived key.
 [4. Dashboard] gauge, today at a glance, CRM list, task card, calendar, artifacts, agent chat:
    every panel reads the context dataset + people/gifts; the agent answers from the same tables
 ```
+> **Superseded by §22 (onboarding after #264):** step 3 no longer has its own screen; step 2's Continue opens the dashboard and the site is read in the background.
 - Step 3 shows live progress (sources being read, facts found), then lands on the dashboard; no button press needed.
 - The daily refresh re-runs step 3 and re-generates tasks.
 - Build mapping: step 1 exists (ingest adapter); step 2 screen is Christian's (from draft #70); step 3 backend exists
@@ -1465,6 +1466,7 @@ then, in the agent chat (not in the mockup; added for the demo):
 ```
 
 #### 21.3.6 Onboarding
+> **Superseded by §22 (onboarding after #264):** step 3 no longer has its own screen; step 2's Continue opens the dashboard and the site is read in the background.
 ```
 Step 1 Upload                         Step 2 Your organization           Step 3 Building your context
 +-------------------------------+    +----------------------------+     +-------------------------------+
@@ -1870,7 +1872,7 @@ No UI or code changes: this section only orders what is already on main.
        |  processing view: "Bringing your data         |
        |  together." -> "Everything's in place."       |
        |  results: "Your donor data is ready."         |
-       |  77 accounts · <N> removed · 9 to review      |
+       |  77 accounts · 19 removed · 9 to review       |
        |  -> Create organization profile               |
        |  website miamifoundation.org -> Continue      |
        |  -> dashboard at once; site read in the       |
@@ -1908,8 +1910,8 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | # | Step | Operator does | Screen shows |
 |---|---|---|---|
 | 1 | Empty app | Hard refresh http://localhost:5173 | **Donor Desk · Step 1 of 2**, **Drag in your files.** |
-| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | the processing view (**kindred**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **<N> Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage) → **Create organization profile** |
-| 2b | Website | **Step 2 of 2** **Your organization.**: type `miamifoundation.org`, **Continue** | the dashboard opens at once; the site and news are read in the background (~30 s), then the events, prep tasks and facts land |
+| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | the processing view (**kindred**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **19 Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage), ~5 s after Import (4.3–6.4 s in 20's TEST walks) → **Create organization profile** |
+| 2b | Website | **Step 2 of 2** **Your organization.**: type `miamifoundation.org`, **Continue** | the dashboard opens in under 2 s (e.g. **15 tasks today**); the site and news are read in the background, and the 4 events, prep tasks and facts land ~30–40 s after **Continue** |
 | 3 | Dashboard | **Not now** on the tour card (it may read "We're still reading your website…") | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
 | 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
