@@ -388,3 +388,17 @@ def test_a_resumed_run_returns_only_steps_the_user_has_not_seen(monkeypatch):
     out = ca.respond(result, ca.ChatContext(tab="home"), {"tab": "home"}, shown)
     assert [s["call_id"] for s in out["steps"]] == ["b", "c"]
     assert out["steps"][0]["summary"].startswith("Approved")
+
+
+def test_approval_cards_name_the_person_and_the_batch(db_file):
+    conn = sqlite3.connect(db_file)
+    try:
+        pid, name = conn.execute("SELECT id, full_name FROM donors WHERE contact_type = 'giver' ORDER BY id").fetchone()
+        conn.execute("UPDATE donors SET phone = '305-555-0104' WHERE id = ?", (pid,))
+        conn.commit()
+    finally:
+        conn.close()
+    assert ca.approval_summary("call_person", {"person_id": pid}) == f"Call {name} at ***-***-0104"
+    batch = invoke("draft_email", person_ids=[pid], intent="thank_you")["batch_id"]
+    assert ca.approval_summary("send", {"batch_id": batch}).startswith("Send 1 email")
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": 1}) is None

@@ -21,6 +21,19 @@ describe("ApprovalCard", () => {
     expect(html).not.toContain("Approve</button>");
   });
 
+  it("shows the service's plain summary instead of raw arguments", () => {
+    const html = renderToString(
+      <ApprovalCard
+        approval={{ call_id: "c1", tool: "call_person", args: { person_id: 17 }, summary: "Call Elizabeth Fontaine at ***-***-0104" }}
+        decided={false}
+        disabled={false}
+        onDecide={() => {}}
+      />,
+    );
+    expect(html).toContain("Call Elizabeth Fontaine at ***-***-0104");
+    expect(html).not.toContain("person id");
+  });
+
   it("a send card says Send; other tools keep Approve and Decline", () => {
     expect(card("send")).toContain("Send</button>");
     const other = card("merge_duplicate");

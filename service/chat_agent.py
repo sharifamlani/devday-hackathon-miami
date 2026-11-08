@@ -842,6 +842,33 @@ def build_agent(tab: str, selection: list[int], event_id: int | None, first_turn
                  model_settings=ModelSettings(reasoning=Reasoning(effort="low")))
 
 
+def approval_summary(tool: str, args: dict) -> str | None:
+    """One plain line for an approval card ("Call Maria Delgado at ***-***-0101"); None = show the arguments."""
+    from service.routes_campaigns import mask_address
+    if tool == "call_person" and args.get("person_id") is not None:
+        rows = query("SELECT full_name, phone FROM donors WHERE id = ?", (args["person_id"],))
+        if rows:
+            phone = mask_address(rows[0]["phone"], "text")
+            return f"Call {rows[0]['full_name']}" + (f" at {phone}" if phone else " (no phone number on file)")
+    if tool == "send" and args.get("batch_id") is not None:
+        rows = query("SELECT c.name, c.channel, COUNT(m.id) AS n FROM campaigns c LEFT JOIN campaign_messages m "
+                     "ON m.campaign_id = c.id WHERE c.id = ? GROUP BY c.id", (args["batch_id"],))
+        if rows:
+            r = rows[0]
+            kind = "email" if r["channel"] == "email" else "text"
+            return f"Send {r['n']} {kind}{'s' if r['n'] != 1 else ''}: {r['name']}"
+    return None
+
+
+def approval_items(interruptions) -> list[dict]:
+    """The paused calls as approval cards: call_id, tool, args and a plain summary."""
+    out = []
+    for i in interruptions or []:
+        args = output_data(i.arguments)
+        out.append({"call_id": i.call_id, "tool": i.name, "args": args, "summary": approval_summary(i.name, args)})
+    return out
+
+
 def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = None) -> dict:
     """The /chat response for a finished or paused run. shown = steps the thread already displays (a resumed
     run): the SDK's resumed result repeats them, so only new steps and the approved call's result go back."""
@@ -849,8 +876,7 @@ def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = Non
 
     done = {s["call_id"] for s in (shown or []) if s["status"] != "awaiting_approval"}
     steps = [s for s in steps_from(result.new_items) if s["call_id"] not in done]
-    approvals = [{"call_id": i.call_id, "tool": i.name, "args": output_data(i.arguments)}
-                 for i in (getattr(result, "interruptions", None) or [])]
+    approvals = approval_items(getattr(result, "interruptions", None))
     run_id = None
     if approvals:
         run_id = uuid.uuid4().hex
@@ -868,7 +894,8 @@ def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = Non
         finally:
             conn.close()
     reply = result.final_output if not approvals else (
-        result.final_output or "This needs your approval: " + ", ".join(a["tool"] for a in approvals) + ".")
+        result.final_output or "Waiting for you: " + "; ".join(a["summary"] or a["tool"].replace("_", " ")
+                                                              for a in approvals) + ".")
     return {"reply": reply, "tab": ctx.tab, "steps": steps, "run_id": run_id, "approvals": approvals,
             "pending_batch": batches[-1] if batches else None, "batches": batches}
 

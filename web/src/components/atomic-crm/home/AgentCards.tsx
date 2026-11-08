@@ -90,7 +90,9 @@ export const ApprovalCard = ({
     <p className="font-semibold">
       {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}: {toolLabel(approval.tool)}
     </p>
-    {argLine(approval.args) && <p className="mt-0.5 text-muted-foreground">{argLine(approval.args)}</p>}
+    {(approval.summary || argLine(approval.args)) && (
+      <p className="mt-0.5 text-muted-foreground">{approval.summary || argLine(approval.args)}</p>
+    )}
     {!decided && (
       <div className="mt-2 flex gap-2">
         <button
