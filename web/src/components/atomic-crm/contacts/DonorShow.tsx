@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ListPlus, Megaphone } from "lucide-react";
+import { ArrowLeft, ListPlus, Megaphone, Phone } from "lucide-react";
 import { InfiniteListBase, ShowBase, useShowContext } from "ra-core";
 import { Link, useSearchParams } from "react-router";
 
@@ -8,11 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NoteCreate, NotesIterator } from "../notes";
+import { DATA_MODE } from "../providers/local/config";
 import { reasonLabel } from "../providers/local/crmDonors";
 import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
 import type { DonorDetail } from "../providers/local/types";
 import { TaskCreateSheet } from "../tasks/TaskCreateSheet";
+import { PhoneCallDialog } from "../voice/PhoneCallDialog";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { ContactTasksList } from "./ContactTasksList";
 import {
@@ -169,69 +171,90 @@ const ProfileHeader = ({
 }: {
   record: DonorContactDetail;
   onAddTask: () => void;
-}) => (
-  <header className={cn(tileClass, "p-4 sm:p-5")}>
-    <div className="flex flex-wrap items-start gap-4">
-      <InitialsAvatar name={record.full_name} size="lg" />
-      <div className="min-w-0 flex-1">
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          {record.is_star && (
-            <span className="mr-1 text-brand-soft-foreground">
-              <span aria-hidden>★</span>
-              <span className="sr-only">Star donor: </span>
-            </span>
-          )}
-          {record.full_name}
-        </h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          {[
-            record.donor_type === "organization"
-              ? "Organization"
-              : "Individual",
-            `${tierLabel[record.tier]} donor`,
-            statusLabel[record.donor_status],
-            record.city,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <DonorTagList tags={record.status_tags} />
-          {record.is_sample && <SampleHistoryBadge />}
+}) => {
+  // Calling from the staff member's own phone needs the laptop service; the Vercel snapshot can't
+  const [callOpen, setCallOpen] = useState(false);
+  return (
+    <header className={cn(tileClass, "p-4 sm:p-5")}>
+      <div className="flex flex-wrap items-start gap-4">
+        <InitialsAvatar name={record.full_name} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            {record.is_star && (
+              <span className="mr-1 text-brand-soft-foreground">
+                <span aria-hidden>★</span>
+                <span className="sr-only">Star donor: </span>
+              </span>
+            )}
+            {record.full_name}
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {[
+              record.donor_type === "organization"
+                ? "Organization"
+                : "Individual",
+              `${tierLabel[record.tier]} donor`,
+              statusLabel[record.donor_status],
+              record.city,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <DonorTagList tags={record.status_tags} />
+            {record.is_sample && <SampleHistoryBadge />}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-xs font-medium text-muted-foreground">
+            Priority score
+          </div>
+          <div
+            className={cn(
+              "text-3xl font-bold leading-none tabular-nums sm:text-4xl",
+              scoreClass(record.score),
+            )}
+          >
+            {record.score}
+          </div>
         </div>
       </div>
-      <div className="text-right">
-        <div className="text-xs font-medium text-muted-foreground">
-          Priority score
-        </div>
-        <div
+      <div className="mt-4 flex flex-wrap gap-2">
+        {DATA_MODE === "local" && (
+          <Button
+            size="sm"
+            className="rounded-full"
+            onClick={() => setCallOpen(true)}
+          >
+            <Phone aria-hidden />
+            Call
+          </Button>
+        )}
+        <Button size="sm" className="rounded-full" onClick={onAddTask}>
+          <ListPlus aria-hidden />
+          Add task
+        </Button>
+        <Link
+          to={`/campaigns/new?donors=${record.id}`}
           className={cn(
-            "text-3xl font-bold leading-none tabular-nums sm:text-4xl",
-            scoreClass(record.score),
+            buttonVariants({ size: "sm", variant: "outline" }),
+            "rounded-full",
           )}
         >
-          {record.score}
-        </div>
+          <Megaphone aria-hidden />
+          Add to a campaign
+        </Link>
       </div>
-    </div>
-    <div className="mt-4 flex flex-wrap gap-2">
-      <Button size="sm" className="rounded-full" onClick={onAddTask}>
-        <ListPlus aria-hidden />
-        Add task
-      </Button>
-      <Link
-        to={`/campaigns/new?donors=${record.id}`}
-        className={cn(
-          buttonVariants({ size: "sm", variant: "outline" }),
-          "rounded-full",
-        )}
-      >
-        <Megaphone aria-hidden />
-        Add to a campaign
-      </Link>
-    </div>
-  </header>
-);
+      {DATA_MODE === "local" && (
+        <PhoneCallDialog
+          donorId={record.id}
+          open={callOpen}
+          onOpenChange={setCallOpen}
+        />
+      )}
+    </header>
+  );
+};
 
 const Overview = ({
   record,
