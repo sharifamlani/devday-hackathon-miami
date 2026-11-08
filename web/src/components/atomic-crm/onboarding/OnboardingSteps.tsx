@@ -409,8 +409,18 @@ export const DonorsStep = ({
       });
   }, [importOpen, donors]);
 
+  // The landing page may already have loaded the example files: never load them twice.
+  const alreadyLoaded = LIVE ? (donors?.length ?? 0) : 0;
+
   const loadSample = async () => {
     setChoice("sample");
+    if (alreadyLoaded > 0) {
+      setMessage({
+        tone: "good",
+        text: `The example files are already loaded: ${alreadyLoaded} donors.`,
+      });
+      return;
+    }
     if (!LIVE) {
       setMessage({
         tone: "good",
@@ -480,9 +490,11 @@ export const DonorsStep = ({
               sample data
             </b>
             <span>
-              {LIVE
-                ? "Load fictional donors for a Miami nonprofit."
-                : "Already loaded in this preview."}
+              {!LIVE
+                ? "Already loaded in this preview."
+                : alreadyLoaded > 0
+                  ? `Already loaded: ${alreadyLoaded} donors.`
+                  : "Load the example files from data/sample_inputs/ (fictional)."}
             </span>
           </button>
         </div>

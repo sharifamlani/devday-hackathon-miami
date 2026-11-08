@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from service import db, dedupe, score
+from service.tests.fixtures_seed import seed
 from service import routes_data
 from service.tests.conftest import AS_OF
 
@@ -17,7 +18,7 @@ def snapshot(conn, donor_id):
 
 
 def seeded_pair(conn):
-    db.seed(conn)
+    seed(conn)
     score.run(conn, AS_OF)
     dedupe.run(conn)
     return conn.execute("SELECT * FROM duplicate_suggestions").fetchone()
