@@ -46,26 +46,96 @@
     var(--card);
 }
 
+/* The card never outgrows the screen: the step's body scrolls and its footer
+   (the main button) stays in the same place on every step. */
 .onb-card {
   width: 100%;
   max-width: 620px;
-  padding: 28px;
-  display: grid;
-  gap: 22px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 28px 28px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
 }
 @media (max-width: 480px) {
   .onb-card {
-    padding: 20px 16px;
-    gap: 18px;
+    padding: 18px 16px 16px;
+    gap: 16px;
+  }
+}
+.onb-head {
+  display: grid;
+  gap: 14px;
+  flex: none;
+}
+.onb-step {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 14px;
+}
+.onb-body {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* room for focus rings inside the scroller */
+  margin: -4px;
+  padding: 4px;
+}
+.onb-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.onb-footer .onb-spacer {
+  flex: 1;
+}
+@media (max-width: 480px) {
+  .onb-footer .onb-btn.primary {
+    flex: 1 1 100%;
+    order: -1;
+  }
+  .onb-footer .onb-spacer {
+    display: none;
   }
 }
 
 .onb-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 8px;
+}
+.onb-spacer {
+  flex: 1;
+}
+.onb-back {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: -6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.onb-back:hover:not(:disabled) {
+  background: var(--muted);
+}
+.onb-back:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 .onb-wordmark {
   font-size: 15px;
@@ -159,14 +229,84 @@
   font-size: 13px;
   font-weight: 600;
 }
-.onb-field input {
-  min-height: 44px;
-  border-radius: 14px;
-}
 .onb-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
   margin: 0;
   font-size: 12.5px;
+  line-height: 1.4;
   color: var(--destructive);
+}
+.onb-error svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* A field with a grey prefix inside its box: "https://", "x.com/" */
+.onb-prefixed {
+  display: flex;
+  align-items: stretch;
+  min-height: 44px;
+  border: 1px solid
+    color-mix(in oklab, var(--muted-foreground) 80%, transparent);
+  border-radius: 14px;
+  background: var(--card);
+  overflow: hidden;
+}
+.onb-prefixed:focus-within {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+.onb-prefixed[data-invalid="true"] {
+  border-color: var(--destructive);
+}
+.onb-prefix {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 0 4px 0 12px;
+  font-size: 15px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  user-select: none;
+}
+.onb-prefixed input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 12px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+.onb-screen .onb-prefixed input:focus-visible {
+  outline: none;
+}
+.onb-prefixed input::placeholder {
+  color: color-mix(in oklab, var(--muted-foreground) 75%, transparent);
+}
+.onb-socials {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.onb-socials legend {
+  padding: 0;
+  margin-bottom: 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.onb-optional {
+  font-weight: 400;
+  color: var(--muted-foreground);
 }
 .dark .onb-error {
   color: #f19a86;
@@ -256,6 +396,125 @@
   border-style: solid;
   box-shadow: inset 0 0 0 1px var(--foreground);
 }
+.onb-drop[aria-disabled="true"] {
+  opacity: 0.6;
+}
+.onb-drop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 8px;
+}
+.onb-chosen {
+  display: grid;
+  gap: 8px;
+}
+.onb-chosen-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.onb-chosen-head .onb-btn {
+  margin-left: auto;
+}
+.onb-chevron {
+  transition: transform 0.15s ease;
+}
+.onb-chevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .onb-chevron {
+    transition: none;
+  }
+}
+.onb-files[hidden] {
+  display: none;
+}
+
+/* Receipts: what the import brought in, what the agent found */
+.onb-receipt {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+}
+.onb-receipt-head {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.onb-receipt-head svg {
+  margin-top: 2px;
+  color: var(--good-foreground);
+}
+.onb-receipt h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.onb-receipt-head p {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+.onb-tab-counts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.onb-tab-counts li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 13px;
+  color: var(--muted-foreground);
+  min-width: 0;
+}
+.onb-tab-count {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.onb-receipt-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.onb-receipt-line .onb-btn.text {
+  padding: 0 4px;
+  min-height: 32px;
+}
+.onb-fact-list {
+  margin: 0;
+  padding: 0 0 0 30px;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.onb-fact-list li {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .onb-drop-title {
   margin: 0;
   font-size: 15px;
@@ -396,8 +655,64 @@
 .dark .onb-sources li[data-tone="problem"] .onb-source-text {
   color: #f19a86;
 }
-.onb-sources li[data-tone="quiet"] svg {
+.onb-sources li[data-tone="quiet"] svg,
+.onb-sources li[data-tone="pending"] svg {
   color: var(--muted-foreground);
+}
+.onb-sources li[data-tone="pending"] .onb-source-label {
+  color: var(--muted-foreground);
+}
+
+/* Step 3: the determinate bar over the checklist */
+.onb-bar-wrap {
+  display: grid;
+  gap: 6px;
+}
+.onb-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+.onb-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--foreground);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .onb-bar span {
+    transition: width 0.9s linear;
+  }
+}
+.onb-bar-label {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Step 3: the short welcome before the dashboard (Luma) */
+.onb-welcome {
+  display: grid;
+  place-items: center;
+  padding: 18px 0 8px;
+}
+.onb-welcome-mark {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 0 0 10px color-mix(in oklab, var(--brand) 22%, transparent),
+    0 0 60px 24px color-mix(in oklab, var(--brand) 30%, transparent);
 }
 @media (prefers-reduced-motion: no-preference) {
   .onb-spin {
@@ -440,6 +755,28 @@
   font-size: 13.5px;
   line-height: 1.45;
   color: var(--muted-foreground);
+}
+.onb-offer-status {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.onb-offer-status svg {
+  color: var(--muted-foreground);
+}
+.onb-offer-status[data-tone="done"] svg {
+  color: var(--good-foreground);
+}
+.onb-offer-status[data-tone="failed"] svg {
+  color: var(--destructive);
+}
+.onb-icon-btn.small {
+  width: 32px;
+  height: 32px;
 }
 .onb-offer-actions {
   grid-column: 1 / -1;

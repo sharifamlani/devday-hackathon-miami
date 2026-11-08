@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router";
 
 import { DATA_MODE, donorDeskMethods } from "../providers/local";
+import { useBackgroundWatcher } from "./backgroundRead";
 import { OnboardingFlow } from "./OnboardingFlow";
 import {
   readOnboardingParam,
   shouldAutoShow,
   shouldOfferTour,
+  shouldShowBackground,
   useOnboarding,
 } from "./onboardingState";
 import { TourOffer } from "./TourOffer";
@@ -18,7 +20,8 @@ import { TourRunner } from "./TourRunner";
  * (demos; `?onboarding=0` keeps it closed). It fires at most once per page
  * load, so closing the flow never reopens it by itself. The flag lives at
  * module level because react-admin can remount the layout (and this gate)
- * while it settles its routes. After setup, the dashboard offers the tour.
+ * while it settles its routes. After setup, the dashboard offers the tour,
+ * and a slow website read keeps a status line until it's done.
  */
 let firedThisPageLoad = false;
 
@@ -28,7 +31,9 @@ let firedThisPageLoad = false;
  * step 1 over a working dashboard. Snapshot mode: always false, so nothing changes there.
  */
 const useServiceHasPeople = (): boolean | null => {
-  const [hasPeople, setHasPeople] = useState<boolean | null>(DATA_MODE === "local" ? null : false);
+  const [hasPeople, setHasPeople] = useState<boolean | null>(
+    DATA_MODE === "local" ? null : false,
+  );
   useEffect(() => {
     if (DATA_MODE !== "local") return;
     let live = true;
@@ -51,6 +56,7 @@ export const OnboardingGate = () => {
     typeof window === "undefined" ? "" : window.location.search,
     (typeof window === "undefined" ? "" : window.location.hash) || search,
   );
+  useBackgroundWatcher(data.background?.status === "running");
 
   useEffect(() => {
     if (open || tour || firedThisPageLoad) return;
@@ -69,6 +75,8 @@ export const OnboardingGate = () => {
 
   if (open) return <OnboardingFlow />;
   if (tour) return <TourRunner />;
-  if (shouldOfferTour(data, pathname, param)) return <TourOffer />;
+  const offer = shouldOfferTour(data, pathname, param);
+  if (offer || shouldShowBackground(data, param))
+    return <TourOffer offer={offer} />;
   return null;
 };
