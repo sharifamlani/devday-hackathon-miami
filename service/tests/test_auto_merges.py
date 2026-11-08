@@ -206,3 +206,25 @@ def test_a_merge_chain_reaches_its_third_member(tmp_path, monkeypatch):
     while (cards := c.get("/duplicates").json()):
         assert c.post(f"/duplicates/{cards[0]['id']}/merge", json={"approved_by": "qa"}).status_code == 200
     assert len(c.get("/people").json()["people"]) == 1                    # all three are one donor
+
+
+def test_snapshot_carries_masked_sources_for_open_auto_merges(setup):
+    from service.export_snapshot import build_snapshot
+
+    path, c, _ = setup
+    maria = person(c, "Maria Delgado")
+    conn = db.connect(path)
+    snap = json.loads(json.dumps(build_snapshot(conn, rescore=False)))
+    conn.close()
+    entry = snap["auto_merges"][str(maria["id"])]
+    live = c.get(f"/people/{maria['id']}/merges").json()
+    assert [s["name"] for s in entry["merges"][0]["sources"]] == [s["name"] for s in live["merges"][0]["sources"]]
+    assert all(s["email"] == "m***@example.com" for s in entry["merges"][0]["sources"])      # masked
+    assert all(s["gift_ids"] == [] for s in entry["merges"][0]["sources"])
+    assert [s["gift_count"] for s in entry["merges"][0]["sources"]] == [s["gift_count"] for s in live["merges"][0]["sources"]]
+    assert set(snap["auto_merges"]) == {str(p["id"]) for p in c.get("/people").json()["people"] if p["auto_merged"]}
+
+    c.post(f"/people/{maria['id']}/merges/review", json={"action": "keep"})                   # reviewed: gone
+    conn = db.connect(path)
+    assert str(maria["id"]) not in build_snapshot(conn, rescore=False)["auto_merges"]
+    conn.close()
