@@ -802,3 +802,84 @@ def test_nice_date_reads_like_the_rest_of_the_app():
     assert tasks.nice_date("2026-11-08T10:00:00", AS_OF) == "Nov 8"                     # no leading zero
     assert tasks.nice_date(None, AS_OF) == ""
     assert tasks.nice_date("2027-01-02", AS_OF) == "Jan 2, 2027"
+
+
+# ---------- a giver's next step (GET /people) ----------
+
+def tabbed(conn, name, contact_type, first=None):
+    pid = db.insert_donor(conn, {"full_name": name, "first_name": first, "donor_type": "individual"})
+    conn.execute("UPDATE donors SET contact_type = ? WHERE id = ?", (contact_type, pid))
+    conn.commit()
+    return pid
+
+
+def steps_for(conn, *ids):
+    people = [dict(id=i, **dict(conn.execute("SELECT full_name, first_name, contact_type FROM donors WHERE id = ?",
+                                             (i,)).fetchone())) for i in ids]
+    return [p["next_step"] for p in tasks.with_next_steps(conn, people, AS_OF)]
+
+
+def test_a_givers_next_step_is_their_next_open_task(conn):
+    gina = tabbed(conn, "Gina Park", "giver")
+    assert steps_for(conn, gina) == [None]                                       # no task yet
+    later, _ = tasks.create_task(conn, kind="email", title="Thank Gina for the gala table", person_id=gina,
+                                 due="2026-11-20")
+    soon, _ = tasks.create_task(conn, kind="call", title="Call Gina about her pledge", person_id=gina, due="2026-11-12")
+    assert steps_for(conn, gina) == ["Call Gina about her pledge · Nov 12"]
+    tasks.complete_task(conn, soon["id"])
+    assert steps_for(conn, gina) == ["Thank Gina for the gala table · Nov 20"]
+    tasks.delete_task(conn, later["id"])
+    assert steps_for(conn, gina) == [None]
+    tasks.create_task(conn, kind="call", title="Call Gina", person_id=gina, due=AS_OF.isoformat())
+    assert steps_for(conn, gina) == ["Call Gina"]                                # due today: no date
+    tasks.create_task(conn, kind="other", title="Old note", person_id=gina, due="2026-11-01")
+    assert steps_for(conn, gina) == ["Old note · overdue"]                       # overdue comes first
+
+
+def test_neighbors_and_community_members_get_no_next_step(conn):
+    """Givers only (Sharif): a neighbor or community member stays null, even with an open task."""
+    nina = tabbed(conn, "Nina Ortiz", "neighbor", first="Nina")
+    carl = tabbed(conn, "Carl Reyes", "community")
+    tasks.create_task(conn, kind="call", title="Call Nina", person_id=nina, due=AS_OF.isoformat())
+    assert steps_for(conn, nina, carl) == [None, None]
+
+
+def test_get_people_and_find_people_carry_the_givers_next_step(tmp_path, monkeypatch):
+    monkeypatch.setenv("DONORS_DB", str(tmp_path / "donors.db"))
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    from service.routes_data import list_people, router as data_router
+    conn = db.connect()
+    db.create_schema(conn)
+    gina = tabbed(conn, "Gina Park", "giver")
+    nina = tabbed(conn, "Nina Ortiz", "neighbor", first="Nina")
+    tasks.create_task(conn, kind="call", title="Call Gina", person_id=gina, due="2026-11-12")
+    app = FastAPI()
+    app.include_router(data_router)
+    client = TestClient(app)
+    givers = client.get("/people", params={"type": "giver"}).json()["people"]
+    assert [(p["id"], p["next_step"]) for p in givers] == [(gina, "Call Gina · Nov 12")]
+    neighbors = client.get("/people", params={"type": "neighbor"}).json()["people"]
+    assert [(p["id"], p["next_step"]) for p in neighbors] == [(nina, None)]
+    # the chat agent's find_people reads people through list_people, so it sees the same step
+    assert {p["id"]: p["next_step"] for p in list_people(conn)}[gina] == "Call Gina · Nov 12"
+    conn.close()
+
+
+def test_a_generate_rerun_leaves_no_open_transaction(tmp_path):
+    """A rerun's ignored inserts used to leave a transaction open, so another connection's write then failed with
+    'database is locked' (test_icp_prospects' dismiss after build_snapshot)."""
+    path = tmp_path / "donors.db"
+    a = db.connect(path)
+    db.create_schema(a)
+    ana = person(a, "Ana Ruiz")
+    a.execute("INSERT INTO gifts (donor_id, amount, gift_date) VALUES (?, 250, '2026-10-20')", (ana,))
+    a.commit()
+    assert tasks.generate(a, AS_OF)["created"] == 1
+    assert tasks.generate(a, AS_OF)["created"] == 0
+    assert not a.in_transaction
+    b = db.connect(path)
+    b.execute("PRAGMA busy_timeout = 200")
+    b.execute("UPDATE donors SET city = 'Miami' WHERE id = ?", (ana,))   # would raise "database is locked"
+    b.commit()
+    a.close()
+    b.close()

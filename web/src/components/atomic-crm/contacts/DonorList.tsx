@@ -41,7 +41,10 @@ import {
   tileClass,
 } from "./donorCrmUi";
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
+import { AutoMergeFlag } from "./AutoMergeFlag";
 import { DuplicateBanner } from "./DuplicateMerge";
+import { AlsoFound, PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
+import { usePeopleTab } from "./usePeopleTab";
 
 const SORTS = [
   { value: "score:DESC", label: "Priority score" },
@@ -70,6 +73,7 @@ const DonorListLayout = () => {
     useListContext<DonorContact>();
   const [importOpen, setImportOpen] = useState(false);
   const facets = useFacets();
+  const [tab] = usePeopleTab();
 
   // Imports and merges refetch the donor-desk queries; follow them.
   const donorsUpdatedAt = useDonors().dataUpdatedAt;
@@ -100,9 +104,16 @@ const DonorListLayout = () => {
         </div>
       </div>
       <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
-      <DuplicateBanner />
+      <PeopleTabBar />
+      {tab !== "giver" && <PeopleTabPanel tab={tab} />}
+      {tab === "giver" && <DuplicateBanner />}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2",
+          tab !== "giver" && "hidden",
+        )}
+      >
         <SearchBox />
         <SortSelect />
         <Popover>
@@ -132,7 +143,7 @@ const DonorListLayout = () => {
         </Popover>
       </div>
 
-      <div className="flex gap-4">
+      <div className={cn("flex gap-4", tab !== "giver" && "hidden")}>
         <div className="min-w-0 flex-1 space-y-2">
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {isPending
@@ -166,7 +177,10 @@ const DonorListLayout = () => {
           )}
         </div>
       </div>
-      <BulkBar />
+      {tab === "giver" && (
+        <AlsoFound query={String(filterValues.q ?? "")} current="giver" />
+      )}
+      {tab === "giver" && <BulkBar />}
     </div>
   );
 };
@@ -493,6 +507,12 @@ const DonorRows = () => {
                   )}
                   {donor.full_name}
                 </Link>
+                <AutoMergeFlag
+                  personId={donor.id}
+                  name={donor.full_name}
+                  autoMerged={donor.auto_merged}
+                  mergedFrom={donor.merged_from}
+                />
                 <span className="flex flex-wrap gap-1 @min-[900px]:hidden">
                   {(donor.status_tags ?? []).slice(0, 2).map((tag) => (
                     <DonorTagBadge key={tag} tag={tag} />

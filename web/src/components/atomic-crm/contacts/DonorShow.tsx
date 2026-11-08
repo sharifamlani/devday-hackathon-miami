@@ -13,6 +13,7 @@ import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
 import type { DonorDetail } from "../providers/local/types";
 import { TaskCreateSheet } from "../tasks/TaskCreateSheet";
+import { PhoneCallButton } from "../voice/PhoneCallButton";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { ContactTasksList } from "./ContactTasksList";
 import {
@@ -30,6 +31,8 @@ import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { ScoreWhyPanel } from "./ScoreWhyPanel";
 import { TagsListEdit } from "./TagsListEdit";
+import { AutoMergeFlag } from "./AutoMergeFlag";
+import { isNonGiver, TAB_ONE } from "./personTab";
 
 const TABS = ["overview", "notes", "tasks"] as const;
 type ProfileTab = (typeof TABS)[number];
@@ -182,14 +185,26 @@ const ProfileHeader = ({
             </span>
           )}
           {record.full_name}
+          <span className="ml-2 inline-flex align-middle">
+            <AutoMergeFlag
+              personId={record.id}
+              name={record.full_name}
+              autoMerged={record.auto_merged}
+              mergedFrom={record.merged_from}
+            />
+          </span>
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {[
             record.donor_type === "organization"
               ? "Organization"
               : "Individual",
-            `${tierLabel[record.tier]} donor`,
-            statusLabel[record.donor_status],
+            ...(isNonGiver(record.contact_type)
+              ? [TAB_ONE[record.contact_type]]
+              : [
+                  `${tierLabel[record.tier]} donor`,
+                  statusLabel[record.donor_status],
+                ]),
             record.city,
           ]
             .filter(Boolean)
@@ -215,6 +230,7 @@ const ProfileHeader = ({
       </div>
     </div>
     <div className="mt-4 flex flex-wrap gap-2">
+      <PhoneCallButton donorId={record.id} />
       <Button size="sm" className="rounded-full" onClick={onAddTask}>
         <ListPlus aria-hidden />
         Add task

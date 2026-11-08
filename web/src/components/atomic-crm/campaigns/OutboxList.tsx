@@ -1,22 +1,26 @@
 import { Link } from "react-router";
 
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOutbox } from "../providers/local/hooks";
 import { formatStamp } from "./campaignFormat";
-import { ChannelLabel, LinkPill, PageShell, SimulatedNote } from "./campaignUi";
+import { ChannelLabel, LinkPill, PageShell } from "./campaignUi";
+import { SendModeNote } from "./SendModeNote";
+import { TONE_CLASS } from "./sendLabels";
+import { outboxLabel } from "./sendLabels";
 
-/** /outbox: the simulated outbox, which is also the contact log (who, when, which channel). */
+/** /outbox: every approved message and what really happened to it (dry run, sent via a provider, failed). */
 export const OutboxList = () => {
   const { data: entries, isPending, error } = useOutbox();
 
   return (
     <PageShell
-      eyebrow="SIMULATED OUTBOX · CONTACT LOG"
+      eyebrow="OUTBOX · CONTACT LOG"
       title="Outbox"
-      caption="Every approved campaign message, with who it was for, when, and by which channel. Nothing here was delivered."
+      caption="Every approved campaign message, with who it was for, when, by which channel, and whether it was a dry run, sent, or failed."
       actions={<LinkPill to="/campaigns">Campaigns</LinkPill>}
     >
-      <SimulatedNote className="rounded-[18px] bg-card p-4" />
+      <SendModeNote className="rounded-[18px] bg-card p-4" />
       {isPending ? (
         <Skeleton className="h-32 w-full rounded-[22px]" />
       ) : error ? (
@@ -26,7 +30,7 @@ export const OutboxList = () => {
       ) : !entries?.length ? (
         <p className="rounded-[22px] bg-card p-5 text-sm text-muted-foreground">
           The outbox is empty. Approve messages in a campaign, then choose “Send
-          to outbox (simulated)”.
+          approved messages”.
         </p>
       ) : (
         <ul className="space-y-3" aria-label="Outbox messages">
@@ -36,8 +40,13 @@ export const OutboxList = () => {
                 <p className="text-sm font-semibold [overflow-wrap:anywhere]">
                   {entry.donor_name ?? "Removed donor"}
                 </p>
-                <span className="rounded-full bg-quiet px-2.5 py-0.5 text-[11px] font-semibold text-quiet-foreground">
-                  Simulated · not delivered
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                    TONE_CLASS[outboxLabel(entry).tone],
+                  )}
+                >
+                  {outboxLabel(entry, formatStamp(entry.sent_at)).text}
                 </span>
               </div>
               <dl className="grid gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-4">

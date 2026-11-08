@@ -509,6 +509,31 @@ CREATE INDEX IF NOT EXISTS idx_call_notes_created ON call_notes(created_at);
 SCHEMA += CALLS_SCHEMA
 TABLES = ["call_notes"] + TABLES
 
+# Calls placed from the staff member's own phone (service/phone.py, plan §21 S1). One row per call; the
+# worker thread moves status along and links the saved call note. No phone numbers are stored here.
+PHONE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS phone_calls (
+    id             TEXT PRIMARY KEY,
+    donor_id       INTEGER NOT NULL,
+    donor_name     TEXT NOT NULL DEFAULT '',
+    status         TEXT NOT NULL CHECK (status IN ('calling_you', 'calling_donor', 'connected', 'processing',
+                                                   'done', 'failed')),
+    detail         TEXT,                        -- why it failed, or the processing step it is on
+    staff_call_sid TEXT,                        -- Twilio leg 1: the staff member's phone (recorded)
+    donor_call_sid TEXT,                        -- Twilio leg 2: the donor's phone
+    recording_sid  TEXT,
+    note_id        TEXT,                        -- call_notes.id once the note is saved
+    result         TEXT NOT NULL DEFAULT '{}',  -- JSON {summary, next_steps, summary_source, steps, actions}
+    started_at     TEXT NOT NULL,
+    connected_at   TEXT,
+    ended_at       TEXT,
+    duration_sec   INTEGER NOT NULL DEFAULT 0 CHECK (duration_sec >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_phone_calls_started ON phone_calls(started_at);
+"""
+SCHEMA += PHONE_SCHEMA
+TABLES = ["phone_calls"] + TABLES
+
 # The Donors tab's own notes, tasks and tags (Atomic CRM's contact_notes / tasks / tags), written by
 # service/routes_crm.py only. Private staff notes: never in GET /donors/{id} or the snapshot export.
 # contact_id is a donors.id with no foreign key on purpose: a merge deletes the dropped donor row and
@@ -598,6 +623,27 @@ TABLES = ["pledges"] + TABLES
 CONTACT_TYPES = ("giver", "neighbor", "community")
 # Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
 DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
+
+# Exact-identity merges made automatically at upload (same email / same written name / a name fragment).
+# Sharif: they stay automatic but are flagged for staff: keep (clear the flag) or split (restore each source
+# person with exactly its own gifts). No foreign key on donor_id, like crm_* tables: a staff merge or its undo
+# must not delete this history. Its own block so other branches editing db.py merge cleanly.
+AUTO_MERGE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS auto_merges (
+    id            INTEGER PRIMARY KEY,
+    donor_id      INTEGER NOT NULL,            -- the surviving person (donors.id)
+    rule          TEXT NOT NULL,               -- e.g. "same email", "same written name"
+    sources       TEXT NOT NULL,               -- JSON [{key, name, email, phone, locs, gift_ids, survivor, rule}]
+    merged_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewed_at   TEXT,
+    review_action TEXT CHECK (review_action IN ('keep', 'split')),
+    reviewed_by   TEXT,
+    split_ids     TEXT                         -- JSON donors.ids a split created
+);
+CREATE INDEX IF NOT EXISTS idx_auto_merges_donor ON auto_merges(donor_id);
+"""
+SCHEMA += AUTO_MERGE_SCHEMA
+TABLES = ["auto_merges"] + TABLES
 
 ADDED_COLUMNS = {
     "icp_profile": {"recent_context": "TEXT"},
