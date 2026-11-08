@@ -21,6 +21,13 @@ import {
   type RawDonorRow,
   type SortOrder,
 } from "./crmDonors";
+import {
+  browserPersistence,
+  defaultPersistence,
+  durableAttachments,
+  type CrmPersistence,
+  type CrmRecordResource,
+} from "./crmPersistence";
 import { request } from "./httpClient";
 import { loadSnapshot } from "./snapshotClient";
 
@@ -29,12 +36,15 @@ import { loadSnapshot } from "./snapshotClient";
  * Atomic CRM's FakeRest sample:
  *
  * - contacts: one record per donor (GET /donors, or the snapshot), read-only
- *   except tags, background and "last seen", which stay in this tab.
+ *   except tags, background and "last seen" (saved like the notes, below).
  * - companies: organizations that give (foundations, businesses,
  *   households), derived from the donors. Read-only.
- * - contact_notes, tasks, tags: Atomic CRM's notes, tasks and tags, kept in
- *   memory for this tab in both modes. The service has no notes or tasks
- *   routes yet, so nothing here is sent anywhere.
+ * - contact_notes, tasks, tags: Atomic CRM's notes, tasks and tags, plus the
+ *   tags, background and "last seen" this tab adds to a donor. Saved through
+ *   crmPersistence.ts: the service (/crm/...) in local mode, this browser's
+ *   localStorage in snapshot mode. They are loaded once into an in-memory
+ *   FakeRest store, which answers react-admin's filters; every change is
+ *   saved first and only then shown.
  */
 
 export const CRM_RESOURCES = new Set([
@@ -146,24 +156,64 @@ type ListParams = {
 const READ_ONLY_ORGS =
   "Organizations come from the donor records. Edit the donor record instead.";
 
+export interface CrmResourceOptions {
+  /** Where notes, tasks and tags are saved; in memory only when omitted. */
+  persistence?: CrmPersistence;
+  /** The tags an empty in-memory store starts with. */
+  seedTags?: typeof DEFAULT_TAGS;
+}
+
+const isRecordResource = (name: string): name is CrmRecordResource =>
+  name === "contact_notes" || name === "tasks" || name === "tags";
+
 /**
- * Builds the resource handlers. `source` is injectable so tests can pass a
- * fixed donor list.
+ * Builds the resource handlers. `source` and `persistence` are injectable so
+ * tests can pass a fixed donor list and their own storage.
  */
 export const createCrmResources = (
   source: DonorSource,
-  seedTags = DEFAULT_TAGS,
+  options: CrmResourceOptions = {},
 ) => {
-  const overlays = new Map<number, ContactOverlay>();
-  const store = withSupabaseFilterAdapter(
-    fakeRestDataProvider(
-      { contact_notes: [], tasks: [], tags: structuredClone(seedTags) },
-      false,
-      0,
-    ),
-  );
+  const persistence =
+    options.persistence ??
+    browserPersistence(null, options.seedTags ?? DEFAULT_TAGS);
 
-  const everything = async (resource: "contact_notes" | "tasks") =>
+  type Loaded = {
+    store: ReturnType<typeof withSupabaseFilterAdapter>;
+    overlays: Map<number, ContactOverlay>;
+  };
+  let loading: Promise<Loaded> | null = null;
+  /** The saved records, read once; a failed read is tried again next time. */
+  const ready = (): Promise<Loaded> => {
+    if (!loading) {
+      const attempt = persistence.load().then((records) => ({
+        store: withSupabaseFilterAdapter(
+          fakeRestDataProvider(
+            structuredClone({
+              contact_notes: records.contact_notes,
+              tasks: records.tasks,
+              tags: records.tags,
+            }),
+            false,
+            0,
+          ),
+        ),
+        overlays: records.overlays,
+      }));
+      loading = attempt;
+      attempt.catch(() => {
+        if (loading === attempt) loading = null;
+      });
+    }
+    return loading;
+  };
+  /** The donor list still shows when notes and tasks can't be read. */
+  const readyOrNull = () => ready().catch(() => null);
+
+  const everything = async (
+    store: Loaded["store"],
+    resource: "contact_notes" | "tasks",
+  ) =>
     (
       await store.getList(resource, {
         filter: {},
@@ -173,10 +223,16 @@ export const createCrmResources = (
     ).data;
 
   /** Open tasks, newest note and newest done thank-you task, per donor. */
-  const activity = async () => {
+  const activity = async (loaded: Loaded | null) => {
+    if (!loaded) {
+      return new Map<
+        number,
+        { open: number; note: string | null; thanked: string | null }
+      >();
+    }
     const [notes, tasks] = await Promise.all([
-      everything("contact_notes"),
-      everything("tasks"),
+      everything(loaded.store, "contact_notes"),
+      everything(loaded.store, "tasks"),
     ]);
     const per = new Map<
       number,
@@ -215,11 +271,13 @@ export const createCrmResources = (
     contacts: DonorContact[];
     organizations: DonorOrganization[];
   }> => {
-    const [rows, asOf, per] = await Promise.all([
+    const [rows, asOf, loaded] = await Promise.all([
       source.rows(),
       source.asOf(),
-      activity(),
+      readyOrNull(),
     ]);
+    const per = await activity(loaded);
+    const overlays = loaded?.overlays;
     const { organizations, orgOf } = deriveOrganizations(rows);
     const orgName = new Map(organizations.map((o) => [o.id, o.name]));
     const details = withDetails
@@ -234,7 +292,7 @@ export const createCrmResources = (
         companyId,
         companyName:
           companyId != null ? (orgName.get(companyId) ?? null) : null,
-        overlay: overlays.get(row.id),
+        overlay: overlays?.get(row.id),
         extras: {
           ...extras,
           thanked_at: latest(extras.thanked_at, local?.thanked),
@@ -247,12 +305,14 @@ export const createCrmResources = (
   };
 
   const contactDetail = async (id: number): Promise<DonorContactDetail> => {
-    const [{ contacts, organizations }, detail, asOf, per] = await Promise.all([
-      build(false),
-      source.detail(id),
-      source.asOf(),
-      activity(),
-    ]);
+    const [{ contacts, organizations }, detail, asOf, loaded] =
+      await Promise.all([
+        build(false),
+        source.detail(id),
+        source.asOf(),
+        readyOrNull(),
+      ]);
+    const per = await activity(loaded);
     const listed = contacts.find((c) => c.id === id);
     const org = organizations.find((o) => o.id === listed?.company_id);
     const extras = extrasFromDetail(detail);
@@ -261,7 +321,7 @@ export const createCrmResources = (
       ...toDonorContact(detail, asOf, {
         companyId: org?.id ?? null,
         companyName: org?.name ?? null,
-        overlay: overlays.get(id),
+        overlay: loaded?.overlays.get(id),
         extras: {
           ...extras,
           thanked_at: latest(extras.thanked_at, local?.thanked),
@@ -298,13 +358,21 @@ export const createCrmResources = (
   };
 
   const updateContact = async (id: number, data: Record<string, unknown>) => {
+    const { overlays } = await ready();
     const next: ContactOverlay = { ...overlays.get(id) };
     if (Array.isArray(data.tags)) next.tags = data.tags.map(Number);
     if (typeof data.last_seen === "string") next.last_seen = data.last_seen;
     if (typeof data.background === "string") next.background = data.background;
+    await persistence.saveOverlay(id, next);
     overlays.set(id, next);
     return contactDetail(id);
   };
+
+  /** What gets saved for a new or changed record. */
+  const toSave = async (name: CrmRecordResource, data: Record<string, any>) =>
+    name === "contact_notes" && data.attachments !== undefined
+      ? { ...data, attachments: await durableAttachments(data.attachments) }
+      : data;
 
   // react-admin's DataProvider is loosely typed by resource; these handlers
   // return the shapes ra-core expects for each call.
@@ -324,7 +392,7 @@ export const createCrmResources = (
       const name = baseName(resource);
       if (name === "contacts") return (await listContacts(params)) as any;
       if (name === "companies") return (await listOrganizations(params)) as any;
-      return store.getList(name, params);
+      return (await ready()).store.getList(name, params);
     },
     getOne: async (resource, params) => {
       const name = baseName(resource);
@@ -337,7 +405,7 @@ export const createCrmResources = (
         if (!org) throw new Error(`Organization ${id} is not in the list`);
         return { data: org as any };
       }
-      return store.getOne(name, params);
+      return (await ready()).store.getOne(name, params);
     },
     getMany: async (resource, params) => {
       const name = baseName(resource);
@@ -352,6 +420,7 @@ export const createCrmResources = (
           data: all.filter((r) => ids.includes(r.id)) as any,
         };
       }
+      const { store } = await ready();
       if (name === "tags") {
         const { data } = await store.getList(name, {
           filter: {},
@@ -371,7 +440,7 @@ export const createCrmResources = (
       if (name === "companies") {
         return (await listOrganizations({ ...params, filter })) as any;
       }
-      return store.getManyReference(name, params);
+      return (await ready()).store.getManyReference(name, params);
     },
     create: async (resource, params) => {
       const name = baseName(resource);
@@ -379,11 +448,13 @@ export const createCrmResources = (
         throw new Error("Add donors with Import donors.");
       }
       if (name === "companies") throw new Error(READ_ONLY_ORGS);
-      const data =
-        name === "tasks"
-          ? { ...params.data, created_at: new Date().toISOString() }
-          : params.data;
-      return store.create(name, { ...params, data });
+      if (!isRecordResource(name)) throw new Error(`Unknown list ${name}`);
+      const { store } = await ready();
+      const saved = await persistence.create(
+        name,
+        await toSave(name, params.data),
+      );
+      return store.create(name, { ...params, data: saved });
     },
     update: async (resource, params) => {
       const name = baseName(resource);
@@ -393,7 +464,14 @@ export const createCrmResources = (
         };
       }
       if (name === "companies") throw new Error(READ_ONLY_ORGS);
-      return store.update(name, params);
+      if (!isRecordResource(name)) throw new Error(`Unknown list ${name}`);
+      const { store } = await ready();
+      const saved = await persistence.update(
+        name,
+        params.id,
+        await toSave(name, params.data),
+      );
+      return store.update(name, { ...params, data: saved });
     },
     updateMany: async (resource, params) => {
       const name = baseName(resource);
@@ -404,13 +482,24 @@ export const createCrmResources = (
         return { data: params.ids };
       }
       if (name === "companies") throw new Error(READ_ONLY_ORGS);
-      return store.updateMany(name, params);
+      if (!isRecordResource(name)) throw new Error(`Unknown list ${name}`);
+      const { store } = await ready();
+      const data = await toSave(name, params.data);
+      for (const id of params.ids) {
+        const saved = await persistence.update(name, id, data);
+        await store.update(name, { id, data: saved, previousData: { id } });
+      }
+      return { data: params.ids };
     },
     delete: async (resource, params) => {
       const name = baseName(resource);
       if (name === "contacts" || name === "companies") {
         throw new Error("Donor records can't be removed from here.");
       }
+      if (!isRecordResource(name)) throw new Error(`Unknown list ${name}`);
+      const { store, overlays } = await ready();
+      // The saved copy drops the tag from every donor (the service cascades).
+      await persistence.remove(name, params.id);
       const result = await store.delete(name, params);
       if (name === "tags") {
         const tagId = Number(params.id);
@@ -430,7 +519,10 @@ export const createCrmResources = (
       if (name === "contacts" || name === "companies") {
         throw new Error("Donor records can't be removed from here.");
       }
-      return store.deleteMany(name, params);
+      for (const id of params.ids) {
+        await handlers.delete(resource, { id, previousData: { id } as any });
+      }
+      return { data: params.ids };
     },
   };
 
@@ -444,8 +536,9 @@ export const createCrmResources = (
 export const withDonorCrm = <T extends DataProvider>(
   base: T,
   source: DonorSource = DATA_MODE === "local" ? liveSource : snapshotSource,
+  persistence: CrmPersistence = defaultPersistence(DEFAULT_TAGS),
 ): T => {
-  const crm = createCrmResources(source);
+  const crm = createCrmResources(source, { persistence });
   const route =
     <K extends keyof typeof crm>(method: K) =>
     (resource: string, params: unknown) =>

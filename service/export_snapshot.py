@@ -23,6 +23,9 @@ The shapes come from the route functions themselves, so the UI parses both modes
       "ask_examples": [...]        # Ask Donor Desk: rules answers to ask_agent.EXAMPLE_QUESTIONS
     }
 
+Never exported: the Donors tab's notes, tasks and tags (crm_* tables, routes_crm.py). They are private staff
+notes; in snapshot mode the browser keeps its own in localStorage.
+
     python -m service.export_snapshot                    # rescore as of the demo date, write web/public/snapshot.json
     python -m service.export_snapshot --no-rescore --out other.json
 """

@@ -117,6 +117,9 @@ export interface ApiDonorDetail extends ApiDonorRow {
   outreach_drafts: ApiOutreachDraft[];
   // Absent on older servers and snapshots.
   merges?: ApiMergeLogEntry[] | null;
+  // The donor's saved call notes, newest first (routes_calls.py); absent on
+  // older servers, [] in the snapshot. Parsed leniently by parseApiCallNotes.
+  call_notes?: unknown;
 }
 
 /** One item of GET /duplicates */

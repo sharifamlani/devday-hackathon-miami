@@ -2,6 +2,12 @@ import type { DataProvider } from "ra-core";
 
 import type { RawDonorDetail, RawDonorRow } from "./crmDonors";
 import {
+  browserPersistence,
+  type CrmPersistence,
+  type StorageLike,
+} from "./crmPersistence";
+import {
+  DEFAULT_TAGS,
   createCrmResources,
   isCrmResource,
   withDonorCrm,
@@ -290,5 +296,123 @@ describe("withDonorCrm", () => {
     expect(base.getList).toHaveBeenCalledTimes(1);
     expect(isCrmResource("companies_summary")).toBe(true);
     expect(isCrmResource("deals")).toBe(false);
+  });
+});
+
+describe("createCrmResources: saved notes, tasks and tags", () => {
+  const storage = (): StorageLike => {
+    const items = new Map<string, string>();
+    return {
+      getItem: (k) => items.get(k) ?? null,
+      setItem: (k, v) => {
+        items.set(k, v);
+      },
+    };
+  };
+  const opened = (s: StorageLike) =>
+    createCrmResources(source(), {
+      persistence: browserPersistence(s, DEFAULT_TAGS),
+    });
+
+  it("a reload (a new provider on the same storage) shows what was saved", async () => {
+    const s = storage();
+    const before = opened(s);
+    await before.create("contact_notes", {
+      data: {
+        contact_id: 2,
+        text: "Met at the gala",
+        date: "2026-11-07T18:00:00.000Z",
+        sales_id: 0,
+      },
+    });
+    const { data: task } = await before.create("tasks", {
+      data: {
+        contact_id: 2,
+        text: "Call",
+        due_date: "2026-11-09",
+        sales_id: 0,
+      },
+    });
+    await before.update("contacts", {
+      id: 2,
+      data: { tags: [1, 4], background: "Bakery owner" },
+      previousData: {} as never,
+    });
+    await before.delete("tags", { id: 4, previousData: { id: 4 } });
+
+    const after = opened(s);
+    const { data } = await after.getOne("contacts", { id: 2 });
+    expect(data).toMatchObject({ tags: [1], background: "Bakery owner" });
+    expect(data.nb_tasks).toBe(1);
+    const notes = await after.getManyReference("contact_notes", {
+      target: "contact_id",
+      id: 2,
+      pagination: { page: 1, perPage: 25 },
+      sort: { field: "date", order: "DESC" as const },
+      filter: {},
+    });
+    expect(notes.data.map((n) => n.text)).toEqual(["Met at the gala"]);
+    const tasks = await after.getList("tasks", {
+      ...listAll,
+      filter: { sales_id: 0, "done_date@is": null },
+    });
+    expect(tasks.data.map((t) => t.id)).toEqual([task.id]);
+    const tags = await after.getList("tags", listAll);
+    expect(tags.data.map((t) => t.id)).not.toContain(4);
+  });
+
+  it("shows a change only once it is saved", async () => {
+    const failing: CrmPersistence = {
+      ...browserPersistence(null, DEFAULT_TAGS),
+      create: async () => {
+        throw new Error("Service down");
+      },
+    };
+    const crm = createCrmResources(source(), { persistence: failing });
+    await expect(
+      crm.create("tasks", {
+        data: { contact_id: 1, text: "x", due_date: "2026-11-09" },
+      }),
+    ).rejects.toThrow("Service down");
+    expect((await crm.getList("tasks", listAll)).total).toBe(0);
+  });
+
+  it("keeps the donor list up when notes can't be read, and reads again later", async () => {
+    let fail = true;
+    const inner = browserPersistence(null, DEFAULT_TAGS);
+    const flaky: CrmPersistence = {
+      ...inner,
+      load: async () => {
+        if (fail) throw new Error("Service down");
+        return inner.load();
+      },
+    };
+    const crm = createCrmResources(source(), { persistence: flaky });
+    expect((await crm.getList("contacts", listAll)).total).toBe(3);
+    await expect(crm.getList("contact_notes", listAll)).rejects.toThrow(
+      "Service down",
+    );
+    fail = false;
+    expect((await crm.getList("contact_notes", listAll)).total).toBe(0);
+  });
+
+  it("withDonorCrm saves through the persistence it is given", async () => {
+    const s = storage();
+    const base = { getList: vi.fn() } as unknown as DataProvider;
+    const provider = withDonorCrm(
+      base,
+      source(),
+      browserPersistence(s, DEFAULT_TAGS),
+    );
+    await provider.create("tags", {
+      data: { name: "Gala host", color: "#fad2e1" },
+    });
+    const reloaded = withDonorCrm(
+      base,
+      source(),
+      browserPersistence(s, DEFAULT_TAGS),
+    );
+    const { data } = await reloaded.getList("tags", listAll);
+    expect(data.map((t) => t.name)).toContain("Gala host");
   });
 });
