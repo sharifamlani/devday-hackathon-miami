@@ -317,7 +317,12 @@ export const undoStep = async (msgIndex: number, stepIndex: number, refetch: Ref
   const step = m?.role === "assistant" ? m.steps[stepIndex] : undefined;
   if (!step?.undo_token || step.undone) return;
   try {
-    await post(`/undo/${encodeURIComponent(step.undo_token)}`, undefined);
+    const res = await post<{ undone?: boolean; reason?: string } | null>(`/undo/${encodeURIComponent(step.undo_token)}`, undefined);
+    if (res?.undone === false) {
+      // Nothing to undo (e.g. the event was deleted since): say why and drop the button.
+      patchStep(msgIndex, stepIndex, { undo_token: null, summary: `${step.summary ?? ""} · nothing to undo: ${res.reason ?? "already changed"}` });
+      return;
+    }
     patchStep(msgIndex, stepIndex, { undone: true });
     refetch(scopesForTool(step.tool));
   } catch (e) {
