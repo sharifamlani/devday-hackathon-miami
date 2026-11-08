@@ -56,7 +56,7 @@ export const Rail = () => {
     >
       <Link
         to="/"
-        aria-label="Donor Desk home"
+        aria-label="Gatherly home"
         className="grid size-[46px] place-items-center rounded-full bg-strong text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <HeartHandshake className="size-6" aria-hidden />

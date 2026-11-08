@@ -14,6 +14,7 @@ export const OverviewProvider = ({ children }: { children: ReactNode }) => {
       toggle: () =>
         runZoomTransition({
           kind: "overview",
+          exit: open,
           update: () => flushSync(() => setOpen((previous) => !previous)),
         }),
     }),

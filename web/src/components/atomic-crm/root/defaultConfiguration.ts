@@ -10,7 +10,10 @@ export const defaultLightModeLogo = lightModeLogo;
 
 export const defaultCurrency = "USD";
 
-export const defaultTitle = "Donor Desk";
+export const defaultTitle = "Gatherly";
+/** How the default title is drawn as a logo: the Gatherly wordmark is lowercase. Custom titles show as given. */
+export const wordmarkText = (title: string) =>
+  title === defaultTitle ? "gatherly" : title;
 
 export const defaultCompanySectors = [
   { value: "communication-services", label: "Communication Services" },

@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 import sqlite3
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -92,6 +93,11 @@ def restore(conn: sqlite3.Connection, donor_id: int, before: dict) -> None:
 # Finding the person
 # ----------------------------------------------------------------------------------------------
 
+def fold(text: str | None) -> str:
+    """Accent- and case-insensitive form of a name: 'María Delgado-Ruiz' -> 'maria delgado-ruiz'."""
+    return "".join(c for c in unicodedata.normalize("NFKD", text or "") if not unicodedata.combining(c)).casefold().strip()
+
+
 def resolve(conn: sqlite3.Connection, person_id: int | None = None, name: str | None = None) -> sqlite3.Row:
     """The one person meant. No match or several matches is a WriteError that asks; never a guess."""
     if person_id is not None:
@@ -102,10 +108,11 @@ def resolve(conn: sqlite3.Connection, person_id: int | None = None, name: str | 
     name = (name or "").strip()
     if not name:
         raise WriteError("who is this about? Give me their name")
-    exact = conn.execute("SELECT id, full_name, first_name FROM donors WHERE lower(full_name) = lower(?) ORDER BY id",
-                         (name,)).fetchall()
-    hits = exact or conn.execute("SELECT id, full_name, first_name FROM donors WHERE lower(full_name) LIKE ? "
-                                 "ORDER BY full_name, id", (f"%{name.lower()}%",)).fetchall()
+    # Compared in Python, not SQLite lower()/LIKE: "Maria Delgado" must find "María Delgado-Ruiz"
+    rows = conn.execute("SELECT id, full_name, first_name FROM donors ORDER BY full_name, id").fetchall()
+    want = fold(name)
+    exact = sorted((r for r in rows if fold(r["full_name"]) == want), key=lambda r: r["id"])
+    hits = exact or [r for r in rows if want in fold(r["full_name"])]
     if not hits:
         raise WriteError(f"I couldn't find anyone named {name}. Who did you mean?")
     if len(hits) > 1:

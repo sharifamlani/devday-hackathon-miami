@@ -1,23 +1,47 @@
+import { useEffect, useRef } from "react";
+import { useLocation } from "react-router";
 import { PanelLeft } from "lucide-react";
 import { OVERVIEW_ID, useOverview } from "../home/overviewContext";
+import { closeWorkspace, parseWorkspace } from "../home/workspaceView";
 import { UserMenu } from "@/components/admin/user-menu";
 import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
 import { MotionMenuItems } from "./MotionMenuItems";
+import { PublicLinkMenuItem } from "./PublicLinkMenuItem";
 import { avatarSlot } from "./shellState";
 
 export const DashboardControls = () => {
   const overview = useOverview();
+  // Read the open panel from the URL only: HomePage owns useWorkspaceView's navigation effects.
+  const panel = parseWorkspace(useLocation().search);
+  // With a panel open (Calendar, Tasks, CRM, Impact & story), the same button is the way home:
+  // it closes the panel, then (once the close has committed) brings a hidden overview back, so
+  // the two transitions never interrupt each other.
+  const reopenOverview = useRef(false);
+  const goHome = () => {
+    reopenOverview.current = !overview.open;
+    closeWorkspace();
+  };
+  useEffect(() => {
+    if (panel || !reopenOverview.current) return;
+    reopenOverview.current = false;
+    if (!overview.open) overview.toggle();
+  }, [panel, overview]);
   return (
     <nav aria-label="Workspace controls" className="home-workspace-controls">
       <button
         type="button"
         className="home-overview-toggle"
-        onClick={overview.toggle}
+        onClick={panel ? goHome : overview.toggle}
         aria-label={
-          overview.open ? "Hide workspace overview" : "Show workspace overview"
+          panel
+            ? "Back to the overview"
+            : overview.open
+              ? "Hide workspace overview"
+              : "Show workspace overview"
         }
-        aria-expanded={overview.open}
+        title={panel ? "Back to the overview" : undefined}
+        aria-expanded={panel ? false : overview.open}
         aria-controls={OVERVIEW_ID}
       >
         <PanelLeft
@@ -36,6 +60,7 @@ export const DashboardControls = () => {
         <span className={avatarSlot("size-10")}>
           <UserMenu>
             <RestartOnboardingMenuItem />
+            <PublicLinkMenuItem />
             <MotionMenuItems />
           </UserMenu>
         </span>

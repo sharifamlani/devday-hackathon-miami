@@ -884,7 +884,7 @@ def ingest_events(
     by_tab = {t: 0 for t in TABS}
     flagged: list[dict] = []
     assigned: list[dict] = []
-    people_added = gifts_added = declined = auto_merged = 0
+    people_added = gifts_added = declined = auto_merged = duplicates_removed = 0
     has_auto_merges = bool(_cols(conn, "auto_merges"))
     try:
         for i, p in enumerate(people):
@@ -944,9 +944,11 @@ def ingest_events(
                 gift_ids.setdefault(g.get("_source") or "", []).append(gcur.lastrowid)
                 gifts_added += 1
                 declined += (g.get("status") or "ok") != "ok"     # kept on record, never counted as a gift
-            if len(p.get("sources") or {}) > 1 and has_auto_merges:
-                record_auto_merge(conn, did, fn, p["sources"], gift_ids)
-                auto_merged += 1
+            if len(p.get("sources") or {}) > 1:
+                duplicates_removed += len(p["sources"]) - 1
+                if has_auto_merges:
+                    record_auto_merge(conn, did, fn, p["sources"], gift_ids)
+                    auto_merged += 1
 
         if dry_run:
             conn.rollback()
@@ -978,6 +980,7 @@ def ingest_events(
         "review_required": review_required,
         "dry_run": dry_run,
         "duplicate_suggestions": dups,
+        "duplicates_removed": 0 if dry_run else duplicates_removed,  # source records consolidated by exact identity
         "seconds": round(time.time() - t0, 1),
     }
 

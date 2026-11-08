@@ -21,18 +21,31 @@ Turn it OFF right after the event.
 
 ```bash
 winget install --id Cloudflare.cloudflared      # once; the script never downloads anything itself
-python scripts/public_tunnel.py on [--port 8001]  # default 8001 (the LIVE stack); starts the tunnel, writes .public-tunnel.json, prints the next 3 commands
+python scripts/public_tunnel.py on [--port 8401]  # default 8401 (the PUBLIC_MODE service next to LIVE); starts the tunnel, writes .public-tunnel.json, prints the next 3 commands
 ```
+
+The demo setup tunnels **:8401**: a second service with `PUBLIC_MODE=1` over LIVE's db (run from
+`C:\Users\Shari\dd-live-main`). **:8001 stays LIVE's writable laptop service and is never tunnelled.** `on` defaults to 8401 and refuses any
+port whose `/public-mode` isn't `enabled: true`, so it can't put LIVE's writable API on the internet by mistake.
 
 The script prints (and does not run) these:
 
-1. Restart the service: `PUBLIC_MODE=1 PUBLIC_ORIGINS=https://devday-donor-desk.vercel.app uvicorn service.main:app --host 127.0.0.1 --port 8001`  (match the port you pass to the script)
+1. Restart the public copy: `PUBLIC_MODE=1 PUBLIC_ORIGINS=https://devday-donor-desk.vercel.app uvicorn service.main:app --host 127.0.0.1 --port 8401`  (the port you passed to the script)
 2. From `web/`, in Git Bash (not PowerShell: CRLF corrupts the value):
    `printf '%s' "<tunnel url>" | vercel env add VITE_API_URL production`, then the same with `local` for `VITE_DATA_MODE`
    (`vercel env rm <name> production` first if it exists).
 3. `vercel --prod --yes`
 
 Quick tunnel URLs change on every start, so repeat steps 2 and 3 after each `on`.
+
+## Show everything (`PUBLIC_SHOW_ALL=1`)
+
+The demo data is fictional, so the demo runs public mode with `PUBLIC_SHOW_ALL=1` (Sharif, Sun Nov 8): every GET
+is served (still only with the Vercel `Origin`), nothing is masked or blanked (contacts, call notes, transcripts,
+staff notes, summaries and staff tasks all show), and the chat agent may read call notes and call sheets.
+**Writes stay refused** and the rate limit stays. `GET /public-mode` answers `{"enabled": true, "redacted": false}`,
+and the web then loads everything as in local mode. Unset, public mode redacts as described below. Anything saved
+to the db later (a real call, a real number) goes public too.
 
 ## Allow-list (everything else is 403)
 
@@ -51,6 +64,21 @@ are the whole defence, so the list is short and read-only apart from chat.
 
 If staff need remote write access, do not open it here: put Cloudflare Access (Zero Trust, free tier) in front of
 the tunnel so only signed-in staff reach it, and run a second tunnel for them.
+
+## Toggle (the public link switch)
+
+Sharif's profile menu in the **laptop** app (localhost) has **Public link on/off**. It flips a flag file next to the db
+(`data/public_link.json`, `service/public_gate.py`) that the public service reads on every request:
+
+- **Off**: the public service answers 503 to everything (even `/health`), so the Vercel app's 2 s probe fails and new
+  visitors get the snapshot with the "Sample data" badge. Tabs already open show request errors.
+- **On**: served again on the next request.
+
+The tunnel and its URL stay up, so there's no Vercel change and no redeploy. The switch is hidden on the public site and
+`PUT /public-link` is refused in public mode. Terminal fallback: `python scripts/public_tunnel.py gate off` (or `on`).
+
+Run the public service next to LIVE, never on it: `:8001` is LIVE's writable API. `public_tunnel.py on` defaults to
+`--port 8401` and refuses a port whose `/public-mode` isn't `enabled: true` (`--unsafe` overrides).
 
 ## Status
 

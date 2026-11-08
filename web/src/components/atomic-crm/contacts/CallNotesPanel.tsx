@@ -3,7 +3,7 @@ import { AudioLines, Phone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AskSessionContext } from "../ask/askSessionContext";
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, PUBLIC_READ_ONLY } from "../providers/local/config";
 import { callNotesForDonor } from "../providers/local/crmDonors";
 import { useCallNotes, type CallNote } from "../voice/callNotes";
 import { PhoneCallDialog } from "../voice/PhoneCallDialog";
@@ -44,7 +44,7 @@ export const CallNotesPanel = ({
   const notes = callNotesForDonor(donorId, serverNotes, browserNotes);
   const shown = limit ? notes.slice(0, limit) : notes;
   // Placing a phone call needs the laptop service; the Vercel snapshot can't
-  const canPhone = DATA_MODE === "local";
+  const canPhone = DATA_MODE === "local" && !PUBLIC_READ_ONLY; // public mode refuses /phone/*
   const [phoneOpen, setPhoneOpen] = useState(false);
 
   return (

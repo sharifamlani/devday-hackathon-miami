@@ -102,6 +102,11 @@ def pretty(number: str | None) -> str | None:
     return number
 
 
+def shown(raw: str | None) -> str | None:
+    """Any stored number in full, formatted when it parses ('305-555-0142' -> '+1 (305) 555-0142')."""
+    return pretty(e164(raw)) or raw or None
+
+
 def staff_phone() -> str | None:
     return e164(os.getenv("STAFF_PHONE"))
 

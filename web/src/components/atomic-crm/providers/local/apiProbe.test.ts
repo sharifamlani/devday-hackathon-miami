@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { apiReachable, FALLBACK_FLAG, probeAndFlag } from "./apiProbe";
+import { apiReachable, FALLBACK_FLAG, probeAndFlag, probePublicMode, PUBLIC_FLAG } from "./apiProbe";
 import { resolveDataMode } from "./config";
 
 const ok = (async () => ({ ok: true })) as unknown as typeof fetch;
@@ -42,5 +42,39 @@ describe("api startup probe", () => {
     expect(resolveDataMode("live", true)).toBe("snapshot");
     expect(resolveDataMode("local", false)).toBe("local");
     expect(resolveDataMode(undefined, false)).toBe("snapshot");
+  });
+});
+
+describe("public-mode startup check", () => {
+  const answer = (status: number, body: unknown) =>
+    vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+
+  it("flags the page whenever GET /public-mode says enabled: true, redacted or not", async () => {
+    const on: Record<string, unknown> = {};
+    expect(await probePublicMode("local", "http://up/", on, answer(200, { enabled: true }), 50)).toBe(true);
+    expect(on[PUBLIC_FLAG]).toBe(true);
+    const showAll: Record<string, unknown> = {}; // PUBLIC_SHOW_ALL: unredacted reads, writes still refused
+    expect(await probePublicMode("local", "http://up", showAll, answer(200, { enabled: true, redacted: false }), 50)).toBe(true);
+    expect(showAll[PUBLIC_FLAG]).toBe(true);
+    const off: Record<string, unknown> = {};
+    expect(await probePublicMode("local", "http://up", off, answer(200, { enabled: false }), 50)).toBe(false);
+    expect(off[PUBLIC_FLAG]).toBeUndefined();
+  });
+
+  it("treats an unreadable answer as not public, and never asks in snapshot mode", async () => {
+    const target: Record<string, unknown> = {};
+    expect(await probePublicMode("local", "http://x", target, answer(404, {}), 50)).toBe(false);
+    expect(await probePublicMode("local", "http://x", target, refused, 50)).toBe(false);
+    expect(await probePublicMode("local", "http://x", target, hangs, 30)).toBe(false);
+    const spy = answer(200, { enabled: true });
+    expect(await probePublicMode("snapshot", "http://x", target, spy, 50)).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+    expect(target[PUBLIC_FLAG]).toBeUndefined();
+  });
+
+  it("asks the /public-mode route", async () => {
+    const spy = answer(200, { enabled: true });
+    await probePublicMode("live", "http://up/", {}, spy, 50);
+    expect(String((spy as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0])).toBe("http://up/public-mode");
   });
 });

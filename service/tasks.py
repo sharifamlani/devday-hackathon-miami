@@ -272,7 +272,7 @@ def list_tasks(conn: sqlite3.Connection, *, due: str | None = None, from_: str |
     """due='today' → open tasks due today or overdue, plus today's done ones. from/to filter by due date.
     public_only leaves out the Donors tab's private tasks (for the public snapshot)."""
     today = (as_of or default_as_of()).isoformat()
-    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if (public_only or public_mode.enabled()) else []), []
+    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if (public_only or public_mode.redacting()) else []), []
     if due == "today":
         where.append("(due = ? OR (due < ? AND done = 0) OR (due IS NULL AND done = 0))")
         args += [today, today]
@@ -331,7 +331,7 @@ def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None 
     if kind == "event":
         items.sort(key=lambda i: (i["date"], i["time"] or "", i["ref"]))
         return items
-    private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
+    private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.redacting()) else ""
     for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL{private} AND due BETWEEN ? AND ?", (lo, hi)):
         items.append({"date": r["due"], "time": r["time"], "title": r["title"], "kind": "task",
                       "source": r["source"], "ref": f"task:{r['id']}", "task_kind": r["kind"],
@@ -409,10 +409,21 @@ def _call_chips(f: dict | None, today: date) -> list[str]:
 
 def _alert_why(alert: dict, today: date) -> str:
     cadence = (alert.get("cadence") or "regular").replace("_gmd", " (Give Miami Day)")
+    if alert["kind"] == "failed" and alert.get("last_gift") and alert["last_gift"] > (alert["expected_date"] or ""):
+        # A skipped month that giving resumed after (routes_home words it the same way): not "no gift since".
+        return (f"Skipped a {cadence} gift around {nice_date(alert['expected_date'], today)}; "
+                f"last gift {nice_date(alert['last_gift'], today)}.")
     if alert["kind"] == "failed":
         return f"{cadence[:1].upper() + cadence[1:]} gift on {nice_date(alert['expected_date'], today)} failed, with no gift since."
     return (f"{cadence[:1].upper() + cadence[1:]} giver; the gift due {nice_date(alert['expected_date'], today)} "
             f"is {alert['days_late']} days late.")
+
+
+def review_title(people: list[str]) -> str:
+    """'Review possible duplicate: A, B'; records sharing one name read 'Name (2 records)', not 'Name, Name'."""
+    unique = list(dict.fromkeys(people))
+    label = ", ".join(unique) if len(unique) > 1 else f"{unique[0]} ({len(people)} records)"
+    return f"Review possible duplicate: {label}"
 
 
 def _duplicate_groups(conn: sqlite3.Connection) -> list[tuple[list[int], list[str]]]:
@@ -531,7 +542,7 @@ def generate(conn: sqlite3.Connection, as_of: date | None = None) -> dict:
     for ids, reasons in _duplicate_groups(conn):
         group = set(ids)
         people = [names.get(i, f"#{i}") for i in ids]
-        fields = {"title": f"Review possible duplicate: {', '.join(people)}",
+        fields = {"title": review_title(people),
                   "why": "; ".join(reasons) or "These records look like the same person.",
                   "person_id": ids[0], "chips": [f"{len(ids)} records"] + reasons[:2]}
         candidates = sorted((r for r in reviews if r["id"] not in claimed and r["member_set"] & group),
@@ -755,7 +766,7 @@ def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | 
     if ids and _has_table(conn, "tasks"):
         for chunk in range(0, len(ids), 500):
             part = ids[chunk:chunk + 500]
-            private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
+            private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.redacting()) else ""
             for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL AND done = 0{private} AND person_id IN "
                                   f"({', '.join('?' * len(part))})", part):
                 r = dict(r)

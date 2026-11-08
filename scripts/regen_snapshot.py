@@ -9,7 +9,9 @@ The live onboarding path, in-process (the same app and routes the UI calls; no p
     -> export_snapshot (staff text blanked on the way out) -> GATE line -> privacy check.
 
 Emails and phones stay in full (fictional sample data; Sharif, Nov 8). The privacy check fails (exit 1) on any
-filled transcript/call_notes/notes value, any donor summary, any "crm_" key, or a file over the size limit. Exit 2: refused (missing env file, the refresh never finished).
+filled transcript/call_notes/notes value, any donor summary, any "crm_" key, any key/token-shaped string
+(sk-, AIza, gh*_, Bearer), any email outside @example.* or phone outside 555, or a file over the size limit.
+Exit 2: refused (missing env file, the refresh never finished).
 """
 
 from __future__ import annotations
@@ -31,13 +33,24 @@ OUT = REPO_ROOT / "web" / "public" / "snapshot.json"
 WEBSITE = "https://miamifoundation.org"
 AS_OF = "2026-11-08"
 FAILED, REFUSED = 1, 2
+SECRET_RE = re.compile(r"sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z_-]{30,}|gh[pousr]_[A-Za-z0-9]{30,}|Bearer\s+[A-Za-z0-9._~+/-]{16,}")
+FAKE_EMAIL_RE = re.compile(r"@(?:[\w-]+\.)*example\.[a-z.]+$", re.I)
 
 
 def privacy_problems(text: str, max_bytes: int) -> list[str]:
     """What would leak or break the preview; [] when the file is fit to publish."""
-    from service.public_mode import BLANK_KEYS
+    from service.public_mode import BLANK_KEYS, EMAIL_RE, PHONE_RE
 
     problems = []
+    secrets = [m.group(0)[:12] + "..." for m in SECRET_RE.finditer(text)]
+    if secrets:
+        problems.append(f"{len(secrets)} key/token-shaped strings, e.g. {secrets[0]}")
+    real_emails = sorted({e for e in EMAIL_RE.findall(text) if not FAKE_EMAIL_RE.search(e)})
+    if real_emails:                           # the sample data is fictional: every address is @example.*
+        problems.append(f"{len(real_emails)} emails outside @example.*, e.g. {real_emails[0]}")
+    real_phones = sorted({ph for ph in PHONE_RE.findall(text) if "555" not in re.sub(r"\D", "", ph)[-7:-4]})
+    if real_phones:                           # fictional numbers use the 555 exchange
+        problems.append(f"{len(real_phones)} phones without 555, e.g. {real_phones[0]}")
     filled: dict[str, int] = {}
 
     def walk(value, key=""):
@@ -153,7 +166,8 @@ def main() -> int:
     print("GATE " + json.dumps(gate(snap, size, status)))
     problems = privacy_problems(args.out.read_text(encoding="utf-8"), MAX_BYTES)
     print("\n".join(f"FAIL {p}" for p in problems) or "PASS privacy: 0 filled "
-          "transcript/call_notes/notes, 0 donor summaries, 0 crm_* keys")
+          "transcript/call_notes/notes, 0 donor summaries, 0 crm_* keys, 0 keys/tokens, 0 non-example "
+          "emails, 0 non-555 phones")
     if status != "done":
         return REFUSED
     return FAILED if problems else 0

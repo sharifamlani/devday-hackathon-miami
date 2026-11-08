@@ -1,3 +1,4 @@
+import { UploadProcessing } from "../upload/UploadProcessing";
 import {
   useCallback,
   useEffect,
@@ -24,14 +25,12 @@ import {
 import { useDropzone } from "react-dropzone";
 
 import {
-  DEMO_DATA_BASE,
   formatBytes,
   loadSampleFiles,
   loadSampleManifest,
 } from "../landing/sampleFiles";
 import { DATA_MODE } from "../providers/local/config";
 import type { UploadTarget } from "../providers/local/crmTypes";
-import type { DonorSummary } from "../providers/local/types";
 import { sourceOf } from "../providers/local/endpoint";
 import {
   useDonors,
@@ -66,6 +65,7 @@ import {
   SOCIAL_LABELS,
   SOCIAL_PLATFORMS,
   checkField,
+  EMPTY_LINKS,
   fieldsFromLinks,
   linksFromFields,
   onboardingStore,
@@ -81,12 +81,10 @@ import {
   type OrgLinks,
   type SocialPlatform,
 } from "./onboardingState";
+import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 /** The laptop build talks to the service; the Vercel snapshot has no API. */
 const LIVE = DATA_MODE === "local";
-
-/** Uploads the curated demo-data fixtures through the local service. */
-const INGEST_TIME = "This usually takes about a minute.";
 
 const plural = (n: number, one: string, many: string) =>
   `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
@@ -210,13 +208,11 @@ const TARGETS: { value: UploadTarget; label: string }[] = [
 export const ImportReceipt = ({
   summary,
   fresh,
-  people,
   onReviewDuplicates,
   onAddMore,
 }: {
   summary: FilesSummary;
   fresh: boolean;
-  people: DonorSummary[];
   onReviewDuplicates: () => void;
   onAddMore: () => void;
 }) => {
@@ -283,51 +279,6 @@ export const ImportReceipt = ({
           agent wasn't sure which tab they belong in.
         </p>
       )}
-      {people.length > 0 && (
-        <details className="onb-structured-preview">
-          <summary>Preview structured records ({people.length})</summary>
-          <div className="onb-structured-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Tab</th>
-                  <th scope="col">Gifts</th>
-                  <th scope="col">Last gift</th>
-                  <th scope="col">Total given</th>
-                </tr>
-              </thead>
-              <tbody>
-                {people.slice(0, 12).map((person) => (
-                  <tr key={person.id}>
-                    <th scope="row">{person.full_name}</th>
-                    <td>{person.contact_type ?? "Unclassified"}</td>
-                    <td>{person.gift_count}</td>
-                    <td>
-                      {person.last_gift_date
-                        ? new Date(`${person.last_gift_date}T00:00:00Z`).toLocaleDateString(
-                            "en-US",
-                            { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" },
-                          )
-                        : "—"}
-                    </td>
-                    <td>
-                      {new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: "USD",
-                        maximumFractionDigits: 0,
-                      }).format(person.total_given)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {people.length > 12 && (
-              <p>Showing 12 of {people.length} records. All are available in the workspace.</p>
-            )}
-          </div>
-        </details>
-      )}
       <p className="onb-receipt-line">
         <button
           type="button"
@@ -351,7 +302,7 @@ export const FilesStep = ({
   onReviewDuplicates: () => void;
 }) => {
   const { data, update } = useOnboarding();
-  const { data: people, refetch: refetchPeople } = useDonors();
+  const { data: people } = useDonors();
   const upload = useUploadFiles();
   const [files, setFiles] = useState<File[]>([]);
   const [skipped, setSkipped] = useState<SkippedFile[]>([]);
@@ -366,7 +317,6 @@ export const FilesStep = ({
   const existing = people?.length ?? 0;
   const uploading = upload.isPending;
   const busy = uploading || loadingSample;
-  const elapsed = useElapsed(uploading);
   useReportBusy(busy, onBusy);
   // Saved in onboarding state right after ingest succeeds, so leaving or
   // reloading before Continue never asks for the same files again.
@@ -391,27 +341,14 @@ export const FilesStep = ({
   const remove = (name: string) =>
     setFiles((current) => current.filter((f) => f.name !== name));
 
-  const importExamples = async () => {
+  const loadExamples = async () => {
     setLoadingSample(true);
-    setStatus(null);
     try {
-      const examples = await loadSampleFiles(
-        await loadSampleManifest(DEMO_DATA_BASE),
-        DEMO_DATA_BASE,
-      );
-      setFiles(examples);
-      const result = await upload.mutateAsync({ files: examples, target: "auto" });
-      update({ files: ingestSummary(result, examples.length) });
-      await refetchPeople();
-      setFiles([]);
-      setSkipped([]);
-      setListOpen(false);
-      setAdding(false);
-      setFresh(true);
+      choose(await loadSampleFiles(await loadSampleManifest()));
     } catch (cause) {
       setStatus({
         tone: "error",
-        text: plainError(cause, "The demo files couldn't be imported."),
+        text: plainError(cause, "The example files couldn't be loaded."),
       });
     } finally {
       setLoadingSample(false);
@@ -438,7 +375,6 @@ export const FilesStep = ({
     try {
       const result = await upload.mutateAsync({ files, target });
       update({ files: ingestSummary(result, files.length) });
-      await refetchPeople();
       setFiles([]);
       setSkipped([]);
       setListOpen(false);
@@ -451,6 +387,16 @@ export const FilesStep = ({
       });
     }
   };
+
+  if (uploading || (showReceipt && imported))
+    return (
+      <UploadProcessing
+        pending={uploading}
+        summary={imported}
+        onContinue={() => onContinue(imported)}
+        onReviewDuplicates={onReviewDuplicates}
+      />
+    );
 
   const collapsible = files.length > COLLAPSE_AFTER;
   const showList = !collapsible || listOpen;
@@ -482,12 +428,14 @@ export const FilesStep = ({
         ) : null
       }
       primary={
-        <Primary busy={busy}>
-          {busy
+        <Primary busy={uploading}>
+          {uploading
             ? "Importing…"
             : files.length
               ? `Import ${plural(files.length, "file", "files")}`
-              : "Continue"}
+              : showReceipt
+                ? "Create organization profile"
+                : "Continue"}
         </Primary>
       }
     >
@@ -495,14 +443,13 @@ export const FilesStep = ({
         <p className="onb-status" data-tone="good">
           Sample data · This preview already has the example files loaded
           {existing ? `: ${plural(existing, "person", "people")}` : ""}. Every
-          name and amount is made up. Importing your own files needs the Donor
-          Desk service.
+          name and amount is made up. Importing your own files needs the
+          Gatherly service.
         </p>
       ) : showReceipt && imported ? (
         <ImportReceipt
           summary={imported}
           fresh={fresh}
-          people={people ?? []}
           onReviewDuplicates={onReviewDuplicates}
           onAddMore={() => {
             setAdding(true);
@@ -522,7 +469,7 @@ export const FilesStep = ({
             <Upload aria-hidden="true" size={22} strokeWidth={1.7} />
             <p className="onb-drop-title">Drop your files here</p>
             <p className="onb-note">
-              .xlsx · .docx · .md · .csv · .txt, up to 10 MB each
+              .xlsx · .docx · .md · .csv, up to 10 MB each
             </p>
             <div className="onb-drop-actions">
               <button
@@ -536,10 +483,10 @@ export const FilesStep = ({
               <button
                 type="button"
                 className="onb-btn text small"
-                onClick={() => void importExamples()}
-                disabled={busy || (!!imported && !adding)}
+                onClick={() => void loadExamples()}
+                disabled={busy}
               >
-                {loadingSample ? "Importing demo files…" : "Import demo files"}
+                {loadingSample ? "Loading…" : "Use the example files"}
               </button>
             </div>
           </div>
@@ -631,20 +578,15 @@ export const FilesStep = ({
 
           {!files.length && existing > 0 && (
             <p className="onb-note">
-              You already have {plural(existing, "person", "people")} in Donor
-              Desk. Add more files or continue.
+              You already have {plural(existing, "person", "people")} in
+              Gatherly. Add more files or continue.
             </p>
           )}
         </>
       )}
 
       <div aria-live="polite">
-        {uploading ? (
-          <p className="onb-status">
-            Reading your files and sorting people into tabs · {clock(elapsed)}.{" "}
-            {INGEST_TIME}
-          </p>
-        ) : status ? (
+        {status ? (
           <p className="onb-status" data-tone={status.tone}>
             {status.text}
           </p>
@@ -718,16 +660,12 @@ export const OrganizationStep = ({
   onBusy: _onBusy,
   ...frame
 }: StepFrameProps & { onContinue: (links: OrgLinks) => void }) => {
-  const { data } = useOnboarding();
+  const { data, finishLater } = useOnboarding();
   const { data: profile } = useOrgProfile();
-  const [fields, setFields] = useState<OrgLinks>(() => {
-    const saved = fieldsFromLinks(data.links);
-    return {
-      ...saved,
-      name: saved.name || "The Miami Foundation",
-      website: saved.website || "miamifoundation.org",
-    };
-  });
+  const [socialsOpen, setSocialsOpen] = useState(false);
+  const [fields, setFields] = useState<OrgLinks>(() =>
+    fieldsFromLinks(data.links),
+  );
   const [errors, setErrors] = useState<LinkErrors>({});
   const id = useId();
 
@@ -746,14 +684,9 @@ export const OrganizationStep = ({
       instagram: social("instagram"),
     });
     setFields((current) => ({
-      name:
-        !current.name || current.name === "The Miami Foundation"
-          ? saved.name || current.name || "The Miami Foundation"
-          : current.name,
-      website:
-        !current.website || current.website === "miamifoundation.org"
-          ? saved.website || current.website || "miamifoundation.org"
-          : current.website,
+      ...current,
+      name: current.name === EMPTY_LINKS.name ? saved.name : current.name,
+      website: current.website || saved.website,
       x: current.x || saved.x,
       linkedin: current.linkedin || saved.linkedin,
       instagram: current.instagram || saved.instagram,
@@ -768,11 +701,11 @@ export const OrganizationStep = ({
   // Inline check when leaving a field; an empty website waits for Continue.
   const blur = (key: keyof OrgLinks) => {
     const value =
-      key === "name"
-        ? fields.name?.trim() ?? ""
-        : key === "website"
-          ? fields.website
-          : socialFieldValue(key, fields[key]);
+      key === "website"
+        ? (fields.website ?? "")
+        : key === "name"
+          ? (fields.name ?? "")
+          : socialFieldValue(key, fields[key] ?? "");
     if (value !== fields[key]) set(key, value);
     const error = checkField(key, value);
     setErrors(({ [key]: _old, ...rest }) =>
@@ -783,10 +716,13 @@ export const OrganizationStep = ({
   const submit = () => {
     const result = validateLinks(linksFromFields(fields));
     setErrors(result.errors);
-    const order: (keyof OrgLinks)[] = ["name", "website", ...SOCIAL_PLATFORMS];
+    const order: (keyof OrgLinks)[] = ["website", ...SOCIAL_PLATFORMS];
     const firstBad = order.find((key) => result.errors[key]);
     if (firstBad) {
-      document.getElementById(`${id}-${firstBad}`)?.focus();
+      if (firstBad !== "website") setSocialsOpen(true);
+      window.requestAnimationFrame(() =>
+        document.getElementById(`${id}-${firstBad}`)?.focus(),
+      );
       return;
     }
     setFields(fieldsFromLinks(result.links));
@@ -796,108 +732,122 @@ export const OrganizationStep = ({
   const errorCount = Object.keys(errors).length;
 
   return (
-    <StepForm
-      {...frame}
-      title={
-        <>
-          Tell us about your <strong>organization.</strong>
-        </>
-      }
-      lede="The agent reads your website and recent news for stories, events and facts to use in outreach. It never posts for you."
-      onSubmit={submit}
-      primary={<Primary>Continue</Primary>}
+    <form
+      className="onb-org-form"
+      aria-labelledby={`${id}-title`}
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
     >
-      <div className="onb-field">
-        <label htmlFor={`${id}-name`}>Organization name</label>
-        <input
-          id={`${id}-name`}
-          className="onb-text-input"
+      <div className="onb-org-body">
+        <p className="onb-org-wordmark">gatherly</p>
+        <h2 id={`${id}-title`} ref={frame.headingRef} tabIndex={-1}>
+          Your organization.
+        </h2>
+        <p className="onb-org-subtitle">Start with your website.</p>
+        <div className="onb-field">
+          <label htmlFor={`${id}-name`}>Organization name</label>
+          <input
+            id={`${id}-name`}
+            className="onb-text-input"
+            type="text"
+            autoComplete="organization"
+            required
+            aria-required="true"
+            aria-invalid={errors.name ? true : undefined}
+            value={fields.name ?? ""}
+            onChange={(event) => set("name", event.target.value)}
+            onBlur={() => blur("name")}
+          />
+          {errors.name && <p className="onb-error">{errors.name}</p>}
+          <p className="onb-note">
+            Prefilled for this demo. Change it to research another organization.
+          </p>
+        </div>
+        <PrefixField
+          id={`${id}-website`}
+          className="onb-org-website"
           data-autofocus=""
+          label="Website"
+          prefix={websitePrefix(fields.website)}
           type="text"
-          autoComplete="organization"
+          inputMode="url"
+          autoComplete="url"
+          autoCapitalize="none"
+          spellCheck={false}
           required
-          aria-required="true"
-          aria-invalid={errors.name ? true : undefined}
-          value={fields.name ?? ""}
-          onChange={(e) => set("name", e.target.value)}
-          onBlur={() => blur("name")}
+          aria-required
+          placeholder="yourorganization.org"
+          value={websiteInputText(fields.website)}
+          error={errors.website}
+          onChange={(e) =>
+            set("website", websiteFieldChange(fields.website, e.target.value))
+          }
+          onBlur={() => blur("website")}
+          hint={!LIVE ? "Preview uses sample context." : undefined}
         />
-        {errors.name && <p className="onb-error">{errors.name}</p>}
-        <p className="onb-note">
-          Prefilled for this demo; change it to research another nonprofit.
+        <button
+          type="button"
+          className="onb-org-social-toggle"
+          aria-expanded={socialsOpen}
+          aria-controls={`${id}-socials`}
+          onClick={() => setSocialsOpen((open) => !open)}
+        >
+          {socialsOpen ? "− Hide social links" : "+ Add social links"}
+        </button>
+        <fieldset
+          id={`${id}-socials`}
+          className="onb-socials"
+          hidden={!socialsOpen}
+        >
+          <legend className="sr-only">Social links (optional)</legend>
+          <p className="onb-note">
+            Optional. Paste a link or enter your handle.
+          </p>
+          <div className="onb-fields">
+            {SOCIAL_PLATFORMS.map((platform) => (
+              <PrefixField
+                key={platform}
+                id={`${id}-${platform}`}
+                label={SOCIAL_LABELS[platform]}
+                prefix={FIELD_PREFIX[platform]}
+                type="text"
+                inputMode="url"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder={SOCIAL_PLACEHOLDER[platform]}
+                value={fields[platform]}
+                error={errors[platform]}
+                onChange={(e) => set(platform, e.target.value)}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData.getData("text");
+                  if (!pasted) return;
+                  e.preventDefault();
+                  set(platform, socialFieldValue(platform, pasted));
+                }}
+                onBlur={() => blur(platform)}
+              />
+            ))}
+          </div>
+        </fieldset>
+        <p className="sr-only" role="status">
+          {errorCount
+            ? `${errorCount} ${errorCount === 1 ? "field needs" : "fields need"} a fix.`
+            : ""}
         </p>
       </div>
-      <PrefixField
-        id={`${id}-website`}
-        label="Website"
-        prefix={websitePrefix(fields.website)}
-        type="text"
-        inputMode="url"
-        autoComplete="url"
-        autoCapitalize="none"
-        spellCheck={false}
-        required
-        aria-required
-        placeholder="yourorg.org"
-        value={websiteInputText(fields.website)}
-        error={errors.website}
-        onChange={(e) =>
-          set("website", websiteFieldChange(fields.website, e.target.value))
-        }
-        onBlur={() => blur("website")}
-        hint={
-          LIVE
-            ? "Next, the agent reads your site and recent news. That takes about half a minute; if it runs longer, it keeps reading in the background while you start."
-            : "This preview shows saved sample context instead of reading your site."
-        }
-      />
-
-      <fieldset className="onb-socials">
-        <legend>
-          Social links <span className="onb-optional">(optional)</span>
-        </legend>
-        <p className="onb-note">
-          Saved for later; the agent doesn't read them yet. Paste a link or type
-          your handle.
-        </p>
-        <div className="onb-fields">
-          {SOCIAL_PLATFORMS.map((platform) => (
-            <PrefixField
-              key={platform}
-              id={`${id}-${platform}`}
-              label={SOCIAL_LABELS[platform]}
-              prefix={FIELD_PREFIX[platform]}
-              type="text"
-              inputMode="url"
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              placeholder={SOCIAL_PLACEHOLDER[platform]}
-              value={fields[platform]}
-              error={errors[platform]}
-              onChange={(e) => set(platform, e.target.value)}
-              onPaste={(e) => {
-                const pasted = e.clipboardData.getData("text");
-                if (!pasted) return;
-                e.preventDefault();
-                set(platform, socialFieldValue(platform, pasted));
-              }}
-              onBlur={() => blur(platform)}
-            />
-          ))}
-        </div>
-      </fieldset>
-      <p className="sr-only" role="status">
-        {errorCount
-          ? `${errorCount} ${errorCount === 1 ? "field needs" : "fields need"} a fix.`
-          : ""}
-      </p>
-      {!LIVE && (
-        <p className="onb-note">
-          This preview keeps your links in this browser only.
-        </p>
-      )}
-    </StepForm>
+      <div className="onb-org-actions">
+        <button className="onb-org-continue" type="submit">
+          Continue
+        </button>
+        <button className="onb-org-finish" type="button" onClick={finishLater}>
+          Finish later
+        </button>
+      </div>
+    </form>
   );
 };
 
@@ -1015,7 +965,6 @@ export const ContextStep = ({
     if (onboardingStore.get().data.background) update({ background: null });
     runContext
       .mutateAsync({
-        name: links.name?.trim() || "The Miami Foundation",
         website,
         x_url: links.x || null,
         linkedin_url: links.linkedin || null,
@@ -1135,7 +1084,7 @@ export const ContextStep = ({
         : phase.phase === "receipt"
           ? `${receiptLine(phase.receipt)}. Go to the dashboard when you're ready.`
           : phase.phase === "welcome"
-            ? "Welcome to Donor Desk."
+            ? "Welcome to Gatherly."
             : phase.phase === "slow"
               ? "Reading your website is taking longer than usual. It goes on in the background; you can continue to the dashboard."
               : phase.message;
@@ -1144,6 +1093,10 @@ export const ContextStep = ({
     send({ type: "retry" });
     setAttempt((n) => n + 1);
   };
+
+  // The public preview refuses the read (read-only), which isn't the website's fault.
+  const previewOnly =
+    phase.phase === "error" && phase.message === PUBLIC_PREVIEW_MESSAGE;
 
   const finishNow = () => {
     // From the receipt, the click shows the welcome card first; it opens the dashboard after WELCOME_MS
@@ -1154,7 +1107,7 @@ export const ContextStep = ({
   const title =
     phase.phase === "welcome" ? (
       <>
-        Welcome to <strong>Donor Desk.</strong>
+        Welcome to <strong>Gatherly.</strong>
       </>
     ) : phase.phase === "receipt" ? (
       <>
@@ -1162,11 +1115,11 @@ export const ContextStep = ({
       </>
     ) : phase.phase === "slow" ? (
       <>
-        {phase.run.cached ? (
-          <>Using saved <strong>research.</strong></>
-        ) : (
-          <>Still reading <strong>your site.</strong></>
-        )}
+        Still reading <strong>your site.</strong>
+      </>
+    ) : previewOnly ? (
+      <>
+        This preview can't read <strong>websites.</strong>
       </>
     ) : phase.phase === "error" ? (
       <>
@@ -1181,15 +1134,15 @@ export const ContextStep = ({
   const lede =
     phase.phase === "welcome"
       ? (phase.receipt.orgName ?? "Opening your dashboard.")
-      : phase.phase === "error"
-        ? "You can still use Donor Desk and run it again later."
-        : phase.phase === "slow"
-          ? phase.run.cached
-            ? `Using saved research for ${phase.run.profile?.name ?? "this organization"}; the live search did not finish. We'll keep reading in the background and update the dashboard if it succeeds.`
-            : "Reading your website is taking longer than usual. We'll keep reading in the background, and new facts appear on your dashboard when it's done."
-          : phase.phase === "receipt"
-            ? undefined
-            : "The agent is reading your website and recent news. This takes about half a minute; if it runs longer, it keeps going in the background.";
+      : previewOnly
+        ? "It's read-only, so nothing new is read. Your dashboard shows what's already in this preview."
+        : phase.phase === "error"
+          ? "You can still use Gatherly and run it again later."
+          : phase.phase === "slow"
+            ? "Reading your website is taking longer than usual. We'll keep reading in the background, and new facts appear on your dashboard when it's done."
+            : phase.phase === "receipt"
+              ? undefined
+              : "The agent is reading your website and recent news. This takes about half a minute; if it runs longer, it keeps going in the background.";
 
   return (
     <StepForm
@@ -1198,7 +1151,7 @@ export const ContextStep = ({
       lede={lede}
       onSubmit={finishNow}
       secondary={
-        phase.phase === "error" ? (
+        phase.phase === "error" && !previewOnly ? (
           <button type="button" className="onb-btn quiet" onClick={retry}>
             Try again
           </button>
@@ -1237,18 +1190,15 @@ export const ContextStep = ({
           <Checklist rows={rows} />
           {phase.phase === "slow" && (
             <p className="onb-status">
-              {phase.run.cached
-                ? "Saved facts remain available while the live search continues. "
-                : "The live search is still running. "}
-              You can open your dashboard now. A status line there shows when
-              the read is done
+              You can open your dashboard now. A small status line there shows
+              when the read is done
               {phase.run.facts.length
                 ? `; until then you'll see the ${plural(phase.run.facts.length, "fact", "facts")} read before`
                 : ""}
               .
             </p>
           )}
-          {phase.phase === "error" && (
+          {phase.phase === "error" && !previewOnly && (
             <p className="onb-status" data-tone="error">
               {phase.message}
             </p>

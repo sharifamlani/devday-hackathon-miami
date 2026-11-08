@@ -23,18 +23,25 @@ import {
   TAB_NAMES,
   readTabCounts,
 } from "./onboardingState";
+import { PUBLIC_PREVIEW_MESSAGE } from "../providers/local/publicPreview";
 
 /* ---------- Step 1: files ---------- */
 
-export const ACCEPTED_EXTENSIONS = ["xlsx", "docx", "md", "csv", "txt"] as const;
+export const ACCEPTED_EXTENSIONS = [
+  "xlsx",
+  "docx",
+  "md",
+  "csv",
+  "txt",
+] as const;
 /** For the file picker's accept attribute. */
 export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.map((e) => `.${e}`).join(
   ",",
 );
 /** POST /ingest refuses anything bigger (service/ingest_router.py). */
 export const MAX_FILE_BYTES = 10_000_000;
-/** The demo upload fixtures live in the repo for reference or manual selection. */
-export const SAMPLE_FOLDER = "demo-data/";
+/** The example files live in the repo, so people can drag the whole folder's files in. */
+export const SAMPLE_FOLDER = "data/sample_inputs/";
 
 export interface SkippedFile {
   name: string;
@@ -47,14 +54,14 @@ const extensionOf = (name: string) =>
 /** Why a file stays out of the import, or null when ingest should read it. */
 export const skipReason = (file: { name: string; size: number }) => {
   const name = file.name;
-  // Keep documentation alongside the demo fixtures out of importer uploads.
+  // data/sample_inputs/_README.md: "Do not pass it to an importer".
   if (/answer[_-]?key/i.test(name))
     return "The answer key is for checking results, so it isn't imported.";
   if (/^_?readme\b/i.test(name))
     return "This describes the example files; it isn't data.";
   if (name.startsWith(".")) return "Hidden system file.";
   if (!(ACCEPTED_EXTENSIONS as readonly string[]).includes(extensionOf(name)))
-    return "Donor Desk reads .xlsx, .docx, .md, .csv and .txt files.";
+    return "Gatherly reads .xlsx, .docx, .md, .csv and .txt files.";
   if (file.size > MAX_FILE_BYTES) return "Over 10 MB.";
   if (file.size === 0) return "This file is empty.";
   return null;
@@ -107,6 +114,11 @@ export const ingestSummary = (
       ? { declined: raw.declined_on_record }
       : {}),
     duplicates: result.duplicates,
+    ...(typeof raw.duplicates_removed === "number" &&
+    Number.isInteger(raw.duplicates_removed) &&
+    raw.duplicates_removed >= 0
+      ? { duplicatesRemoved: raw.duplicates_removed }
+      : {}),
     files: fileCount,
     byTab,
     review: Array.isArray(raw.flagged_for_review)
@@ -154,7 +166,9 @@ export const filesLine = (summary: FilesSummary) => {
     : "";
   const parts = [
     summary.people != null ? plural(summary.people, "person", "people") : null,
-    summary.gifts != null ? plural(summary.gifts, "gift", "gifts") + declined : null,
+    summary.gifts != null
+      ? plural(summary.gifts, "gift", "gifts") + declined
+      : null,
     summary.duplicates
       ? plural(summary.duplicates, "possible duplicate", "possible duplicates")
       : null,
@@ -171,7 +185,7 @@ export const plainError = (cause: unknown, fallback: string) => {
     cause.name === "TypeError" ||
     /failed to fetch|networkerror|load failed/i.test(cause.message)
   )
-    return "We couldn't reach the Donor Desk service. Check that it's running, then try again.";
+    return "We couldn't reach the Gatherly service. Check that it's running, then try again.";
   return cause.message;
 };
 
@@ -240,7 +254,7 @@ const READ_SOURCES = ["website", "news"];
 export const contextOutcome = (run: ContextRun): "done" | "slow" | "failed" => {
   if (run.served_from === "fallback") return "slow";
   const read = run.sources.filter((s) => READ_SOURCES.includes(s.source));
-  if (read.some((s) => s.state === "done" || s.state === "cached")) return "done";
+  if (read.some((s) => s.state === "done")) return "done";
   return run.facts.length && run.status === "done" ? "done" : "failed";
 };
 
@@ -335,14 +349,6 @@ const rowFromRun = (source: ContextRunSource, run: ContextRun): SourceRow => {
             ? `${items(source.fact_count)} (saved earlier)`
             : items(source.fact_count),
       };
-    case "cached":
-      return {
-        ...base,
-        tone: "done",
-        text: source.fact_count
-          ? `${items(source.fact_count)} (saved; live read unavailable)`
-          : "Saved earlier; live read unavailable",
-      };
     case "saved_not_connected":
       return { ...base, tone: "quiet", text: "Saved for later" };
     case "not_provided":
@@ -432,7 +438,7 @@ export const checklist = (
       ];
     case "slow":
       return [
-        ...sourceRows(links, phase.run),
+        ...pendingRows(links, "slow"),
         { ...TASKS_ROW, tone: "pending", text: "After the read" },
       ];
     case "receipt":
@@ -505,7 +511,9 @@ export const contextSummary = (phase: ContextPhase): ContextSummary | null => {
       };
     case "error":
       return {
-        outcome: "failed",
+        // The public preview refuses the read; that isn't a failed read of the website.
+        outcome:
+          phase.message === PUBLIC_PREVIEW_MESSAGE ? "preview" : "failed",
         items: phase.run?.facts.length ?? 0,
         tasks: null,
       };
@@ -645,6 +653,11 @@ export const offerCopy = (
     return {
       title: "Your desk is ready.",
       body: "Want a one-minute tour of where things are?",
+    };
+  if (outcome === "preview")
+    return {
+      title: "Your desk is open.",
+      body: "This preview can't read websites, so it shows what's already here. Want a one-minute tour of where things are?",
     };
   if (outcome === "background" && data.background?.status !== "failed")
     return {

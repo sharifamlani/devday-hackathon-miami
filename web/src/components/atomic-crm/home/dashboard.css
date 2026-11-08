@@ -19,8 +19,11 @@
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  /* Scrolls, but with no visible bar: it crowded the tiles' right edge. */
+  scrollbar-width: none;
+}
+.home-overview::-webkit-scrollbar {
+  display: none;
 }
 .home-tile {
   border: 0;
@@ -80,10 +83,23 @@
   max-width: 900px;
   justify-self: center;
   background: var(--background);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
 }
 .home-greeting {
   flex: none;
   padding: 24px 24px 0;
+}
+.home-greeting-title {
+  margin: 0 0 24px;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.home-greeting-title b {
+  font-weight: 700;
 }
 .home-thread {
   display: flex;
@@ -94,6 +110,11 @@
   overflow-y: auto;
   padding: 24px;
   scrollbar-width: thin;
+}
+.home-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .home-user-message {
   align-self: flex-end;
@@ -111,10 +132,71 @@
   align-self: flex-start;
   max-width: 88%;
   flex-shrink: 0;
+  min-width: 0;
+  background: transparent;
+  border: 0;
   padding: 12px 0;
   font-size: 14px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+.home-agent-label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+.home-agent-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.home-agent-prose p {
+  margin-block: 0;
+  line-height: inherit;
+}
+.home-agent-prose p + p {
+  margin-top: 10px;
+}
+.home-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.home-suggestion {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #eef0f2;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.home-suggestion:hover {
+  background: #e3e7e9;
+}
+.dark .home-suggestion {
+  background: var(--surface);
+}
+.dark .home-suggestion:hover {
+  background: var(--accent);
+}
+.home-suggestion:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.home-suggestion:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.dark .home-user-message {
+  background: #49432c;
+  color: var(--foreground);
 }
 .home-composer {
   flex: none;
@@ -299,7 +381,8 @@
 .home-overview-toggle {
   width: 40px;
   height: 40px;
-  margin-top: 58px;
+  /* Centred on the 46px top bar row, level with the wordmark. */
+  margin-top: 3px;
   flex: none;
   display: grid;
   place-items: center;
@@ -497,4 +580,273 @@
   .desk-directory-filters > div {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ---- Collapsible overview tiles (TileCollapse.tsx): fold to the title row ---- */
+.tile-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 0;
+  transition:
+    grid-template-rows var(--motion-base) var(--ease-move),
+    opacity var(--motion-base) var(--ease-move);
+}
+.tile-body-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.home-tile[data-collapsed] > .tile-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.home-overview > .home-tile[data-collapsed] {
+  flex: 0 0 auto;
+}
+.home-overview > .home-tile > div:first-child {
+  transition: margin-bottom var(--motion-base) var(--ease-move);
+}
+.home-overview > .home-tile[data-collapsed] > div:first-child {
+  margin-bottom: 0;
+}
+.tile-collapse-toggle svg {
+  transition: transform var(--motion-fast) var(--ease-move);
+}
+.tile-collapse-toggle[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+.home-overview .tile-body-inner > ul {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+/* The CRM tile's list still takes spare room and scrolls inside the body. */
+.home-overview > .home-tile[data-tour="crm"] > .tile-body {
+  flex: 1 1 auto;
+}
+
+/* ---------- Overview calendar: week grid and day view (calendar-app style) ---------- */
+/* Event colors match the full calendar's type dots (calendar-v3.css): tinted fill, solid left edge. */
+.home-agenda {
+  --cal-gutter: 30px;
+}
+.home-cal-strip {
+  padding-left: var(--cal-gutter);
+}
+.home-cal-strip button[aria-pressed="true"]:not([aria-current="date"]) {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.home-cal-strip button[aria-pressed="true"][aria-current="date"] {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
+}
+.home-calendar-tools .home-cal-back {
+  width: auto;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+.home-calendar-tools .home-cal-back:hover {
+  background: var(--accent);
+}
+.home-cal-grid {
+  --ev-fundraising: #d1435b;
+  --ev-stewardship: #2f9e6f;
+  --ev-community: #3b82c4;
+  --ev-other: #8a63c9;
+}
+.home-cal-allday {
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(var(--cal-days), minmax(0, 1fr));
+  gap: 2px 0;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.home-cal-allday > div {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  min-width: 0;
+  padding: 0 1px;
+}
+.home-cal-gutter {
+  font-size: 8px;
+  line-height: 18px;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+.home-cal-scroll {
+  max-height: 210px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.home-cal-grid[data-detailed] .home-cal-scroll {
+  max-height: 300px;
+}
+.home-cal-hours {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(var(--cal-days), minmax(0, 1fr));
+  /* Hour lines across the day columns. */
+  background-image: linear-gradient(var(--border) 1px, transparent 1px);
+  background-size: 100% 30px;
+  background-position: var(--cal-gutter) 0;
+  background-repeat: repeat-y;
+  background-clip: content-box;
+}
+.home-cal-hour {
+  position: absolute;
+  left: 0;
+  width: calc(var(--cal-gutter) - 4px);
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: var(--muted-foreground);
+  text-align: right;
+}
+.home-cal-hour:first-child {
+  transform: none;
+}
+.home-cal-column {
+  position: relative;
+  grid-row: 1;
+  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+.home-cal-column[data-today] {
+  background: color-mix(in srgb, var(--brand, #f4d958) 8%, transparent);
+}
+.home-cal-slot {
+  position: absolute;
+  display: flex;
+}
+.home-cal-event {
+  --ev: var(--ev-other);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  overflow: hidden;
+  border-left: 3px solid var(--ev);
+  border-radius: 5px;
+  /* Separates cascaded blocks in the week view. */
+  box-shadow: 0 0 0 1px var(--background);
+  background: color-mix(in srgb, var(--ev) 18%, var(--background));
+  color: color-mix(in srgb, var(--ev) 70%, var(--foreground));
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-move, ease);
+}
+.home-cal-event:hover {
+  background: color-mix(in srgb, var(--ev) 28%, var(--background));
+}
+.home-cal-event[data-kind="fundraising"] {
+  --ev: var(--ev-fundraising);
+}
+.home-cal-event[data-kind="stewardship"] {
+  --ev: var(--ev-stewardship);
+}
+.home-cal-event[data-kind="community"] {
+  --ev: var(--ev-community);
+}
+.home-cal-event > span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-cal-event > time {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+.home-cal-allday .home-cal-event {
+  /* WCAG 2.2 AA target size: at least 24px, even when all-day events stack. */
+  min-height: 24px;
+  padding: 1px 4px;
+  justify-content: center;
+}
+.home-cal-grid[data-detailed] .home-cal-event {
+  font-size: 12px;
+}
+.home-cal-grid[data-detailed] .home-cal-event > time {
+  font-size: 10px;
+}
+.home-cal-now {
+  position: absolute;
+  left: -3px;
+  right: 0;
+  height: 2px;
+  background: #e5484d;
+  pointer-events: none;
+}
+.home-cal-now::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e5484d;
+}
+.home-cal-plan {
+  margin-top: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+/* "By day": the agenda under the grid, folded on its own like a Tasks folder. */
+.home-cal-days {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.home-cal-days-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.home-cal-days-toggle svg {
+  transition: transform var(--motion-base) var(--ease-move);
+}
+.home-cal-days[data-collapsed] .home-cal-days-toggle svg {
+  transform: rotate(-90deg);
+}
+.home-cal-days[data-collapsed] > .tile-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.home-cal-days .home-agenda-list {
+  max-height: 220px;
+  padding-top: 4px;
+}
+.home-cal-dot {
+  --ev: #8a63c9;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ev);
+}
+.home-cal-dot[data-kind="fundraising"] {
+  --ev: #d1435b;
+}
+.home-cal-dot[data-kind="stewardship"] {
+  --ev: #2f9e6f;
+}
+.home-cal-dot[data-kind="community"] {
+  --ev: #3b82c4;
 }

@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   ArrowRight,
   AudioLines,
@@ -21,11 +28,22 @@ import {
 import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
 import { type AskAnswer } from "../providers/local/ask";
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, PUBLIC_READ_ONLY } from "../providers/local/config";
 import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
-import { decide, sendToAgent, undoMergedPair, undoStep, useAgentChat } from "./agentChat";
-import { ApprovalCard, StepCard, UndoneNote, undoneSummary } from "./AgentCards";
+import {
+  decide,
+  sendToAgent,
+  undoMergedPair,
+  undoStep,
+  useAgentChat,
+} from "./agentChat";
+import {
+  ApprovalCard,
+  StepCard,
+  UndoneNote,
+  undoneSummary,
+} from "./AgentCards";
 import { DictationButton, DictationHint } from "../voice/DictationButton";
 import { useDictationInput } from "../voice/useDictationInput";
 import { DICTATION_TOGGLE_EVENT } from "./useWorkspaceHotkeys";
@@ -36,6 +54,13 @@ import {
   type HomeTask,
 } from "./homeData";
 import { focusRing } from "./tile";
+import {
+  AgentReply,
+  ConversationSuggestions,
+  HOME_SUGGESTIONS,
+  UserMessage,
+} from "./Conversation";
+import { useHomeSummary } from "../providers/local/homeSummary";
 
 const pill = cn(
   "inline-flex min-h-9 items-center justify-center gap-2 rounded-[10px] px-3 text-sm font-medium transition-colors",
@@ -94,7 +119,7 @@ export const FocusTaskCard = ({
               ? "Live data appears when the service is connected."
               : hasData
                 ? "No tasks left for today. Ask the agent below what to do next."
-                : "Add your donor files with the + below and Donor Desk lines up today’s tasks."}
+                : "Add your donor files with the + below and Gatherly lines up today’s tasks."}
           </p>
         )}
       </section>
@@ -193,14 +218,16 @@ export const FocusTaskCard = ({
             Draft email
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => onDone(task)}
-          className={cn(pill, "bg-surface hover:bg-accent")}
-        >
-          <Check className="size-4" aria-hidden="true" />
-          Mark done
-        </button>
+        {!PUBLIC_READ_ONLY && (
+          <button
+            type="button"
+            onClick={() => onDone(task)}
+            className={cn(pill, "bg-surface hover:bg-accent")}
+          >
+            <Check className="size-4" aria-hidden="true" />
+            Mark done
+          </button>
+        )}
       </div>
     </section>
   );
@@ -212,10 +239,7 @@ const AgentMessage = ({ answer }: { answer: AskAnswer }) => {
   const session = useAskSession();
   const summary = answerSummary(answer);
   return (
-    <div className="home-agent-message">
-      <span className="mb-0.5 block text-[11px] font-bold text-muted-foreground">
-        Agent
-      </span>
+    <AgentReply>
       <p>{summary.headline}</p>
       {summary.detail && (
         <p className="mt-0.5 text-xs text-muted-foreground">{summary.detail}</p>
@@ -242,16 +266,9 @@ const AgentMessage = ({ answer }: { answer: AskAnswer }) => {
           : "Open in Ask"}
         <ArrowRight className="size-3.5" aria-hidden="true" />
       </button>
-    </div>
+    </AgentReply>
   );
 };
-
-const UserMessage = ({ text }: { text: string }) => (
-  <p className="home-user-message">
-    <span className="sr-only">You: </span>
-    {text}
-  </p>
-);
 
 /** On the laptop API the Home chat is the main-UI agent (B10): steps as cards, Undo, approval cards. */
 const LIVE_AGENT = DATA_MODE === "local";
@@ -263,8 +280,13 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
   const last = messages[messages.length - 1];
   // While a reply streams in, its own step cards and text show the progress; "Thinking…" covers the wait before
   const streamingShown =
-    last?.role === "assistant" && Boolean(last.streaming) && (last.steps.length > 0 || last.text !== "");
-  const progress = last?.role === "assistant" ? `${last.steps.length}:${last.text.length}` : "";
+    last?.role === "assistant" &&
+    Boolean(last.streaming) &&
+    (last.steps.length > 0 || last.text !== "");
+  const progress =
+    last?.role === "assistant"
+      ? `${last.steps.length}:${last.text.length}`
+      : "";
 
   useEffect(() => {
     // Nothing said yet: stay at the top so an opening briefing is read from its first line.
@@ -276,9 +298,9 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
     <div
       role="log"
       aria-label="Conversation with the agent"
-      className="flex min-h-[120px] flex-1 flex-col gap-3 overflow-y-auto px-[22px] py-4"
+      className="home-thread"
     >
-      {intro}
+      {messages.length === 0 && intro}
       {!intro && messages.length === 0 && !pending && (
         <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
           Ask about donors, plan outreach, or add to the calendar.
@@ -288,11 +310,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
         m.role === "user" ? (
           <UserMessage key={i} text={m.text} />
         ) : (
-          <div
-            key={i}
-            className="flex min-w-0 max-w-full flex-col gap-2 self-start rounded-2xl sm:max-w-[78%] rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm"
-          >
-            <span className="block text-[11px] font-bold text-muted-foreground">Agent</span>
+          <AgentReply key={i}>
             {m.steps.length > 0 && (
               <ul aria-label="Steps" className="flex flex-col gap-1.5">
                 {m.steps.map((step, j) => (
@@ -301,6 +319,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
                     step={step}
                     onUndo={() => undoStep(i, j, refetch)}
                     onUndoPair={(k) => undoMergedPair(i, j, k, refetch)}
+                    onAsk={(text) => void sendToAgent(text, refetch)}
                   />
                 ))}
               </ul>
@@ -309,21 +328,30 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
               <ApprovalCard
                 key={a.call_id}
                 approval={a}
-                decided={Boolean(m.handled) || m.decisions?.[a.call_id] !== undefined}
+                decided={
+                  Boolean(m.handled) || m.decisions?.[a.call_id] !== undefined
+                }
                 decision={m.decisions?.[a.call_id]}
                 handled={m.handled}
                 disabled={pending}
-                onDecide={(approve) => decide(i, { [a.call_id]: approve }, refetch)}
+                onDecide={(approve) =>
+                  decide(i, { [a.call_id]: approve }, refetch)
+                }
               />
             ))}
             {m.text && (
               // every change in this reply undone: grey the prose so "Added …" can't read as still true
-              <div className={cn(undoneSummary(m.steps).all && "opacity-55")} data-undone={undoneSummary(m.steps).all || undefined}>
-                <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>
+              <div
+                className={cn(undoneSummary(m.steps).all && "opacity-55")}
+                data-undone={undoneSummary(m.steps).all || undefined}
+              >
+                <Markdown className="home-agent-prose [&_p]:my-2 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">
+                  {m.text}
+                </Markdown>
               </div>
             )}
             <UndoneNote steps={m.steps} />
-          </div>
+          </AgentReply>
         ),
       )}
       {pending && !streamingShown && (
@@ -333,7 +361,9 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
       )}
       {error && !pending && (
         <p role="alert" className="self-start text-sm text-alert-foreground">
-          The agent couldn’t answer: {error}
+          {error.startsWith("Couldn’t undo")
+            ? error
+            : `The agent couldn’t answer: ${error}`}
         </p>
       )}
       <div ref={endRef} />
@@ -371,14 +401,14 @@ const AskThread = ({ intro }: { intro?: ReactNode }) => {
       aria-label="Conversation with the agent"
       className="home-thread"
     >
-      {intro}
+      {history.length === 0 && !pending && intro}
       {!intro && history.length === 0 && !pending && (
         <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
           Ask about donors, plan outreach, or add to the calendar.
         </p>
       )}
       {history.map((entry, i) => (
-        <div key={`${i}-${entry.question}`} className="flex flex-col gap-3">
+        <div key={`${i}-${entry.question}`} className="home-exchange">
           <UserMessage text={entry.question} />
           <AgentMessage answer={entry} />
         </div>
@@ -401,7 +431,7 @@ const AskThread = ({ intro }: { intro?: ReactNode }) => {
 
 /* ---------- Composer ---------- */
 
-/** No suggestion chips above the input (Sharif); /home/summary.suggestions is not rendered. */
+/** Suggestions draft a question; the user explicitly sends it. */
 export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   const session = useAskSession();
   const agent = useAgentChat();
@@ -409,8 +439,17 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [bloomId, setBloomId] = useState(0);
   const busy = LIVE_AGENT ? agent.pending : session.pending;
+  // GET /home/summary's chips when the service has them; the shared defaults otherwise.
+  const summary = useHomeSummary();
+  const chips = summary.data?.suggestions?.length
+    ? summary.data.suggestions.slice(0, 3)
+    : DATA_MODE === "local"
+      ? HOME_SUGGESTIONS
+      : // An older snapshot without home_summary answers only these two (ask.ts chipAnswer).
+        ["Who's late on a usual gift?", "Plan next week"];
   const dictation = useDictationInput(text, setText);
   // Alt+V (useWorkspaceHotkeys) toggles the mic like a click on it.
   const dictationRef = useRef(dictation);
@@ -438,6 +477,15 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
 
   return (
     <div data-tour="composer" className="home-composer">
+      {/* Suggestion chips above the chat bar (back by Christian's call): a chip fills the box, Send sends. */}
+      <ConversationSuggestions
+        suggestions={chips}
+        disabled={busy}
+        onSelect={(chip) => {
+          setText(chip);
+          inputRef.current?.focus();
+        }}
+      />
       <form onSubmit={onSubmit} className="home-composer-input">
         <span
           key={bloomId}
@@ -480,6 +528,7 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
           Ask the agent
         </label>
         <input
+          ref={inputRef}
           id={inputId}
           data-hotkeys="composer"
           value={text}
@@ -517,7 +566,12 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
           <ArrowRight className="size-5" aria-hidden="true" />
         </button>
       </form>
-      <DictationHint error={dictation.error} listening={dictation.state === "listening"} interim={dictation.interim} className="px-2" />
+      <DictationHint
+        error={dictation.error}
+        listening={dictation.state === "listening"}
+        interim={dictation.interim}
+        className="px-2"
+      />
     </div>
   );
 };

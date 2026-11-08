@@ -1,5 +1,5 @@
-import { useId, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useId, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Link } from "react-router";
 import { zoomClick } from "./workspaceView";
 import { requestAddEvent } from "../calendar/calendarFocus";
@@ -9,6 +9,9 @@ import { addDays } from "../outreach/dates";
 import { parseWhen } from "../providers/local/parseWhen";
 import { cn } from "@/lib/utils";
 import { tile, focusRing } from "./tile";
+import { CollapseToggle, TileBody } from "./TileCollapse";
+import { useTileCollapsed } from "./collapseState";
+import { eventKind, TimeGrid } from "./WeekGrid";
 
 const LIST_DAYS = 14;
 
@@ -18,6 +21,8 @@ export interface AgendaRow {
   time: string;
   label: string;
   byAgent: boolean;
+  /** Event type, for the color dot that matches the grid's blocks. */
+  kind: string;
 }
 export interface AgendaDay {
   date: string;
@@ -89,7 +94,8 @@ export const agendaDays = (
   const byDate = new Map<string, CalendarItem[]>();
   for (const item of items) {
     const date = item.date.slice(0, 10);
-    if (item.kind !== "event" || item.done || date < start || date > end) continue;
+    if (item.kind !== "event" || item.done || date < start || date > end)
+      continue;
     byDate.set(date, [...(byDate.get(date) ?? []), item]);
   }
   const row = (i: CalendarItem, n: number): AgendaRow => ({
@@ -97,6 +103,7 @@ export const agendaDays = (
     time: minutes(i.time) == null ? "All day" : clock(minutes(i.time)!),
     label: i.title,
     byAgent: i.source === "agent",
+    kind: eventKind(i),
   });
   if (today >= start && today <= end && !byDate.has(today))
     byDate.set(today, []);
@@ -117,8 +124,9 @@ export const agendaDays = (
 };
 
 /**
- * The overview's calendar: a month heading, a seven-day strip from today (a dot marks days with
- * items), then a list through time. Not a grid: no hour slots. The arrows move both by a week.
+ * The overview's calendar, in a calendar app's style: a month heading, the week's dates, then an hour
+ * grid with colored blocks by event type (an all-day row above it). Tapping a date opens that day's
+ * view; "Week" goes back. The arrows move by a week, or by a day in the day view.
  */
 export const AgendaList = ({
   today,
@@ -128,108 +136,154 @@ export const AgendaList = ({
   onOpenDay: (date: string) => void;
 }) => {
   const headingId = useId();
+  const bodyId = useId();
+  const [collapsed, toggle] = useTileCollapsed("calendar");
+  const [daysFolded, toggleDays] = useTileCollapsed("calendarDays");
+  const daysId = useId();
   const [offset, setOffset] = useState(0);
-  const listRef = useRef<HTMLDivElement>(null);
+  /** null = the week; a date = that day's view. */
+  const [day, setDay] = useState<string | null>(null);
   const start = addDays(today, offset * 7);
   const strip = weekStrip(start);
   const feed = useCalendarEvents(start, addDays(start, LIST_DAYS - 1));
   const days = agendaDays(feed.data ?? [], start, today);
-  const hasItems = new Set(
-    days.filter((d) => d.rows.length).map((d) => d.date),
+  // In the day view the arrows move by a day and the week follows along.
+  /** Open a date's day view, moving the week (and its feed) so the strip always contains it. */
+  const selectDay = (date: string) => {
+    const diff = Math.round(
+      (parseWhen(date).getTime() - parseWhen(today).getTime()) / 86_400_000,
+    );
+    setOffset(Math.floor(diff / 7));
+    setDay(date);
+  };
+  const stepDay = (by: number) => {
+    if (day) selectDay(addDays(day, by));
+  };
+  // Folded, the tile's subtitle names the next thing on the calendar.
+  const nextUp = days.flatMap((d) => d.rows)[0]?.label;
+  const weekBusy = days.some(
+    (d) => d.rows.length > 0 && strip.some((s) => s.date === d.date),
   );
   const month = parseWhen(start).toLocaleDateString("en-US", {
     month: "long",
   });
-  const jumpTo = (date: string) => {
-    const list = listRef.current;
-    const heading = list?.querySelector<HTMLElement>(`[data-day="${date}"]`);
-    if (list && heading)
-      list.scrollTo({
-        top: heading.offsetTop - list.offsetTop,
-        behavior: "smooth",
-      });
-  };
   return (
     <section
       data-zoom-source="calendar"
+      data-collapsed={collapsed || undefined}
       className={cn(tile, "home-agenda")}
       aria-labelledby={headingId}
     >
       <div className="home-calendar-heading">
-        <div>
-          <h2 id={headingId}>
-            <Link
-              to="/calendar"
-              onClick={zoomClick("calendar")}
-              className={cn(
-                "-mx-1 rounded-sm px-1 hover:underline hover:underline-offset-4 hover:decoration-2",
-                focusRing,
-              )}
-              title="Open full calendar"
-              aria-label="Open full calendar"
-            >
-              {month}
-            </Link>
-            <kbd
-              aria-hidden="true"
-              className="ml-2 hidden align-baseline font-sans text-[11px] font-normal text-muted-foreground md:inline"
-            >
-              Alt+C
-            </kbd>
-          </h2>
-          <p className="text-xs text-muted-foreground" aria-live="polite">
-            {weekRange(start)}
-          </p>
+        <div className="flex min-w-0 items-start gap-1">
+          <CollapseToggle
+            collapsed={collapsed}
+            onToggle={toggle}
+            bodyId={bodyId}
+            label="calendar"
+          />
+          <div className="min-w-0">
+            <h2 id={headingId}>
+              <Link
+                to="/calendar"
+                onClick={zoomClick("calendar")}
+                className={cn(
+                  "-mx-1 rounded-sm px-1 hover:underline hover:underline-offset-4 hover:decoration-2",
+                  focusRing,
+                )}
+                title="Open full calendar"
+                aria-label="Open full calendar"
+              >
+                {month}
+              </Link>
+              <kbd
+                aria-hidden="true"
+                className={cn(
+                  "ml-2 hidden align-baseline font-sans text-[11px] font-normal text-muted-foreground",
+                  // The day view's Week button needs the room.
+                  !day && "md:inline",
+                )}
+              >
+                Alt+C
+              </kbd>
+            </h2>
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              {collapsed && nextUp
+                ? `Next: ${nextUp}`
+                : day
+                  ? dayHeading(day, today)
+                  : weekRange(start)}
+            </p>
+          </div>
         </div>
-        <div className="home-calendar-tools">
-          <button
-            type="button"
-            aria-label="Previous week"
-            className={focusRing}
-            onClick={() => setOffset((value) => value - 1)}
-          >
-            <ChevronLeft size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="Next week"
-            className={focusRing}
-            onClick={() => setOffset((value) => value + 1)}
-          >
-            <ChevronRight size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="Add event"
-            title="Add event"
-            className={cn("home-calendar-add", focusRing)}
-            onClick={(e) => {
-              requestAddEvent();
-              zoomClick("calendar")(e);
-            }}
-          >
-            <Plus size={15} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-      <ol className="home-agenda-strip" aria-label="Week">
-        {strip.map(({ date, letter, day }) => (
-          <li key={date}>
-            <span aria-hidden="true">{letter}</span>
+        {!collapsed && (
+          <div className="home-calendar-tools">
+            {day && (
+              <button
+                type="button"
+                className={cn("home-cal-back", focusRing)}
+                onClick={() => setDay(null)}
+              >
+                Week
+              </button>
+            )}
             <button
               type="button"
-              aria-current={date === today ? "date" : undefined}
-              aria-label={dayHeading(date, today)}
+              aria-label={day ? "Previous day" : "Previous week"}
               className={focusRing}
-              onClick={() => jumpTo(date)}
+              onClick={() =>
+                day ? stepDay(-1) : setOffset((value) => value - 1)
+              }
             >
-              {day}
+              <ChevronLeft size={14} aria-hidden="true" />
             </button>
-            <i aria-hidden="true" data-on={hasItems.has(date) || undefined} />
-          </li>
-        ))}
-      </ol>
-      <div ref={listRef} className="home-agenda-list">
+            <button
+              type="button"
+              aria-label={day ? "Next day" : "Next week"}
+              className={focusRing}
+              onClick={() =>
+                day ? stepDay(1) : setOffset((value) => value + 1)
+              }
+            >
+              <ChevronRight size={14} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="Add event"
+              title="Add event"
+              className={cn("home-calendar-add", focusRing)}
+              onClick={(e) => {
+                requestAddEvent();
+                zoomClick("calendar")(e);
+              }}
+            >
+              <Plus size={15} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+      </div>
+      <TileBody id={bodyId} collapsed={collapsed}>
+        <ol
+          className="home-agenda-strip home-cal-strip"
+          aria-label="Week"
+          data-day-view={day ? "" : undefined}
+        >
+          {strip.map(({ date, letter, day: n }) => (
+            <li key={date}>
+              <span aria-hidden="true">{letter}</span>
+              <button
+                type="button"
+                aria-current={date === today ? "date" : undefined}
+                aria-pressed={day ? date === day : undefined}
+                aria-label={`${dayHeading(date, today)}: open the day`}
+                className={focusRing}
+                onClick={() => setDay(date === day ? null : date)}
+              >
+                {n}
+              </button>
+            </li>
+          ))}
+        </ol>
         {feed.isPending ? (
           <p role="status" className="text-xs text-muted-foreground">
             Loading calendar…
@@ -241,41 +295,95 @@ export const AgendaList = ({
               Retry
             </button>
           </p>
-        ) : days.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Nothing scheduled in the next two weeks.
-          </p>
         ) : (
-          days.map((day) => (
-            <div key={day.date} className="home-agenda-day" data-day={day.date}>
-              <h3>
-                {dayHeading(day.date, today)}
-                {day.rows.length === 0 && " — nothing scheduled"}
-              </h3>
-              <ul>
-                {day.rows.map((row) => (
-                  <li key={row.key}>
-                    <button
-                      type="button"
-                      className={cn("home-agenda-row", focusRing)}
-                      title={`${row.label}${row.byAgent ? " (added by agent)" : ""}`}
-                      onClick={() => onOpenDay(day.date)}
-                    >
-                      <time>{row.time}</time>
-                      <span>{row.label}</span>
-                      {row.byAgent && (
-                        <i role="img" aria-label="added by agent">
-                          🤖
-                        </i>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
+          <div key={day ?? "week"} className="motion-fade-in">
+            <TimeGrid
+              days={day ? [day] : strip.map((d) => d.date)}
+              today={today}
+              events={feed.data ?? []}
+              // Week: a block opens that day's view; day view: it opens the day plan.
+              onOpenEvent={day ? onOpenDay : selectDay}
+              detailed={!!day}
+            />
+            {day && (
+              <button
+                type="button"
+                className={cn("home-cal-plan", focusRing)}
+                onClick={() => onOpenDay(day)}
+              >
+                Open day plan
+              </button>
+            )}
+            {!weekBusy && !day && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Nothing scheduled this week.
+              </p>
+            )}
+          </div>
         )}
-      </div>
+        {!feed.isPending && !feed.error && days.length > 0 && (
+          // The day-by-day list under the grid, folded on its own (remembered, like the tiles).
+          <div
+            className="home-cal-days"
+            data-collapsed={daysFolded || undefined}
+          >
+            <button
+              type="button"
+              className={cn(
+                "home-project-toggle home-cal-days-toggle",
+                focusRing,
+              )}
+              aria-expanded={!daysFolded}
+              aria-controls={daysId}
+              onClick={toggleDays}
+            >
+              <ChevronDown size={14} aria-hidden="true" />
+              By day
+            </button>
+            <TileBody id={daysId} collapsed={daysFolded}>
+              <div className="home-agenda-list">
+                {days.map((d) => (
+                  <div
+                    key={d.date}
+                    className="home-agenda-day"
+                    data-day={d.date}
+                  >
+                    <h3>
+                      {dayHeading(d.date, today)}
+                      {d.rows.length === 0 && " — nothing scheduled"}
+                    </h3>
+                    <ul>
+                      {d.rows.map((row) => (
+                        <li key={row.key}>
+                          <button
+                            type="button"
+                            className={cn("home-agenda-row", focusRing)}
+                            title={`${row.label}${row.byAgent ? " (added by agent)" : ""}`}
+                            onClick={() => selectDay(d.date)}
+                          >
+                            <i
+                              aria-hidden="true"
+                              className="home-cal-dot"
+                              data-kind={row.kind}
+                            />
+                            <time>{row.time}</time>
+                            <span>{row.label}</span>
+                            {row.byAgent && (
+                              <i role="img" aria-label="added by agent">
+                                🤖
+                              </i>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </TileBody>
+          </div>
+        )}
+      </TileBody>
     </section>
   );
 };

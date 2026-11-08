@@ -4,7 +4,7 @@ import { TaskDayPanel } from "./TaskDayPanel";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, STAFF_NAME } from "../providers/local/config";
 import {
   Dialog,
   DialogContent,
@@ -46,11 +46,7 @@ import {
 } from "./homeData";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { CrmPanel } from "./panels/CrmPanel";
-import {
-  ImpactPanel,
-  listFacts,
-  type ImpactFact,
-} from "./panels/ImpactPanel";
+import { ImpactPanel, listFacts, type ImpactFact } from "./panels/ImpactPanel";
 import { TasksPanel } from "./panels/TasksPanel";
 import {
   PanelFrame,
@@ -158,7 +154,8 @@ export const HomePage = () => {
   const staffName = (
     profile.data as { staff_name?: string | null } | null | undefined
   )?.staff_name;
-  const name = firstName(staffName);
+  // The org profile's staff name when it has one, else the demo persona (config.STAFF_NAME).
+  const name = firstName(staffName) ?? firstName(STAFF_NAME);
   const tasksPending = home.tasks.isPending;
   const briefing = hasData ? buildBriefing(summary, tasks) : null;
   const startTask = (key: string) => {
@@ -226,7 +223,7 @@ export const HomePage = () => {
           className="home-conversation"
         >
           <div className="home-greeting">
-            <h1 className="mb-3.5 text-[28px] leading-tight font-normal tracking-[-0.02em]">
+            <h1 className="home-greeting-title">
               {greeting(new Date().getHours())}
               {name ? (
                 <>

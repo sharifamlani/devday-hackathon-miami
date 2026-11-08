@@ -53,6 +53,17 @@ Rules:
 - When the user shares something about a person (a conversation, family, plans, preferences: "I talked to
   Rafael..."), call update_donor_summary with their words, then confirm "Updated <first name>'s summary". If the
   tool says no one or several people match, ask who they meant; never guess or write it to someone else.
+- Prep protocol ("prep for ..."): pick the work by the goal. A call: the call protocol below. An email ("prep the
+  Give Miami Day email", "prep an email to lapsing givers"): find the people (find_people), then call prep_email
+  with their ids and the topic; it shows what we sent them before, what we did since (sourced facts X, Y, Z) and
+  what's coming. Say in one line what the email will lead with; draft only when the user clicks Draft or asks
+  (then draft_email for those ids with fact_urls = the card's fact links, so the emails cite only those).
+  An event prep task: who is invited and what to prepare.
+- Enrich protocol ("enrich / research <person>"): call enrich_person. List each proposed fact with its source and
+  each proposed interest tag, then ask whether to save them; save only the ones the user agrees to, with
+  accept_enrichment(person_id, fact_ids, tags), passing the facts' ids and the tags' codes (the "tag" field, not
+  the label). Nothing is saved before that. If it found nothing (an individual:
+  no live web research; or an uncertain identity), say why in one line.
 - Call protocol: "call <person>", "phone <person>" or a call task -> call prep_call, and nothing that dials. Its
   sheet has the Call button; that button is how the user calls. Say in a line or two who they are and the
   suggested points; never add facts the sheet does not have. Use call_person only when, after seeing the sheet,
@@ -232,13 +243,14 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
     "event", "check", "online"). no_gift_in_days: people whose last gift is at least that many days old ("hasn't
     given in 7 days" = 7). interest: people whose interests mention it (e.g. "environment", "kids").
     name: people whose name contains it (use it to look someone up by name)."""
+    from service.donor_summary import fold
     via = gave_via_ids(gave_via)
     statuses = STATUS_ALSO.get(status, (status,)) if status else None
     people = tab_people(ctx.context.tab)
     if people is not None:
         people = [p for p in people if (not statuses or p.get("status") in statuses) and (not tier or p.get("tier") == tier)
                   and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)
-                  and (not name or name.strip().lower() in (p.get("full_name") or "").lower())]
+                  and (not name or fold(name) in fold(p.get("full_name")))]   # accent-insensitive
         people = with_gifts_and_interests(people, no_gift_in_days, interest)
         keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status",
                 "last_gift_date", "interests", "next_step")
@@ -320,7 +332,16 @@ def get_events(ctx: RunContextWrapper[ChatContext]) -> dict:
         return {"events": [], "note": "the events list is not available yet"}
 
 
-def draft_batch(ctx: ChatContext, person_ids: list[int], intent: str, channel: str) -> dict:
+def card_facts(conn, urls: list[str]) -> list[dict]:
+    """The email prep's facts, by their links, as org facts the drafter can cite (newest first)."""
+    marks = ", ".join("?" * len(urls))
+    rows = conn.execute(f"SELECT fact, url, posted_at FROM org_context WHERE url IN ({marks}) "
+                        f"ORDER BY posted_at DESC, id DESC", urls).fetchall()
+    return [{"fact": r["fact"], "url": r["url"], "date": r["posted_at"]} for r in rows]
+
+
+def draft_batch(ctx: ChatContext, person_ids: list[int], intent: str, channel: str,
+                fact_urls: list[str] | None = None) -> dict:
     from service import routes_campaigns as rc
 
     if ctx.tab == "community" and intent != "check_in":
@@ -334,7 +355,10 @@ def draft_batch(ctx: ChatContext, person_ids: list[int], intent: str, channel: s
     try:
         db.create_schema(conn)
         try:
-            rows = rc.draft_rows(conn, ids, intent, channel)
+            only = card_facts(conn, fact_urls) if fact_urls else None
+            if fact_urls and not only:
+                return {"error": "none of those facts are in the context store"}
+            rows = rc.draft_rows(conn, ids, intent, channel, org_facts=only)
         except LookupError as e:
             return {"error": str(e)}
         name = rc.default_name(intent, channel, len(ids)) + " · chat"
@@ -379,9 +403,11 @@ def pending_batch(detail: dict) -> dict:
 
 
 @function_tool
-def draft_email(ctx: RunContextWrapper[ChatContext], person_ids: list[int], intent: Intent) -> dict:
-    """Draft one email per person as a batch awaiting human approval. Nothing is sent."""
-    return draft_batch(ctx.context, person_ids, intent, "email")
+def draft_email(ctx: RunContextWrapper[ChatContext], person_ids: list[int], intent: Intent,
+                fact_urls: list[str] | None = None) -> dict:
+    """Draft one email per person as a batch awaiting human approval. Nothing is sent. fact_urls (from an email
+    prep card): the emails cite only those facts."""
+    return draft_batch(ctx.context, person_ids, intent, "email", fact_urls)
 
 
 @function_tool
@@ -673,9 +699,43 @@ def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_
         proposal = routes_interests.PROPOSALS.get(person_id) or read_interest_cache().get(row["full_name"])
         if proposal is None:
             raise LookupError("no enrichment proposal for this person yet; research them first")
-        return i.accept_enrichment(conn, person_id, proposal, fact_ids, tags,
+        # The model may pass a tag's label ("Climate & resilience") instead of its code; map it, case-insensitive
+        codes = {str(x.get("label") or "").strip().lower(): x["tag"] for x in proposal.get("interests", [])}
+        codes |= {t["label"].strip().lower(): t["slug"] for t in i.list_tags(conn)}
+        picked = [codes.get(str(t).strip().lower(), t) for t in tags]
+        return i.accept_enrichment(conn, person_id, proposal, fact_ids, picked,
                                    agent_run_id=f"chat-accept-{uuid.uuid4().hex[:12]}")
     return interest_write(accept)
+
+
+@function_tool
+def enrich_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
+    """Research a person or organization from public, professional sources (the donor page's Enrich): proposes
+    facts with their sources and interest tags. Writes nothing; save the ones the user agrees to with
+    accept_enrichment(person_id, fact_ids, tags). Individuals aren't researched live (D6); the note says so."""
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as Timeout
+    from service import enrich_agent, routes_interests
+    rows = query("SELECT id, full_name, org_name, city, state, email, donor_type FROM donors WHERE id = ?", (person_id,))
+    if not rows:
+        return {"error": f"person {person_id} not found"}
+    d = rows[0]
+    # The research runs its own agent, which can't share this run's event loop: give it a worker thread. No
+    # `with` block: leaving one waits for the thread, so a stalled search would hang the turn past the cap.
+    pool = ThreadPoolExecutor(max_workers=1)
+    job = pool.submit(enrich_agent.enrich_full, d["full_name"], d["org_name"], d["city"], d["donor_type"],
+                      False, d["state"], d["email"])
+    try:
+        result = job.result(timeout=routes_interests.ENRICH_TIMEOUT_S)
+    except Timeout:
+        pool.shutdown(wait=False, cancel_futures=True)
+        return {"error": f"the research took longer than {routes_interests.ENRICH_TIMEOUT_S} s; try again"}
+    pool.shutdown(wait=False)
+    routes_interests.PROPOSALS[person_id] = result           # what accept_enrichment saves from
+    return {"person_id": person_id, "full_name": d["full_name"], "identity_match": result.get("identity_match"),
+            "facts": [{"id": f["id"], "fact": f["fact"], "source_url": f["source_url"]} for f in result.get("facts", [])],
+            "interests": [{"tag": i["tag"], "label": i.get("label"), "confidence": i.get("confidence"),
+                           "evidence": i.get("evidence")} for i in result.get("interests", [])],
+            "note": result.get("notes")}
 
 
 @function_tool(needs_approval=True)
@@ -709,8 +769,7 @@ AUTO_MERGE_AT = float(os.getenv("AUTO_MERGE_AT", "0.8"))
 
 def duplicate_pairs(conn) -> list[dict]:
     """Pending duplicate pairs, surest first, each side with its giving (gifts that went through), so the
-    agent and the user can judge. Addresses are masked."""
-    from service.routes_campaigns import mask_address
+    agent and the user can judge. Email and phone are shown in full (Sharif, rule 15)."""
     out = []
     for s in conn.execute("SELECT * FROM duplicate_suggestions WHERE status = 'pending' ORDER BY confidence DESC, id"):
         sides = {}
@@ -721,7 +780,7 @@ def duplicate_pairs(conn) -> list[dict]:
             g = conn.execute("SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total, MAX(gift_date) AS last FROM gifts "
                              "WHERE donor_id = ? AND COALESCE(status, 'ok') = 'ok'", (pid,)).fetchone()
             sides[side] = None if d is None else {
-                **dict(d), "email": mask_address(d["email"], "email"), "phone": mask_address(d["phone"], "text"),
+                **dict(d),                                    # full email and phone (Sharif, rule 15)
                 "gifts": g["n"], "total_given": round(g["total"], 2), "last_gift": g["last"]}
         out.append({"suggestion_id": s["id"], "confidence": s["confidence"], "reasons": json.loads(s["reasons"]),
                     "a": sides["a"], "b": sides["b"]})
@@ -1033,6 +1092,18 @@ def prep_call(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
         return {"error": str(e)}
 
 
+
+@function_tool
+def prep_email(ctx: RunContextWrapper[ChatContext], person_ids: list[int], topic: str) -> dict:
+    """Email prep before a blast: for these people, what we sent before, what the Foundation did since (sourced
+    facts X, Y, Z), what's coming, and the angle. Writes nothing; the user clicks Draft to draft the emails."""
+    from service import prep_email as pe
+    if not person_ids:
+        return {"error": "no people given: find the audience first"}
+    today = date.fromisoformat(os.getenv("SCORE_AS_OF") or date.today().isoformat())
+    card = with_conn(pe.build, person_ids, topic, today)
+    return {"card": card, "audience": card["audience"]["count"], "facts": len(card["since"])}
+
 @function_tool
 def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
     """Undo one earlier change by its undo_token."""
@@ -1066,9 +1137,9 @@ TOOLS = [
     # reads
     find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_call_list, get_calendar,
     get_task, get_tasks,
-    get_call_notes, build_brief, community_stats, prep_call,
+    get_call_notes, build_brief, community_stats, prep_call, prep_email,
     # writes (each returns an undo_token)
-    update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, resolve_duplicates, rsvp_event,
+    update_person, add_contact, add_interest, remove_interest, enrich_person, accept_enrichment, dismiss_duplicate, resolve_duplicates, rsvp_event,
     create_task, update_task, complete_task, add_calendar_item, add_event, move_event, delete_event, move_calendar_item, get_after_call_actions,
     apply_after_call_actions, update_donor_summary,
     draft_email, draft_sms, plan_event_outreach, undo,
@@ -1082,6 +1153,9 @@ APPROVAL_TOOLS = {t.name for t in TOOLS if getattr(t, "needs_approval", False)}
 READ_ONLY_TOOLS = {"find_people", "get_person", "segment", "get_context", "search_context", "get_events", "get_alerts",
                    "get_calendar", "get_task", "get_tasks", "build_brief", "community_stats", "get_call_notes"}
 READ_PREFIXES = ("get_", "find_", "search_", "list_")
+# More reads of private data (call list, call sheets, after-call suggestions): allowed in public mode only with
+# PUBLIC_SHOW_ALL (redacting() False).
+PRIVATE_READ_TOOLS = {"get_call_list", "prep_call", "get_after_call_actions"}
 READ_ONLY_REPLY = "This is a read-only preview, so I can't make changes, draft or send anything. I can look things up for you."
 
 
@@ -1128,7 +1202,8 @@ def masked_in_preview(tool):
 def tools_for_mode() -> list:
     if not public_mode.enabled():
         return TOOLS
-    return [masked_in_preview(t) if t.name in READ_ONLY_TOOLS else refuse_in_preview(t) for t in TOOLS]
+    reads = READ_ONLY_TOOLS if redacting() else READ_ONLY_TOOLS | PRIVATE_READ_TOOLS
+    return [masked_in_preview(t) if t.name in reads else refuse_in_preview(t) for t in TOOLS]
 
 
 def summarize(output) -> str:
@@ -1141,6 +1216,24 @@ def summarize(output) -> str:
         return f"error: {data['error']}"
     if data.get("summary_updated"):                                                # update_donor_summary
         return f"Updated {data.get('first_name') or data.get('full_name')}'s summary"
+    if isinstance(data.get("card"), dict) and data["card"].get("kind") == "email_prep":
+        c = data["card"]
+        n = c["audience"]["count"]
+        return (f"email prep: {c['topic']} · {n} {'person' if n == 1 else 'people'} · "
+                f"{len(c['since'])} sourced update{'s' if len(c['since']) != 1 else ''}")
+
+
+    if isinstance(data.get("saved"), dict) and "facts" in data["saved"]:         # accept_enrichment
+        f, i = data["saved"].get("facts", 0), data["saved"].get("interests", 0)
+        kept = len(data["saved"].get("skipped_staff_tags") or [])
+        return (f"saved {f} fact{'s' if f != 1 else ''} and {i} interest tag{'s' if i != 1 else ''}"
+                + (f" ({kept} staff tag{'s' if kept != 1 else ''} kept as is)" if kept else ""))
+    if "identity_match" in data and "facts" in data and "interests" in data:     # enrich_person
+        nf, ni = len(data["facts"]), len(data["interests"])
+        if not nf and not ni:
+            return f"{data['full_name']}: nothing to propose" + (f" ({data['note']})" if data.get("note") else "")
+        return (f"researched {data['full_name']}: {nf} fact{'s' if nf != 1 else ''}, {ni} interest tag"
+                f"{'s' if ni != 1 else ''} proposed (nothing saved yet)")
     if isinstance(data.get("card"), dict) and data["card"].get("kind") == "call_sheet":
         from service import call_sheet
         return call_sheet.summary_line(data["card"])
@@ -1323,12 +1416,12 @@ def build_agent(tab: str, selection: list[int], event_id: int | None, first_turn
 
 
 def approval_summary(tool: str, args: dict) -> str | None:
-    """One plain line for an approval card ("Call Maria Delgado at ***-***-0101"); None = show the arguments."""
-    from service.routes_campaigns import mask_address
+    """One plain line for an approval card ("Call Maria Delgado at +1 (305) 555-0101"); None = show the arguments."""
+    from service.phone import shown
     if tool == "call_person" and args.get("person_id") is not None:
         rows = query("SELECT full_name, phone FROM donors WHERE id = ?", (args["person_id"],))
         if rows:
-            phone = mask_address(rows[0]["phone"], "text")
+            phone = shown(rows[0]["phone"])
             return f"Call {rows[0]['full_name']}" + (f" at {phone}" if phone else " (no phone number on file)")
     if tool == "send" and args.get("batch_id") is not None:
         return send_summary(args["batch_id"], args.get("message_ids"))

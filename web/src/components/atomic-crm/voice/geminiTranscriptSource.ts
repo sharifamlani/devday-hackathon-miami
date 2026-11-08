@@ -264,7 +264,7 @@ export const geminiTranscriptSource = ({
       }
     };
     s.onerror = () => {
-      if (socket === s) fail("Live captions can't reach the Donor Desk service. Check that it is running.");
+      if (socket === s) fail("Live captions can't reach the Gatherly service. Check that it is running.");
     };
     s.onclose = () => {
       if (socket === s && state === "running") fail("Live captions stopped. Press Resume to try again.");

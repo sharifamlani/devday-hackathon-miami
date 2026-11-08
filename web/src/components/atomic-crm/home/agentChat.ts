@@ -7,7 +7,7 @@
  */
 import { useSyncExternalStore } from "react";
 
-import { API_URL, APPROVER_NAME } from "../providers/local/config";
+import { API_URL, APPROVER_NAME, PUBLIC_READ_ONLY } from "../providers/local/config";
 import { scopesForTool, type RefetchScope } from "../providers/local/refetch";
 
 export type AgentStep = {
@@ -39,7 +39,7 @@ export type AgentApproval = {
   call_id: string;
   tool: string;
   args: Record<string, unknown>;
-  /** One plain line from the service ("Call Maria Delgado at ***-***-0101"); absent = show the args. */
+  /** One plain line from the service ("Call Maria Delgado at +1 (305) 555-0101"); absent = show the args. */
   summary?: string | null;
 };
 
@@ -249,6 +249,8 @@ export const sendToAgent = async (text: string, refetch: Refetch) => {
   try {
     let res: Response | null = null;
     try {
+      // public mode refuses the stream (a 403 and a console error before the fallback): go to /chat directly
+      if (PUBLIC_READ_ONLY) throw new Error("public mode: no stream");
       res = await fetch(`${API_URL}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -317,7 +319,12 @@ export const undoStep = async (msgIndex: number, stepIndex: number, refetch: Ref
   const step = m?.role === "assistant" ? m.steps[stepIndex] : undefined;
   if (!step?.undo_token || step.undone) return;
   try {
-    await post(`/undo/${encodeURIComponent(step.undo_token)}`, undefined);
+    const res = await post<{ undone?: boolean; reason?: string } | null>(`/undo/${encodeURIComponent(step.undo_token)}`, undefined);
+    if (res?.undone === false) {
+      // Nothing to undo (e.g. the event was deleted since): say why and drop the button.
+      patchStep(msgIndex, stepIndex, { undo_token: null, summary: `${step.summary ?? ""} · nothing to undo: ${res.reason ?? "already changed"}` });
+      return;
+    }
     patchStep(msgIndex, stepIndex, { undone: true });
     refetch(scopesForTool(step.tool));
   } catch (e) {

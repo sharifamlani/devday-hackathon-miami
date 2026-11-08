@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TasksListByDueDate } from "../tasks/TasksListByDueDate";
 import { TaskCreateSheet } from "../tasks/TaskCreateSheet";
 import type { Contact } from "../types";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 export const ContactTasksList = () => {
   const record = useRecordContext<Contact>();
@@ -28,9 +29,11 @@ export const ContactTasksList = () => {
             <p className="text-muted-foreground mb-4">
               {translate("resources.tasks.empty")}
             </p>
-            <Button variant="outline" onClick={() => setTaskCreateOpen(true)}>
-              {translate("resources.tasks.action.add")}
-            </Button>
+            {!PUBLIC_READ_ONLY && (
+              <Button variant="outline" onClick={() => setTaskCreateOpen(true)}>
+                {translate("resources.tasks.action.add")}
+              </Button>
+            )}
           </div>
         </>
       }

@@ -42,45 +42,51 @@ export interface ScriptLine {
 export const DEMO_LINE_INTERVAL_MS = 1100;
 
 /** Made-up donor for the demo call when the data has no card-failed donor. */
-export const DEMO_FALLBACK_DONOR = "Rosa Delgado";
+/**
+ * The demo call is with a real sample donor, so the after-call card lands on someone: Hye-jin
+ * Park (data/sample_inputs), whose $40 monthly online gift failed on Oct 10. The event she signs
+ * up for, The Give Miami 5K on Nov 15, is a real sample event (service/events_cache.json).
+ */
+export const DEMO_FALLBACK_DONOR = "Hye-jin Park";
 
 export const firstName = (fullName: string) =>
   fullName.trim().split(/\s+/)[0] || fullName;
 
 /**
- * A short, fictional call with a monthly donor whose card stopped working.
- * The wording is chosen so summarize.ts finds a card update, the monthly
- * amount and an event date ("the 21st").
+ * A short call with the demo donor about her failed monthly gift. The staff member is fictional.
+ * The wording is chosen so summarize.ts finds the card update, the monthly amount and the event
+ * date ("the 15th"), and the after-call agent can propose a card-update task, the 5K RSVP and a
+ * context note (new card, prefers phone). Nothing in it promises a new gift, so no pledge.
  */
 export const demoCallScript = (donorName: string): ScriptLine[] => {
   const first = firstName(donorName);
   return [
     {
       speaker: "you",
-      text: `Hi ${first}, I'm calling from the foundation. Do you have a minute?`,
+      text: `Hi ${first}, it's Denise from The Miami Foundation. Do you have a minute?`,
     },
     { speaker: "them", text: "Of course. Is everything okay?" },
     {
       speaker: "you",
-      text: "Everything's fine. Your monthly gift didn't go through in October, so I wanted to check in.",
+      text: "Everything's fine. Your $40 a month gift on October 10th didn't go through, so I wanted to check in.",
     },
     {
       speaker: "them",
       text: "Oh, I got a new card last month. I forgot to update it.",
     },
-    { speaker: "them", text: "I still want to keep giving $50 a month." },
     {
       speaker: "you",
       text: "No problem. I can text you a secure link to update your card.",
     },
     {
       speaker: "them",
-      text: "Perfect. And put me down for the beach cleanup on the 21st.",
+      text: "Perfect. And put me down for the Give Miami 5K on the 15th.",
     },
     {
       speaker: "you",
-      text: "Will do. Thank you for sticking with us since 2021.",
+      text: "Will do. Next time, is a text or a call better for you?",
     },
+    { speaker: "them", text: "A call, please. I prefer the phone." },
     { speaker: "them", text: "Thank you for calling. Talk soon!" },
   ];
 };

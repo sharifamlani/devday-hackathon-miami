@@ -42,7 +42,7 @@ def preflight(c, path="/chat"):
 def test_off_rejects_the_vercel_origin(client):
     assert "access-control-allow-origin" not in client.get("/people", headers={"Origin": VERCEL}).headers
     assert preflight(client).status_code == 400
-    assert public_mode.group_of("/chat") == "chat" and client.get("/public-mode").json() == {"enabled": False}
+    assert public_mode.group_of("/chat") == "chat" and client.get("/public-mode").json() == {"enabled": False, "redacted": False}
 
 
 def test_on_accepts_the_vercel_origin_on_people_and_chat(client):
@@ -52,7 +52,7 @@ def test_on_accepts_the_vercel_origin_on_people_and_chat(client):
     assert preflight(client).status_code == 200
     chat = client.post("/chat", json={"message": "hi"}, headers={"Origin": VERCEL})
     assert chat.status_code not in (403, 429) and chat.headers["access-control-allow-origin"] == VERCEL
-    assert client.get("/public-mode").json() == {"enabled": True}
+    assert client.get("/public-mode").json() == {"enabled": True, "redacted": True}
 
 
 def test_on_still_rejects_an_unlisted_origin(client):

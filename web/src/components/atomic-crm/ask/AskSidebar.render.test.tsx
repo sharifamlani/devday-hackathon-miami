@@ -64,7 +64,7 @@ describe("Ask sidebar render", () => {
   it("renders the docked panel and the overlay dialog", () => {
     const docked = wrap(<AskSidebar docked />);
     expect(docked).toContain('role="complementary"');
-    expect(docked).toContain("Ask Donor Desk");
+    expect(docked).toContain("Ask Gatherly");
     expect(docked).toContain('aria-label="Expand to full page"');
     expect(docked).toContain('aria-pressed="false"');
     expect(docked).toContain('aria-label="Close Ask sidebar"');
@@ -102,7 +102,7 @@ describe("Ask sidebar render", () => {
       </MemoryRouter>,
     );
     expect(html).toContain("Live transcript");
-    expect(html).not.toContain("Ask Donor Desk");
+    expect(html).not.toContain("Ask Gatherly");
     expect(html).toContain('aria-label="Shrink to sidebar"');
     expect(html).toContain('aria-label="Close live transcript"');
     expect(html).toContain('aria-expanded="true"');

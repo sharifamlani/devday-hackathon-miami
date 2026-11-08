@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 
 import type { CrmDataProvider } from "../providers/types";
 import { useConfigurationContext } from "../root/ConfigurationContext";
+import { wordmarkText } from "../root/defaultConfiguration";
 import type { SignUpData } from "../types";
 import { LoginSkeleton } from "./LoginSkeleton";
 import { Notification } from "@/components/admin/notification";
@@ -19,7 +20,7 @@ import { googleWorkplaceDomain } from "./authConfig";
 export const SignupPage = () => {
   const queryClient = useQueryClient();
   const dataProvider = useDataProvider<CrmDataProvider>();
-  const { darkModeLogo: logo, title } = useConfigurationContext();
+  const { title } = useConfigurationContext();
   const navigate = useNavigate();
   const translate = useTranslate();
   const { data: isInitialized, isPending } = useQuery({
@@ -98,13 +99,7 @@ export const SignupPage = () => {
   return (
     <div className="h-screen p-8">
       <div className="flex items-center gap-4">
-        <img
-          src={logo}
-          alt={title}
-          width={24}
-          className="filter brightness-0 dark:invert"
-        />
-        <h1 className="text-xl font-semibold">{title}</h1>
+        <h1 className="wordmark">{wordmarkText(title)}</h1>
       </div>
       <div className="h-full">
         <div className="max-w-sm mx-auto h-full flex flex-col justify-center gap-4">

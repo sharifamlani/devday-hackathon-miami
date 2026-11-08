@@ -16,7 +16,7 @@ export interface HomeSummary {
 
 /** Badge from alerts and gift history (docs/ui-integration.md §1 row 8). */
 // The service sends "failed" for a failed card payment; "card_failed" is accepted too.
-export type AttentionBadge = "failed" | "card_failed" | "late" | "new" | "thanked" | "not_yet" | (string & {});
+export type AttentionBadge = "failed" | "card_failed" | "skipped" | "late" | "new" | "thanked" | "not_yet" | (string & {});
 
 export interface AttentionPerson {
   id: number;

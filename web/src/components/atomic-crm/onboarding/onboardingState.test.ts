@@ -119,7 +119,10 @@ describe("onboardingReducer", () => {
 
   it("never adopts mid-setup: a reload after the upload step resumes at the saved step", () => {
     // Step 1 uploaded people (so the service has them), then the page reloaded before steps 2-3
-    const midway = reduce(reduce(initialOnboarding(), { type: "start", step: 0 }), { type: "next" });
+    const midway = reduce(
+      reduce(initialOnboarding(), { type: "start", step: 0 }),
+      { type: "next" },
+    );
     expect(midway.status).toBe("in_progress");
     expect(midway.step).toBe(1);
     expect(shouldAdopt(midway, true)).toBe(false);
@@ -290,6 +293,7 @@ describe("migrating v1 progress", () => {
       status: "in_progress",
       step: 0,
       links: {
+        name: "The Miami Foundation",
         website: "https://bayside.example.org/",
         x: "https://x.com/bayside",
         linkedin: "",
@@ -428,7 +432,7 @@ describe("onboardingStore persistence", () => {
   });
 
   it("a successful import is saved at once, so Finish later and a reload keep it", () => {
-    const summary = FILES;
+    const summary = { ...FILES, duplicatesRemoved: 2 };
     onboardingStore.dispatch({ type: "start" }, { open: true });
     onboardingStore.dispatch({ type: "update", patch: { files: summary } });
     onboardingStore.dispatch({ type: "finishLater" }, { open: false });
@@ -688,6 +692,7 @@ describe("the fields as typed, with grey prefixes", () => {
         instagram: "in/someone",
       }),
     ).toEqual({
+      name: "The Miami Foundation",
       website: "https://yourorg.org",
       x: "https://x.com/yourorg",
       linkedin: "https://www.linkedin.com/company/yourorg",
@@ -704,7 +709,7 @@ describe("the fields as typed, with grey prefixes", () => {
       instagram: "",
     };
     const { links } = validateLinks(linksFromFields(fieldsFromLinks(saved)));
-    expect(links).toEqual(saved);
+    expect(links).toEqual({ ...saved, name: "The Miami Foundation" });
   });
 
   it("checks one field on blur; an empty website waits for Continue", () => {

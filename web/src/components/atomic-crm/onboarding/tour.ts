@@ -57,7 +57,7 @@ export const TOUR_STOPS: TourStop[] = [
   {
     id: "voice",
     title: "Live transcript",
-    body: "Start a live transcript during a call or meeting. Donor Desk writes the notes and a summary for you.",
+    body: "Start a live transcript during a call or meeting. Gatherly writes the notes and a summary for you.",
   },
   {
     id: "ask",

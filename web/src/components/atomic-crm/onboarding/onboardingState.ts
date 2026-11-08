@@ -78,6 +78,8 @@ export interface FilesSummary {
   /** Declined charges the importer kept on record; they are not gifts and not in `gifts`. */
   declined?: number | null;
   duplicates: number | null;
+  /** Confirmed exact-identity consolidations; absent on older services. */
+  duplicatesRemoved?: number | null;
   files: number;
   /** People per tab, when the service reports it. */
   byTab: TabCounts | null;
@@ -88,9 +90,10 @@ export interface FilesSummary {
 /**
  * How step 3 ended. done: the website was read · background: the read was
  * slow and goes on in the background · saved: v2's "showed saved context" ·
- * failed: nothing was read.
+ * failed: nothing was read · preview: the read-only public preview refused the read.
  */
-export type ContextOutcome = "done" | "background" | "saved" | "failed";
+export type ContextOutcome =
+  "done" | "background" | "saved" | "failed" | "preview";
 export interface ContextSummary {
   outcome: ContextOutcome;
   items: number;
@@ -232,7 +235,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 const readLinks = (value: unknown): OrgLinks => {
   const raw = isObject(value) ? value : {};
   return {
-    name: text(raw.name),
+    name: text(raw.name) || EMPTY_LINKS.name,
     website: text(raw.website),
     x: text(raw.x),
     linkedin: text(raw.linkedin),
@@ -257,8 +260,13 @@ const readFiles = (value: unknown): FilesSummary | null =>
     ? {
         people: count(value.people),
         gifts: count(value.gifts),
-        ...(count(value.declined) != null ? { declined: count(value.declined) } : {}),
+        ...(count(value.declined) != null
+          ? { declined: count(value.declined) }
+          : {}),
         duplicates: count(value.duplicates),
+        ...(count(value.duplicatesRemoved) != null
+          ? { duplicatesRemoved: count(value.duplicatesRemoved) }
+          : {}),
         files: count(value.files) ?? 0,
         byTab: readTabCounts(value.byTab),
         review: count(value.review),
@@ -269,6 +277,7 @@ const OUTCOMES: readonly ContextOutcome[] = [
   "done",
   "background",
   "saved",
+  "preview",
   "failed",
 ];
 
@@ -581,9 +590,9 @@ export const validateLinks = (
   links: OrgLinks,
 ): { links: OrgLinks; errors: LinkErrors } => {
   const errors: LinkErrors = {};
-  const next: OrgLinks = { ...links };
-  if (!links.name?.trim()) errors.name = "Enter your organization's name.";
-  else next.name = links.name.trim();
+  const next: OrgLinks = { ...EMPTY_LINKS, ...links };
+  if (!next.name?.trim()) errors.name = "Enter your organization's name.";
+  else next.name = next.name.trim();
   const website = normalizeUrl(links.website);
   if (!website.ok) errors.website = website.error;
   else if (!website.url) errors.website = WEBSITE_REQUIRED;
@@ -690,7 +699,7 @@ export const socialUrlFromField = (platform: SocialPlatform, field: string) => {
 
 /** The fields as shown, from saved links. */
 export const fieldsFromLinks = (links: OrgLinks): OrgLinks => ({
-  name: links.name ?? "",
+  name: links.name || EMPTY_LINKS.name,
   website: websiteFromSaved(links.website),
   x: links.x ? socialFieldValue("x", links.x) : "",
   linkedin: links.linkedin ? socialFieldValue("linkedin", links.linkedin) : "",
@@ -704,7 +713,7 @@ const withScheme = (value: string) =>
 
 /** The links to validate, from the fields as typed. */
 export const linksFromFields = (fields: OrgLinks): OrgLinks => ({
-  name: fields.name?.trim() ?? "",
+  name: fields.name?.trim() || EMPTY_LINKS.name,
   website: withScheme(fields.website.trim()),
   x: socialUrlFromField("x", fields.x),
   linkedin: socialUrlFromField("linkedin", fields.linkedin),

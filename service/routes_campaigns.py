@@ -100,18 +100,21 @@ def load_org_facts() -> list[dict]:
 
 
 def draft_rows(conn: sqlite3.Connection, donor_ids: list[int], intent: str, channel: str,
-               use_model: bool | None = None, today: date | None = None) -> list[dict]:
-    """One draft per donor, in order, run through the guardrail. Pure: nothing is written."""
+               use_model: bool | None = None, today: date | None = None,
+               org_facts: list[dict] | None = None) -> list[dict]:
+    """One draft per donor, in order, run through the guardrail. Pure: nothing is written.
+    org_facts given (an email prep's facts): the drafts cite only those, with no story facts added."""
     loaded = {i: load_donor(conn, i) for i in donor_ids}
     missing = [i for i, v in loaded.items() if v is None]
     if missing:
         raise LookupError(f"donor(s) not found: {missing}")
-    org_facts = load_org_facts()
+    only = org_facts is not None
+    org_facts = org_facts if only else load_org_facts()
 
     def one(donor_id: int) -> dict:
         donor, gifts, why, research = loaded[donor_id]
         draft = ca.draft_message(donor, gifts, why, research, org_facts, intent, channel, today=today,
-                                 use_model=use_model)
+                                 use_model=use_model, story={} if only else None)
         return {"donor": donor, "why": why, "draft": draft}
 
     with ThreadPoolExecutor(max_workers=DRAFT_WORKERS) as pool:   # model calls are slow; templates aren't

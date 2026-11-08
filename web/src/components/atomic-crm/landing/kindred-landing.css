@@ -259,3 +259,10 @@
 :root[data-motion="reduce"] .kindred-upload {
   transition: none;
 }
+.kindred-skip {
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

@@ -1,35 +1,40 @@
 # Test and verification record
 
-This file records the checks run for the demo user journey and the other agent changes present in this working
-tree. Results are scoped to the command shown; a focused pass is not a claim that every feature has been tested.
+These checks were run on local `main` after integrating the newer `origin/main` implementation with the demo
+journey changes. Commands are shown from the directory indicated; Playwright browser tests need Chromium and
+permission to bind a temporary local test port.
 
-## Demo journey: landing, onboarding, dashboard
+## Landing, onboarding, and dashboard
 
-The landing tests assert that the bare URL presents **Get started**, clicking it routes into onboarding, and
-the dashboard renders only after entering a workspace hash route. The onboarding receipt test covers the
-structured import summary. The Impact panel tests cover its story and dashboard rendering.
-
-From `web/` (with dependencies installed):
+From `web/`:
 
 ```bash
 npm run test:unit:app -- --run --project app \
   src/components/atomic-crm/landing/KindredLanding.sample.test.tsx \
   src/components/atomic-crm/landing/KindredLanding.local.test.tsx \
   src/components/atomic-crm/landing/KindredLandingGate.local.test.tsx \
-  src/components/atomic-crm/onboarding/OnboardingSteps.receipt.test.tsx
-
-npm run test:unit:app -- --run --project app \
+  src/components/atomic-crm/onboarding/OnboardingSteps.receipt.test.tsx \
+  src/components/atomic-crm/onboarding/onboardingState.test.ts \
+  src/components/atomic-crm/onboarding/firstRun.test.ts \
   src/components/atomic-crm/home/panels/ImpactPanel.test.tsx
 ```
 
-**Verification:** landing, route-gate, and onboarding receipt: 4 files, 9 tests passed. Impact panel: 1 file,
-10 tests passed, including the “Saved research” label for cached facts. These browser tests require Playwright
-Chromium and permission to bind a local test port.
+**Result:** 7 files passed, 109 tests passed. This covers the current sample import and onboarding flow, the
+default organization name, accepted `.txt` files, and the dashboard's cached-research label.
 
-## Context fallback and organization identity
+## Type checking
 
-The fallback tests cover timed-out reads, same-host and different-host handling, saved URLs, cached facts,
-cached provenance, and preventing an omitted organization name from replacing an agent-discovered name.
+From `web/`:
+
+```bash
+npm run typecheck
+```
+
+**Result:** passed. During the upstream merge, this check exposed a blur-handler type error for optional
+organization-name fields. The handler now treats missing values as empty strings, and the organization name
+field remains prefilled while allowing another organization to be entered.
+
+## Context fallback and API
 
 From the repository root:
 
@@ -37,49 +42,19 @@ From the repository root:
 python -m pytest service/tests/test_context_fallback.py service/tests/test_main.py -q
 ```
 
-**Verification:** 32 passed. Six FastAPI lifecycle deprecation warnings were reported. One regression test was
-added after review showed that file-cache facts were returned to onboarding but not persisted for the dashboard;
-the fix now saves same-host fallback facts and marks their database rows as cached. A failed first read for a
-different organization still saves only its submitted setup fields.
+**Result:** 32 passed. This includes same-host cached facts reaching the dashboard with cached provenance,
+different-host isolation, preserving the agent-discovered organization name when the request omits one, and
+using an explicit name when supplied.
 
-## ICP and prospect verification
+## Full service suite
 
-The ICP tests cover deterministic profile and prospect scoring, source quote and number verification, timeout
-and cache behavior, donor exclusion, SQLite migration and persistence, API routes and snapshot parity, and
-browser rendering. The browser test confirms hidden page content is ignored and non-200 pages are rejected.
+From the repository root:
 
 ```bash
-python -m pytest service/tests/test_icp.py service/tests/test_icp_prospects.py -q
+python -m pytest service/tests -q
 ```
 
-**Verification:** 24 passed. Chromium and permission to bind a temporary localhost port were available.
+**Result:** 753 passed, 10 skipped. The ICP and prospect verification tests are included in this run. Seven
+warnings remain: FastAPI lifecycle deprecations and one duplicate OpenAPI operation ID warning.
 
-## Broader service suite
-
-```bash
-python -m pytest service/tests -q \
-  --ignore='service/tests/test_ask 2.py' \
-  --ignore='service/tests/test_campaigns 2.py' \
-  --ignore='service/tests/test_merge_undo 2.py' \
-  --ignore='service/tests/test_targets 2.py'
-```
-
-**Verification:** 721 passed, 10 skipped. Four untracked agent test files with a literal ` 2` suffix were
-excluded because they target unmerged code and currently fail collection/setup against this branch. Running
-the entire discovered tree without those exclusions also picks up those files. The filtered run needed local
-port access for its server tests. Seven warnings included FastAPI lifecycle deprecations and a duplicate
-OpenAPI operation ID warning.
-
-## Type checking and working-tree caveat
-
-```bash
-npm run typecheck
-```
-
-**Verification:** blocked by four TypeScript errors in untracked campaign files named `CampaignList 2.tsx`,
-`CampaignNew 2.tsx`, `CampaignReview 2.tsx`, and `OutboxList 2.tsx`; each imports `SimulatedNote` from
-`campaignUi`, where it is not exported. The onboarding receipt fixture mismatch found during review was fixed.
-These ` 2` files are separate concurrent working-tree additions and were not changed as part of the landing
-journey review.
-
-`git diff --check` passed after the review edits.
+`git diff --check` passed after resolving the upstream merge.
