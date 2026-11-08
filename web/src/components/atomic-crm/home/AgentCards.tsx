@@ -88,7 +88,9 @@ export const ApprovalCard = ({
     )}
   >
     <p className="font-semibold">
-      {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}: {toolLabel(approval.tool)}
+      {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}
+      {/* the summary already says what ("Send thank-you email to …"); the bare tool name only without one */}
+      {!approval.summary && `: ${toolLabel(approval.tool)}`}
     </p>
     {(approval.summary || argLine(approval.args)) && (
       <p className="mt-0.5 text-muted-foreground">{approval.summary || argLine(approval.args)}</p>
