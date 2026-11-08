@@ -177,3 +177,17 @@ def test_only_shared_mailboxes_are_kept_as_public_email():
     assert enrich_agent.generic_mailbox("grants@ex.org") == "grants@ex.org"
     assert enrich_agent.generic_mailbox("jsmith@ex.org") is None          # a named person's address
     assert enrich_agent.generic_mailbox(None) is None
+
+
+def test_schema_stays_write_free_and_seeding_is_once(tmp_path):
+    """create_schema runs on every request: once the tables exist it must not write (seeding is separate)."""
+    path = tmp_path / "donors.db"
+    conn = db.connect(path)
+    db.create_schema(conn)
+    interests.ensure_seeded(conn)
+    changes = conn.total_changes
+    db.create_schema(conn)
+    interests.ensure_seeded(conn)
+    assert conn.total_changes == changes                               # no writes on the second pass
+    assert len(interests.list_tags(conn)) == 17
+    conn.close()

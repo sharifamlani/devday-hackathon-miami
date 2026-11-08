@@ -440,9 +440,8 @@ CREATE TABLE IF NOT EXISTS donor_interests (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_donor_interests_unique ON donor_interests(donor_id, tag, COALESCE(sub_tag, ''));
 CREATE INDEX IF NOT EXISTS idx_donor_interests_tag ON donor_interests(tag, status);
 """
-SCHEMA += INTEREST_SCHEMA
-from service.interests import seed_sql as _interest_seed_sql  # noqa: E402  (no import back into db)
-SCHEMA += _interest_seed_sql()
+SCHEMA += INTEREST_SCHEMA   # the 17 tags are seeded by service.interests.ensure_seeded, not here: create_schema
+                            # runs on every request, so it must stay write-free once the tables exist
 TABLES = ["donor_interests", "interest_subtags", "interest_tags"] + TABLES
 
 CONTACT_TYPES = ("giver", "neighbor", "community")

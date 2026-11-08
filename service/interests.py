@@ -87,7 +87,7 @@ def subtag_label(slug: str) -> str:
 
 
 def seed_sql() -> str:
-    """Upserts for the 17 tags and their sub-tags; appended to db.SCHEMA so create_schema seeds them."""
+    """Upserts for the 17 tags and their sub-tags (run by ensure_seeded)."""
     q = lambda s: "NULL" if s is None else "'" + str(s).replace("'", "''") + "'"
     rows = []
     for i, (slug, label, definition, subs, ntee, gmd) in enumerate(TAGS):
@@ -100,9 +100,17 @@ def seed_sql() -> str:
     return "\n".join(rows) + "\n"
 
 
+def ensure_seeded(conn: sqlite3.Connection) -> None:
+    """Seed the 17 tags once. A read when they're already there, so it's safe on every request."""
+    have = conn.execute("SELECT COUNT(*) FROM interest_subtags").fetchone()[0]
+    if have < sum(len(s) for s in SUBTAGS.values()) or             conn.execute("SELECT COUNT(*) FROM interest_tags").fetchone()[0] < len(TAGS):
+        conn.executescript(seed_sql())
+
+
 # --- Reads -----------------------------------------------------------------------------------------
 
 def list_tags(conn: sqlite3.Connection) -> list[dict]:
+    ensure_seeded(conn)
     return [dict(r) for r in conn.execute(
         "SELECT slug, label, definition FROM interest_tags WHERE active = 1 ORDER BY sort_order")]
 
@@ -174,6 +182,7 @@ def add_interest(conn: sqlite3.Connection, donor_id: int, tag: str, sub_tag: str
                  staff: str = "staff", evidence: str | None = None) -> dict:
     """Staff adds a tag: set_by 'staff', confidence 'high', no URL needed. Returns {interests, undo}."""
     check_tag(tag, sub_tag)
+    ensure_seeded(conn)
     before = _snapshot(conn, donor_id, [tag])
     note = (evidence or f"Added by {staff}")[:300]
     with conn:
@@ -192,6 +201,7 @@ def add_interest(conn: sqlite3.Connection, donor_id: int, tag: str, sub_tag: str
 def remove_interest(conn: sqlite3.Connection, donor_id: int, tag: str, staff: str = "staff") -> dict:
     """Staff removes a tag: every row for it goes to status 'removed' (kept, so the agent won't re-add it)."""
     check_tag(tag)
+    ensure_seeded(conn)
     before = _snapshot(conn, donor_id, [tag])
     with conn:
         if before:
@@ -243,6 +253,7 @@ def accept_enrichment(conn: sqlite3.Connection, donor_id: int, proposal: dict, f
     """
     for t in tags:
         check_tag(t)
+    ensure_seeded(conn)
     facts = [f for f in proposal.get("facts", []) if f["id"] in set(fact_ids)]
     picked = [i for i in proposal.get("interests", []) if i["tag"] in set(tags)]
     touched = sorted({i["tag"] for i in picked})
