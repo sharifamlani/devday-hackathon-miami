@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date, datetime
 from decimal import Decimal
@@ -80,7 +81,15 @@ def normalize_date(value: object) -> str | None:
     try:
         return date.fromisoformat(text[:10]).isoformat()
     except ValueError:
-        return text[:40]
+        pass
+    # Month names are unambiguous; numeric dates read as US M/D/Y unless the first part can only be a day
+    cleaned = re.sub(r"\s+", " ", text.replace(",", " ")).strip()
+    for fmt in ("%b %d %Y", "%B %d %Y", "%d %b %Y", "%d %B %Y", "%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(cleaned, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return text[:40]
 
 
 def is_iso_date(value: str | None) -> bool:

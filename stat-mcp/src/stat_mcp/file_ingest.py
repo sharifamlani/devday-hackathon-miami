@@ -6,6 +6,7 @@ import json
 import csv
 import re
 from dataclasses import dataclass
+from decimal import Decimal
 from io import BytesIO
 from pathlib import PurePosixPath
 from typing import Any
@@ -74,7 +75,7 @@ def _header_row(values: list[object]) -> list[str] | None:
     headers = [_clean_key(value) if not _is_missing(value) else "" for value in values]
     names = {"name", "full_name", "donor", "donor_name", "donor_organization", "donor_or_organization", "person_name", "constituent_name"}
     amount_dates = set(_AMOUNT_FIELDS) | {"amt", "gift_total", "value_at_receipt"}
-    contact = {"email", "email_address", "e_mail", "contact_email", "phone", "phone_number"}
+    contact = {"email", "email_address", "e_mail", "contact_email", "phone", "phone_number", "email_or_phone", "phone_or_email"}
     if any(item in names for item in headers) and (
         any(item in amount_dates for item in headers)
         or any(item in _DATE_FIELDS for item in headers)
@@ -260,7 +261,7 @@ def rows_to_transactions(rows: list[dict[str, Any]], source_name: str) -> tuple[
     warnings: list[str] = []
     for row_number, raw in enumerate(rows, start=1):
         row = {_clean_key(key): value for key, value in raw.items()}
-        full_name = _value(row, "full_name", "name", "donor_name", "person_name", "constituent_name")
+        full_name = _value(row, "full_name", "name", "donor_name", "donor", "person_name", "constituent_name")
         first = _text(row, "first_name", limit=100) or ""
         last = _text(row, "last_name", limit=100) or ""
         if full_name and not first and not last:
@@ -291,6 +292,13 @@ def rows_to_transactions(rows: list[dict[str, Any]], source_name: str) -> tuple[
         source_id = _text(row, "person_source_id", "donor_id", "contact_id", "id", limit=100)
         source_transaction_id = _text(row, "source_transaction_id", "transaction_id", "gift_id", "payment_id", limit=100)
         transaction_date = normalize_date(date_value)
+        email = _text(row, "email_address", "email", "e_mail", "contact_email", limit=320) or ""
+        phone = _text(row, "phone_number", "phone", limit=40) or ""
+        either = _text(row, "email_or_phone", "phone_or_email", limit=320)
+        if either and not email and "@" in either:
+            email = either
+        elif either and not phone and "@" not in either:
+            phone = either[:40]
         if event_type == "gift" and (amount is None or not is_iso_date(transaction_date)):
             warnings.append(
                 f"Source row {row_number}: gift amount is missing or date is not ISO; review before inserting into the SQLite gifts table."
@@ -304,8 +312,8 @@ def rows_to_transactions(rows: list[dict[str, Any]], source_name: str) -> tuple[
                 first_name=first[:100],
                 last_name=last[:100],
                 organization=_text(row, "organization", "org_name", "company", "donor_organization", "donor_or_organization", limit=200),
-                email_address=_text(row, "email_address", "email", "e_mail", "contact_email", limit=320) or "",
-                phone_number=_text(row, "phone_number", "phone", limit=40) or "",
+                email_address=email,
+                phone_number=phone,
                 transaction_type=event_type,
                 amount=amount,
                 transaction_date=transaction_date,
@@ -340,12 +348,14 @@ async def extract_file_transactions(
                 warnings.append(
                     f"Extracted narrative event {index}: gift amount is missing or date is not ISO; review before inserting into SQLite."
                 )
-        transactions.extend(
-            ImportedTransaction(
-                **item.model_dump(exclude_none=False), source_name=filename[:200]
-            )
-            for item in extracted.transactions
-        )
+        for item in extracted.transactions:
+            # Unset extractor fields fall back to ImportedTransaction defaults ("" for names/email/phone)
+            fields = item.model_dump(exclude_none=True)
+            name = fields.pop("name", None)
+            if name and not fields.get("first_name") and not fields.get("last_name"):
+                first, _, last = name.strip().partition(" ")
+                fields.update(first_name=first[:100], last_name=last.strip()[:100])
+            transactions.append(ImportedTransaction(**fields, source_name=filename[:200]))
         if parsed.rows:
             warnings.append(
                 "This document contained both narrative and tables; review for repeated events before database import."
