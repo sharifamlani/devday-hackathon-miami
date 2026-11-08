@@ -280,7 +280,7 @@ def test_add_contact_appears_in_people_and_undo_removes_it(db_file):
     from fastapi.testclient import TestClient
     from service.main import app
     c = TestClient(app)
-    out = invoke("add_contact", full_name="Rosa Example", email="rosa@example.org")
+    out = invoke("add_contact", full_name="Rosa Example", email="rosa@example.org", contact_type="neighbor")
 
     pid = out["person_id"]
     row = one(db_file, "SELECT donor_type, contact_type, source_row FROM donors WHERE id = ?", pid)
@@ -310,3 +310,13 @@ def test_add_contact_undo_refused_once_something_uses_it(db_file):
 
 def test_add_contact_refuses_a_blank_name(db_file):
     assert invoke("add_contact", full_name="  ")["error"] == "a contact needs a name"
+
+
+def test_add_contact_defaults_to_giver_and_expands_a_unique_short_name(db_file):
+    plain = invoke("add_contact", full_name="Sam Example")
+    assert one(db_file, "SELECT contact_type FROM donors WHERE id = ?", plain["person_id"])["contact_type"] == "giver"
+
+    knight = invoke("add_contact", full_name="Knight Foundation", donor_type="organization")
+    assert knight["full_name"] == "John S. and James L. Knight Foundation"         # exact name: cached tags match
+    assert "which one did you mean" in invoke("add_contact", full_name="Foundation",
+                                              donor_type="organization")["error"]

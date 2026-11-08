@@ -400,10 +400,12 @@ def add_contact(ctx: RunContextWrapper[ChatContext], full_name: str,
                 contact_type: Literal["giver", "neighbor", "community"] | None = None,
                 email: str | None = None, phone: str | None = None, city: str | None = None,
                 notes: str | None = None) -> dict:
-    """Add a new person or organization (no gifts). contact_type is neighbor unless the user names a tab
-    (giver, neighbor, community). Applies at once with Undo; an organization can then be researched with Enrich."""
+    """Add a new person or organization (no gifts). contact_type is giver unless the user says "as a neighbor"
+    or "as community". Use the full name the user gives; a short name that matches one known organization is
+    expanded to its exact name, and an ambiguous one comes back as a question to ask the user.
+    Applies at once with Undo; an organization can then be researched with Enrich."""
     from service import agent_writes
-    return write(agent_writes.add_contact, full_name, donor_type, contact_type or "neighbor",
+    return write(agent_writes.add_contact, full_name, donor_type, contact_type or "giver",
                  email, phone, city, notes, actor="agent")
 
 

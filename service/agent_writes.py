@@ -56,8 +56,23 @@ DONOR_TYPES = ("individual", "organization")
 DERIVED = ("donor_scores", "duplicate_suggestions")
 
 
+def known_name(name: str) -> str:
+    """The exact name Enrich's interest cache knows, when the given name points at exactly one of them
+    ("Knight Foundation" -> "John S. and James L. Knight Foundation"); the name as given when none match.
+    Several matches is ambiguous: ask, never guess."""
+    from service.enrich_agent import read_interest_cache
+    known = list(read_interest_cache())
+    exact = [k for k in known if k.lower() == name.lower()]
+    if exact:
+        return exact[0]
+    hits = [k for k in known if name.lower() in k.lower()]
+    if len(hits) > 1:
+        raise WriteError(f"which one did you mean: {' or '.join(hits)}?")
+    return hits[0] if hits else name
+
+
 def add_contact(conn: sqlite3.Connection, full_name: str, donor_type: str = "individual",
-                contact_type: str = "neighbor", email: str | None = None, phone: str | None = None,
+                contact_type: str = "giver", email: str | None = None, phone: str | None = None,
                 city: str | None = None, notes: str | None = None, actor: str = "staff") -> tuple[dict, str]:
     """Create a person with no gifts through db.insert_donor (the same writer the seed and imports use).
 
@@ -68,6 +83,7 @@ def add_contact(conn: sqlite3.Connection, full_name: str, donor_type: str = "ind
     name = (full_name or "").strip()
     if not name:
         raise WriteError("a contact needs a name")
+    name = known_name(name)
     if donor_type not in DONOR_TYPES:
         raise WriteError(f"donor_type must be one of {', '.join(DONOR_TYPES)}")
     if contact_type not in CONTACT_TYPES:
