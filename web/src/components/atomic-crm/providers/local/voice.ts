@@ -16,15 +16,26 @@ export interface TranscriptSegment {
 }
 
 export interface AfterCallAction {
-  id: string | number;
+  id: string;
   type: "create_task" | "rsvp_event" | "record_pledge" | "add_context_note" | "tag_interest" | (string & {});
   label: string;
   payload: Record<string, unknown>;
+  /** The span of the transcript the action rests on. */
+  evidence?: string;
 }
 
+/** service/after_call_agent.propose: nothing is written until apply. */
 export interface AfterCallProposal {
   steps: string[];
   actions: AfterCallAction[];
+  dropped?: { type: string; label: string; why: string }[];
+  person?: { id: number; full_name: string | null; first_name: string | null } | null;
+  drafted_by?: string;
+}
+
+export interface AfterCallResult {
+  applied: { id: string; type: string; ref: string | number | null }[];
+  skipped: { id: string; why: string; ref?: string | number | null }[];
 }
 
 export interface Pledge {
@@ -48,11 +59,12 @@ export const transcribeFile = (file: File) => {
   });
 };
 
-export const proposeAfterCall = (callNoteId: number) =>
+// Call note ids are text (routes_calls.py, #78).
+export const proposeAfterCall = (callNoteId: string) =>
   call<AfterCallProposal>("After-call actions", "POST", `/call-notes/${callNoteId}/actions`);
 
-export const applyAfterCall = (callNoteId: number, actionIds: (string | number)[]) =>
-  call<{ applied: { id: string | number; type: string; ref: string | number | null }[] }>(
+export const applyAfterCall = (callNoteId: string, actionIds: string[]) =>
+  call<AfterCallResult>(
     "Applying after-call actions",
     "POST",
     `/call-notes/${callNoteId}/apply`,
@@ -71,7 +83,7 @@ export const useAfterCall = () => {
   const queryClient = useQueryClient();
   const propose = useMutation({ mutationFn: proposeAfterCall });
   const apply = useMutation({
-    mutationFn: ({ callNoteId, actionIds }: { callNoteId: number; actionIds: (string | number)[] }) =>
+    mutationFn: ({ callNoteId, actionIds }: { callNoteId: string; actionIds: string[] }) =>
       applyAfterCall(callNoteId, actionIds),
     // Actions create tasks, RSVPs, pledges, notes and tags: refetch everything.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["donor-desk"] }),
