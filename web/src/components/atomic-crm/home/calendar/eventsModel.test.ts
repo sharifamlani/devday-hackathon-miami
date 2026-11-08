@@ -10,6 +10,7 @@ import {
   eventDays,
   formToInput,
   stripLabel,
+  weekOffsetFor,
   validateEventForm,
 } from "./eventsModel";
 import { addDays } from "../../outreach/dates";
@@ -98,5 +99,16 @@ describe("suggestions", () => {
     expect(buildSuggestions([], TODAY, TODAY)).toEqual([]);
     expect(buildSuggestions([crm({ audience_count: 9, starts_at: "2026-11-30" })], TODAY, TODAY)).toEqual([]);
     expect(buildSuggestions([crm({ audience_count: 9, starts_at: "2026-11-01" })], TODAY, TODAY)).toEqual([]);
+  });
+});
+
+describe("briefing focus", () => {
+  it("lands on the rolling week containing the focused date", () => {
+    expect(weekOffsetFor(TODAY, "2026-11-08")).toBe(0);
+    expect(weekOffsetFor(TODAY, "2026-11-14")).toBe(0);
+    expect(weekOffsetFor(TODAY, "2026-11-15")).toBe(1);
+    expect(weekOffsetFor(TODAY, "2026-11-19T09:00:00")).toBe(1);
+    expect(weekOffsetFor(TODAY, "2026-12-06")).toBe(4);
+    expect(weekOffsetFor(TODAY, "2026-11-07")).toBe(-1);
   });
 });

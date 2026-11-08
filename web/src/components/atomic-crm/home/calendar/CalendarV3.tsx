@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Info, Pencil, Plus, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -23,11 +23,13 @@ import {
 import { useTargets } from "../../providers/local/hooks";
 import { parseWhen } from "../../providers/local/parseWhen";
 import { useCreateTask } from "../../providers/local/tasks";
+import { takeCalendarFocus } from "../../calendar/calendarFocus";
 import { weekRange, weekStrip } from "../AgendaList";
 import { focusRing } from "../tile";
 import { EventForm } from "./EventForm";
 import {
   buildSuggestions,
+  weekOffsetFor,
   emptyForm,
   eventDays,
   formFromEvent,
@@ -45,7 +47,13 @@ import "./calendar-v3.css";
 export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
   const targets = useTargets();
   const today = todayProp ?? targets.data?.quarter?.as_of ?? toIsoDate(new Date());
-  const [offset, setOffset] = useState(0);
+  // The briefing's "Open calendar" sets a focus date (calendarFocus.ts); read once, land on its week.
+  const [focus] = useState(() => {
+    const d = takeCalendarFocus();
+    return d ? toIsoDate(d) : null;
+  });
+  const [picked, setOffset] = useState<number | null>(null);
+  const offset = picked ?? (focus ? weekOffsetFor(today, focus) : 0);
   const start = addDays(today, offset * 7);
   const strip = weekStrip(start);
   const feed = useCalendarEvents(start, addDays(start, 6));
@@ -56,6 +64,14 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
   const [form, setForm] = useState<{ event: CalendarEvent | null } | null>(null);
   const readOnly = EVENTS_READ_ONLY;
   const crmEvents = useEvents().data;
+
+  useEffect(() => {
+    if (focus && !feed.isPending) {
+      const t = window.setTimeout(() => jumpTo(focus), 0);
+      return () => window.clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus, feed.isPending]);
 
   const jumpTo = (date: string) => {
     listRef.current
@@ -89,11 +105,11 @@ export const CalendarV3 = ({ today: todayProp }: { today?: string }) => {
           <button type="button" className={cn("cal3-today", focusRing)} onClick={() => setOffset(0)}>
             Today
           </button>
-          <button type="button" aria-label="Previous week" className={focusRing} onClick={() => setOffset((v) => v - 1)}>
+          <button type="button" aria-label="Previous week" className={focusRing} onClick={() => setOffset(offset - 1)}>
             <ChevronLeft size={16} aria-hidden="true" />
           </button>
           <span className="cal3-range" aria-live="polite">{weekRange(start)}</span>
-          <button type="button" aria-label="Next week" className={focusRing} onClick={() => setOffset((v) => v + 1)}>
+          <button type="button" aria-label="Next week" className={focusRing} onClick={() => setOffset(offset + 1)}>
             <ChevronRight size={16} aria-hidden="true" />
           </button>
         </div>

@@ -9,6 +9,7 @@ import type { CrmEvent } from "../../providers/local/crmTypes";
 import { runMock, type Method } from "../../providers/local/endpoint";
 import "../../providers/local/mocks";
 import { resetMockTasks } from "../../providers/local/mocks";
+import { focusCalendarOn } from "../../calendar/calendarFocus";
 import { CalendarV3 } from "./CalendarV3";
 
 vi.mock("../../providers/local/config", async (importOriginal) => ({
@@ -93,5 +94,12 @@ describe("CalendarV3 (live, against the contract mocks)", () => {
     await ui.getByRole("button", { name: "Review invites" }).click();
     await ui.getByRole("button", { name: "Open batch" }).click();
     await expect.element(ui.getByTestId("where")).toHaveTextContent("/campaigns/42");
+  });
+
+  it("opens on the week of the briefing's focus date and highlights the day", async () => {
+    focusCalendarOn("2026-11-19");
+    const ui = await mount();
+    await expect.element(ui.getByText("Nov 15 – 21")).toBeVisible();
+    await expect.poll(() => document.querySelector("[data-day='2026-11-19'][data-flash]") !== null).toBe(true);
   });
 });

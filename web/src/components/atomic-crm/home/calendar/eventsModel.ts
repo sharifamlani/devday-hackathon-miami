@@ -213,3 +213,9 @@ export const buildSuggestions = (events: CrmEvent[], start: string, today: strin
   }
   return out;
 };
+
+/** Whole weeks from `today`'s week start to the week holding `date` (negative = earlier); the strip is rolling from today. */
+export const weekOffsetFor = (today: string, date: string): number => {
+  const utc = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
+  return Math.floor((utc(date.slice(0, 10)) - utc(today)) / 86400000 / 7);
+};
