@@ -37,8 +37,8 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
 4. **Step 3, "Building your context."** It shows **Reading your website · m:ss** (about 30 s). "It reads the site and
    news and keeps dated, sourced facts: success stories, where the money goes, how the Foundation is doing." The
    heading becomes **Your desk is set up.** with e.g. **15 facts found about your organization** (website + news).
-   Click **Go to the dashboard** (if the site was slow it says so, the button reads **Continue to the dashboard**,
-   and the reading finishes in the background).
+   Click **Go to the dashboard**. If the screen says **Still reading your site.**, click **Continue to the
+   dashboard**: the facts appear when the read finishes in the background.
 5. **Dashboard (home).** A card titled **Your desk is ready.** asks "Want a one-minute tour of where things are?" (or, while the read is
    still running, "We're still reading your website. Want a one-minute tour while it finishes?"): click **Not now**. Point at:
    - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
@@ -54,12 +54,12 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    - the **CRM** tile: **Find a donor**, **Open database**, and the donors needing attention with their badges
      (**Card failed**, **Late**, **New**);
    - **Files & drafts** (campaigns and invites the agents drafted);
-   - the chat (**Ask the agent…**) with its chips (an **Enrich …** chip naming one donor, e.g. **Enrich Desmond Achebe-Wells**; it varies by
-     upload), **Who's late on a usual gift?**,
-     **Plan next week**).
+   - the chat (**Ask the agent…**): type a request, or say it with the mic (e.g. *"Plan next week"*, *"Enrich
+     Desmond Achebe-Wells"*).
    **Open database** and the calendar tile (**Open full calendar**) open a panel beside the chat. The icon rail on
    the left holds **Live transcript** and **Open Ask sidebar**.
-6. **Home chat agent.** Click the chip **Plan next week** (about 10 s; **Thinking…** shows meanwhile). The conversation
+6. **Home chat agent.** In **Ask the agent…** type (or say) *"Plan next week"* (about 10 s; **Thinking…** shows
+   meanwhile). The conversation
    shows the agent's tool steps (e.g. **Get context**, **Get events**, **Get calendar**, **Get tasks**), then a plan for
    **November 9–15** with a priority per day, and it says it hasn't changed your calendar. (The wording varies run to
    run; say "a suggested week, built from the events and tasks, and nothing changed until you say so".) A step that
@@ -95,8 +95,9 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
     Sun 15 **The Give Miami 5K** (8:00) and **The Give Miami 5K Post-Race Festival, a Party with a Purpose!** (8:30),
     Thu 19 **Give Miami Day**, plus the prep task Thu 12 **Prep list: Give Miami Day**. Click an event: its panel
     shows the audience counts, a **Sample invite (N drafts ready)** citing a Foundation fact with its source, and the
-    event's **Source** link (invites are written in the background about a minute after setup; drafts only). Don't
-    click **Review** yet: it re-plans for up to a minute (**Planning…**) before showing the batch (fix in progress).
+    event's **Source** link (invites are written in the background about a minute after setup; drafts only). Click
+    **Review**: in about a second it puts those drafts in the event's pending batch (**Batch ready:** and its number);
+    nothing is sent until someone approves it.
 11. **A call, transcribed.** On a task click **Call and transcribe**, or click **Live transcript** in the rail: the panel
     opens on **Listening** with **Demo call**, **Generate summary** and **Pause**. **Demo call** plays a scripted call
     with Rosa (about 10 s). Click **Generate summary** (about 4 s): the summary and **Suggested next steps** (text her a
@@ -121,11 +122,10 @@ Timings are from the Nov 8 dress rehearsal on the laptop (warm cache). Every age
 
 | Step | Can vary because | If it's slow or off, say |
 |---|---|---|
-| 4 Building your context (~30 s) | the site read runs close to its 30 s limit; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | "It keeps reading in the background; the rest lands in a minute." Click **Continue to the dashboard**. |
+| 4 Building your context (~30 s) | the site read can run past its limit; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | If it says **Still reading your site.**, click **Continue to the dashboard** and say "It keeps reading in the background; the facts land in a minute." |
 | 6 / 7 agent replies (10–20 s) | live model calls | "It's pulling the task, the donor's record and drafting; every step it takes shows here." |
 | 8 campaign (~25 s) | 25 live drafts | "Twenty-five personal drafts, each citing a real Foundation story. Nothing is sent without approval." |
 | 9 Enrich | fast while the research cache holds Knight; otherwise a live web search | "It's reading the public web; every tag will carry its source." |
-| 10 Review | re-plans for up to a minute (fix in progress) | Skip it: "The invites for this audience are already drafted, pending approval." |
 | 12 Dictation | needs a mic and the live service | Type the question instead. |
 | 13 duplicates | fixed by the warm cache | "Nine close calls" (not ten). |
 
