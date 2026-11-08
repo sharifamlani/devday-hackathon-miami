@@ -129,14 +129,6 @@ export const donorMeta = (
     .join(" · ");
 };
 
-/** "priya@example.org" → "p•••@example.org", so the pop-up never shows a full address. */
-export const maskEmail = (email: string | null | undefined) => {
-  if (!email) return "—";
-  const at = email.indexOf("@");
-  if (at < 1) return "•••";
-  return `${email[0]}•••${email.slice(at)}`;
-};
-
 /**
  * The pop-up search: every word must appear in the name, email or
  * organization (case-insensitive). Empty query: the highest scores first.

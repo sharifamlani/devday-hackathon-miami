@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { SourceLink } from "../contacts/ResearchPanel";
 import { formatUsd } from "../contacts/donorFormat";
 import { DATA_MODE } from "../providers/local/config";
+import { contactEmail, contactPhone } from "../providers/local/crmDonors";
 import { usePeople } from "../providers/local/crmHooks";
 import { TAB_LABELS } from "../providers/local/crmTypes";
 import { useDonor } from "../providers/local/hooks";
@@ -24,7 +25,6 @@ import {
   donorMeta,
   donorTag,
   initials,
-  maskEmail,
   searchDonors,
 } from "./homeData";
 import { searchPeople } from "./searchPeople";
@@ -193,7 +193,7 @@ export const FindDonorDialog = ({
                           {[
                             TAB_ONE[person.tab],
                             person.city,
-                            person.email && maskEmail(person.email),
+                            contactEmail(person.email),
                           ]
                             .filter(Boolean)
                             .join(" · ")}
@@ -294,7 +294,8 @@ const DonorSummaryView = ({
       <dl className="grid grid-cols-2 gap-2 text-sm">
         <Fact label="Lifetime" value={formatUsd(donor.total_given)} />
         <Fact label="Gifts" value={String(donor.gift_count)} />
-        <Fact label="Email" value={maskEmail(donor.email)} />
+        <Fact label="Email" value={contactEmail(donor.email) ?? "—"} />
+        <Fact label="Phone" value={contactPhone(donor.phone) ?? "—"} />
         <Fact label="Pattern" value={donorMeta(donor) || "—"} />
       </dl>
       <Saved donor={donor} live={live} />

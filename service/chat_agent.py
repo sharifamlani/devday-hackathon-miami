@@ -217,7 +217,7 @@ def batch_summary(detail: dict) -> dict:
 
 
 def send_item(m: dict, contact_type: str = "giver") -> dict:
-    """A campaign message in the UI's SendItem shape (addresses already masked)."""
+    """A campaign message in the UI's SendItem shape (addresses as the API returns them)."""
     return {"id": m["id"], "person_id": m["donor_id"], "full_name": m["donor_name"], "contact_type": contact_type,
             "channel": m["channel"], "to": m["to"], "subject": m["subject"], "body": m["body"],
             "facts_used": m["facts_used"], "needs_individual_approval": m["needs_individual_approval"],
