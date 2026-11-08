@@ -28,6 +28,7 @@ import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
 import { ApprovalCard, StepCard } from "./AgentCards";
 import { DictationButton, DictationHint } from "../voice/DictationButton";
 import { useDictationInput } from "../voice/useDictationInput";
+import { DICTATION_TOGGLE_EVENT } from "./useWorkspaceHotkeys";
 import {
   answerSummary,
   appendAnswer,
@@ -397,6 +398,16 @@ export const Composer = ({
   const [bloomId, setBloomId] = useState(0);
   const busy = LIVE_AGENT ? agent.pending : session.pending;
   const dictation = useDictationInput(text, setText);
+  // Alt+V (useWorkspaceHotkeys) toggles the mic like a click on it.
+  const dictationRef = useRef(dictation);
+  dictationRef.current = dictation;
+  useEffect(() => {
+    const onToggle = () => {
+      if (dictationRef.current.available) dictationRef.current.toggle();
+    };
+    window.addEventListener(DICTATION_TOGGLE_EVENT, onToggle);
+    return () => window.removeEventListener(DICTATION_TOGGLE_EVENT, onToggle);
+  }, []);
 
   const send = (question: string) => {
     const q = question.trim();
