@@ -293,8 +293,10 @@ def _new_person(first: str | None = None, last: str | None = None) -> dict:
         "his_types": set(),
         "first": first or None,
         "last": last or None,
-        # Source records joined into this person: {name_key|email: {name, email, phone, locs, rule}}. More than
-        # one = an automatic (exact-identity) merge, recorded in auto_merges so staff can keep or split it.
+        # Source records joined into this person, one per distinct written name (accents/case aside):
+        # {name_key: {name, email, phone, locs, rule}}. More than one = an automatic merge that joined different
+        # names (same email, or a name fragment), recorded in auto_merges so staff can keep or split it. The same
+        # name seen twice (one row without an email) is one record: nothing for staff to decide.
         "sources": {},
     }
 
@@ -332,11 +334,12 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
             if p is None:
                 p = _new_person(ev.first_name, ev.last_name)
                 people.append(p)
-            ident = f"{nk}|{emails[0] if emails else ''}"
+            ident = nk
             src = p["sources"].get(ident)
             if src is None:
                 src = p["sources"][ident] = {"name": name, "email": emails[0] if emails else None, "phone": None,
                                              "locs": [], "rule": matched_by if p["sources"] else None}
+            src["email"] = src["email"] or (emails[0] if emails else None)
             if name not in p["names"]:
                 p["names"].append(name)
             p["name_counts"][name] = p["name_counts"].get(name, 0) + 1
@@ -844,7 +847,7 @@ def record_auto_merge(conn: sqlite3.Connection, donor_id: int, display: str, sou
     rows = [{"key": k, "name": s["name"], "email": s["email"], "phone": s["phone"], "locs": s["locs"],
              "gift_ids": gift_ids.get(k, []), "survivor": k == survivor, "rule": s.get("rule")}
             for k, s in sources.items()]
-    rule = ", ".join(sorted({r["rule"] for r in rows if not r["survivor"] and r["rule"]})) or "same written name"
+    rule = ", ".join(sorted({r["rule"] for r in rows if r["rule"]})) or "same email"
     return conn.execute("INSERT INTO auto_merges (donor_id, rule, sources) VALUES (?, ?, ?)",
                         (donor_id, rule, json.dumps(rows))).lastrowid
 
