@@ -304,7 +304,7 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
     year = int(config.SCORE_AS_OF[:4])
     people: list[dict] = []
     by_email: dict[str, dict] = {}
-    by_name: dict[str, dict] = {}
+    by_name: dict[str, list[dict]] = {}
     seen_rows: set[tuple] = set()
     for fname, evs in events_by_file.items():
         for ev in evs:
@@ -316,8 +316,11 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
                 continue
             emails = [e for e in [norm_email(ev.email_address)] if e]
             nk = name_key(name)
-            # Same exact email, or the same exact written name (a second email address is kept as an alias).
-            p = next((by_email[e] for e in emails if e in by_email), None) or by_name.get(nk)
+            # Auto-merge only exact identity: the same email, or the same written name (accents and case aside) where
+            # nothing contradicts it. Two different emails under one name is a doubt for staff, not for us.
+            p = next((by_email[e] for e in emails if e in by_email), None) or next(
+                (c for c in by_name.get(nk, []) if not (c["emails"] and emails and not set(c["emails"]) & set(emails))), None
+            )
             if p is None:
                 p = _new_person(ev.first_name, ev.last_name)
                 people.append(p)
@@ -329,7 +332,8 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
                 if e not in p["emails"]:
                     p["emails"].append(e)
                 by_email[e] = p
-            by_name[nk] = p
+            if p not in by_name.setdefault(nk, []):
+                by_name[nk].append(p)
             ph = norm_phone(ev.phone_number)
             if ph and ph not in p["phones"]:
                 p["phones"].append(ph)
@@ -381,7 +385,7 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
     return people
 
 
-# ---------------------------------------------------------------- 2b. same person, written differently (deterministic)
+# ---------------------------------------------------------------- 2b. name fragments, display names (deterministic)
 
 _MOJIBAKE = ("�", "Ã", "­")
 
@@ -428,58 +432,21 @@ def same_name(a: str, b: str) -> bool:
 
 
 def best_name(p: dict) -> str:
-    """The name to show: clean text, formal (Elizabeth, not Liz; Foundation, not Fdn), no initials, then most used."""
+    """The name to show: clean text, formal (Elizabeth, not Liz; Foundation, not Fdn), no initials, most used, plainest."""
 
     def rank(n: str):
         toks = _tokens(n)
         short = (toks[0] in NICKNAMES) or any(t in ORG_ABBREVIATIONS for t in toks)  # Liz, Fdn, Hdwe
         return (
             not any(m in n for m in _MOJIBAKE),
+            not is_fragment(n),
             not short,
             -sum(len(t) == 1 for t in toks),
             p.get("name_counts", {}).get(n, 0),
-            len(n),
+            -len(n),  # on a tie the plainer spelling ("Veloria Bay Foundation", not "... Inc")
         )
 
-    hint = p.get("display_hint")
-    return hint if hint in p["names"] else max(p["names"], key=rank)
-
-
-def _org_link(a: dict, b: dict) -> bool:
-    """A person who lists organization X is the contact for the organization row named X (Bernard Okoye, Marrow Lane
-    Print Co. ~ the organization Marrow Lane Print Co.; Harold Whitaker, Whitaker Family Charitable Fund ~ the fund)."""
-    for person, org in ((a, b), (b, a)):
-        stems = {org_stem({"full_name": o}) for o in person["orgs"]} - {""}
-        if stems & {org_stem({"full_name": n}) for n in org["names"] if _is_orgish(n)}:
-            return True
-    return False
-
-
-def _compatible(a: dict, b: dict) -> bool:
-    """Same person? Names must agree, and the contact details must not contradict each other: a shared phone or
-    email is a yes, a side with no email is fine, two different emails (or phones) are not."""
-    if _org_link(a, b):
-        return True
-    if not any(same_name(x, y) for x in a["names"] for y in b["names"]):
-        return False
-    if set(a["emails"]) & set(b["emails"]) or set(a["phones"]) & set(b["phones"]):
-        return True
-    if a["emails"] and b["emails"]:
-        return False
-    return not (a["phones"] and b["phones"])
-
-
-_FAMILY_FUND_WORDS = {"fund", "foundation", "trust", "fdn"}
-
-
-def _family_fund_of(person: dict, fund: dict) -> bool:
-    """"Whitaker Family Charitable Fund" is the donor-advised fund of the one individual surnamed Whitaker."""
-    for fn in fund["names"]:
-        toks = _tokens(fn)
-        if _is_orgish(fn) and len(toks) >= 3 and "family" in toks and _FAMILY_FUND_WORDS & set(toks):
-            if any(len(_tokens(n)) >= 2 and _tokens(n)[-1] == toks[0] and not _is_orgish(n) for n in person["names"]):
-                return True
-    return False
+    return max(p["names"], key=rank)
 
 
 def _absorb(a: dict, b: dict) -> None:
@@ -495,9 +462,10 @@ def _absorb(a: dict, b: dict) -> None:
 
 
 def consolidate_people(people: list[dict], warnings: list[str]) -> list[dict]:
-    """Collapse rows that are the same person written differently, and drop name fragments.
-    Look-alikes with contradicting contact details (two different emails or phones under similar names) are NOT
-    collapsed: dedupe.py suggests them for staff to approve."""
+    """Drop name fragments and pick each person's display name. Nothing fuzzy is merged here: build_people has
+    already joined exact identities (same email, or the same written name with no contradicting email). Nicknames,
+    initials, accent or spelling variants, two emails under one name, organization spellings and a person with
+    their family fund stay as separate rows; dedupe.py turns each into a pending suggestion for staff to approve."""
     for p in people:
         p.setdefault("name_counts", {})
         p.setdefault("parts", {})
@@ -515,30 +483,6 @@ def consolidate_people(people: list[dict], warnings: list[str]) -> list[dict]:
         else:
             warnings.append(f"dropped name fragment '{f['names'][0]}' (no surname, no matching email or phone)")
     people = solid
-    # 2. the same person under another spelling, nickname or initial, with no contradicting contact detail
-    i = 0
-    while i < len(people):
-        j = i + 1
-        while j < len(people):
-            if _compatible(people[i], people[j]):
-                if _org_link(people[i], people[j]) and not any(same_name(x, y) for x in people[i]["names"] for y in people[j]["names"]):
-                    # a contact folded into the organization they represent: show the organization
-                    both = people[i]["names"] + people[j]["names"]
-                    people[i]["display_hint"] = next((n for n in both if _is_orgish(n)), None)
-                warnings.append(f"same person: '{best_name(people[j])}' folded into '{best_name(people[i])}'")
-                _absorb(people[i], people.pop(j))
-                j = i + 1  # the merged row may now match one we skipped
-            else:
-                j += 1
-        i += 1
-    # 3. a family fund and the one person it is named for (Harold Whitaker ~ Whitaker Family Charitable Fund)
-    for fund in [q for q in people if any(_is_orgish(n) and "family" in _tokens(n) for n in q["names"])]:
-        owners = [q for q in people if q is not fund and _family_fund_of(q, fund)]
-        if len(owners) == 1 and not (owners[0]["emails"] and fund["emails"] and not set(owners[0]["emails"]) & set(fund["emails"])):
-            warnings.append(f"same person: family fund '{best_name(fund)}' folded into '{best_name(owners[0])}'")
-            owners[0]["display_hint"] = best_name(owners[0])
-            _absorb(owners[0], fund)
-            people.remove(fund)
     for p in people:
         p["display"] = best_name(p)
         if p["display"] in p["parts"]:

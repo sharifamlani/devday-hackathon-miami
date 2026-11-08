@@ -182,42 +182,69 @@ def _names(people):
     return sorted(ia.best_name(p) for p in people)
 
 
-def test_variants_of_one_person_collapse():
+def _fuzzy_events():
+    """One of each kind of fuzzy match: nickname, initial, accent/spelling, two emails for one name, organization
+    spelling, a person and the family fund named for them. Each is one real person written two ways."""
     ev = {
         "gmd.xlsx": [
             _ev("Robert", "Nguyen", "robert.nguyen@example.org", 100, "2024-01-01", "r:1"),
-            _ev("Mildred", "Hayes", "", None, None, "r:2", ctype="beneficiary"),
+            _ev("Mildred", "Hayes", "", 20, "2024-02-02", "r:2", ctype="beneficiary"),
             _ev("Rosa Elena", "Martinez", "", None, None, "r:3"),
-            _ev("Elizabeth", "Fontaine", "liz.fontaine@example.com", 50, "2024-02-02", "r:4"),
-            _ev("Dana", "Kowalczyk", "", 25, "2024-03-03", "r:5"),
-            _ev("Marcus", "Bell", "", None, None, "r:6"),
-            _ev("Marcus", "Oyelaran", "marcus@example.org", 10, "2024-04-04", "r:7"),
+            _ev("Elizabeth", "Fontaine", "liz.fontaine@example.com", 50, "2024-03-03", "r:4"),
+            _ev("Dana", "Kowalczyk", "dana@example.com", 25, "2024-04-04", "r:5"),
+            _ev("Priscilla", "Okafor", "priscilla.okafor@example.com", 10, "2024-05-05", "r:6"),
+            _ev("", "", "grants@example.org", 100, "2022-01-01", "r:7", org="Veloria Bay Fdn"),
+            _ev("Harold", "Whitaker", "harold@example.org", 50, "2022-12-15", "r:8"),
+            _ev("Marcus", "Bell", "", None, None, "r:9"),
+            _ev("Marcus", "Oyelaran", "marcus@example.org", 10, "2024-06-06", "r:10"),
         ],
         "log.docx": [
-            _ev("Bob", "Nguyen", "", 40, "2024-05-05", "t:1"),  # nickname, no email on this side
-            _ev("Liz", "Fontaine", "", 20, "2024-06-06", "t:2"),
-            _ev("D.", "Kowalczyk", "", 15, "2024-07-07", "t:3"),  # initial
-            _ev("R.", "Nguyen", "", None, None, "t:4"),
+            _ev("Bob", "Nguyen", "", 40, "2024-07-07", "t:1"),
+            _ev("Liz", "Fontaine", "", 20, "2024-08-08", "t:2"),
+            _ev("D.", "Kowalczyk", "", 15, "2024-09-09", "t:3"),
+            _ev("Priscilla", "Okafor", "priscilla.okafor.law@example.org", 20, "2025-01-01", "t:4"),
+            _ev("", "", "", 100, "2023-01-01", "t:5", org="Veloria Bay Foundation Inc"),
         ],
-        "signin.xlsx": [
-            _ev("Millie", "Hayes", "", None, None, "s:1"),
-            _ev("Rosa E.", "Martinez", "", None, None, "s:2"),
-        ],
+        "memo.docx": [_ev("", "", "", 10000, "2024-12-20", "m:1", org="Whitaker Family Charitable Fund")],
+        "signin.xlsx": [_ev("Millie", "Hayes", "", None, None, "s:1"), _ev("Rosa E.", "Martinez", "", None, None, "s:2")],
     }
     ev["gmd.xlsx"][1].phone_number = ev["signin.xlsx"][0].phone_number = "305-555-0159"
     ev["gmd.xlsx"][2].phone_number = ev["signin.xlsx"][1].phone_number = "(305) 555-0150"
-    people = ia.prepare_people(ev, [])
-    assert _names(people) == [
-        "Dana Kowalczyk",
+    return ev
+
+
+def test_fuzzy_matches_are_not_merged_at_ingest_but_become_pending_suggestions(tmp_path):
+    people = ia.prepare_people(_fuzzy_events(), [])
+    names = _names(people)
+    # nothing fuzzy was joined: both spellings are still there, only Marcus Bell / Marcus Oyelaran were never alike
+    for pair in ("Robert Nguyen", "Bob Nguyen"), ("Mildred Hayes", "Millie Hayes"), ("Rosa Elena Martinez", "Rosa E. Martinez"), (
         "Elizabeth Fontaine",
-        "Marcus Bell",
-        "Marcus Oyelaran",
-        "Mildred Hayes",
-        "Robert Nguyen",
-        "Rosa Elena Martinez",
-    ]
-    rob = next(p for p in people if ia.best_name(p) == "Robert Nguyen")
-    assert len(rob["gifts"]) == 2  # both gifts stay on the one person
+        "Liz Fontaine",
+    ), ("Dana Kowalczyk", "D. Kowalczyk"), ("Harold Whitaker", "Whitaker Family Charitable Fund"):
+        assert all(n in names for n in pair), (pair, names)
+    assert names.count("Priscilla Okafor") == 2  # two emails under one name
+    assert len(people) == 18
+
+    conn = db.connect(tmp_path / "f.db")
+    res = ia.ingest_events(_fuzzy_events(), "giver", conn, judgments={})
+    assert res["people_added"] == 18 and res["duplicate_suggestions"] == 8
+    pending = conn.execute("SELECT COUNT(*) FROM duplicate_suggestions WHERE status = 'pending'").fetchone()[0]
+    gifts_before = conn.execute("SELECT COUNT(*), SUM(amount) FROM gifts").fetchone()
+
+    # staff approve every suggestion: each real person ends as one row and no giving history is lost
+    from service import dedupe
+
+    approved = 0
+    while True:
+        row = conn.execute("SELECT id FROM duplicate_suggestions WHERE status = 'pending' ORDER BY id").fetchone()
+        if not row:
+            break
+        dedupe.merge(conn, row[0], approved_by="test")
+        approved += 1
+    assert 0 < approved <= pending
+    assert conn.execute("SELECT COUNT(*) FROM donors").fetchone()[0] == 10
+    assert tuple(conn.execute("SELECT COUNT(*), SUM(amount) FROM gifts").fetchone()) == tuple(gifts_before)
+    assert conn.execute("SELECT COUNT(*) FROM gifts WHERE donor_id NOT IN (SELECT id FROM donors)").fetchone()[0] == 0
 
 
 def test_contradicting_contact_details_are_not_collapsed():
@@ -230,16 +257,29 @@ def test_contradicting_contact_details_are_not_collapsed():
     assert len(ia.prepare_people(ev, [])) == 2
 
 
-def test_same_exact_name_with_two_emails_is_one_person_with_both_addresses():
+def test_exact_identity_merges_at_ingest():
+    ev = {
+        "a.md": [
+            _ev("Ann", "Lee", "ann@example.com", 10, "2024-01-01", "r:1"),
+            _ev("Anne", "Lee", "ANN@example.com", 10, "2024-02-01", "r:2"),  # same email, another spelling: same person
+            _ev("Cy", "Fox", "", 5, "2024-03-01", "r:3"),
+            _ev("Cy", "Fox", "cy@example.com", 5, "2024-04-01", "r:4"),  # same written name, no email on one side
+            _ev("José", "Díaz", "", 5, "2024-05-01", "r:5"),
+            _ev("Jose", "DIAZ", "", 5, "2024-06-01", "r:6"),  # accents and case only
+        ]
+    }
+    people = ia.prepare_people(ev, [])
+    assert len(people) == 3 and {"Cy Fox", "José Díaz"} <= set(_names(people))
+
+
+def test_two_emails_under_one_name_stay_two_rows_for_staff():
     ev = {
         "a.md": [
             _ev("Priscilla", "Okafor", "priscilla.okafor@example.com", 10, "2024-01-01", "r:1"),
             _ev("Priscilla", "Okafor", "priscilla.okafor.law@example.org", 20, "2025-01-01", "r:2"),
         ]
     }
-    (p,) = ia.prepare_people(ev, [])
-    assert sorted(p["emails"]) == ["priscilla.okafor.law@example.org", "priscilla.okafor@example.com"]
-    assert len(p["gifts"]) == 2
+    assert len(ia.prepare_people(ev, [])) == 2
 
 
 def test_name_fragments_are_dropped_unless_they_match_contact_or_carry_a_gift():
@@ -269,34 +309,6 @@ def test_totals_row_is_not_a_person():
     warnings = []
     assert _names(ia.prepare_people(ev, warnings)) == ["Ann Lee"]
     assert any("totals row" in w for w in warnings)
-
-
-def test_organization_variants_their_contact_and_family_fund_collapse():
-    ev = {
-        "major.xlsx": [
-            _ev("", "", "grants@example.org", 100, "2022-01-01", "r:1", org="Veloria Bay Fdn"),
-            _ev("", "", "", 100, "2023-01-01", "r:2", org="Veloria Bay Foundation Inc"),
-            _ev("", "", "harold@example.org", 50, "2022-12-15", "r:3", org="Harold Whitaker"),
-        ],
-        "memo.docx": [_ev("", "", "", 10000, "2024-12-20", "r:4", org="Whitaker Family Charitable Fund")],
-        "check.docx": [_ev("", "", "", 500, "2026-07-01", "t:1", org="Marrow Lane Print Co.")],
-        "intake.docx": [_ev("Bernard", "Okoye", "billing@marrow.example.org", None, None, "f:1", org="Marrow Lane Print Co.")],
-    }
-    people = ia.prepare_people(ev, [])
-    assert _names(people) == ["Harold Whitaker", "Marrow Lane Print Co.", "Veloria Bay Foundation Inc"]
-    harold = next(p for p in people if ia.best_name(p) == "Harold Whitaker")
-    assert len(harold["gifts"]) == 2
-
-
-def test_two_people_with_one_surname_do_not_get_the_family_fund():
-    ev = {
-        "a.xlsx": [
-            _ev("Harold", "Whitaker", "h@example.org", 5, "2024-01-01", "r:1"),
-            _ev("Jane", "Whitaker", "j@example.org", 5, "2024-01-01", "r:2"),
-            _ev("", "", "", 9, "2024-02-02", "r:3", org="Whitaker Family Charitable Fund"),
-        ]
-    }
-    assert len(ia.prepare_people(ev, [])) == 3
 
 
 def test_same_files_in_any_order_give_same_people():
@@ -415,54 +427,90 @@ def _people_rows(path):
     return rows
 
 
+def _total_gifts(path):
+    conn = sqlite3.connect(path)
+    ok = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM gifts WHERE status = 'ok'").fetchone()
+    rows = conn.execute("SELECT COUNT(*) FROM gifts").fetchone()[0]
+    orphans = conn.execute("SELECT COUNT(*) FROM gifts WHERE donor_id NOT IN (SELECT id FROM donors)").fetchone()[0]
+    declined = conn.execute("SELECT COUNT(*) FROM gifts WHERE status = 'declined'").fetchone()[0]
+    scored = conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0]
+    conn.close()
+    return ok, rows, orphans, declined, scored
+
+
 @needs_key
 def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
-    """data/sample_inputs through POST /ingest, graded against whatever answer_key.json is checked in
-    (no totals hard-coded here). A second, cache-replayed run must give the identical people."""
+    """data/sample_inputs through POST /ingest, graded against whatever answer_key.json is checked in (no totals
+    hard-coded here). Fuzzy matches arrive as pending suggestions; approving every one through the merge route
+    leaves exactly the key's people and every gift."""
     monkeypatch.setenv("INGEST_CACHE_DIR", str(tmp_path / "cache"))  # a cold first run: real model answers
     monkeypatch.delenv("INGEST_CACHE", raising=False)
     c, body = _post_ingest(tmp_path / "run1.db", FILES, monkeypatch)
-    rows = _people_rows(tmp_path / "run1.db")
-    assigned = {a["donor_id"]: a["tab"] for a in body["assigned"]}
     t = KEY["totals"]
 
-    conn = sqlite3.connect(tmp_path / "run1.db")
-    n_gifts, total = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM gifts WHERE status = 'ok'").fetchone()
-    scored = conn.execute("SELECT COUNT(*) FROM donor_scores").fetchone()[0]
-    declined = conn.execute("SELECT COUNT(*) FROM gifts WHERE status = 'declined'").fetchone()[0]
-    failed_in = conn.execute(
-        "SELECT COUNT(*) FROM gifts g JOIN donors d ON d.id=g.donor_id "
-        "WHERE d.full_name LIKE 'Hye-jin%' AND g.gift_date='2026-10-10' AND g.status = 'ok'"
-    ).fetchone()[0]
-    conn.close()
+    # ---- before approval: money exact, declined charge on record, routes up, a review queue exists
+    ok, rows_all, orphans, declined, _ = _total_gifts(tmp_path / "run1.db")
+    assert ok[0] == t["unique_gifts"] and round(ok[1]) == t["total_amount"]
+    assert declined == len(KEY["failed_gifts_not_counted"]) and orphans == 0
+    for route in ("/duplicates", "/people?type=community", "/community/stats", "/donors", "/alerts"):
+        assert c.get(route).status_code == 200, route
+    flagged = {_ascii(f["name"]) for f in body["flagged_for_review"]}
+    assert flagged == {_ascii(p["full_name"]) for p in KEY["people"] if p["ambiguous"]}
+    before_rows = _people_rows(tmp_path / "run1.db")
+    pending = c.get("/duplicates").json()
+    assert pending, "fuzzy matches must be left for staff to approve"
 
-    # people: one row per key person, none left over
+    # no suggestion pairs two different key people (nothing a staff member would wrongly approve)
+    canon = {d["donor_id"]: d for d in KEY["canonical_donors"]}
+    people = [{**canon.get(p["person_id"], {}), **p} for p in KEY["people"]]
+
+    aliases = {}
+    for x in KEY.get("cross_file_duplicates", []):
+        aliases.setdefault(x["person_id"], []).append(x["appears_as"])
+
+    def owner(d):
+        raw = d["emails_all"] or []
+        em = {e.lower() for e in (json.loads(raw) if isinstance(raw, str) else raw)}
+        for p in people:
+            names = {_ascii(x) for x in p.get("names_as_written", []) + [p["full_name"]] + aliases.get(p["person_id"], [])}
+            if _ascii(d["full_name"]) in names or (em and em & {e.lower() for e in p.get("emails_all", [])}):
+                return p["person_id"]
+
+    for s in pending:
+        a, b = owner(s["donor_a"]), owner(s["donor_b"])
+        assert a is not None and a == b, (s["donor_a"]["full_name"], s["donor_b"]["full_name"])
+
+    # ---- staff approve every pending suggestion
+    n = 0
+    while True:
+        queue = c.get("/duplicates").json()
+        if not queue:
+            break
+        r = c.post(f"/duplicates/{queue[0]['id']}/merge", json={"approved_by": "test"})
+        assert r.status_code == 200, r.text
+        n += 1
+        assert n < 100
+    assert n >= 1
+
+    # ---- after approval: exactly the key's people, tabs, money and alerts
+    rows = _people_rows(tmp_path / "run1.db")
+    tabs = {tb: sum(1 for d in rows if d["contact_type"] == tb) for tb in ("giver", "neighbor", "community")}
+
     def matches(p):
         em = {e.lower() for e in p.get("emails_all", [])}
         nm = {_ascii(x) for x in p.get("names_as_written", []) + [p["full_name"]]}
         return [d for d in rows if _ascii(d["full_name"]) in nm or (em and em & {e.lower() for e in json.loads(d["emails_all"] or "[]")})]
 
-    canon = {d["donor_id"]: d for d in KEY["canonical_donors"]}
-    people = [{**canon.get(p["person_id"], {}), **p} for p in KEY["people"]]
     hit = {p["person_id"]: matches(p) for p in people}
     extra = [d["full_name"] for d in rows if not any(d in m for m in hit.values())]
     assert len(rows) == len(KEY["people"]), (len(rows), extra)
     assert all(len(m) == 1 for m in hit.values()), {k: [d["full_name"] for d in m] for k, m in hit.items() if len(m) != 1}
-    by_tab = {tb: sum(1 for d in rows if assigned[d["id"]] == tb) for tb in ("giver", "neighbor", "community")}
-    assert by_tab == KEY["tab_counts"]
-    wrong = [p["full_name"] for p in people if assigned[hit[p["person_id"]][0]["id"]] != p["tab"]]
+    assert tabs == KEY["tab_counts"]
+    wrong = [p["full_name"] for p in people if hit[p["person_id"]][0]["contact_type"] != p["tab"]]
     assert not wrong, wrong
-
-    # the ambiguous few are flagged for review, nobody else
-    flagged = {_ascii(f["name"]) for f in body["flagged_for_review"]}
-    assert flagged == {_ascii(p["full_name"]) for p in KEY["people"] if p["ambiguous"]}
-
-    # money: exact, with the declined charge left out
-    assert n_gifts == t["unique_gifts"] and round(total) == t["total_amount"] and failed_in == 0
-    assert declined == len(KEY["failed_gifts_not_counted"])  # kept on record as 'declined', not counted as gifts
-    assert scored == by_tab["giver"]  # only Givers are scored
-
-    # the routes the demo opens next all answer, and the gift alerts are the key's five
+    ok2, rows_all2, orphans2, declined2, scored = _total_gifts(tmp_path / "run1.db")
+    assert (ok2, rows_all2, orphans2, declined2) == (ok, rows_all, 0, declined)  # no giving history lost
+    assert scored == tabs["giver"]  # only Givers are scored
     for route in ("/duplicates", "/people?type=community", "/community/stats", "/donors"):
         assert c.get(route).status_code == 200, route
     for r in rows:
@@ -470,12 +518,16 @@ def test_end_to_end_sample_inputs(tmp_path, monkeypatch):
             assert c.get(f"/donors/{r['id']}").status_code == 200
     alerts = c.get("/alerts")
     assert alerts.status_code == 200
-    assert sorted((a["donor"], a["kind"]) for a in alerts.json()) == sorted((e["donor"], e["kind"]) for e in KEY["gift_alerts_expected"])
+    def person_of(name):
+        return next(p["person_id"] for p in people if _ascii(name) in {_ascii(x) for x in p.get("names_as_written", []) + [p["full_name"]]})
 
-    # determinism: the same files again give the same people, in the same tabs, with the same flags
-    _, body2 = _post_ingest(tmp_path / "run2.db", list(reversed(FILES)), monkeypatch)  # even dragged in another order
+    got = sorted((person_of(a["donor"]), a["kind"]) for a in alerts.json())
+    assert got == sorted((person_of(x["donor"]), x["kind"]) for x in KEY["gift_alerts_expected"])
+
+    # ---- determinism: the same files again (dragged in another order) give the same people before approval
+    _, body2 = _post_ingest(tmp_path / "run2.db", list(reversed(FILES)), monkeypatch)
     again = _people_rows(tmp_path / "run2.db")
-    assert [d["full_name"] for d in again] == [d["full_name"] for d in rows]
+    assert [d["full_name"] for d in again] == [d["full_name"] for d in before_rows]
     assert body2["by_tab"] == body["by_tab"] and body2["gifts_added"] == body["gifts_added"]
     assert sorted(f["name"] for f in body2["flagged_for_review"]) == sorted(f["name"] for f in body["flagged_for_review"])
 
