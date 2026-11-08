@@ -37,7 +37,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from service import dedupe, score, tasks
-from service import db, public_mode
+from service import db, donor_summary, public_mode
 from service.db import connect, create_schema
 
 router = APIRouter(tags=["data"])
@@ -116,9 +116,11 @@ def get_donor(donor_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> di
         "FROM outreach_drafts d WHERE d.donor_id = ? ORDER BY d.created_at DESC, d.id DESC", (donor_id,))]   # event_id: an invite
     donor["merges"] = dedupe.merges_for(conn, donor_id)
     donor["call_notes"] = db.list_call_notes(conn, donor_id=donor_id, limit=DONOR_CALL_NOTES)   # routes_calls.py
+    donor.update(donor_summary.get(conn, donor_id))      # "About <donor>": summary, summary_updated_at, summary_sources
     if public_mode.enabled():       # like the public snapshot: what was said on a call and staff notes stay private
         donor["call_notes"] = []
         donor["notes"] = None
+        donor.update(donor_summary.BLANK)                # the summary is written from calls and chats: private too
     return donor
 
 
