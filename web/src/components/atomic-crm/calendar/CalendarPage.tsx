@@ -264,7 +264,10 @@ export const CalendarPage = ({
   ];
 
   return (
-    <section aria-labelledby="calendar-title" className="space-y-5 pb-8">
+    <section
+      aria-labelledby="calendar-title"
+      className="@container space-y-5 pb-8"
+    >
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1
@@ -369,7 +372,7 @@ export const CalendarPage = ({
               {PLAN_LABEL}
             </button>
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-6 @min-[1100px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <div
               className="donor-calendar rounded-[24px] bg-card p-4 shadow-sm sm:p-5"
               style={{ height: 620 }}
