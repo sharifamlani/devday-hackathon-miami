@@ -330,14 +330,15 @@ def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None 
 
 
 def artifacts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
-    """What the agents have produced: [{kind: call_note|draft|report, title, date, ref}], newest first."""
+    """What the agents have produced: [{kind: call_note|draft|report, title, date, ref}], newest first.
+    Drafts and call notes also carry donor_id (the person they're for, or null) so a row can open the profile."""
     names = {r["id"]: r["full_name"] for r in conn.execute("SELECT id, full_name FROM donors")}
     items = []
     for r in conn.execute("SELECT id, donor_id, prospect_id, channel, subject, status, created_at FROM outreach_drafts"):
         who = names.get(r["donor_id"]) if r["donor_id"] else None
         title = r["subject"] or (f"{(r['channel'] or 'email').capitalize()} draft for {who}" if who else "Outreach draft")
         items.append({"kind": "draft", "title": title, "date": r["created_at"], "ref": f"draft:{r['id']}",
-                      "status": r["status"]})
+                      "status": r["status"], "donor_id": r["donor_id"]})
     if _has_table(conn, "campaigns"):
         counts = dict(conn.execute("SELECT campaign_id, COUNT(*) FROM campaign_messages GROUP BY campaign_id").fetchall())
         for r in conn.execute("SELECT id, name, status, created_at FROM campaigns"):
@@ -346,9 +347,11 @@ def artifacts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
                           "date": r["created_at"], "ref": f"campaign:{r['id']}", "status": r["status"]})
     if _has_table(conn, "call_notes"):   # routes_calls.py (#78): one row per saved call
         for r in conn.execute("SELECT id, title, created_at, saved_at, destinations FROM call_notes"):
-            labels = [d.get("label") for d in json.loads(r["destinations"] or "[]") if d.get("label")]
+            dests = json.loads(r["destinations"] or "[]")
+            labels = [d.get("label") for d in dests if d.get("label")]
+            donor = next((d.get("id") for d in dests if d.get("kind") == "donor" and d.get("id") is not None), None)
             items.append({"kind": "call_note", "title": r["title"] or "Call note", "date": r["created_at"] or r["saved_at"],
-                          "ref": f"call_note:{r['id']}", "destinations": labels})
+                          "ref": f"call_note:{r['id']}", "destinations": labels, "donor_id": donor})
     items.sort(key=lambda i: i["date"] or "", reverse=True)
     return items[:limit]
 
