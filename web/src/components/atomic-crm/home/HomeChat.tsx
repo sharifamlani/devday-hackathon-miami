@@ -276,6 +276,7 @@ const LiveAgentThread = () => {
                 key={a.call_id}
                 approval={a}
                 decided={Boolean(m.decided)}
+                decision={m.decisions?.[a.call_id]}
                 disabled={pending}
                 onDecide={(approve) => decide(i, { [a.call_id]: approve }, refetch)}
               />

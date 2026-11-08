@@ -30,6 +30,8 @@ export type AgentMessage =
       approvals: AgentApproval[];
       runId: string | null;
       decided?: boolean;
+      /** call_id → approved; set when the person decides, so each card shows the outcome. */
+      decisions?: Record<string, boolean>;
     };
 
 type ChatResponse = {
@@ -143,7 +145,15 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
   const m = state.messages[msgIndex];
   if (m?.role !== "assistant" || !m.runId || m.decided || state.pending) return;
   set({
-    messages: state.messages.map((x, i) => (i === msgIndex ? { ...m, decided: true } : x)),
+    messages: state.messages.map((x, i) =>
+      i === msgIndex
+        ? {
+            ...m,
+            decided: true,
+            decisions: Object.fromEntries(m.approvals.map((a) => [a.call_id, Boolean(decisions[a.call_id])])),
+          }
+        : x,
+    ),
     pending: true,
     error: null,
   });
@@ -158,7 +168,7 @@ export const decide = async (msgIndex: number, decisions: Record<string, boolean
     if (scopes.length) refetch(scopes);
   } catch (e) {
     set({
-      messages: state.messages.map((x, i) => (i === msgIndex ? { ...m, decided: false } : x)),
+      messages: state.messages.map((x, i) => (i === msgIndex ? { ...m, decided: false, decisions: undefined } : x)),
       pending: false,
       error: e instanceof Error ? e.message : String(e),
     });

@@ -54,11 +54,14 @@ export const StepCard = ({ step, onUndo }: { step: AgentStep; onUndo?: () => voi
 export const ApprovalCard = ({
   approval,
   decided,
+  decision,
   disabled,
   onDecide,
 }: {
   approval: AgentApproval;
   decided: boolean;
+  /** The person's answer once decided (true = approved); undefined while it waits. */
+  decision?: boolean;
   disabled: boolean;
   onDecide: (approve: boolean) => void;
 }) => (
@@ -66,9 +69,15 @@ export const ApprovalCard = ({
     data-testid="agent-approval"
     role="group"
     aria-label={`Approve ${toolLabel(approval.tool)}`}
-    className="rounded-xl border border-brand/40 bg-card px-3 py-2.5 text-[13px]"
+    data-decision={decided ? (decision ? "approved" : "declined") : "pending"}
+    className={cn(
+      "rounded-xl border bg-card px-3 py-2.5 text-[13px]",
+      decided ? "border-border opacity-75" : "border-brand/40",
+    )}
   >
-    <p className="font-semibold">Needs your approval: {toolLabel(approval.tool)}</p>
+    <p className="font-semibold">
+      {!decided ? "Needs your approval" : decision ? "Approved" : "Declined"}: {toolLabel(approval.tool)}
+    </p>
     {argLine(approval.args) && <p className="mt-0.5 text-muted-foreground">{argLine(approval.args)}</p>}
     {!decided && (
       <div className="mt-2 flex gap-2">
