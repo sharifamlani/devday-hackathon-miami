@@ -152,6 +152,11 @@ def merge_duplicate(suggestion_id: int, keep_id: int | None = Body(None, embed=T
     except ValueError as e:
         raise HTTPException(409, str(e))
     score.run(conn)
+    # The merge supersedes other pending cards that named the merged-away person. Re-scan so the kept person
+    # (now carrying both sides' names and emails) gets fresh cards: without it, a chain such as
+    # "Marrow Lane Print" ~ Bernard Okoye ~ Marrow Lane Print Co. strands its third member. Merged and
+    # dismissed decisions are kept (dedupe.run only refreshes pending cards).
+    dedupe.run(conn)
     tasks.generate_safely(conn, "merge")   # alerts move with the gifts: stale calls retire, new ones appear
     result["donor"] = get_donor(result["kept_donor_id"], conn)
     return result

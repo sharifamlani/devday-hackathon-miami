@@ -149,3 +149,60 @@ def test_dry_run_records_no_auto_merge(tmp_path):
     ia.ingest_events(events(), "giver", conn, judgments={}, dry_run=True)
     assert conn.execute("SELECT COUNT(*) FROM auto_merges").fetchone()[0] == 0
     conn.close()
+
+
+def test_split_all_then_approve_all_returns_to_the_unsplit_count(setup, monkeypatch, tmp_path):
+    """QA on #125: splitting every auto-merge and then approving every pending card must land on the same
+    people count as approving the cards without splitting. A merge used to supersede other cards naming the
+    merged-away person, stranding the third member of a chain (Marrow Lane Print ~ Bernard ~ Marrow Lane Print Co.)."""
+    path, c, _ = setup
+
+    def approve_all():
+        while True:
+            cards = c.get("/duplicates").json()
+            if not cards:
+                return
+            assert c.post(f"/duplicates/{cards[0]['id']}/merge", json={"approved_by": "qa"}).status_code == 200
+
+    snapshot = tmp_path / "before.db"
+    db.connect(path).backup(db.connect(snapshot))
+    approve_all()
+    baseline = len(c.get("/people").json()["people"])
+
+    monkeypatch.setenv("DONORS_DB", str(snapshot))                      # same upload, now split everything
+    for p in [p for p in c.get("/people").json()["people"] if p["auto_merged"]]:
+        assert c.post(f"/people/{p['id']}/merges/review", json={"action": "split"}).status_code == 200
+    approve_all()
+    assert len(c.get("/people").json()["people"]) == baseline
+
+
+def test_a_merge_chain_reaches_its_third_member(tmp_path, monkeypatch):
+    """The real case QA hit after a split: "Marrow Lane Print" (restored, typed as a person) matches only Bernard
+    (same email); Bernard matches Marrow Lane Print Co. only through its mailbox. Approving the first card keeps
+    "Marrow Lane Print" (more gifts) and drops Bernard, which used to supersede Bernard's card and strand the Co."""
+    path = tmp_path / "chain.db"
+    monkeypatch.setenv("DONORS_DB", str(path))
+    conn = db.connect(path)
+    db.create_schema(conn)
+    db.insert_donor(conn, {"full_name": "Marrow Lane Print", "donor_type": "individual",
+                           "email": "billing.marrowlane@example.org", "source_row": "row 1",
+                           "gifts": [(100, "2025-01-05", "check"), (100, "2025-06-05", "check")]})
+    db.insert_donor(conn, {"full_name": "Bernard Okoye", "donor_type": "individual", "org_name": "Marrow Lane Print Co.",
+                           "email": "billing.marrowlane@example.org", "source_row": "row 2",
+                           "gifts": [(50, "2025-03-05", "check")]})
+    db.insert_donor(conn, {"full_name": "Marrow Lane Print Co.", "donor_type": "organization",
+                           "org_name": "Marrow Lane Print Co.", "source_row": "row 3"})
+    conn.commit()
+    from service import dedupe
+    dedupe.run(conn)
+    pairs = {tuple(sorted((r[0], r[1]))) for r in conn.execute(
+        "SELECT a.full_name, b.full_name FROM duplicate_suggestions s JOIN donors a ON a.id = s.donor_a_id "
+        "JOIN donors b ON b.id = s.donor_b_id WHERE s.status = 'pending'")}
+    conn.close()
+    assert ("Marrow Lane Print", "Marrow Lane Print Co.") not in pairs and len(pairs) == 2   # a true chain
+    app = FastAPI()
+    app.include_router(router)
+    c = TestClient(app)
+    while (cards := c.get("/duplicates").json()):
+        assert c.post(f"/duplicates/{cards[0]['id']}/merge", json={"approved_by": "qa"}).status_code == 200
+    assert len(c.get("/people").json()["people"]) == 1                    # all three are one donor
