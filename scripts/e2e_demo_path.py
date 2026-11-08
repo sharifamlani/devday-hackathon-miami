@@ -127,6 +127,23 @@ def ask(page: Page, text: str, settle_s: int = 6, timeout_s: int = 150) -> tuple
     return last[len(before):] if last.startswith(before) else last, round(time.time() - t0)
 
 
+def open_panel(page: Page, web: str, workspace: str, names: list[str]) -> str:
+    """Open a home workspace panel like a user: the first visible link/button whose name matches (tile heading
+    since #204; "Open database" / "Open full calendar" before it). Falls back to the ?workspace= URL. Returns how."""
+    for name in names:
+        for role in ("link", "button"):
+            loc = page.get_by_role(role, name=re.compile(name))
+            for i in range(loc.count()):
+                if loc.nth(i).is_visible():
+                    loc.nth(i).click()
+                    page.wait_for_timeout(1500)
+                    if f"workspace={workspace}" in page.url or workspace == "donors":
+                        return f"clicked {role} '{name}'"
+    page.goto(web + f"#/?workspace={workspace}")
+    page.wait_for_timeout(1500)
+    return "url fallback"
+
+
 def close_overlays(page: Page) -> None:
     for name in ("Not now", "No thanks", "Skip tour", "Close"):
         b = page.get_by_role("button", name=name, exact=True)
@@ -208,8 +225,7 @@ def s2_website(page: Page, api: Api, shots: Path):
 @step("3 donors")
 def s3_donors(page: Page, api: Api, shots: Path):
     # Faye's home (#152): the CRM tile's "Open database" opens the Donors list; older layouts had a "Donors" link
-    crm = page.get_by_role("link", name=re.compile(r"^Open database"))
-    (crm if crm.count() else page.get_by_role("link", name="Donors")).first.click()
+    open_panel(page, page.url.split("#")[0], "crm", [r"^Open database", r"^CRM", r"^Donors$"])
     page.wait_for_timeout(3000)
     page.screenshot(path=str(shots / "3_donors.png"))
     main = page.locator("main").first.inner_text()
@@ -401,7 +417,7 @@ def s8_enrich(page: Page, api: Api, shots: Path):
 def s9_calendar(page: Page, api: Api, web: str, shots: Path):
     page.goto(web)
     page.wait_for_timeout(2500)
-    page.get_by_role("link", name="Open full calendar").first.click()   # ?workspace=calendar, the month view
+    open_panel(page, web, "calendar", [r"^Open full calendar", r"^November", r"^Calendar$"])
     page.wait_for_timeout(2500)
     page.screenshot(path=str(shots / "9_calendar.png"))
     cal = api.get("/calendar")
