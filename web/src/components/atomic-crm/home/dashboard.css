@@ -527,8 +527,10 @@
   gap: 1px;
 }
 .home-week-all-day > span {
-  align-self: center;
-  font-size: 7px;
+  align-self: start;
+  padding-top: 8px;
+  font-size: 8px; /* same as the hour labels, so "All day" reads as a row label */
+  line-height: 1.1;
   color: var(--muted-foreground);
 }
 .home-week-all-day > div {
@@ -539,7 +541,8 @@
 }
 .home-week-all-day .home-calendar-event {
   position: static;
-  min-height: 30px;
+  min-height: 20px; /* one line (no time): three kind blocks fit the row without scrolling */
+  padding: 2px;
 }
 .home-calendar-status {
   height: 136px;

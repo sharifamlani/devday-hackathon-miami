@@ -9,11 +9,15 @@ import { useCallback, useSyncExternalStore } from "react";
  * → the dashboard, with an optional "Take a quick tour" offer.
  *
  * Progress lives in this browser (localStorage, one versioned key). The links
- * are also saved by the service through POST /context/run in step 3.
+ * are also saved by the service through POST /context/run in step 3, even when
+ * the read times out; a slow read then finishes in the background
+ * (POST /context/refresh), tracked here as `background`.
  */
 
-export const ONBOARDING_STORAGE_KEY = "donordesk.onboarding.v2";
-export const ONBOARDING_VERSION = 2;
+export const ONBOARDING_STORAGE_KEY = "donordesk.onboarding.v3";
+export const ONBOARDING_VERSION = 3;
+/** v2 (PR #99): same steps, no tab counts or background read. Migrated once, then removed. */
+export const LEGACY_STORAGE_KEY_V2 = "donordesk.onboarding.v2";
 /** v1 (PR #84): welcome → online → donors → goal → tour. Migrated once, then removed. */
 export const LEGACY_STORAGE_KEY_V1 = "donordesk.onboarding.v1";
 
@@ -55,19 +59,53 @@ export const EMPTY_LINKS: OrgLinks = {
   instagram: "",
 };
 
-/** What step 1 brought in, for the summary line when someone comes back. */
+/** The three CRM tabs POST /ingest sorts people into (by_tab). */
+export const TABS = ["giver", "neighbor", "community"] as const;
+export type TabId = (typeof TABS)[number];
+export const TAB_NAMES: Record<TabId, string> = {
+  giver: "Givers",
+  neighbor: "Neighbors",
+  community: "Community",
+};
+export type TabCounts = Record<TabId, number>;
+
+/** What step 1 brought in, for the receipt when someone comes back. */
 export interface FilesSummary {
   people: number | null;
   gifts: number | null;
   duplicates: number | null;
   files: number;
+  /** People per tab, when the service reports it. */
+  byTab: TabCounts | null;
+  /** People the importer flagged to double-check. */
+  review: number | null;
 }
 
-/** How step 3 ended. */
+/**
+ * How step 3 ended. done: the website was read · background: the read was
+ * slow and goes on in the background · saved: v2's "showed saved context" ·
+ * failed: nothing was read.
+ */
+export type ContextOutcome = "done" | "background" | "saved" | "failed";
 export interface ContextSummary {
-  outcome: "done" | "saved" | "failed";
+  outcome: ContextOutcome;
   items: number;
   tasks: number | null;
+}
+
+/** A slow website read that goes on after setup (POST /context/refresh). */
+export interface BackgroundRead {
+  status: "running" | "done" | "failed";
+  /** The service's started_at, to tell this job from an older one. */
+  startedAt: string | null;
+  finishedAt: string | null;
+  /** New facts it saved, and a few of them to show. */
+  facts: number | null;
+  titles: string[];
+  /** Plain words for a failure. */
+  detail: string | null;
+  /** The status line was closed (polling goes on while running). */
+  hidden: boolean;
 }
 
 /** The optional tour offered on the dashboard after setup. */
@@ -82,6 +120,7 @@ export interface OnboardingData {
   linksSavedTo: "live" | "local" | null;
   files: FilesSummary | null;
   context: ContextSummary | null;
+  background: BackgroundRead | null;
   tourOffer: TourOffer;
   completedAt: string | null;
   updatedAt: string | null;
@@ -95,6 +134,7 @@ export const initialOnboarding = (): OnboardingData => ({
   linksSavedTo: null,
   files: null,
   context: null,
+  background: null,
   tourOffer: null,
   completedAt: null,
   updatedAt: null,
@@ -110,7 +150,7 @@ export const clampStep = (step: number) =>
 export type OnboardingPatch = Partial<
   Pick<
     OnboardingData,
-    "links" | "linksSavedTo" | "files" | "context" | "tourOffer"
+    "links" | "linksSavedTo" | "files" | "context" | "background" | "tourOffer"
   >
 >;
 
@@ -122,6 +162,7 @@ export type OnboardingAction =
   | { type: "update"; patch: OnboardingPatch }
   | { type: "finishLater" }
   | { type: "finish" }
+  | { type: "adopt" }
   | { type: "reset" };
 
 export const onboardingReducer = (
@@ -161,6 +202,14 @@ export const onboardingReducer = (
         completedAt: now(),
         tourOffer: state.tourOffer ?? "pending",
       });
+    case "adopt":
+      // The service already has people (set up in another browser): done, no tour card on someone else's stage.
+      return stamp({
+        ...state,
+        status: "completed",
+        completedAt: state.completedAt ?? now(),
+        tourOffer: state.tourOffer ?? "dismissed",
+      });
     case "reset":
       return initialOnboarding();
   }
@@ -186,6 +235,18 @@ const readLinks = (value: unknown): OrgLinks => {
   };
 };
 
+/** {giver, neighbor, community} counts; anything else (or nothing) is null. */
+export const readTabCounts = (value: unknown): TabCounts | null => {
+  if (!isObject(value)) return null;
+  const counts = TABS.map((tab) => count(value[tab]));
+  if (counts.every((n) => n === null)) return null;
+  return {
+    giver: counts[0] ?? 0,
+    neighbor: counts[1] ?? 0,
+    community: counts[2] ?? 0,
+  };
+};
+
 const readFiles = (value: unknown): FilesSummary | null =>
   isObject(value)
     ? {
@@ -193,18 +254,48 @@ const readFiles = (value: unknown): FilesSummary | null =>
         gifts: count(value.gifts),
         duplicates: count(value.duplicates),
         files: count(value.files) ?? 0,
+        byTab: readTabCounts(value.byTab),
+        review: count(value.review),
       }
     : null;
 
+const OUTCOMES: readonly ContextOutcome[] = [
+  "done",
+  "background",
+  "saved",
+  "failed",
+];
+
 const readContext = (value: unknown): ContextSummary | null =>
-  isObject(value) &&
-  (["done", "saved", "failed"] as const).includes(
-    value.outcome as ContextSummary["outcome"],
-  )
+  isObject(value) && OUTCOMES.includes(value.outcome as ContextOutcome)
     ? {
-        outcome: value.outcome as ContextSummary["outcome"],
+        outcome: value.outcome as ContextOutcome,
         items: count(value.items) ?? 0,
         tasks: count(value.tasks),
+      }
+    : null;
+
+const BACKGROUND_STATUSES: readonly BackgroundRead["status"][] = [
+  "running",
+  "done",
+  "failed",
+];
+
+const readBackground = (value: unknown): BackgroundRead | null =>
+  isObject(value) &&
+  BACKGROUND_STATUSES.includes(value.status as BackgroundRead["status"])
+    ? {
+        status: value.status as BackgroundRead["status"],
+        startedAt: readStamp(value.startedAt),
+        finishedAt: readStamp(value.finishedAt),
+        facts: count(value.facts),
+        titles: Array.isArray(value.titles)
+          ? value.titles
+              .filter((t): t is string => typeof t === "string")
+              .slice(0, 3)
+          : [],
+        detail: typeof value.detail === "string" ? value.detail : null,
+        hidden: value.hidden === true,
       }
     : null;
 
@@ -219,38 +310,53 @@ const readSavedTo = (value: unknown): OnboardingData["linksSavedTo"] =>
 const readStamp = (value: unknown) =>
   typeof value === "string" && value ? value : null;
 
-/** Anything unreadable or from another version starts fresh; bad fields are repaired. */
-export const parseStored = (raw: string | null): OnboardingData => {
-  if (!raw) return initialOnboarding();
+/** v2 and v3 share these fields; v3 adds byTab/review and background. */
+const readData = (value: Record<string, unknown>): OnboardingData => {
+  const tourOffer = (["pending", "taken", "dismissed"] as const).includes(
+    value.tourOffer as Exclude<TourOffer, null>,
+  )
+    ? (value.tourOffer as TourOffer)
+    : null;
+  return {
+    version: ONBOARDING_VERSION,
+    status: readStatus(value.status),
+    step: clampStep(Number(value.step)),
+    links: readLinks(value.links),
+    linksSavedTo: readSavedTo(value.linksSavedTo),
+    files: readFiles(value.files),
+    context: readContext(value.context),
+    background: readBackground(value.background),
+    tourOffer,
+    completedAt: readStamp(value.completedAt),
+    updatedAt: readStamp(value.updatedAt),
+  };
+};
+
+const parseVersion = (raw: string | null, version: number) => {
+  if (!raw) return null;
   try {
     const value: unknown = JSON.parse(raw);
-    if (!isObject(value) || value.version !== ONBOARDING_VERSION) {
-      return initialOnboarding();
-    }
-    const tourOffer = (["pending", "taken", "dismissed"] as const).includes(
-      value.tourOffer as Exclude<TourOffer, null>,
-    )
-      ? (value.tourOffer as TourOffer)
+    return isObject(value) && value.version === version
+      ? readData(value)
       : null;
-    return {
-      version: ONBOARDING_VERSION,
-      status: readStatus(value.status),
-      step: clampStep(Number(value.step)),
-      links: readLinks(value.links),
-      linksSavedTo: readSavedTo(value.linksSavedTo),
-      files: readFiles(value.files),
-      context: readContext(value.context),
-      tourOffer,
-      completedAt: readStamp(value.completedAt),
-      updatedAt: readStamp(value.updatedAt),
-    };
   } catch {
-    return initialOnboarding();
+    return null;
   }
 };
 
+/** Anything unreadable or from another version starts fresh; bad fields are repaired. */
+export const parseStored = (raw: string | null): OnboardingData =>
+  parseVersion(raw, ONBOARDING_VERSION) ?? initialOnboarding();
+
 /**
- * v1 progress → v2. The steps changed, so everyone resumes at step 1; the
+ * v2 progress → v3. The steps are the same, so progress, links, the import
+ * summary (without tab counts) and the tour answer all carry over.
+ */
+export const migrateV2 = (raw: string | null): OnboardingData | null =>
+  parseVersion(raw, 2);
+
+/**
+ * v1 progress → v3. The steps changed, so everyone resumes at step 1; the
  * website, X, LinkedIn and Instagram links carry over. Someone who finished
  * v1 already saw the tour, so it isn't offered again. Names, Facebook,
  * TikTok and the quarter goal are dropped (the service has no field for them).
@@ -282,19 +388,25 @@ export interface KeyValueStorage {
   removeItem(key: string): void;
 }
 
-/** Reads v2; falls back to migrating v1 (then writes v2 and removes v1). */
+/** Reads v3; else migrates v2, else v1 (then writes v3 and removes the old key). */
 export const loadOnboarding = (storage: KeyValueStorage): OnboardingData => {
   const current = storage.getItem(ONBOARDING_STORAGE_KEY);
   if (current) return parseStored(current);
-  const migrated = migrateV1(storage.getItem(LEGACY_STORAGE_KEY_V1));
-  if (!migrated) return initialOnboarding();
-  try {
-    storage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(migrated));
-    storage.removeItem(LEGACY_STORAGE_KEY_V1);
-  } catch {
-    // Storage full or blocked: use the migrated copy in memory.
+  for (const [key, migrate] of [
+    [LEGACY_STORAGE_KEY_V2, migrateV2],
+    [LEGACY_STORAGE_KEY_V1, migrateV1],
+  ] as const) {
+    const migrated = migrate(storage.getItem(key));
+    if (!migrated) continue;
+    try {
+      storage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(migrated));
+      storage.removeItem(key);
+    } catch {
+      // Storage full or blocked: use the migrated copy in memory.
+    }
+    return migrated;
   }
-  return migrated;
+  return initialOnboarding();
 };
 
 /* ---------- When to show it ---------- */
@@ -341,6 +453,16 @@ export const shouldOfferTour = (
   param: OnboardingParam,
 ): boolean =>
   state.tourOffer === "pending" && isHome(pathname) && param !== "suppress";
+
+/** The background-read status line: after setup, until it's closed. */
+export const shouldShowBackground = (
+  state: Pick<OnboardingData, "background" | "completedAt">,
+  param: OnboardingParam,
+): boolean =>
+  !!state.background &&
+  !state.background.hidden &&
+  !!state.completedAt &&
+  param !== "suppress";
 
 /* ---------- URL validation ---------- */
 
@@ -454,6 +576,129 @@ export const validateLinks = (
     else errors[platform] = check.error;
   }
   return { links: next, errors };
+};
+
+/* ---------- The fields as typed (grey prefixes) ---------- */
+
+/** The grey text before each field: the field holds only what follows it. */
+export const FIELD_PREFIX: Record<keyof OrgLinks, string> = {
+  website: "https://",
+  x: "x.com/",
+  linkedin: "linkedin.com/",
+  instagram: "instagram.com/",
+};
+
+const PROFILE_HOST: Record<SocialPlatform, string> = {
+  x: "x.com",
+  linkedin: "www.linkedin.com",
+  instagram: "www.instagram.com",
+};
+
+/**
+ * The website field's value keeps a scheme only when it isn't the default:
+ * "https://…" is stored bare (the prefix already says https://), "http://…"
+ * stays "http://…" so an HTTP-only site is read over HTTP.
+ */
+export const websiteFieldValue = (input: string) => {
+  const value = input.trimStart();
+  if (/^https:\/\//i.test(value)) return value.slice("https://".length);
+  if (/^http:\/\//i.test(value))
+    return `http://${value.slice("http://".length)}`;
+  return value;
+};
+
+/** What the user typed after the prefix, keeping the field's current scheme unless they typed one. */
+export const websiteFieldChange = (current: string, typed: string) => {
+  if (/^https?:\/\//i.test(typed.trimStart()) || !typed)
+    return websiteFieldValue(typed);
+  return current.startsWith("http://") ? `http://${typed}` : typed;
+};
+
+/** The grey prefix before the website field: the scheme it will use. */
+export const websitePrefix = (field: string) =>
+  field.startsWith("http://") ? "http://" : "https://";
+
+/** The text inside the website input, after its prefix. */
+export const websiteInputText = (field: string) =>
+  field.startsWith("http://") ? field.slice("http://".length) : field;
+
+/** A saved URL as the field holds it: "https://yourorg.org/" → "yourorg.org", "http://x.org/" → "http://x.org". */
+export const websiteFromSaved = (url: string) =>
+  websiteFieldValue(url).replace(/^((?:http:\/\/)?[^/]+)\/$/, "$1");
+
+const looksLikeUrl = (value: string) =>
+  /^[a-z][a-z0-9+.-]*:\/\//i.test(value) || /^[^\s/@]+\.[^\s/@]+\//.test(value);
+
+/**
+ * What follows the prefix for a social link: a pasted profile link on that
+ * platform becomes its path ("company/yourorg"), "@yourorg" becomes
+ * "yourorg". Anything else is left as typed, for validation to explain.
+ */
+export const socialFieldValue = (platform: SocialPlatform, input: string) => {
+  const value = input.trim();
+  if (!value) return "";
+  if (looksLikeUrl(value)) {
+    try {
+      const url = new URL(/:\/\//.test(value) ? value : `https://${value}`);
+      if (hostMatches(url.hostname.toLowerCase(), SOCIAL_HOSTS[platform]))
+        return `${url.pathname.replace(/^\/+/, "")}${url.search}`.replace(
+          /\/$/,
+          "",
+        );
+    } catch {
+      return value;
+    }
+    return value;
+  }
+  return value.replace(/^@/, "");
+};
+
+/**
+ * The profile link for what's in a social field. A bare LinkedIn name is a
+ * company page; a full link (any site) is passed through so validation can
+ * say when it's the wrong platform.
+ */
+export const socialUrlFromField = (platform: SocialPlatform, field: string) => {
+  const value = field.trim();
+  if (!value) return "";
+  if (looksLikeUrl(value)) return value;
+  const path = value.replace(/^@/, "").replace(/^\/+/, "");
+  if (!path) return "";
+  const full =
+    platform === "linkedin" && !path.includes("/") ? `company/${path}` : path;
+  return `https://${PROFILE_HOST[platform]}/${full}`;
+};
+
+/** The fields as shown, from saved links. */
+export const fieldsFromLinks = (links: OrgLinks): OrgLinks => ({
+  website: websiteFromSaved(links.website),
+  x: links.x ? socialFieldValue("x", links.x) : "",
+  linkedin: links.linkedin ? socialFieldValue("linkedin", links.linkedin) : "",
+  instagram: links.instagram
+    ? socialFieldValue("instagram", links.instagram)
+    : "",
+});
+
+const withScheme = (value: string) =>
+  !value || /:\/\//.test(value) ? value : `https://${value}`;
+
+/** The links to validate, from the fields as typed. */
+export const linksFromFields = (fields: OrgLinks): OrgLinks => ({
+  website: withScheme(fields.website.trim()),
+  x: socialUrlFromField("x", fields.x),
+  linkedin: socialUrlFromField("linkedin", fields.linkedin),
+  instagram: socialUrlFromField("instagram", fields.instagram),
+});
+
+/** One field checked on its own (on blur): an error, or null. Empty is not an error here. */
+export const checkField = (key: keyof OrgLinks, field: string) => {
+  const links = linksFromFields({ ...EMPTY_LINKS, [key]: field });
+  if (!links[key]) return null;
+  const check =
+    key === "website"
+      ? normalizeUrl(links.website)
+      : normalizeSocialUrl(key, links[key]);
+  return check.ok ? null : check.error;
 };
 
 /* ---------- Store + hook ---------- */
@@ -592,6 +837,8 @@ export const useOnboarding = () => {
       () => dispatch({ type: "finish" }, { open: false }),
       [],
     ),
+    /** The live service already has people: mark setup done here too (no tour offer). */
+    adopt: useCallback(() => dispatch({ type: "adopt" }, { open: false }), []),
     /** Forget everything; setup shows again on the next homepage visit. */
     reset: useCallback(
       () => dispatch({ type: "reset" }, { open: false, tour: false }),

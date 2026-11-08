@@ -6,9 +6,10 @@ import { labelSpeakers, matchStretches, takeRecording } from "./speakerLabels";
 import { demoTranscriptSource } from "./transcriptSource";
 
 const you = (text: string, at: number): TranscriptLine => ({ speaker: "you", name: "You", text, at });
-const stretch = (texts: string[], bytes = "webm"): CallRecording => ({
+const stretch = (texts: string[], bytes = "webm", tail: string[] = []): CallRecording => ({
   audio: new Blob([bytes], { type: "audio/webm;codecs=opus" }),
   texts,
+  tail,
 });
 
 // A call paused once: stretch A (0-13 s), pause, stretch B (40-46 s on the pane clock).
@@ -110,6 +111,20 @@ describe("labelSpeakers", () => {
     expect(result.stretches).toEqual({ labeled: 1, matched: 2 });
     expect(brief(result.lines).slice(2)).toEqual(["you@40 Hello again.", "you@46 Yes, the 21st."]);
     expect(slowSignal?.aborted).toBe(true);
+  });
+
+  it("a stretch stopped mid-sentence: the drained tail is appended if its pass fails, not doubled if it lands", async () => {
+    const B2 = stretch(B.texts, "B", ["I'll bring my daughter."]);
+    const failed = await labelSpeakers(Promise.resolve([A, B2]), LIVE, {
+      donorName: null, fetchImpl: service({ A: 502, B: 502 }), local: true,
+    });
+    expect(failed.labeled).toBe(false);
+    expect(brief(failed.lines).slice(-2)).toEqual(["you@46 Yes, the 21st.", "you@46 I'll bring my daughter."]);
+
+    const landed = await labelSpeakers(Promise.resolve([A, B2]), LIVE, {
+      donorName: null, fetchImpl: service(), local: true,
+    });
+    expect(landed.lines).toHaveLength(4); // the recording covers the tail; no extra line
   });
 
   it.each([

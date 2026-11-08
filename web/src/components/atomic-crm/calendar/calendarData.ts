@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 
 import { useDonorDesk } from "../providers/local";
+import { parseWhen } from "../providers/local/parseWhen";
 import type { CrmEvent, EventRecipient, Tab } from "../providers/local/crmTypes";
 import { TABS } from "../providers/local/crmTypes";
 
@@ -13,11 +14,11 @@ export const countByTab = (recipients: EventRecipient[]): Record<Tab, number> =>
 
 /** Events with an unparseable start date can't be placed on a calendar. */
 export const placeable = (events: CrmEvent[]): CrmEvent[] =>
-  events.filter((e) => !Number.isNaN(new Date(e.starts_at).getTime()));
+  events.filter((e) => !Number.isNaN(parseWhen(e.starts_at).getTime()));
 
 export const sortByStart = (events: CrmEvent[]): CrmEvent[] =>
   [...events].sort(
-    (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+    (a, b) => parseWhen(a.starts_at).getTime() - parseWhen(b.starts_at).getTime(),
   );
 
 export interface OutreachPlan {

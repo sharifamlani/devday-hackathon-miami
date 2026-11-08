@@ -18,6 +18,7 @@ import { useDonor } from "../providers/local/hooks";
 import { CallNotesPanel } from "./CallNotesPanel";
 import { DonorTagList, Stat } from "./donorCrmUi";
 import { GivingPanel } from "./GivingPanel";
+import { SavedInterestChips } from "./InterestChips";
 import { scoreClass, statusClass, statusLabel, tierLabel } from "./donorFormat";
 import { MergeHistory } from "./MergeHistory";
 import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
@@ -149,12 +150,10 @@ export const DonorDrawer = ({
                   />
                 </dl>
               )}
+              <SavedInterestChips personId={donor.id} />
               {record && record.interests.length > 0 && (
-                <p className="text-sm">
-                  <span className="text-muted-foreground">
-                    Interest areas:{" "}
-                  </span>
-                  {record.interests.join(", ")}
+                <p className="text-xs text-muted-foreground">
+                  From the uploaded list: {record.interests.join(", ")}
                 </p>
               )}
               <GivingPanel

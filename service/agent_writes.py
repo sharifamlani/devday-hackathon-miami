@@ -178,7 +178,12 @@ def rsvp_event(conn: sqlite3.Connection, event_id: int, person_id: int, rsvp: st
     conn.execute("UPDATE event_audience SET rsvp = ? WHERE event_id = ? AND person_id = ?", (rsvp, event_id, person_id))
     token = _log(conn, actor, "rsvp_event", f"rsvp:{event_id}:{person_id}", {"rsvp": row["rsvp"]}, {"rsvp": rsvp})
     conn.commit()
-    return {"event_id": event_id, "person_id": person_id, "rsvp": rsvp}, token
+    person = conn.execute("SELECT full_name FROM donors WHERE id = ?", (person_id,)).fetchone()
+    event = conn.execute("SELECT title, starts_at FROM events WHERE id = ?", (event_id,)).fetchone()
+    return {"event_id": event_id, "person_id": person_id, "rsvp": rsvp,
+            "full_name": person["full_name"] if person else None,
+            "event_title": event["title"] if event else None,
+            "starts_at": event["starts_at"] if event else None}, token
 
 
 # ---------- undo ----------

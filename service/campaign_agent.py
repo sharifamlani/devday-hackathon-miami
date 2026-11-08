@@ -204,6 +204,7 @@ def check_message(text: str, donor: dict, gifts: list[dict], facts: dict, channe
             if hit not in fact_text:
                 flags.append(f"'{hit}' comes from a SAMPLE gift history; thank them for their partnership instead")
 
+    flags += oa.declined_mentions(text, oa.declined_for(donor.get("id")), gifts)   # never thank a declined charge
     if oa.BANNED_FIGURES.search(text):
         flags.append("never state a Press Forward South Florida total")
     if channel == "text" and len(text) > SMS_MAX:

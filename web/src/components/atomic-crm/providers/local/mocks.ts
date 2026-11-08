@@ -16,21 +16,21 @@ import type { AfterCallProposal, Pledge, TranscriptSegment } from "./voice";
 
 export const MOCK = {
   interestTags: [
-    { slug: "youth", label: "Youth & families", definition: "Gives to or volunteers for youth programs." },
-    { slug: "climate", label: "Climate & resilience", definition: "Funds climate or disaster resilience work." },
-    { slug: "arts", label: "Arts access", definition: "Supports arts programs and free access." },
-    { slug: "dogs", label: "Dogs", definition: "Has a dog or supports animal welfare." },
+    { slug: "youth_family", label: "Youth & Family", definition: "Youth development, mentoring, child welfare, family support" },
+    { slug: "climate_resilience", label: "Climate & Disaster Resilience", definition: "Sea-level rise, extreme heat, hurricane preparedness, resilient infrastructure" },
+    { slug: "arts_culture", label: "Arts & Culture", definition: "Museums, performing and visual arts, public art, history, libraries" },
+    { slug: "animals", label: "Animals", definition: "Welfare, shelters, rescue, humane education" },
   ] satisfies InterestTag[],
   personInterests: [
     {
-      tag: "youth",
-      sub_tag: "scholarships",
-      confidence: 0.82,
+      tag: "youth_family",
+      sub_tag: "mentoring",
+      confidence: "high",
       evidence: "Board member at a scholarship fund (2025 annual report).",
       source_url: "https://example.org/annual-report-2025",
       set_by: "agent",
     },
-    { tag: "dogs", sub_tag: null, confidence: null, evidence: null, source_url: null, set_by: "Dana (staff)" },
+    { tag: "animals", sub_tag: null, confidence: "high", evidence: "Added by staff", source_url: null, set_by: "staff" },
   ] satisfies PersonInterest[],
   enrichPreview: {
     facts: [
@@ -39,9 +39,9 @@ export const MOCK = {
     ],
     interests: [
       {
-        tag: "climate",
+        tag: "climate_resilience",
         sub_tag: null,
-        confidence: 0.7,
+        confidence: "medium",
         evidence: "Panelist, 2026 climate resilience forum.",
         source_url: "https://example.org/forum-2026",
         set_by: "agent",
@@ -152,7 +152,7 @@ registerMock("GET", "/interest-tags", () => MOCK.interestTags);
 registerMock("GET", "/people/{id}/interests", () => MOCK.personInterests);
 registerMock("POST", "/people/{id}/interests", ({ body }) => [
   ...MOCK.personInterests,
-  { tag: (body as { tag: string }).tag, sub_tag: (body as { sub_tag?: string }).sub_tag ?? null, confidence: null, evidence: null, source_url: null, set_by: "staff" },
+  { tag: (body as { tag: string }).tag, sub_tag: (body as { sub_tag?: string }).sub_tag ?? null, confidence: "high" as const, evidence: "Added by staff", source_url: null, set_by: "staff" },
 ]);
 registerMock("DELETE", "/people/{id}/interests/{tag}", () => ({ removed: true }));
 registerMock("POST", "/enrich/{id}", () => MOCK.enrichPreview);

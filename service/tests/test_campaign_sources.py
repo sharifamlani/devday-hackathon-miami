@@ -71,3 +71,21 @@ def test_invite_gets_the_story_before_the_sign_off(full_story, monkeypatch):
     assert body.endswith("The Miami Foundation team")
     assert body.index("A story we're proud of") < body.index("The Miami Foundation team")
     assert {f["kind"] for f in used} == set(oa.STORY_KINDS) and notes == []
+
+
+def test_a_declined_newest_charge_is_never_thanked_as_a_gift(tmp_path):
+    """c9's scorecard: Hye-jin Park was thanked for '$40 each month June-October' though Oct 10 was declined."""
+    from service import db, routes_campaigns as rc
+    conn = db.connect(tmp_path / "d.db")
+    db.create_schema(conn)
+    hid = conn.execute("INSERT INTO donors (full_name, first_name, donor_type) VALUES ('Hye-jin Park', 'Hye-jin', 'individual')").lastrowid
+    for d, status in (("2026-06-10", "ok"), ("2026-07-10", "ok"), ("2026-08-10", "ok"), ("2026-09-10", "ok"), ("2026-10-10", "declined")):
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, status) VALUES (?, 40, ?, 'online', ?)", (hid, d, status))
+    conn.commit()
+    donor, gifts, why, research = rc.load_donor(conn, hid)
+    assert [g["gift_date"] for g in gifts] == ["2026-06-10", "2026-07-10", "2026-08-10", "2026-09-10"]
+    d = ca.draft_message(donor, gifts, why, research, [], "thank_you", "email", today=date(2026, 11, 8), use_model=False)
+    assert "October" not in d.body and "Oct" not in d.body and "September 10" in d.body
+    # a draft that names the declined charge is flagged by the guardrail
+    flags = ca.check_message("Thank you for your $40 gift on October 10.", donor, gifts, {}, "email", date(2026, 11, 8))
+    assert any("October 10" in f for f in flags)

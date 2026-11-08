@@ -298,6 +298,7 @@ export const WorkspaceSidebar = () => {
                   <button
                     type="button"
                     className={cn("desk-tool", active === id && "is-active")}
+                    data-tour={id}
                     aria-label={label}
                     title={label}
                   />
@@ -337,8 +338,12 @@ export const WorkspaceSidebar = () => {
             </Popover>
           ))}
           <div className="desk-utilities">
-            <LiveTranscriptTrigger className="size-10 border-0 bg-transparent shadow-none" />
-            <AskSidebarTrigger className="size-10 border-0 bg-transparent shadow-none" />
+            <span data-tour="voice" className="inline-flex">
+              <LiveTranscriptTrigger className="size-10 border-0 bg-transparent shadow-none" />
+            </span>
+            <span data-tour="ask" className="inline-flex">
+              <AskSidebarTrigger className="size-10 border-0 bg-transparent shadow-none" />
+            </span>
             <UserMenu>
               <RestartOnboardingMenuItem />
             </UserMenu>

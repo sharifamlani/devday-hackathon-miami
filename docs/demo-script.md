@@ -30,18 +30,18 @@ This is a skeleton: each step names the screen and the one point to land. Timing
 7. **Story-first campaign.** Say "Draft a thank-you to Give Miami Day donors." Open a draft: it cites a success
    story, a use-of-funds line and an org-health line, each with its source; the review screen lists the sources. Big
    donors and organizations need individual approval.
-8. **Enrich (on a real organization)** — _requires PR #111 (the agent's add-contact tool) and 42's Enrich UI with
-   "Save to profile"; button labels to be updated to the exact ones when they land. Today's button reads
-   **Enrich profile**._ The sample data is fictional, so add a real one on stage: tell the agent *"add the Knight
-   Foundation as a contact"* (or add **John S. and James L. Knight Foundation** in the Neighbors tab), a new contact
-   with no gifts. Open it and click Enrich: sourced interest tags (**civic engagement & local news, arts & culture,
-   community development, economic mobility**, each traced to a source) appear from cache in seconds. Save to the
-   profile. "Nothing is saved until staff accept, and every tag shows where it came from."
+8. **Enrich (on a real organization).** The sample data is fictional, so add a real one on stage: tell the agent
+   *"add the Knight Foundation as a contact"*. **John S. and James L. Knight Foundation** lands in **Givers** as a new
+   contact with no gifts. Open it and click **Enrich profile**: a dry run (nothing is written) proposes sourced
+   interest tags (**civic engagement & local news, arts & culture, community development, economic mobility**, each
+   traced to a source), from cache in seconds. Tick the ones to keep and click **Save to profile**, which writes only
+   the ticked items. "Nothing is saved until staff accept, and every tag shows where it came from."
 9. **Call + transcript + after-call Apply.** Start a call from the voice panel; the transcript appears live. At the
    end, the agent proposes follow-ups (a task to send the card-update link, a $50/month pledge, an RSVP to the event
    on the 21st, notes), each quoting the call. Click Apply; show the task on the list, then Undo it.
-10. **Duplicates review.** Givers → Review duplicates (9–10 suggestions right after upload): the same person written
-    three ways. "Merge only after a person approves; the gift history moves to the kept record; Undo puts both back."
+10. **Duplicates review.** Exact matches (the same email, or the same name with nothing contradicting it) were
+    already merged automatically on upload. Givers → Review duplicates (9–10 suggestions right after upload) holds
+    the fuzzy ones: the same person written three ways. "Merge only after a person approves; the gift history moves to the kept record; Undo puts both back."
     After the suggestions are approved the counts match the answer key: 68 people (33 givers, 20 neighbors,
     15 community) and 131 gifts.
 
