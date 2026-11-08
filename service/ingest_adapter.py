@@ -293,6 +293,9 @@ def _new_person(first: str | None = None, last: str | None = None) -> dict:
         "his_types": set(),
         "first": first or None,
         "last": last or None,
+        # Source records joined into this person: {name_key|email: {name, email, phone, locs, rule}}. More than
+        # one = an automatic (exact-identity) merge, recorded in auto_merges so staff can keep or split it.
+        "sources": {},
     }
 
 
@@ -318,12 +321,22 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
             nk = name_key(name)
             # Auto-merge only exact identity: the same email, or the same written name (accents and case aside) where
             # nothing contradicts it. Two different emails under one name is a doubt for staff, not for us.
-            p = next((by_email[e] for e in emails if e in by_email), None) or next(
-                (c for c in by_name.get(nk, []) if not (c["emails"] and emails and not set(c["emails"]) & set(emails))), None
-            )
+            p = next((by_email[e] for e in emails if e in by_email), None)
+            matched_by = "same email" if p is not None else None
+            if p is None:
+                p = next(
+                    (c for c in by_name.get(nk, []) if not (c["emails"] and emails and not set(c["emails"]) & set(emails))),
+                    None,
+                )
+                matched_by = "same written name" if p is not None else None
             if p is None:
                 p = _new_person(ev.first_name, ev.last_name)
                 people.append(p)
+            ident = f"{nk}|{emails[0] if emails else ''}"
+            src = p["sources"].get(ident)
+            if src is None:
+                src = p["sources"][ident] = {"name": name, "email": emails[0] if emails else None, "phone": None,
+                                             "locs": [], "rule": matched_by if p["sources"] else None}
             if name not in p["names"]:
                 p["names"].append(name)
             p["name_counts"][name] = p["name_counts"].get(name, 0) + 1
@@ -337,6 +350,7 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
             ph = norm_phone(ev.phone_number)
             if ph and ph not in p["phones"]:
                 p["phones"].append(ph)
+            src["phone"] = src["phone"] or ph
             if ev.organization and ev.organization not in p["orgs"] and (name_key(ev.organization) != nk or _ORG_RE.search(name)):
                 p["orgs"].append(ev.organization)  # an org column that only repeats a person's name says nothing
             if ev.notes and ev.notes not in p["notes"]:
@@ -348,6 +362,8 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
             loc = f"{fname}: {ev.source_location or '?'}"
             if loc not in p["locs"]:
                 p["locs"].append(loc)
+            if loc not in src["locs"]:
+                src["locs"].append(loc)
             p["event_types"].add(str(getattr(ev.transaction_type, "value", ev.transaction_type)))
             p["his_types"].add(str(getattr(ev.contact_type, "value", ev.contact_type)))
             if str(getattr(ev.transaction_type, "value", ev.transaction_type)) != "gift":
@@ -380,6 +396,7 @@ def build_people(events_by_file: dict[str, list], warnings: list[str], review: l
                     "fund_type": ev.fund_type,
                     "status": status,
                     "source_row": f"{fname} | {ev.source_location}",
+                    "_source": ident,          # which source record (not a gifts column; dropped on insert)
                 }
             )
     return people
@@ -459,6 +476,8 @@ def _absorb(a: dict, b: dict) -> None:
         a["name_counts"][n] = a["name_counts"].get(n, 0) + c
     for n, parts in b.get("parts", {}).items():
         a["parts"].setdefault(n, parts)
+    for k, s in b.get("sources", {}).items():
+        a.setdefault("sources", {}).setdefault(k, {**s, "rule": s.get("rule") or "name fragment, same email or phone"})
 
 
 def consolidate_people(people: list[dict], warnings: list[str]) -> list[dict]:
@@ -816,6 +835,20 @@ def _cols(conn: sqlite3.Connection, table: str) -> set[str]:
     return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
 
 
+def record_auto_merge(conn: sqlite3.Connection, donor_id: int, display: str, sources: dict, gift_ids: dict) -> int:
+    """One auto_merges row: the person `donor_id` was built from several source records by an exact-identity
+    rule. The survivor is the source whose name became the display name; each source keeps its own gift ids,
+    so a split can hand every gift back to exactly one person."""
+    keys = list(sources)
+    survivor = next((k for k in keys if sources[k]["name"] == display), keys[0])
+    rows = [{"key": k, "name": s["name"], "email": s["email"], "phone": s["phone"], "locs": s["locs"],
+             "gift_ids": gift_ids.get(k, []), "survivor": k == survivor, "rule": s.get("rule")}
+            for k, s in sources.items()]
+    rule = ", ".join(sorted({r["rule"] for r in rows if not r["survivor"] and r["rule"]})) or "same written name"
+    return conn.execute("INSERT INTO auto_merges (donor_id, rule, sources) VALUES (?, ?, ?)",
+                        (donor_id, rule, json.dumps(rows))).lastrowid
+
+
 def ingest_events(
     events_by_file: dict[str, list],
     target: str = "auto",
@@ -848,7 +881,8 @@ def ingest_events(
     by_tab = {t: 0 for t in TABS}
     flagged: list[dict] = []
     assigned: list[dict] = []
-    people_added = gifts_added = 0
+    people_added = gifts_added = auto_merged = 0
+    has_auto_merges = bool(_cols(conn, "auto_merges"))
     try:
         for i, p in enumerate(people):
             j = judgments.get(f"p{i}")
@@ -900,10 +934,15 @@ def ingest_events(
             assigned.append({"donor_id": did, "name": fn, "tab": tab})
             if review:
                 flagged.append({"donor_id": did, "name": fn, "tab": tab, "reason": review})
+            gift_ids: dict[str, list[int]] = {}
             for g in gifts:
                 gr = {k: v for k, v in {"donor_id": did, **g}.items() if k in gcols}
-                conn.execute(f"INSERT INTO gifts ({', '.join(gr)}) VALUES ({', '.join('?' * len(gr))})", list(gr.values()))
+                gcur = conn.execute(f"INSERT INTO gifts ({', '.join(gr)}) VALUES ({', '.join('?' * len(gr))})", list(gr.values()))
+                gift_ids.setdefault(g.get("_source") or "", []).append(gcur.lastrowid)
                 gifts_added += 1
+            if len(p.get("sources") or {}) > 1 and has_auto_merges:
+                record_auto_merge(conn, did, fn, p["sources"], gift_ids)
+                auto_merged += 1
 
         if dry_run:
             conn.rollback()
