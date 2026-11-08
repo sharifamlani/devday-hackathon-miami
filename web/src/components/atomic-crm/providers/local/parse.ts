@@ -770,6 +770,7 @@ export const parseTarget = (raw: ApiTarget): DonationTarget => ({
     : null,
   top_donor_ids: raw.top_donor_ids ?? [],
   donor_ids: raw.donor_ids ?? raw.top_donor_ids ?? [],
+  reached_today: raw.reached_today ?? null,
 });
 
 /** GET /targets (both periods), GET /targets?period= (one), or the snapshot key. */

@@ -306,6 +306,7 @@ export interface ApiContextRunSource {
 /** One period of GET /targets?period=month|quarter. Goals are SAMPLE values. */
 export interface ApiTarget {
   period: "month" | "quarter";
+  reached_today?: number | null; // plan.md §21.5 (B2): people contacted today
   label: string; // "November 2026", "Q4 2026"
   start: string; // YYYY-MM-DD
   end: string;

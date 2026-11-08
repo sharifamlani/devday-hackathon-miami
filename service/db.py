@@ -399,6 +399,45 @@ CREATE TABLE IF NOT EXISTS context_refresh_log (
 SCHEMA += EVENTS_SCHEMA
 TABLES = ["context_refresh_log", "event_drafts", "event_audience", "events"] + TABLES
 
+# §21 B11/B12 (service/tasks.py): tasks and the log of every agent or staff write, with undo.
+TASKS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS tasks (
+    id          INTEGER PRIMARY KEY,
+    kind        TEXT NOT NULL CHECK (kind IN ('call', 'email', 'review', 'prep', 'other')),
+    title       TEXT NOT NULL,
+    why         TEXT,
+    person_id   INTEGER REFERENCES donors(id) ON DELETE SET NULL,
+    chips       TEXT NOT NULL DEFAULT '[]',   -- JSON list of short strings
+    due         TEXT,                         -- YYYY-MM-DD; dated tasks show on the calendar
+    time        TEXT,                         -- HH:MM
+    done        INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+    done_at     TEXT,
+    source      TEXT NOT NULL DEFAULT 'staff' CHECK (source IN ('agent', 'staff', 'generator', 'call')),
+    gen_key     TEXT UNIQUE,                  -- the generator's idempotency key; null for hand-made tasks
+    members     TEXT,                         -- duplicate reviews: JSON list of the group's donor ids
+    deleted_at  TEXT,                         -- soft delete, so undo restores and the generator never re-adds
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due);
+CREATE INDEX IF NOT EXISTS idx_tasks_person ON tasks(person_id);
+
+CREATE TABLE IF NOT EXISTS agent_actions (
+    id          INTEGER PRIMARY KEY,
+    token       TEXT NOT NULL UNIQUE,         -- the undo token handed back to the caller
+    actor       TEXT NOT NULL,                -- agent | staff | generator | call
+    action      TEXT NOT NULL,                -- create_task, update_task, complete_task, delete_task, ...
+    target      TEXT NOT NULL,                -- 'task:12'
+    before      TEXT,                         -- JSON row before the write; null for a create
+    after       TEXT,                         -- JSON row after the write
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    undone_at   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_agent_actions_target ON agent_actions(target);
+"""
+SCHEMA += TASKS_SCHEMA
+TABLES = ["agent_actions", "tasks"] + TABLES
+
 # Call notes from the live transcript pane (service/routes_calls.py). Its own block so other branches
 # editing db.py merge cleanly. CREATE ... IF NOT EXISTS is the migration: an older donors.db gains the
 # table the next time create_schema runs. Lists are JSON text; destinations mirror the web's NoteDestination.
@@ -505,6 +544,13 @@ ADDED_COLUMNS = {
     "org_profile": {"last_refreshed_at": "TEXT"},   # set by every successful save_context
     # A declined or failed charge is kept on record but never counted in totals or scoring.
     "gifts": {"status": "TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'declined', 'failed'))"},
+    # §21.2.3 context store (86): what each fact is, a short title, its embedding, and whether it came from cache
+    "org_context": {
+        "kind": "TEXT CHECK (kind IN ('success_story', 'program_update', 'use_of_funds', 'org_health', 'event', 'news', 'other'))",
+        "title": "TEXT",
+        "embedding": "BLOB",            # float32 vector, OpenAI text-embedding-3-small
+        "cached": "INTEGER NOT NULL DEFAULT 0",
+    },
 }
 
 

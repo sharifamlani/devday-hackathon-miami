@@ -3,6 +3,7 @@
  * service/routes_campaigns.py. Nothing here ever sends a real email or text.
  */
 import type { Tier } from "./types";
+import type { ContextItem } from "./contextSearch";
 
 export type CampaignIntent = "thank_you" | "re_engage" | "check_in";
 export type CampaignChannel = "email" | "text";
@@ -31,6 +32,8 @@ export interface CampaignMessage {
   subject: string | null;
   body: string;
   facts_used: CampaignFact[];
+  /** plan.md §21.2.4 (C2): context items the draft cites by id, newest first. */
+  sources: ContextItem[];
   flags: string[]; // output guardrail findings; non-empty blocks approval
   drafted_by: "model" | "template";
   draft_note: string | null;

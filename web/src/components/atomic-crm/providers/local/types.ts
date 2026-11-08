@@ -349,6 +349,8 @@ export interface DonationTarget {
   } | null; // null once it has passed this year
   top_donor_ids: number[];
   donor_ids: number[]; // everyone who gave in the period, biggest first
+  /** Distinct people contacted today (outbox + call notes); null until B2 lands. */
+  reached_today: number | null;
 }
 
 import type { CrmMethods, UploadTarget } from "./crmTypes";
