@@ -220,6 +220,54 @@
   color: #55705b;
 }
 
+/* "Try sample data" is a button now; keep the link look. */
+button.kindred-sample {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.kindred-sample-files {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kindred-sample-files li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  background: #f4f2ec;
+  padding: 9px 12px;
+  font-size: 14px;
+}
+
+.kindred-sample-name {
+  overflow-wrap: anywhere;
+}
+
+.kindred-sample-size {
+  color: #5c6358;
+  font-variant-numeric: tabular-nums;
+}
+
+.kindred-sample-target {
+  margin: 0;
+  color: #5c6358;
+  font-size: 14px;
+}
+
+.kindred-import [role="alert"] {
+  overflow-wrap: anywhere;
+  color: #9b352d;
+}
+
 .kindred-steps {
   display: flex;
   justify-content: center;

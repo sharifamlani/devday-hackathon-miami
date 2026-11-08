@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarPlus } from "lucide-react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { DonorDrawer } from "../contacts/DonorDrawer";
 import { useCampaigns, useDonors, useTargets } from "../providers/local/hooks";
@@ -36,7 +36,7 @@ import {
  * Home ("/"): today at a glance, the outreach-days calendar, the quarter goal,
  * campaign progress and the outreach agent's recommendations, laid out like
  * the Be.run dashboard in the Kindred look. `?plan=YYYY-MM-DD` (or
- * `?plan=today`) opens that day's outreach plan; the rail's Calendar icon uses it.
+ * `?plan=today`) opens that day's outreach plan. The full calendar is /calendar.
  */
 export const HomePage = () => {
   const today = toIsoDate(new Date());
@@ -139,7 +139,14 @@ export const HomePage = () => {
           />
           <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
             <MonthLegend />
-            <button
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/calendar"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-current/30 px-4 text-sm font-medium hover:bg-current/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                Open calendar
+              </Link>
+              <button
               type="button"
               onClick={() => openDay(today)}
               className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-4 text-sm font-medium text-brand-foreground hover:bg-brand/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
@@ -147,6 +154,7 @@ export const HomePage = () => {
               <CalendarPlus className="size-4" aria-hidden="true" />
               Plan today
             </button>
+            </div>
           </div>
         </section>
 

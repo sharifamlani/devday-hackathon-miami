@@ -19,9 +19,8 @@ export const Rail = () => {
   const translate = useTranslate();
   const onHome = !!matchPath("/", location.pathname);
   const onInbox = !!matchPath("/inbox", location.pathname);
-  // The outreach planner opens on Home (?plan=today) until /calendar lands (#67).
-  const onPlanner = onHome && location.search.includes("plan=");
   const onDonors = !!matchPath("/contacts/*", location.pathname);
+  const onCalendar = !!matchPath("/calendar", location.pathname);
   const onCampaigns =
     !!matchPath("/campaigns/*", location.pathname) ||
     !!matchPath("/outbox", location.pathname);
@@ -39,12 +38,7 @@ export const Rail = () => {
         <HeartHandshake className="size-[27px]" aria-hidden />
       </Link>
       <ul className="flex flex-col gap-2 rounded-[30px] bg-card p-2">
-        <RailButton
-          to="/"
-          label="Home"
-          icon={House}
-          active={onHome && !onPlanner}
-        />
+        <RailButton to="/" label="Home" icon={House} active={onHome} />
         <RailButton
           to="/inbox"
           label="Outreach inbox"
@@ -69,11 +63,12 @@ export const Rail = () => {
           icon={Send}
           active={onCampaigns}
         />
+        {/* Event calendar (feat/calendar-view) */}
         <RailButton
-          to="/?plan=today"
+          to="/calendar"
           label="Calendar"
           icon={CalendarDays}
-          active={onPlanner}
+          active={onCalendar}
         />
       </ul>
     </nav>

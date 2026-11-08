@@ -6,6 +6,7 @@ so score.py and outreach_agent.py read the same date.
 import os
 from pathlib import Path
 
+import httpx
 from agents import set_default_openai_client
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
@@ -23,8 +24,19 @@ OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "2"))
 AGENT_DEADLINE_S = float(os.getenv("AGENT_DEADLINE_S", "120"))
 # Onboarding screen 2 waits on this one; past it /context/run serves the cached context
 CONTEXT_DEADLINE_S = float(os.getenv("CONTEXT_DEADLINE_S", "30"))
+# The chat panel and event drafting (plan.md §17): 90 s, then 504
+CHAT_DEADLINE_S = float(os.getenv("CHAT_DEADLINE_S", "90"))
+# Daily context + calendar refresh, local time "HH:MM" (e.g. 07:00). Unset = off; always off under pytest
+REFRESH_DAILY_AT = (os.getenv("REFRESH_DAILY_AT") or "").strip() or None
+# A refresh still running after this long is reported as such (a live pass took ~120 s on the Foundation)
+REFRESH_DEADLINE_S = float(os.getenv("REFRESH_DEADLINE_S", "150"))
 if os.getenv("OPENAI_API_KEY"):
-    set_default_openai_client(AsyncOpenAI(timeout=OPENAI_TIMEOUT_S, max_retries=OPENAI_MAX_RETRIES))
+    # No pooled connections: each request runs in its own event loop (Runner.run_sync / asyncio.run in a
+    # worker thread), and a kept-alive connection from a closed loop fails the next call with
+    # "Event loop is closed". One fresh connection per call costs a TLS handshake and nothing else.
+    set_default_openai_client(AsyncOpenAI(
+        timeout=OPENAI_TIMEOUT_S, max_retries=OPENAI_MAX_RETRIES,
+        http_client=httpx.AsyncClient(timeout=OPENAI_TIMEOUT_S, limits=httpx.Limits(max_keepalive_connections=0))))
 
 SCORE_AS_OF = os.environ["SCORE_AS_OF"]
 MODEL_DEFAULT = os.getenv("OPENAI_MODEL_DEFAULT")
