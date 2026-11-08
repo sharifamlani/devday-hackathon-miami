@@ -3,7 +3,12 @@ import { renderToString } from "react-dom/server";
 
 import { interestKeys } from "../providers/local/interests";
 
-import { AgentSummary, IssueAreas, readSummary } from "./DonorRowDetails";
+import {
+  AgentSummary,
+  enhanceMode,
+  IssueAreas,
+  readSummary,
+} from "./DonorRowDetails";
 
 describe("agent summary in the expanded donor row", () => {
   it("shows the paragraph, byline and date when the record has a summary", () => {
@@ -39,7 +44,7 @@ describe("issue areas in the expanded donor row", () => {
     if (interests) client.setQueryData(interestKeys.person(1), interests);
     return renderToString(
       <QueryClientProvider client={client}>
-        <IssueAreas personId={1} />
+        <IssueAreas personId={1} editing={false} onEditingChange={() => {}} />
       </QueryClientProvider>,
     );
   };
@@ -62,5 +67,18 @@ describe("issue areas in the expanded donor row", () => {
     ]);
     expect(html).toContain("education · added by you");
     expect(html).not.toContain("health · added by you");
+  });
+});
+
+describe("Enhance (D6 kept for individuals)", () => {
+  it("researches organizations, never individuals, and is read-only in the snapshot", () => {
+    expect(enhanceMode("organization", true)).toBe("research");
+    expect(enhanceMode("individual", true)).toBe("manual");
+    expect(enhanceMode("organization", false)).toBe("readonly");
+    expect(enhanceMode("individual", false)).toBe("readonly");
+  });
+
+  it("the one switch lifts D6 for individuals", () => {
+    expect(enhanceMode("individual", true, true)).toBe("research");
   });
 });

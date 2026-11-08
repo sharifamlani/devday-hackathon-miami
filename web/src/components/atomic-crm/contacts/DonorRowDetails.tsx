@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { ListPlus, Megaphone, Plus } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ListPlus, Megaphone, Plus, Sparkles } from "lucide-react";
 import { Link } from "react-router";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { DATA_MODE } from "../providers/local/config";
 import type { DonorContact } from "../providers/local/crmDonors";
@@ -14,6 +15,7 @@ import { AutoMergeFlag } from "./AutoMergeFlag";
 import { EmailLink, PhoneLink } from "./ContactLinks";
 import { DonorTagBadge, Stat } from "./donorCrmUi";
 import { formatDay, formatUsd } from "./donorFormat";
+import { ENRICH_COPY, EnrichProposal, useEnrichReview } from "./EnrichReview";
 import {
   InterestAreasEditor,
   InterestChip,
@@ -43,13 +45,18 @@ export const AgentSummary = ({
   firstName,
   text,
   updatedAt,
+  action,
 }: {
   firstName: string;
   text: string;
   updatedAt: string | null;
+  action?: ReactNode;
 }) => (
   <section aria-label={`About ${firstName}`} className="space-y-0.5">
-    <h3 className="text-sm font-semibold">About {firstName}</h3>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h3 className="text-sm font-semibold">About {firstName}</h3>
+      {action}
+    </div>
     {text ? (
       <>
         <p className="text-xs text-muted-foreground">
@@ -64,6 +71,24 @@ export const AgentSummary = ({
   </section>
 );
 
+/**
+ * Locked decision D6: individuals are never researched on the web. Sharif may lift
+ * it; this is the one switch (true makes Enhance research individuals too).
+ */
+export const ENHANCE_RESEARCHES_INDIVIDUALS = false;
+
+/** What Enhance does for a donor: research the web, offer manual tagging, or (snapshot) nothing. */
+export const enhanceMode = (
+  donorType: string,
+  live: boolean,
+  researchIndividuals = ENHANCE_RESEARCHES_INDIVIDUALS,
+): "research" | "manual" | "readonly" =>
+  !live
+    ? "readonly"
+    : donorType === "organization" || researchIndividuals
+      ? "research"
+      : "manual";
+
 const chipButton =
   "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
@@ -72,10 +97,17 @@ const chipButton =
  * opening the profile's tag editor. Staff-set tags read "added by you". The
  * read-only snapshot shows a short note instead of writing.
  */
-export const IssueAreas = ({ personId }: { personId: number }) => {
+export const IssueAreas = ({
+  personId,
+  editing,
+  onEditingChange,
+}: {
+  personId: number;
+  editing: boolean;
+  onEditingChange: (editing: boolean) => void;
+}) => {
   const { data: interests } = usePersonInterests(personId);
   const labels = useTagLabels();
-  const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(false);
   const live = DATA_MODE === "local";
   return (
@@ -103,7 +135,9 @@ export const IssueAreas = ({ personId }: { personId: number }) => {
           type="button"
           className={chipButton}
           aria-expanded={live ? editing : undefined}
-          onClick={() => (live ? setEditing((e) => !e) : setNote((n) => !n))}
+          onClick={() =>
+            live ? onEditingChange(!editing) : setNote((n) => !n)
+          }
         >
           <Plus className="size-3.5" aria-hidden />
           {editing && live ? "Done tagging" : "Tag issue area"}
@@ -133,6 +167,20 @@ export const DonorRowDetails = ({
 }) => {
   const { data: detail } = useDonor(donor.id);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [tagging, setTagging] = useState(false);
+  const [enhanceNote, setEnhanceNote] = useState<string | null>(null);
+  const review = useEnrichReview(donor);
+  const mode = enhanceMode(donor.donor_type, DATA_MODE === "local");
+  // Enhance: orgs run the existing dry-run review; individuals (D6) get manual tagging;
+  // the snapshot is read-only. Save to profile refetches the donor record (About + facts).
+  const enhance = () => {
+    setEnhanceNote(null);
+    if (mode === "research") review.run();
+    else if (mode === "manual") {
+      setTagging(true);
+      setEnhanceNote(ENRICH_COPY.individual);
+    } else setEnhanceNote("Read-only demo: Enhance runs in the live app.");
+  };
   const giftCount = detail?.gift_count ?? donor.gift_count;
   const lifetime = detail?.total_given ?? donor.total_given;
   const lastDate = detail?.last_gift_date ?? donor.last_gift_date;
@@ -153,8 +201,50 @@ export const DonorRowDetails = ({
         firstName={firstName}
         text={summary.text}
         updatedAt={summary.updatedAt}
+        action={
+          <Button
+            size="sm"
+            className="min-h-9 rounded-full"
+            onClick={enhance}
+            disabled={review.preview.isPending}
+          >
+            {review.preview.isPending ? <Spinner /> : <Sparkles aria-hidden />}
+            {review.preview.isPending ? "Enhancing…" : "Enhance"}
+          </Button>
+        }
       />
-      <IssueAreas personId={donor.id} />
+      <IssueAreas
+        personId={donor.id}
+        editing={tagging}
+        onEditingChange={setTagging}
+      />
+      {enhanceNote && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {enhanceNote}
+        </p>
+      )}
+      <EnrichProposal review={review} />
+      {review.found && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            className="min-h-9 rounded-full"
+            onClick={review.save}
+            disabled={review.accept.isPending || review.picked === 0}
+          >
+            {review.accept.isPending && <Spinner />}
+            {review.accept.isPending ? "Saving…" : "Save to profile"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="min-h-9 rounded-full"
+            onClick={review.discard}
+          >
+            Discard
+          </Button>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-1.5">
         {(donor.status_tags ?? []).map((tag) => (
           <DonorTagBadge key={tag} tag={tag} />
