@@ -1,8 +1,8 @@
-import { CalendarPage } from "../../calendar/CalendarPage";
+import { CalendarV3 } from "../calendar/CalendarV3";
 
-/** Christian's calendar view (calendar/CalendarPage), unchanged, hosted in the zoom panel. */
+/** Calendar v3 (organization events only) hosted in the Home zoom panel. */
 export const CalendarPanel = () => (
   <div className="desk-calendar-panel p-4">
-    <CalendarPage />
+    <CalendarV3 />
   </div>
 );
