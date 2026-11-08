@@ -1210,7 +1210,7 @@ agent-chat-ui, vercel/ai-elements (deprecated end of Nov 2026), the ChatKit widg
 browser-direct Gemini with a long-lived key.
 
 ### 20.12 Decisions (Sharif, Sat Nov 7 night) and dispatch
-- **Plan approved; wave 1 dispatched.**
+- **Plan NOT yet approved.** Wave 1 briefs went out by mistake and were recalled with a HOLD; no build starts until Sharif approves.
 - **Demo call:** Sharif owns the call script and cast. B7 (demo seed) is on hold until he hands it over; B6 (after-call
   agent) is still built.
 - **Demo runs on the laptop** (local service). The public Vercel URL stays the read-only snapshot; no tunnel.
@@ -1219,3 +1219,22 @@ browser-direct Gemini with a long-lived key.
 - **Integration with Christian's UI:** Sharif drives it. Christian messages the team when the first UI draft is
   ready; then build → integrate → test runs on one loop (shipping flywheel). The lead does not send Christian docs.
 - Still open: Q4 gauge on sample data (0.5% of goal).
+
+### 20.13 First-run flow: upload → org context → agent builds the context dataset → dashboard (Sharif)
+
+```
+[1. Upload files] --> ingest (Carlos) --> people + gifts in SQLite
+        |
+[2. Tell us about your organization: website (required) + X / LinkedIn / Instagram links]
+        |
+[3. Context agent runs automatically] website + news + public social posts --> org_profile, org_context
+        |      (sourced facts), events, event_audience, then task generator (B11) and alerts
+        v
+[4. Dashboard] gauge, today at a glance, CRM list, task card, calendar, artifacts, agent chat:
+   every panel reads the context dataset + people/gifts; the agent answers from the same tables
+```
+- Step 3 shows live progress (sources being read, facts found), then lands on the dashboard; no button press needed.
+- The daily refresh re-runs step 3 and re-generates tasks.
+- Build mapping: step 1 exists (ingest adapter); step 2 screen is Christian's (from draft #70); step 3 backend exists
+  (`/context/run`, `/context/refresh`, events) and gains a final call to `/tasks/generate` (3a, B11); step 4 is the
+  mockup wired per `docs/ui-integration.md`.
