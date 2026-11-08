@@ -121,6 +121,7 @@ def test_ingest_events_writes_db(tmp_path, with_status):
     assert org["donor_type"] == "organization"
     if with_status:
         assert res["gifts_added"] == 5
+        assert res["gifts"] == 4 and res["declined_on_record"] == 1      # the declined charge isn't a gift
         assert (
             conn.execute("SELECT status FROM gifts g JOIN donors d ON d.id=g.donor_id WHERE d.full_name='Hye Park'").fetchone()[0]
             == "declined"

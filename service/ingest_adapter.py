@@ -848,7 +848,7 @@ def ingest_events(
     by_tab = {t: 0 for t in TABS}
     flagged: list[dict] = []
     assigned: list[dict] = []
-    people_added = gifts_added = 0
+    people_added = gifts_added = declined = 0
     try:
         for i, p in enumerate(people):
             j = judgments.get(f"p{i}")
@@ -904,6 +904,7 @@ def ingest_events(
                 gr = {k: v for k, v in {"donor_id": did, **g}.items() if k in gcols}
                 conn.execute(f"INSERT INTO gifts ({', '.join(gr)}) VALUES ({', '.join('?' * len(gr))})", list(gr.values()))
                 gifts_added += 1
+                declined += (g.get("status") or "ok") != "ok"     # kept on record, never counted as a gift
 
         if dry_run:
             conn.rollback()
@@ -925,7 +926,9 @@ def ingest_events(
         conn.close()
     return {
         "people_added": people_added,
-        "gifts_added": gifts_added,
+        "gifts_added": gifts_added,                     # every gift row stored, declined charges included
+        "gifts": gifts_added - declined,                # what counts as a gift (the totals and the answer key)
+        "declined_on_record": declined,
         "by_tab": by_tab,
         "assigned": assigned,
         "flagged_for_review": flagged,
