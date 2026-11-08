@@ -259,3 +259,32 @@ def test_thanked_needs_a_thank_you_sent_this_quarter(client, conn):
     assert got[thanked]["badge"] == "thanked" and got[thanked]["line"] == f"Thank-you sent {AS_OF:%b} {AS_OF.day}"
     assert last_quarter not in got and wrong_intent not in got
     assert rows[-1]["id"] == thanked and thanked not in flagged           # thanked sorts last
+
+
+# ---- due dates carry their year when it isn't this year (QA: "due Nov 21 (717 days late)" read as the future)
+
+def test_a_late_line_from_an_earlier_year_shows_that_year(client, conn):
+    lucia = add_donor(conn, "Lucia Ferrante")                     # GMD giver, gave 2022 and 2023, nothing since
+    add_gift(conn, lucia, 50, "2022-11-17")
+    add_gift(conn, lucia, 60, "2023-11-16")
+    conn.commit()
+    row = next(r for r in attention(client) if r["id"] == lucia)
+    assert row["badge"] == "late"
+    assert "due Nov 21, 2024 (717 days late)" in row["line"]      # the year makes the 717 days make sense
+    assert row["line"].startswith("Yearly Give Miami Day giver")   # capitalize() used to lowercase the event name
+
+
+def test_a_late_line_from_this_year_has_no_year(client):
+    walter = next(r for r in attention(client) if r["name"] == "Walter Brandt")
+    assert walter["badge"] == "late" and "due Mar 18 (" in walter["line"] and "2026" not in walter["line"]
+
+
+def test_a_due_date_still_ahead_is_never_late(client, conn):
+    ahead = add_donor(conn, "Future Faye")                         # yearly; next gift due Sep 2027
+    add_gift(conn, ahead, 100, "2025-09-21")
+    add_gift(conn, ahead, 100, "2026-09-21")
+    conn.commit()
+    row = next((r for r in attention(client) if r["id"] == ahead), None)
+    assert row is None or row["badge"] not in ("late", "failed")
+    from service import gift_alerts
+    assert not [a for a in gift_alerts.alerts(conn, AS_OF) if a["donor_id"] == ahead]

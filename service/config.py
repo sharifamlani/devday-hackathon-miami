@@ -44,9 +44,19 @@ MODEL_FAST = os.getenv("OPENAI_MODEL_FAST") or MODEL_DEFAULT
 HAS_OPENAI_KEY = bool(os.getenv("OPENAI_API_KEY"))
 
 # Vite dev servers for the web UI
-CORS_ORIGINS = [
+DEFAULT_CORS_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
 ]
+
+
+def cors_origins(extra: str | None) -> list[str]:
+    """The defaults plus CORS_ORIGINS (comma-separated, e.g. a QA web on a spare port). Unset = the defaults."""
+    added = [o.strip().rstrip("/") for o in (extra or "").split(",") if o.strip()]
+    return DEFAULT_CORS_ORIGINS + [o for o in added if o not in DEFAULT_CORS_ORIGINS]
+
+
+# Also gates the dictation WebSocket's Origin check (routes_voice.py)
+CORS_ORIGINS = cors_origins(os.getenv("CORS_ORIGINS"))
