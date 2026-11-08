@@ -656,6 +656,13 @@ describe("the dashboard card's copy", () => {
       "wasn't read",
     );
   });
+
+  it("the sample build talks about the sample desk, never an unread website", () => {
+    const copy = offerCopy({ context: null, background: null }, true);
+    expect(copy.title).toBe("This is the sample desk.");
+    expect(copy.body).toContain("made up");
+    expect(copy.body).not.toContain("website");
+  });
 });
 
 describe("plainError", () => {

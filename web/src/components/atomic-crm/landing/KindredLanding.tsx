@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useOnboarding } from "../onboarding/onboardingState";
 import { DATA_MODE, donorDeskMethods } from "../providers/local";
+import { SAMPLE_BUILD } from "../providers/local/config";
 import type { IngestResult } from "../providers/local/types";
 import "./kindred-landing.css";
 import {
@@ -373,6 +374,14 @@ const SampleDialog = ({
   const [cachedRun, setCachedRun] = useState(false);
   const canUpload = DATA_MODE === "local";
   const elapsed = useElapsed(pending);
+  // Choosing the sample is choosing to skip setup: open the dashboard, not step 1 ("Drag in your files"),
+  // with the quick-tour card offered there. "Set up again" in the user menu still runs setup. Only on the
+  // sample build: a laptop build that fell back to the snapshot (API down) shares this setup state, and
+  // must still run first-run setup once its service is back.
+  const onboarding = useOnboarding();
+  const openWorkspace = () => {
+    if (SAMPLE_BUILD && !onboarding.data.completedAt) onboarding.finish();
+  };
 
   useEffect(() => {
     if (!open || files) return;
@@ -466,7 +475,11 @@ const SampleDialog = ({
         )}
 
         {done && (
-          <a className="kindred-workspace-link" href="#/">
+          <a
+            className="kindred-workspace-link"
+            href="#/"
+            onClick={openWorkspace}
+          >
             Open the CRM
           </a>
         )}
