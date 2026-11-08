@@ -78,8 +78,8 @@ Rules:
   once: amount and date). Then, for EVERY pair in
   to_confirm, call merge_duplicate (one card per pair, all in this same turn; the person picks Merge or Keep
   separate) and give your findings for each in a short list: the evidence, both records' giving, and what makes it
-  uncertain. If a merge card comes back declined, the person said keep them separate: call dismiss_duplicate for
-  that pair. With nothing pending, say "No possible duplicates right now." Never call resolve_duplicates unless
+  uncertain. Keep separate on a card dismisses that pair by itself; don't call dismiss_duplicate after it. With
+  nothing pending, say "No possible duplicates right now." Never call resolve_duplicates unless
   the user asked.
 {first_turn}{selection}"""
 
@@ -693,7 +693,13 @@ def merge_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int, kee
 def dismiss_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int) -> dict:
     """Mark a suggested duplicate pair as not the same person."""
     from service import agent_writes
-    return write(agent_writes.dismiss_duplicate, suggestion_id, actor="agent")
+    row = query("SELECT status FROM duplicate_suggestions WHERE id = ?", (suggestion_id,))
+    if row and row[0]["status"] == "dismissed":     # Keep separate on its card already did it (keep_separate)
+        return {"suggestion_id": suggestion_id, "status": "dismissed", "note": "already kept separate"}
+    try:
+        return write(agent_writes.dismiss_duplicate, suggestion_id, actor="agent")
+    except LookupError as e:                        # not pending any more (merged, superseded) or unknown
+        return {"error": str(e)}
 
 
 # Sharif (Nov 8): a pair at or above this confidence the agent merges by itself when asked to fix duplicates;
@@ -1178,7 +1184,7 @@ def summarize(output) -> str:
         what = data.get("event_title") or f"event {data['event_id']}"
         return f"RSVP: {who} → {what}{when}, {answer}"
     if "suggestion_id" in data:
-        return data.get("label") or f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
+        return data.get("label") or data.get("note") or f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
     return json.dumps(data)[:160]
 
 
@@ -1247,6 +1253,8 @@ def steps_from(items) -> list[dict]:
                 args = json.loads(getattr(raw, "arguments", "") or "{}")
             except ValueError:
                 args = {}
+            if call_id in calls:      # a resumed run repeats a paused call: one step per call, filled in place
+                continue
             calls[call_id] = {"tool": getattr(raw, "name", "tool"), "args": args, "summary": None,
                               "status": "done", "undo_token": None, "call_id": call_id}
             steps.append(calls[call_id])
