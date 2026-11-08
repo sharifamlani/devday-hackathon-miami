@@ -25,13 +25,19 @@ param(
   [string]$LiveRoot = "C:\Users\Shari\dd-live-main",
   [string]$TestRoot = "C:\Users\Shari\dd-live-test",
   [string]$StateDir = "C:\Users\Shari\dd-live-state",
-  [string]$Python = "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe"
+  [string]$Python = "C:\Users\Shari\Dropbox (Personal)\GenAI Company\Projects\devday_hackathon\.venv\Scripts\python.exe",
+  # Today's reserved ports. QA can run a copy on spare ports: a web port other than 5173/5174 is passed to the
+  # service as CORS_ORIGINS (service/config.py), so its requests and the dictation WebSocket are allowed.
+  [int]$LiveServicePort = 8001,
+  [int]$LiveWebPort = 5173,
+  [int]$TestServicePort = 8101,
+  [int]$TestWebPort = 5174
 )
 
 $ErrorActionPreference = "Stop"
 $Stacks = @{
-  live = @{ ServicePort = 8001; WebPort = 5173; ServiceRoot = $LiveRoot }
-  test = @{ ServicePort = 8101; WebPort = 5174; ServiceRoot = $TestRoot }
+  live = @{ ServicePort = $LiveServicePort; WebPort = $LiveWebPort; ServiceRoot = $LiveRoot }
+  test = @{ ServicePort = $TestServicePort; WebPort = $TestWebPort; ServiceRoot = $TestRoot }
 }
 # Runtime files the service writes under data/ (gitignored). A TEST reset deletes these; tracked caches are restored
 # from git and data/ingest_cache/ is kept warm, as on stage.
@@ -41,18 +47,58 @@ $RuntimeFiles = @("donors.db", "donors.db-wal", "donors.db-shm", "research_facts
 New-Item -ItemType Directory -Force (Join-Path $StateDir "logs") | Out-Null
 $PidFile = Join-Path $StateDir "pids.json"
 
+$LockFile = Join-Path $StateDir "pids.lock"
+
+# pids.json: { "<stack>-<part>": { pid, name, start } }. name + start time identify the process we started, so a PID
+# that Windows has reused for an unrelated process never matches and is never killed.
 function Read-Pids {
+  $h = @{}
   if (Test-Path $PidFile) {
     $obj = Get-Content $PidFile -Raw | ConvertFrom-Json
-    $h = @{}
-    foreach ($p in $obj.PSObject.Properties) { $h[$p.Name] = [int]$p.Value }
-    return $h
+    foreach ($p in $obj.PSObject.Properties) {
+      if ($p.Value -is [int] -or $p.Value -is [long]) { $h[$p.Name] = @{ pid = [int]$p.Value; name = $null; start = $null } }  # pre-identity file
+      else { $h[$p.Name] = @{ pid = [int]$p.Value.pid; name = $p.Value.name; start = $p.Value.start } }
+    }
   }
-  return @{}
+  return $h
 }
-function Write-Pids($h) { ($h | ConvertTo-Json) | Out-File -Encoding utf8 $PidFile }
 
-function Test-Alive([int]$procId) { return [bool](Get-Process -Id $procId -ErrorAction SilentlyContinue) }
+# Write to a temp file in the same folder, then rename over pids.json, so a reader never sees half a file.
+function Write-Pids($h) {
+  $tmp = "$PidFile.$PID.tmp"
+  ($h | ConvertTo-Json) | Out-File -Encoding utf8 $tmp
+  Move-Item -Force $tmp $PidFile
+}
+
+# One writer at a time: a lock file opened exclusively (FileShare None) for the read-modify-write.
+function Use-PidLock([scriptblock]$body) {
+  $deadline = (Get-Date).AddSeconds(30); $lock = $null
+  while (-not $lock) {
+    try { $lock = [System.IO.File]::Open($LockFile, "OpenOrCreate", "ReadWrite", "None") }
+    catch { if ((Get-Date) -gt $deadline) { throw "pids.lock held for 30 s: another live_stack.ps1 is running" }; Start-Sleep -Milliseconds 200 }
+  }
+  try { & $body } finally { $lock.Close() }
+}
+
+function Get-Identity([int]$procId) {
+  $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+  if (-not $p) { return $null }
+  return @{ pid = $procId; name = $p.ProcessName; start = $p.StartTime.ToUniversalTime().ToString("o") }
+}
+
+# True only when the PID is alive AND is still the process we recorded. A pre-identity entry is accepted only if
+# the live process's command line still carries the port we started it on.
+function Test-Ours($entry, [int]$port) {
+  $now = Get-Identity $entry.pid
+  if (-not $now) { return $false }
+  if ($entry.name) { return ($now.name -eq $entry.name -and $now.start -eq $entry.start) }
+  $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$($entry.pid)").CommandLine
+  return [bool]($cmd -and $cmd -match "--port\s+$port\b")
+}
+
+function Get-Port([string]$name, [string]$part) {
+  if ($part -eq "service") { return $Stacks[$name].ServicePort } else { return $Stacks[$name].WebPort }
+}
 
 function Get-PortOwner([int]$port) {
   $line = netstat -ano | Select-String -Pattern "TCP\s+\S+:$port\s+\S+\s+LISTENING\s+(\d+)" | Select-Object -First 1
@@ -64,10 +110,11 @@ function Test-Http([string]$url) {
   try { return (Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 $url).StatusCode } catch { return 0 }
 }
 
-function Start-Part([string]$name, [string]$part) {
+function Start-Part([string]$name, [string]$part) { Use-PidLock { Start-PartLocked $name $part } }
+function Start-PartLocked([string]$name, [string]$part) {
   $cfg = $Stacks[$name]; $key = "$name-$part"; $pids = Read-Pids
-  if ($pids.ContainsKey($key) -and (Test-Alive $pids[$key])) { Write-Host "$key already running (pid $($pids[$key]))"; return }
-  $port = if ($part -eq "service") { $cfg.ServicePort } else { $cfg.WebPort }
+  $port = Get-Port $name $part
+  if ($pids.ContainsKey($key) -and (Test-Ours $pids[$key] $port)) { Write-Host "$key already running (pid $($pids[$key].pid))"; return }
   $owner = Get-PortOwner $port
   if ($owner) { Write-Host "BUSY  :$port is held by pid $owner (not ours). Not starting $key; tell the lead."; $script:Bad = $true; return }
 
@@ -75,10 +122,11 @@ function Start-Part([string]$name, [string]$part) {
   if ($part -eq "service") {
     $env:DONORS_DB = Join-Path $cfg.ServiceRoot "data\donors.db"
     $env:AFTER_CALL_PROPOSALS = Join-Path $cfg.ServiceRoot "data\after_call_proposals.json"
+    $env:CORS_ORIGINS = "http://localhost:$($cfg.WebPort),http://127.0.0.1:$($cfg.WebPort)"   # no-op on 5173/5174
     $proc = Start-Process -FilePath $Python -WorkingDirectory $cfg.ServiceRoot -PassThru -WindowStyle Hidden `
       -RedirectStandardOutput $log -RedirectStandardError $err `
       -ArgumentList @("-m", "uvicorn", "service.main:app", "--host", "127.0.0.1", "--port", "$port")
-    Remove-Item Env:DONORS_DB, Env:AFTER_CALL_PROPOSALS
+    Remove-Item Env:DONORS_DB, Env:AFTER_CALL_PROPOSALS, Env:CORS_ORIGINS
   } else {
     $env:VITE_DATA_MODE = "local"; $env:VITE_API_URL = "http://127.0.0.1:$($cfg.ServicePort)"
     # Run vite's own entry with node so the PID we keep is the server, not a cmd/npx wrapper. No --force: both web
@@ -88,16 +136,20 @@ function Start-Part([string]$name, [string]$part) {
       -ArgumentList @("node_modules\vite\bin\vite.js", "--port", "$port", "--strictPort")
     Remove-Item Env:VITE_DATA_MODE, Env:VITE_API_URL
   }
-  $pids[$key] = $proc.Id; Write-Pids $pids
+  $id = Get-Identity $proc.Id
+  if (-not $id) { $id = @{ pid = $proc.Id; name = $null; start = $null } }   # exited at once; see the err log
+  $pids[$key] = $id; Write-Pids $pids
   Write-Host "started $key pid $($proc.Id) on :$port (log $log)"
 }
 
-function Stop-Part([string]$name, [string]$part) {
+function Stop-Part([string]$name, [string]$part) { Use-PidLock { Stop-PartLocked $name $part } }
+function Stop-PartLocked([string]$name, [string]$part) {
   $key = "$name-$part"; $pids = Read-Pids
   if (-not $pids.ContainsKey($key)) { Write-Host "$key not in pid file"; return }
-  $procId = $pids[$key]
-  if (Test-Alive $procId) { & taskkill.exe /PID $procId /T /F | Out-Null; Write-Host "stopped $key (pid $procId)" }
-  else { Write-Host "$key pid $procId already gone" }
+  $entry = $pids[$key]
+  if (Test-Ours $entry (Get-Port $name $part)) { & taskkill.exe /PID $entry.pid /T /F | Out-Null; Write-Host "stopped $key (pid $($entry.pid))" }
+  elseif (Get-Process -Id $entry.pid -ErrorAction SilentlyContinue) { Write-Host "$key pid $($entry.pid) is now a different process; not killed" }
+  else { Write-Host "$key pid $($entry.pid) already gone" }
   $pids.Remove($key); Write-Pids $pids
 }
 
@@ -116,7 +168,7 @@ function Show-Status([string]$name) {
     $port = if ($part -eq "service") { $cfg.ServicePort } else { $cfg.WebPort }
     $url = if ($part -eq "service") { "http://127.0.0.1:$port/health" } else { "http://127.0.0.1:$port/" }
     $code = Test-Http $url
-    $mine = if ($pids.ContainsKey($key)) { $pids[$key] } else { "-" }
+    $mine = if ($pids.ContainsKey($key)) { $pids[$key].pid } else { "-" }
     $owner = Get-PortOwner $port
     $state = if ($code -eq 200) { "OK" } else { "DOWN"; $script:Bad = $true }
     Write-Host ("{0,-5} {1,-13} :{2,-5} http {3,-3} pid(ours) {4,-6} listener {5}" -f $state, $key, $port, $code, $mine, $owner)
