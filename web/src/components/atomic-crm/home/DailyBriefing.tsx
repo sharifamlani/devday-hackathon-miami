@@ -46,9 +46,7 @@ export const DailyBriefing = ({
 
   return (
     <div className="home-agent-message w-full" aria-label="Today’s briefing">
-      <span className="mb-0.5 block text-[11px] font-bold text-muted-foreground">
-        Agent
-      </span>
+      <span className="home-agent-label">Agent</span>
       <p className="font-semibold">{briefing.headline}</p>
       {briefing.lines.length === 0 ? (
         <p className="mt-0.5 text-muted-foreground">
