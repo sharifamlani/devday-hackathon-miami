@@ -8,6 +8,7 @@
 import type { CallNote } from "../../voice/callNotes";
 import type { ApiDonorDetail, ApiDonorRow, ApiGift, ApiJson } from "./apiTypes";
 import { DATA_MODE, type DataMode } from "./config";
+import { sourceMatchesFile } from "../../contacts/sourceFiles";
 import { parseApiCallNotes, parseDonorRow } from "./parse";
 import type { DonorStatus, DonorType, Tier } from "./types";
 
@@ -707,6 +708,9 @@ export const filterDonors = (
           break;
         case "source":
           if (r.source !== value) return false;
+          break;
+        case "source_file":
+          if (!sourceMatchesFile(r.source, String(value))) return false;
           break;
         case "donor_type":
           if (r.donor_type !== value) return false;

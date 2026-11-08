@@ -7,7 +7,14 @@ import {
   useListContext,
   type Exporter,
 } from "ra-core";
-import { Download, Filter, Megaphone, Upload, X } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  Filter,
+  Megaphone,
+  Upload,
+  X,
+} from "lucide-react";
 import { Link } from "react-router";
 
 import { BulkExportButton } from "@/components/admin/bulk-export-button";
@@ -43,8 +50,7 @@ import {
 import { formatDay, formatUsd, tierLabel } from "./donorFormat";
 import { AutoMergeFlag } from "./AutoMergeFlag";
 import { DuplicateBanner } from "./DuplicateMerge";
-import { AlsoFound, PeopleTabBar, PeopleTabPanel } from "./PeopleTabs";
-import { usePeopleTab } from "./usePeopleTab";
+import { countSourceFiles } from "./sourceFiles";
 
 const SORTS = [
   { value: "score:DESC", label: "Priority score" },
@@ -73,7 +79,6 @@ const DonorListLayout = () => {
     useListContext<DonorContact>();
   const [importOpen, setImportOpen] = useState(false);
   const facets = useFacets();
-  const [tab] = usePeopleTab();
 
   // Imports and merges refetch the donor-desk queries; follow them.
   const donorsUpdatedAt = useDonors().dataUpdatedAt;
@@ -104,16 +109,9 @@ const DonorListLayout = () => {
         </div>
       </div>
       <ImportDonorsDialog open={importOpen} onOpenChange={setImportOpen} />
-      <PeopleTabBar />
-      {tab !== "giver" && <PeopleTabPanel tab={tab} />}
-      {tab === "giver" && <DuplicateBanner />}
+      <DuplicateBanner />
 
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-2",
-          tab !== "giver" && "hidden",
-        )}
-      >
+      <div className="flex flex-wrap items-center gap-2">
         <SearchBox />
         <SortSelect />
         <Popover>
@@ -137,13 +135,12 @@ const DonorListLayout = () => {
             sideOffset={8}
             className="desk-directory-filters"
           >
-            <h2 className="font-semibold">Filter donors</h2>
             <DonorFilters facets={facets} />
           </PopoverContent>
         </Popover>
       </div>
 
-      <div className={cn("flex gap-4", tab !== "giver" && "hidden")}>
+      <div className="flex gap-4">
         <div className="min-w-0 flex-1 space-y-2">
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {isPending
@@ -177,10 +174,7 @@ const DonorListLayout = () => {
           )}
         </div>
       </div>
-      {tab === "giver" && (
-        <AlsoFound query={String(filterValues.q ?? "")} current="giver" />
-      )}
-      {tab === "giver" && <BulkBar />}
+      <BulkBar />
     </div>
   );
 };
@@ -261,9 +255,7 @@ const useFacets = (): Facets | null => {
       status: count(data.flatMap((d) => d.status_tags ?? [])),
       tier: count(data.map((d) => d.tier)),
       lastGift: count(data.map((d) => d.last_gift_range)),
-      sources: Object.entries(count(data.map((d) => d.source))).sort(
-        ([a], [b]) => a.localeCompare(b),
-      ),
+      sources: countSourceFiles(data.map((d) => d.source)),
       drafts: data.filter((d) => d.drafts_awaiting > 0).length,
       recurring: data.filter((d) => d.recurring).length,
       organizations: data.filter((d) => d.donor_type === "organization").length,
@@ -275,125 +267,185 @@ const DonorFilters = ({ facets }: { facets: Facets | null }) => {
   const { filterValues, setFilters } = useListContext();
   const { data: tags = [] } = useTags();
   const hasFilters = Object.keys(filterValues).some((k) => k !== "q");
+  const activeIn = (...keys: string[]) =>
+    keys.filter((k) => filterValues[k] !== undefined && filterValues[k] !== "")
+      .length;
   return (
-    <div className="space-y-4">
-      <FilterGroup label="Status">
-        {DONOR_TAGS.map((tag) => (
-          <FilterChip
-            key={tag}
-            filterKey="status_tag"
-            value={tag}
-            count={facets ? (facets.status[tag] ?? 0) : undefined}
+    <div
+      className="space-y-3"
+      style={{ gridTemplateColumns: "minmax(0, 1fr)" }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Filter donors</h2>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full"
+            onClick={() =>
+              setFilters(filterValues.q ? { q: filterValues.q } : {}, {})
+            }
           >
-            {DONOR_TAG_LABELS[tag]}
-          </FilterChip>
-        ))}
-      </FilterGroup>
-      <FilterGroup label="Giving tier">
-        {(["big", "mid", "small"] as Tier[]).map((tier) => (
-          <FilterChip
-            key={tier}
-            filterKey="tier"
-            value={tier}
-            count={facets ? (facets.tier[tier] ?? 0) : undefined}
-          >
-            {tierLabel[tier]}
-          </FilterChip>
-        ))}
-      </FilterGroup>
-      <FilterGroup label="Last gift">
-        {(Object.keys(LAST_GIFT_RANGE_LABELS) as LastGiftRange[]).map(
-          (range) => (
-            <FilterChip
-              key={range}
-              filterKey="last_gift_range"
-              value={range}
-              count={facets ? (facets.lastGift[range] ?? 0) : undefined}
-            >
-              {LAST_GIFT_RANGE_LABELS[range]}
-            </FilterChip>
-          ),
+            <X aria-hidden />
+            Clear all
+          </Button>
         )}
-      </FilterGroup>
-      {tags.length > 0 && (
-        <FilterGroup label="Tags">
-          {tags.map((tag) => (
-            <FilterChip key={tag.id} filterKey="tags@cs" value={`{${tag.id}}`}>
-              <span
-                aria-hidden
-                className="inline-block size-2.5 rounded-full border border-border"
-                style={{ backgroundColor: tag.color }}
-              />
-              {tag.name}
-            </FilterChip>
-          ))}
-        </FilterGroup>
-      )}
-      {facets && facets.sources.length > 0 && (
-        <FilterGroup label="Source list">
-          {facets.sources.map(([source, n]) => (
+      </div>
+      <div className="divide-y divide-border rounded-2xl border border-border">
+        <FilterGroup label="Status" active={activeIn("status_tag")} defaultOpen>
+          {DONOR_TAGS.map((tag) => (
             <FilterChip
-              key={source}
-              filterKey="source"
-              value={source}
-              count={n}
+              key={tag}
+              filterKey="status_tag"
+              value={tag}
+              count={facets ? (facets.status[tag] ?? 0) : undefined}
             >
-              {source}
+              {DONOR_TAG_LABELS[tag]}
             </FilterChip>
           ))}
         </FilterGroup>
-      )}
-      <FilterGroup label="More">
-        <FilterChip filterKey="has_draft" value={true} count={facets?.drafts}>
-          Draft awaiting approval
-        </FilterChip>
-        <FilterChip
-          filterKey="recurring"
-          value={true}
-          count={facets?.recurring}
+        <FilterGroup label="Giving tier" active={activeIn("tier")}>
+          {(["big", "mid", "small"] as Tier[]).map((tier) => (
+            <FilterChip
+              key={tier}
+              filterKey="tier"
+              value={tier}
+              count={facets ? (facets.tier[tier] ?? 0) : undefined}
+            >
+              {tierLabel[tier]}
+            </FilterChip>
+          ))}
+        </FilterGroup>
+        <FilterGroup label="Last gift" active={activeIn("last_gift_range")}>
+          {(Object.keys(LAST_GIFT_RANGE_LABELS) as LastGiftRange[]).map(
+            (range) => (
+              <FilterChip
+                key={range}
+                filterKey="last_gift_range"
+                value={range}
+                count={facets ? (facets.lastGift[range] ?? 0) : undefined}
+              >
+                {LAST_GIFT_RANGE_LABELS[range]}
+              </FilterChip>
+            ),
+          )}
+        </FilterGroup>
+        <FilterGroup label="Tags" active={activeIn("tags@cs")}>
+          {tags.length === 0 ? (
+            <NoneNote />
+          ) : (
+            tags.map((tag) => (
+              <FilterChip
+                key={tag.id}
+                filterKey="tags@cs"
+                value={`{${tag.id}}`}
+              >
+                <span
+                  aria-hidden
+                  className="inline-block size-2.5 rounded-full border border-border"
+                  style={{ backgroundColor: tag.color }}
+                />
+                {tag.name}
+              </FilterChip>
+            ))
+          )}
+        </FilterGroup>
+        <FilterGroup label="Source list" active={activeIn("source_file")}>
+          {!facets || facets.sources.length === 0 ? (
+            <NoneNote />
+          ) : (
+            facets.sources.map(([file, n]) => (
+              <FilterChip
+                key={file}
+                filterKey="source_file"
+                value={file}
+                count={n}
+                title={file}
+              >
+                <span className="max-w-[16rem] truncate">{file}</span>
+              </FilterChip>
+            ))
+          )}
+        </FilterGroup>
+        <FilterGroup
+          label="More"
+          active={activeIn("has_draft", "recurring", "donor_type")}
         >
-          Recurring donors
-        </FilterChip>
-        <FilterChip
-          filterKey="donor_type"
-          value="organization"
-          count={facets?.organizations}
-        >
-          Organizations
-        </FilterChip>
-      </FilterGroup>
-      {hasFilters && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="rounded-full"
-          onClick={() =>
-            setFilters(filterValues.q ? { q: filterValues.q } : {}, {})
-          }
-        >
-          <X aria-hidden />
-          Clear filters
-        </Button>
-      )}
+          <FilterChip filterKey="has_draft" value={true} count={facets?.drafts}>
+            Draft awaiting approval
+          </FilterChip>
+          <FilterChip
+            filterKey="recurring"
+            value={true}
+            count={facets?.recurring}
+          >
+            Recurring donors
+          </FilterChip>
+          <FilterChip
+            filterKey="donor_type"
+            value="organization"
+            count={facets?.organizations}
+          >
+            Organizations
+          </FilterChip>
+        </FilterGroup>
+      </div>
     </div>
   );
 };
 
+const NoneNote = () => <p className="text-sm text-muted-foreground">None</p>;
+
+/** One collapsible row: name, active count, chevron. Several can be open at once. */
 const FilterGroup = ({
   label,
+  active,
+  defaultOpen = false,
   children,
 }: {
   label: string;
+  active: number;
+  defaultOpen?: boolean;
   children: ReactNode;
 }) => {
+  const [open, setOpen] = useState(defaultOpen);
   const id = useId();
   return (
-    <div role="group" aria-labelledby={id} className="space-y-1.5">
-      <h2 id={id} className="text-xs font-semibold text-muted-foreground">
-        {label}
-      </h2>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
+    <section>
+      <h3>
+        <button
+          type="button"
+          id={`${id}-header`}
+          aria-expanded={open}
+          aria-controls={`${id}-panel`}
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-h-12 w-full items-center gap-2 px-4 text-left text-sm font-semibold hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        >
+          <span className="flex-1">{label}</span>
+          {active > 0 && (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+              {active}
+            </span>
+          )}
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              "size-4 text-muted-foreground transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+      </h3>
+      <div
+        id={`${id}-panel`}
+        role="region"
+        aria-labelledby={`${id}-header`}
+        hidden={!open}
+        className="flex flex-wrap gap-1.5 px-4 pb-4"
+      >
+        {children}
+      </div>
+    </section>
   );
 };
 
@@ -402,11 +454,13 @@ const FilterChip = ({
   filterKey,
   value,
   count,
+  title,
   children,
 }: {
   filterKey: string;
   value: string | boolean;
   count?: number;
+  title?: string;
   children: ReactNode;
 }) => {
   const { filterValues, setFilters, displayedFilters } = useListContext();
@@ -422,6 +476,7 @@ const FilterChip = ({
     <button
       type="button"
       aria-pressed={active}
+      title={title}
       onClick={toggle}
       className={cn(
         "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
