@@ -3,6 +3,7 @@ import type { AuthProvider } from "ra-core";
 import type { Sale } from "../../types";
 import { canAccess } from "../commons/canAccess";
 import { dataProvider } from "./dataProvider";
+import { STAFF_NAME } from "../local/config";
 
 export const DEFAULT_USER = {
   id: 0,
@@ -76,11 +77,12 @@ export const authProvider: AuthProvider = {
     const userItem = localStorage.getItem(USER_STORAGE_KEY);
     const user = userItem ? (JSON.parse(userItem) as Sale) : null;
     // The built-in demo login is "Jane Doe" with a stock photo: placeholder
-    // data. For it, show a neutral label and no photo.
+    // data. For it, show the demo staff member and no photo.
     if (!user || user.email === DEFAULT_USER.email) {
       return Promise.resolve({
         id: user?.id ?? 0,
-        fullName: "Account",
+        // The demo staff member (config.STAFF_NAME, "Sharif"), so the avatar matches Home's greeting.
+        fullName: STAFF_NAME,
         avatar: undefined,
       });
     }
