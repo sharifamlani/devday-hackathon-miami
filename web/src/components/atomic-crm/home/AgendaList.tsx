@@ -192,7 +192,11 @@ export const AgendaList = ({
       });
   };
   return (
-    <section className={cn(tile, "home-agenda")} aria-labelledby={headingId}>
+    <section
+      data-zoom-source="calendar"
+      className={cn(tile, "home-agenda")}
+      aria-labelledby={headingId}
+    >
       <div className="home-calendar-heading">
         <div>
           <h2 id={headingId}>
@@ -204,6 +208,12 @@ export const AgendaList = ({
             >
               {month}
             </Link>
+            <kbd
+              aria-hidden="true"
+              className="ml-2 hidden align-baseline font-sans text-[11px] font-normal text-muted-foreground md:inline"
+            >
+              Alt+C
+            </kbd>
           </h2>
           <p className="text-xs text-muted-foreground" aria-live="polite">
             {weekRange(start)}

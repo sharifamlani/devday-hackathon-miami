@@ -1,10 +1,12 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { OverviewContext } from "./overviewContext";
+import { useWorkspaceHotkeys } from "./useWorkspaceHotkeys";
 import { runZoomTransition } from "./zoomTransition";
 
 export const OverviewProvider = ({ children }: { children: ReactNode }) => {
   const [open, setOpen] = useState(true);
+  useWorkspaceHotkeys();
   const value = useMemo(
     () => ({
       open,
