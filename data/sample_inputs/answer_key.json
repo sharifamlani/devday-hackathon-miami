@@ -9,17 +9,82 @@
     "donor_intake_forms_2026.docx",
     "stock_and_daf_grants.docx",
     "community_intake_forms_2026.docx",
-    "event_signin_sheet_nov1.xlsx"
+    "event_signin_sheet_nov1.xlsx",
+    "online_gifts_oct_nov_2026.xlsx"
   ],
   "totals": {
     "canonical_donors": 33,
     "individuals": 26,
     "organizations": 7,
-    "unique_gifts": 113,
-    "total_amount": 1269470,
-    "gift_source_rows": 114,
-    "gift_source_rows_amount": 1269970,
-    "duplicate_groups": 6
+    "unique_gifts": 131,
+    "total_amount": 1367535,
+    "gift_source_rows": 132,
+    "gift_source_rows_amount": 1368035,
+    "duplicate_groups": 6,
+    "q4_2026_gifts": 23,
+    "q4_2026_total": 98815
+  },
+  "gifts_by_quarter": {
+    "2022-Q2": {
+      "gifts": 1,
+      "total": 200000
+    },
+    "2022-Q4": {
+      "gifts": 7,
+      "total": 3285
+    },
+    "2023-Q2": {
+      "gifts": 2,
+      "total": 255000
+    },
+    "2023-Q4": {
+      "gifts": 10,
+      "total": 17585
+    },
+    "2024-Q1": {
+      "gifts": 1,
+      "total": 400
+    },
+    "2024-Q2": {
+      "gifts": 1,
+      "total": 300000
+    },
+    "2024-Q4": {
+      "gifts": 13,
+      "total": 27690
+    },
+    "2025-Q1": {
+      "gifts": 2,
+      "total": 700
+    },
+    "2025-Q2": {
+      "gifts": 5,
+      "total": 360800
+    },
+    "2025-Q3": {
+      "gifts": 5,
+      "total": 675
+    },
+    "2025-Q4": {
+      "gifts": 19,
+      "total": 53720
+    },
+    "2026-Q1": {
+      "gifts": 7,
+      "total": 1225
+    },
+    "2026-Q2": {
+      "gifts": 13,
+      "total": 4975
+    },
+    "2026-Q3": {
+      "gifts": 22,
+      "total": 42665
+    },
+    "2026-Q4": {
+      "gifts": 23,
+      "total": 98815
+    }
   },
   "canonical_donors": [
     {
@@ -255,7 +320,7 @@
         "priscilla.okafor.law@example.org",
         "priscilla.okafor@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0103",
       "city": "Miami",
       "state": "FL",
       "fund_type": "Field of Interest",
@@ -273,6 +338,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 26",
+          "name_as_written": "Priscilla Okafor",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 5",
           "name_as_written": "Priscilla Okafor",
           "kind": "gift_row"
         },
@@ -331,6 +402,12 @@
           "location": "sheet 'GMD gifts' row 24",
           "name_as_written": "Liz Fontaine",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 6",
+          "name_as_written": "Liz F.",
+          "kind": "gift_row"
         }
       ],
       "tab": "giver",
@@ -347,7 +424,7 @@
       "emails_all": [
         "harold.whitaker@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0105",
       "city": null,
       "state": null,
       "fund_type": "Donor Advised",
@@ -361,6 +438,12 @@
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Major gifts 22-25' row 4",
           "name_as_written": "Harold Whitaker",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 9",
+          "name_as_written": "Whitaker Family Charitable Fund",
           "kind": "gift_row"
         },
         {
@@ -655,6 +738,12 @@
           "location": "sheet 'Online' row 45",
           "name_as_written": "S. Achterberg",
           "kind": "gift_row_duplicate_recording"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 3",
+          "name_as_written": "S. Achterberg",
+          "kind": "gift_row"
         }
       ],
       "tab": "giver",
@@ -726,7 +815,7 @@
       "emails_all": [
         "marcus.oyelaran@example.org"
       ],
-      "phone": null,
+      "phone": "305-555-0112",
       "city": "Miramar",
       "state": "FL",
       "fund_type": "Unrestricted",
@@ -738,6 +827,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 49",
+          "name_as_written": "Marcus Oyelaran",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 6",
           "name_as_written": "Marcus Oyelaran",
           "kind": "gift_row"
         }
@@ -756,7 +851,7 @@
       "emails_all": [
         "dana.kowalczyk@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0113",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
@@ -781,6 +876,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'GMD gifts' row 32",
+          "name_as_written": "Dana Kowalczyk",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 15",
           "name_as_written": "Dana Kowalczyk",
           "kind": "gift_row"
         }
@@ -825,6 +926,12 @@
           "location": "sheet 'GMD gifts' row 37",
           "name_as_written": "Esperanza Villaverde",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 16",
+          "name_as_written": "Esperanza Villaverde",
+          "kind": "gift_row"
         }
       ],
       "tab": "giver",
@@ -841,7 +948,7 @@
       "emails_all": [
         "tobias.lindqvist@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0115",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
@@ -859,6 +966,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 41",
+          "name_as_written": "Tobias Lindqvist",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 8",
           "name_as_written": "Tobias Lindqvist",
           "kind": "gift_row"
         },
@@ -903,6 +1016,12 @@
           "location": "sheet 'Online' row 27",
           "name_as_written": "Naomi Castellanos",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 13",
+          "name_as_written": "Naomi Castellanos",
+          "kind": "gift_row"
         }
       ],
       "tab": "giver",
@@ -937,6 +1056,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 35",
+          "name_as_written": "Jerome Baptiste",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 7",
           "name_as_written": "Jerome Baptiste",
           "kind": "gift_row"
         }
@@ -1175,6 +1300,12 @@
       ],
       "source_rows": [
         {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 4",
+          "name_as_written": "Desmond Achebe-Wells",
+          "kind": "gift_row"
+        },
+        {
           "file": "stock_and_daf_grants.docx",
           "location": "table 1 row 4",
           "name_as_written": "Desmond Achebe-Wells",
@@ -1221,6 +1352,12 @@
           "location": "sheet 'Major gifts 22-25' row 11",
           "name_as_written": "Carmen Ibarra",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 5",
+          "name_as_written": "Carmen Ibarra",
+          "kind": "gift_row"
         }
       ],
       "tab": "giver",
@@ -1237,7 +1374,7 @@
       "emails_all": [
         "victor.szymanski@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0123",
       "city": "Miami Beach",
       "state": "FL",
       "fund_type": "Unrestricted",
@@ -1261,6 +1398,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 33",
+          "name_as_written": "Victor Szymanski",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 12",
           "name_as_written": "Victor Szymanski",
           "kind": "gift_row"
         }
@@ -1297,6 +1440,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 34",
+          "name_as_written": "Imani Rutherford",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 14",
           "name_as_written": "Imani Rutherford",
           "kind": "gift_row"
         }
@@ -1458,6 +1607,12 @@
           "location": "sheet 'Major gifts 22-25' row 13",
           "name_as_written": "Bellweather Pines Family Foundation",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 8",
+          "name_as_written": "Bellweather Pines Family Fdn.",
+          "kind": "gift_row"
         }
       ],
       "tab": "giver",
@@ -1574,12 +1729,13 @@
       "emails_all": [
         "hello.quillfeather@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0131",
       "city": null,
       "state": null,
       "fund_type": "Unrestricted",
       "notes": "",
       "names_as_written": [
+        "Quillfeather Coffee",
         "Quillfeather Coffee Roasters"
       ],
       "source_rows": [
@@ -1593,6 +1749,12 @@
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'GMD gifts' row 38",
           "name_as_written": "Quillfeather Coffee Roasters",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 11",
+          "name_as_written": "Quillfeather Coffee",
           "kind": "gift_row"
         }
       ],
@@ -1617,6 +1779,7 @@
       "notes": "",
       "names_as_written": [
         "Bernard Okoye",
+        "Marrow Lane Print",
         "Marrow Lane Print Co."
       ],
       "source_rows": [
@@ -1624,6 +1787,12 @@
           "file": "check_deposit_log_q3_2026.docx",
           "location": "table 1 row 8",
           "name_as_written": "Marrow Lane Print Co.",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 10",
+          "name_as_written": "Marrow Lane Print",
           "kind": "gift_row"
         },
         {
@@ -1647,7 +1816,7 @@
       "emails_all": [
         "trustees.ostranderpell@example.com"
       ],
-      "phone": null,
+      "phone": "305-555-0133",
       "city": null,
       "state": null,
       "fund_type": "Scholarship",
@@ -1659,6 +1828,12 @@
         {
           "file": "check_deposit_log_q3_2026.docx",
           "location": "table 1 row 11",
+          "name_as_written": "Ostrander-Pell Charitable Trust",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 7",
           "name_as_written": "Ostrander-Pell Charitable Trust",
           "kind": "gift_row"
         },
@@ -1939,6 +2114,12 @@
           "kind": "gift_row"
         },
         {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 5",
+          "name_as_written": "Priscilla Okafor",
+          "kind": "gift_row"
+        },
+        {
           "file": "board_retreat_notes.md",
           "location": "line 17",
           "name_as_written": "Priscilla Okafor",
@@ -1979,6 +2160,12 @@
           "location": "sheet 'GMD gifts' row 24",
           "name_as_written": "Liz Fontaine",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 6",
+          "name_as_written": "Liz F.",
+          "kind": "gift_row"
         }
       ]
     },
@@ -1996,6 +2183,12 @@
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Major gifts 22-25' row 4",
           "name_as_written": "Harold Whitaker",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 9",
+          "name_as_written": "Whitaker Family Charitable Fund",
           "kind": "gift_row"
         },
         {
@@ -3736,6 +3929,276 @@
         "file": "give_miami_day_export_2022-2025.xlsx",
         "location": "sheet 'Online' row 54"
       }
+    },
+    {
+      "gift_id": "G114",
+      "donor_id": "D04",
+      "donor": "Elizabeth Fontaine",
+      "amount": 2500,
+      "gift_date": "2026-10-09",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Liz F.",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 6"
+      }
+    },
+    {
+      "gift_id": "G115",
+      "donor_id": "D22",
+      "donor": "Carmen Ibarra",
+      "amount": 8000,
+      "gift_date": "2026-10-09",
+      "channel": "online",
+      "fund_type": "Field of Interest",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Carmen Ibarra",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 5"
+      }
+    },
+    {
+      "gift_id": "G116",
+      "donor_id": "D23",
+      "donor": "Victor Szymanski",
+      "amount": 250,
+      "gift_date": "2026-10-12",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Victor Szymanski",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 12"
+      }
+    },
+    {
+      "gift_id": "G117",
+      "donor_id": "D33",
+      "donor": "Ostrander-Pell Charitable Trust",
+      "amount": 20000,
+      "gift_date": "2026-10-14",
+      "channel": "online",
+      "fund_type": "Scholarship",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Ostrander-Pell Charitable Trust",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 7"
+      }
+    },
+    {
+      "gift_id": "G118",
+      "donor_id": "D16",
+      "donor": "Naomi Castellanos",
+      "amount": 150,
+      "gift_date": "2026-10-19",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Naomi Castellanos",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 13"
+      }
+    },
+    {
+      "gift_id": "G119",
+      "donor_id": "D24",
+      "donor": "Imani Rutherford",
+      "amount": 100,
+      "gift_date": "2026-10-20",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Imani Rutherford",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 14"
+      }
+    },
+    {
+      "gift_id": "G120",
+      "donor_id": "D28",
+      "donor": "Bellweather Pines Family Foundation",
+      "amount": 40000,
+      "gift_date": "2026-10-21",
+      "channel": "online",
+      "fund_type": "Organization Endowment",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Bellweather Pines Family Fdn.",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 8"
+      }
+    },
+    {
+      "gift_id": "G121",
+      "donor_id": "D13",
+      "donor": "Dana Kowalczyk",
+      "amount": 75,
+      "gift_date": "2026-10-22",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Dana Kowalczyk",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 15"
+      }
+    },
+    {
+      "gift_id": "G122",
+      "donor_id": "D14",
+      "donor": "Esperanza Villaverde",
+      "amount": 100,
+      "gift_date": "2026-10-24",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Esperanza Villaverde",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 16"
+      }
+    },
+    {
+      "gift_id": "G123",
+      "donor_id": "D05",
+      "donor": "Harold Whitaker",
+      "amount": 15000,
+      "gift_date": "2026-10-28",
+      "channel": "DAF grant",
+      "fund_type": "Donor Advised",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Whitaker Family Charitable Fund",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 9"
+      }
+    },
+    {
+      "gift_id": "G124",
+      "donor_id": "D32",
+      "donor": "Marrow Lane Print Co.",
+      "amount": 2500,
+      "gift_date": "2026-10-30",
+      "channel": "online",
+      "fund_type": "Organization Endowment",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Marrow Lane Print",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 10"
+      }
+    },
+    {
+      "gift_id": "G125",
+      "donor_id": "D31",
+      "donor": "Quillfeather Coffee Roasters",
+      "amount": 1000,
+      "gift_date": "2026-10-31",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Quillfeather Coffee",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'October' row 11"
+      }
+    },
+    {
+      "gift_id": "G126",
+      "donor_id": "D10",
+      "donor": "Samuel Achterberg",
+      "amount": 1500,
+      "gift_date": "2026-11-01",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "S. Achterberg",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'Nov 1-7' row 3"
+      }
+    },
+    {
+      "gift_id": "G127",
+      "donor_id": "D03",
+      "donor": "Priscilla Okafor",
+      "amount": 500,
+      "gift_date": "2026-11-03",
+      "channel": "online",
+      "fund_type": "Field of Interest",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Priscilla Okafor",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'Nov 1-7' row 5"
+      }
+    },
+    {
+      "gift_id": "G128",
+      "donor_id": "D21",
+      "donor": "Desmond Achebe-Wells",
+      "amount": 6000,
+      "gift_date": "2026-11-04",
+      "channel": "online",
+      "fund_type": "Designated",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Desmond Achebe-Wells",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'Nov 1-7' row 4"
+      }
+    },
+    {
+      "gift_id": "G129",
+      "donor_id": "D12",
+      "donor": "Marcus Oyelaran",
+      "amount": 100,
+      "gift_date": "2026-11-05",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Marcus Oyelaran",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'Nov 1-7' row 6"
+      }
+    },
+    {
+      "gift_id": "G130",
+      "donor_id": "D17",
+      "donor": "Jerome Baptiste",
+      "amount": 40,
+      "gift_date": "2026-11-06",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Jerome Baptiste",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'Nov 1-7' row 7"
+      }
+    },
+    {
+      "gift_id": "G131",
+      "donor_id": "D15",
+      "donor": "Tobias Lindqvist",
+      "amount": 250,
+      "gift_date": "2026-11-07",
+      "channel": "online",
+      "fund_type": "Unrestricted",
+      "fund_type_stated_in_source": true,
+      "name_as_written": "Tobias Lindqvist",
+      "source": {
+        "file": "online_gifts_oct_nov_2026.xlsx",
+        "location": "sheet 'Nov 1-7' row 8"
+      }
     }
   ],
   "double_recorded_gift": {
@@ -4170,6 +4633,12 @@
           "kind": "gift_row"
         },
         {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 5",
+          "name_as_written": "Priscilla Okafor",
+          "kind": "gift_row"
+        },
+        {
           "file": "board_retreat_notes.md",
           "location": "line 17",
           "name_as_written": "Priscilla Okafor",
@@ -4207,6 +4676,12 @@
           "location": "sheet 'GMD gifts' row 24",
           "name_as_written": "Liz Fontaine",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 6",
+          "name_as_written": "Liz F.",
+          "kind": "gift_row"
         }
       ]
     },
@@ -4221,6 +4696,12 @@
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Major gifts 22-25' row 4",
           "name_as_written": "Harold Whitaker",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 9",
+          "name_as_written": "Whitaker Family Charitable Fund",
           "kind": "gift_row"
         },
         {
@@ -4436,6 +4917,12 @@
           "location": "sheet 'Online' row 45",
           "name_as_written": "S. Achterberg",
           "kind": "gift_row_duplicate_recording"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 3",
+          "name_as_written": "S. Achterberg",
+          "kind": "gift_row"
         }
       ]
     },
@@ -4490,6 +4977,12 @@
           "location": "sheet 'Online' row 49",
           "name_as_written": "Marcus Oyelaran",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 6",
+          "name_as_written": "Marcus Oyelaran",
+          "kind": "gift_row"
         }
       ]
     },
@@ -4515,6 +5008,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'GMD gifts' row 32",
+          "name_as_written": "Dana Kowalczyk",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 15",
           "name_as_written": "Dana Kowalczyk",
           "kind": "gift_row"
         }
@@ -4544,6 +5043,12 @@
           "location": "sheet 'GMD gifts' row 37",
           "name_as_written": "Esperanza Villaverde",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 16",
+          "name_as_written": "Esperanza Villaverde",
+          "kind": "gift_row"
         }
       ]
     },
@@ -4563,6 +5068,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 41",
+          "name_as_written": "Tobias Lindqvist",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 8",
           "name_as_written": "Tobias Lindqvist",
           "kind": "gift_row"
         },
@@ -4592,6 +5103,12 @@
           "location": "sheet 'Online' row 27",
           "name_as_written": "Naomi Castellanos",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 13",
+          "name_as_written": "Naomi Castellanos",
+          "kind": "gift_row"
         }
       ]
     },
@@ -4611,6 +5128,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 35",
+          "name_as_written": "Jerome Baptiste",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 7",
           "name_as_written": "Jerome Baptiste",
           "kind": "gift_row"
         }
@@ -4789,6 +5312,12 @@
       "has_contact": true,
       "source_rows": [
         {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'Nov 1-7' row 4",
+          "name_as_written": "Desmond Achebe-Wells",
+          "kind": "gift_row"
+        },
+        {
           "file": "stock_and_daf_grants.docx",
           "location": "table 1 row 4",
           "name_as_written": "Desmond Achebe-Wells",
@@ -4820,6 +5349,12 @@
           "location": "sheet 'Major gifts 22-25' row 11",
           "name_as_written": "Carmen Ibarra",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 5",
+          "name_as_written": "Carmen Ibarra",
+          "kind": "gift_row"
         }
       ]
     },
@@ -4847,6 +5382,12 @@
           "location": "sheet 'Online' row 33",
           "name_as_written": "Victor Szymanski",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 12",
+          "name_as_written": "Victor Szymanski",
+          "kind": "gift_row"
         }
       ]
     },
@@ -4866,6 +5407,12 @@
         {
           "file": "give_miami_day_export_2022-2025.xlsx",
           "location": "sheet 'Online' row 34",
+          "name_as_written": "Imani Rutherford",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 14",
           "name_as_written": "Imani Rutherford",
           "kind": "gift_row"
         }
@@ -4964,6 +5511,12 @@
           "location": "sheet 'Major gifts 22-25' row 13",
           "name_as_written": "Bellweather Pines Family Foundation",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 8",
+          "name_as_written": "Bellweather Pines Family Fdn.",
+          "kind": "gift_row"
         }
       ]
     },
@@ -5051,6 +5604,12 @@
           "location": "sheet 'GMD gifts' row 38",
           "name_as_written": "Quillfeather Coffee Roasters",
           "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 11",
+          "name_as_written": "Quillfeather Coffee",
+          "kind": "gift_row"
         }
       ]
     },
@@ -5065,6 +5624,12 @@
           "file": "check_deposit_log_q3_2026.docx",
           "location": "table 1 row 8",
           "name_as_written": "Marrow Lane Print Co.",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 10",
+          "name_as_written": "Marrow Lane Print",
           "kind": "gift_row"
         },
         {
@@ -5085,6 +5650,12 @@
         {
           "file": "check_deposit_log_q3_2026.docx",
           "location": "table 1 row 11",
+          "name_as_written": "Ostrander-Pell Charitable Trust",
+          "kind": "gift_row"
+        },
+        {
+          "file": "online_gifts_oct_nov_2026.xlsx",
+          "location": "sheet 'October' row 7",
           "name_as_written": "Ostrander-Pell Charitable Trust",
           "kind": "gift_row"
         },
