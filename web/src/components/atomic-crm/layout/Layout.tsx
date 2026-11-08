@@ -12,6 +12,7 @@ import { useAskSidebarDocked } from "../ask/useAskSidebarDocked";
 import { DataImportProvider } from "../dataImport/DataImportProvider";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import Header from "./Header";
+import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
 import { Rail } from "./Rail";
 
 /**
@@ -24,7 +25,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <DataImportProvider>
       <AskSessionProvider>
-        <LayoutShell>{children}</LayoutShell>
+        <ProjectsSidebarProvider>
+          <LayoutShell>{children}</LayoutShell>
+        </ProjectsSidebarProvider>
       </AskSessionProvider>
       <Notification />
     </DataImportProvider>
@@ -59,17 +62,25 @@ const LayoutShell = ({ children }: { children: ReactNode }) => {
             )}
           >
             <Rail />
-            <div className="min-w-0">
-              <Header />
-              <main id="main-content" tabIndex={-1} className="outline-none">
-                <ErrorBoundary FallbackComponent={Error}>
-                  <Suspense
-                    fallback={<Skeleton className="h-12 w-12 rounded-full" />}
-                  >
-                    {children}
-                  </Suspense>
-                </ErrorBoundary>
-              </main>
+            {/* Projects sidebar (Codex-style, collapsible) beside the workspace. */}
+            <div className="flex min-w-0 gap-4 xl:gap-6">
+              <ProjectsSidebar />
+              <div className="min-w-0 flex-1">
+                <Header />
+                <main
+                  id="main-content"
+                  tabIndex={-1}
+                  className="outline-none"
+                >
+                  <ErrorBoundary FallbackComponent={Error}>
+                    <Suspense
+                      fallback={<Skeleton className="h-12 w-12 rounded-full" />}
+                    >
+                      {children}
+                    </Suspense>
+                  </ErrorBoundary>
+                </main>
+              </div>
             </div>
             {sidebarOpen && docked && <AskSidebar docked />}
           </div>

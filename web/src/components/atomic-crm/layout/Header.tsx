@@ -7,13 +7,15 @@ import { useConfigurationContext } from "../root/ConfigurationContext";
 import { API_URL, DATA_MODE } from "../providers/local/config";
 import { useSourceLabel } from "../providers/local/hooks";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
+import { ProjectsSidebarToggle } from "./ProjectsSidebar";
 
 const Header = () => {
   const { title } = useConfigurationContext();
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 pt-3 pb-6">
-      <div className="flex min-w-0 items-baseline gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <ProjectsSidebarToggle />
         <span className="text-xl font-semibold tracking-[-0.8px]">{title}</span>
         <span className="hidden text-[13px] text-muted-foreground lg:inline">
           The Miami Foundation
