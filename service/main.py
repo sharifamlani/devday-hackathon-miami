@@ -711,6 +711,17 @@ def daily_refresh_loop(hh_mm: str) -> None:
 
 
 @app.on_event("startup")
+def migrate_schema() -> None:
+    """Create/upgrade donors.db once, before the first request: parallel first page loads then find the schema
+    current (create_schema is also locked and idempotent, and a migrated db file is not migrated again)."""
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
 def migrate_crm_tasks() -> None:
     """One task store: copy any Donors-tab tasks saved in crm_tasks into tasks (idempotent; routes_crm also does it)."""
     from service import tasks

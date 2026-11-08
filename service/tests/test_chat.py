@@ -92,6 +92,16 @@ def test_steps_summarize_a_batch():
         "batch #4: 3 drafts, pending approval, 1 need individual approval"
 
 
+def test_summarizing_an_approved_send_does_not_raise(db_file):
+    c = TestClient(app)
+    bid = batch(c)
+    sent = c.post("/send", json={"batch_id": bid, "approved_by": "Test approver"}).json()
+    assert "needs_individual_approval" not in sent                 # the key the old summarize() required
+    line = chat_agent.summarize(sent)                              # was KeyError -> 404 on /chat/approve
+    assert line.startswith("Approved: batch #") and "2 sent" in line
+    assert chat_agent.summarize({"batch_id": 4}) == "batch #4: 0 drafts, pending approval"
+
+
 def test_approved_item_without_an_address_is_blocked_not_sent(db_file):
     c = TestClient(app)
     bid = chat_agent.draft_batch(chat_agent.ChatContext(tab="givers"), [11], "check_in", "email")["batch_id"]

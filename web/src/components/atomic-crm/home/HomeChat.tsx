@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useAskSession } from "../ask/askSessionContext";
 import { EXAMPLE_QUESTIONS, type AskAnswer } from "../providers/local/ask";
 import { DATA_MODE } from "../providers/local/config";
+import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
 import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
 import { ApprovalCard, StepCard } from "./AgentCards";
@@ -277,11 +278,12 @@ const LiveAgentThread = () => {
                 approval={a}
                 decided={Boolean(m.decided)}
                 decision={m.decisions?.[a.call_id]}
+                handled={m.handled}
                 disabled={pending}
                 onDecide={(approve) => decide(i, { [a.call_id]: approve }, refetch)}
               />
             ))}
-            {m.text && <p className="whitespace-pre-line">{m.text}</p>}
+            {m.text && <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>}
           </div>
         ),
       )}

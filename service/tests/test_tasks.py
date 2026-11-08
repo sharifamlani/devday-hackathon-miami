@@ -223,13 +223,17 @@ def test_generate_on_the_sample_upload_is_exact_and_idempotent(conn):
     assert len(reviews) == len(key["duplicate_groups"]) == 6
     assert all(t["source"] == "generator" and t["due"] == AS_OF.isoformat() for t in calls + reviews)
     park = next(t for t in calls if by_id[t["person_id"]] == "D18")
-    assert park["title"] == "Call Hye-jin Park" and "failed" in park["why"]
-    assert park["chips"][0].startswith("Lifetime $") and park["chips"][1].startswith("Last gift $")
+    assert park["title"] == "Call Hye-jin Park"
+    assert park["why"] == "Monthly gift on Oct 10 failed, with no gift since."            # dates read "Oct 10"
+    assert park["chips"][0].startswith("Lifetime $") and park["chips"][1] == "Last gift $40 · Sep 10"
+    brandt = next(t for t in calls if by_id[t["person_id"]] == "D09")
+    assert brandt["why"] == "Yearly giver; the gift due Mar 18 is 235 days late."
+    assert "Last gift $400 · Mar 18, 2025" in brandt["chips"]                              # the year when it differs
     nguyen = next(t for t in reviews if "Robert Nguyen" in t["title"])
     assert nguyen["chips"][0] == "3 records"   # two aliases, one group
     assert result["created"] == len(made)
 
-    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0, "retired": 0}
     _, _ = tasks.delete_task(conn, calls[0]["id"])
     assert tasks.generate(conn, AS_OF)["created"] == 0   # a deleted generated task stays deleted
     assert sum(1 for a in actions(conn) if a["actor"] == "generator") == len(made)
@@ -272,7 +276,7 @@ def test_a_growing_duplicate_group_keeps_one_review_task(conn):
     assert len(rows) == 1 and json.loads(rows[0]["chips"])[0] == "3 records"
     assert json.loads(rows[0]["members"]) == sorted([a, b, c])
     assert "Robert Nguyen" in rows[0]["title"]
-    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0, "retired": 0}
     assert "update_duplicate_review" in [x["action"] for x in actions(conn)]
 
 
@@ -301,7 +305,7 @@ def test_a_joined_group_that_splits_gets_one_task_per_half(conn):
     result = tasks.generate(conn, AS_OF)
     assert live_groups(conn) == {frozenset({a, b}): "2 records", frozenset({c, d}): "2 records"}
     assert (result["created"], result["updated"]) == (1, 1)
-    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0, "retired": 0}
 
 
 def test_join_split_rejoin_stays_one_task_per_group(conn):
@@ -333,7 +337,7 @@ def test_a_handled_duplicate_review_reopens_fresh_only_for_a_new_member(conn):
     fresh = tasks.generate(conn, AS_OF)
     assert fresh["created"] == 1 and fresh["tasks"][0]["id"] != made["id"]
     assert live_groups(conn) == {frozenset({a, b, c}): "3 records"}
-    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0}
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0, "retired": 0}
     tasks.complete_task(conn, fresh["tasks"][0]["id"])
     assert tasks.generate(conn, AS_OF)["created"] == 0          # done counts as handled too
 
@@ -358,6 +362,7 @@ def test_generate_welcome_and_event_prep(conn):
                                                         ("prep", "Prep list: Give Miami Day")]
     prep = made[1]
     assert prep["due"] == "2026-11-12" and prep["chips"] == ["In 11 days", "Online"]
+    assert made[0]["why"] == "First gift of $250 on Oct 20." and prep["why"] == "Give Miami Day is on Nov 19."
     cal = [(i["date"], i["title"]) for i in tasks.calendar(conn, as_of=AS_OF)]
     assert cal == [("2026-11-08", "Welcome Nadia New"), ("2026-11-12", "Prep list: Give Miami Day"),
                    ("2026-11-19", "Give Miami Day"), ("2026-12-15", "Spring Gala")]
@@ -400,7 +405,7 @@ def test_routes_crud_undo_generate_calendar_artifacts(client):
     assert client.patch("/tasks/999", json={"title": "x"}).status_code == 404
     assert client.post("/undo/unknown").status_code == 404
 
-    assert client.post("/tasks/generate").json() == {"created": 0, "tasks": [], "updated": 0}
+    assert client.post("/tasks/generate").json() == {"created": 0, "tasks": [], "updated": 0, "retired": 0}
     assert client.get("/calendar", params={"from": "2026-11-01", "to": "2026-11-30"}).json()[0]["ref"] == f"task:{task_id}"
     assert client.get("/artifacts").json() == []
 
@@ -645,3 +650,155 @@ def test_a_donor_merge_moves_shared_tasks_and_undo_moves_them_back(conn):
     assert tasks.get_task(conn, mine["id"])["person_id"] == keep
     dedupe.undo_merge(conn, res["merge_id"])
     assert tasks.get_task(conn, mine["id"])["person_id"] == drop
+
+
+# ---------- privacy: the public snapshot never carries the Donors tab's tasks ----------
+
+def test_a_donor_tab_task_never_reaches_the_snapshot(crm_env):
+    from service.export_snapshot import build_snapshot
+
+    client, conn, ana, _ = crm_env
+    client.post("/crm/tasks", json={"contact_id": ana, "type": "call", "text": "Private follow-up",
+                                    "due_date": AS_OF.isoformat()})
+    shared = client.post("/tasks", json={"kind": "call", "title": "Shared call", "person_id": ana,
+                                         "due": AS_OF.isoformat()}).json()
+    tasks.create_task(conn, kind="email", title="Agent email", person_id=ana, due=AS_OF.isoformat(), actor="agent")
+    edited = client.post("/crm/tasks", json={"contact_id": ana, "text": "Private, later edited by the agent",
+                                             "due_date": AS_OF.isoformat()}).json()
+    tasks.update_task(conn, edited["id"], actor="agent", title="Private, renamed by the agent")
+
+    snap = build_snapshot(conn, AS_OF, rescore=False)
+    text = json.dumps(snap)
+    for private in ("Private follow-up", "Private, later edited by the agent", "Private, renamed by the agent"):
+        assert private not in text
+    titles = {t["title"] for t in snap["tasks"]}
+    assert {"Shared call", "Agent email"} <= titles
+    assert {t["title"] for t in snap["tasks_today"]} >= {"Shared call", "Agent email"}
+    assert any(i["ref"] == f"task:{shared['id']}" for i in snap["calendar"])
+    open_today = sum(1 for t in snap["tasks_today"] if not t["done"])
+    assert snap["home_summary"]["tasks_today"] == open_today
+    # The live routes still show staff everything.
+    assert {t["title"] for t in client.get("/tasks", params={"person_id": ana}).json()} >= {"Private follow-up"}
+
+
+# ---------- alert calls stay true after duplicates are merged (c9 scorecard) ----------
+
+def split_sample(conn) -> dict[str, int]:
+    """The sample as the live ingest left it: canonical people and gifts, but Lucia Ferrante's 2026 gift on a
+    second record (so her first record looks 700+ days late) and Veloria Bay's yearly gifts split two and two
+    across two records (so neither shows a cadence). Both pairs are pending duplicates."""
+    key = json.loads(ANSWER_KEY.read_text(encoding="utf-8"))
+    ids = load_answer_key(conn, key)
+    lucia_b = db.insert_donor(conn, {"full_name": "Lucia Ferrante", "donor_type": "individual"})
+    conn.execute("UPDATE gifts SET donor_id = ? WHERE donor_id = ? AND gift_date = '2026-09-21'", (lucia_b, ids["D11"]))
+    veloria_b = db.insert_donor(conn, {"full_name": "Veloria Bay Foundation Inc", "donor_type": "organization"})
+    conn.execute("UPDATE gifts SET donor_id = ? WHERE donor_id = ? AND gift_date IN ('2022-04-12', '2024-04-16')",
+                 (veloria_b, ids["D27"]))
+    for keep, other in ((ids["D11"], lucia_b), (ids["D27"], veloria_b)):
+        conn.execute("INSERT INTO duplicate_suggestions (donor_a_id, donor_b_id, reasons, confidence) "
+                     "VALUES (?, ?, '[\"same name\"]', 0.9)", (keep, other))
+    conn.commit()
+    return ids
+
+
+def open_alert_calls(conn):
+    return [dict(r) for r in conn.execute("SELECT id, person_id, gen_key FROM tasks WHERE gen_key LIKE 'alert:%' "
+                                          "AND deleted_at IS NULL AND done = 0 ORDER BY id")]
+
+
+@pytest.fixture
+def merge_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("DONORS_DB", str(tmp_path / "donors.db"))
+    monkeypatch.setenv("SCORE_AS_OF", AS_OF.isoformat())
+    from service.routes_data import router as data_router
+    conn = db.connect()
+    db.create_schema(conn)
+    ids = split_sample(conn)
+    app = FastAPI()
+    app.include_router(data_router)
+    yield TestClient(app), conn, ids
+    conn.close()
+
+
+def test_approving_every_duplicate_leaves_exactly_the_five_alert_calls(merge_env):
+    from service.gift_alerts import alerts
+
+    client, conn, ids = merge_env
+    by_id = {v: k for k, v in ids.items()}
+    tasks.generate(conn, AS_OF)
+    before = {by_id.get(t["person_id"]) for t in open_alert_calls(conn)}
+    assert before == {"D18", "D19", "D06", "D09", "D11"}                 # the live bug: Lucia in, Veloria out
+    lucia_task = next(t["id"] for t in open_alert_calls(conn) if t["person_id"] == ids["D11"])
+
+    for s in conn.execute("SELECT id, donor_a_id FROM duplicate_suggestions WHERE status = 'pending'").fetchall():
+        r = client.post(f"/duplicates/{s['id']}/merge", json={"keep_id": s["donor_a_id"], "approved_by": "staff"})
+        assert r.status_code == 200
+
+    calls = open_alert_calls(conn)
+    assert {by_id.get(t["person_id"]) for t in calls} == EXPECTED_ALERTS and len(calls) == 5
+    live = {f"alert:{a['donor_id']}:{a['expected_date']}" for a in alerts(conn, AS_OF)}
+    assert {t["gen_key"] for t in calls} <= live                         # 0 stale
+    retired = conn.execute("SELECT actor, action FROM agent_actions WHERE target = ? ORDER BY id DESC LIMIT 1",
+                           (f"task:{lucia_task}",)).fetchone()
+    assert tuple(retired) == ("generator", "retire_stale_alert")
+    assert tasks.generate(conn, AS_OF) == {"created": 0, "tasks": [], "updated": 0, "retired": 0}
+
+
+def test_undoing_the_merge_brings_the_same_alert_call_back(merge_env):
+    client, conn, ids = merge_env
+    tasks.generate(conn, AS_OF)
+    lucia_task = next(t["id"] for t in open_alert_calls(conn) if t["person_id"] == ids["D11"])
+    s = conn.execute("SELECT id FROM duplicate_suggestions WHERE donor_a_id = ?", (ids["D11"],)).fetchone()
+    merge_id = client.post(f"/duplicates/{s['id']}/merge", json={"keep_id": ids["D11"]}).json()["merge_id"]
+    assert lucia_task not in [t["id"] for t in open_alert_calls(conn)]
+    assert client.post(f"/merges/{merge_id}/undo").status_code == 200
+    assert lucia_task in [t["id"] for t in open_alert_calls(conn)]      # revived, not a second task
+    assert sum(1 for t in open_alert_calls(conn) if t["person_id"] == ids["D11"]) == 1
+
+
+def test_the_agents_merge_and_its_undo_refresh_the_tasks_too(merge_env):
+    from service import agent_writes
+
+    _, conn, ids = merge_env
+    tasks.generate(conn, AS_OF)
+    s = conn.execute("SELECT id FROM duplicate_suggestions WHERE donor_a_id = ?", (ids["D27"],)).fetchone()
+    _, token = agent_writes.merge_duplicate(conn, s["id"], keep_id=ids["D27"], actor="agent")
+    assert ids["D27"] in [t["person_id"] for t in open_alert_calls(conn)]   # Veloria's joined history is late
+    agent_writes.undo(conn, token)
+    assert ids["D27"] not in [t["person_id"] for t in open_alert_calls(conn)]
+
+
+def test_a_done_or_staff_touched_alert_call_is_never_retired(merge_env):
+    client, conn, ids = merge_env
+    tasks.generate(conn, AS_OF)
+    lucia = next(t["id"] for t in open_alert_calls(conn) if t["person_id"] == ids["D11"])
+    tasks.update_task(conn, lucia, actor="staff", why="Talked to her daughter; call back Friday")
+    s = conn.execute("SELECT id FROM duplicate_suggestions WHERE donor_a_id = ?", (ids["D11"],)).fetchone()
+    client.post(f"/duplicates/{s['id']}/merge", json={"keep_id": ids["D11"]})
+    assert tasks.get_task(conn, lucia)["why"] == "Talked to her daughter; call back Friday"   # still open
+
+    park = next(t["id"] for t in open_alert_calls(conn) if t["person_id"] == ids["D18"])
+    tasks.complete_task(conn, park)
+    conn.execute("UPDATE gifts SET status = 'ok' WHERE donor_id = ? AND status = 'declined'", (ids["D18"],))
+    conn.commit()                                                         # her alert clears
+    tasks.generate(conn, AS_OF)
+    assert tasks.get_task(conn, park)["done"] is True                     # done stays done, not deleted
+
+
+def test_a_generator_failure_never_fails_a_merge(merge_env, monkeypatch):
+    client, conn, ids = merge_env
+
+    def boom(*_, **__):
+        raise RuntimeError("generator bug")
+
+    monkeypatch.setattr(tasks, "generate", boom)
+    s = conn.execute("SELECT id FROM duplicate_suggestions WHERE donor_a_id = ?", (ids["D11"],)).fetchone()
+    assert client.post(f"/duplicates/{s['id']}/merge", json={"keep_id": ids["D11"]}).status_code == 200
+
+
+def test_nice_date_reads_like_the_rest_of_the_app():
+    assert tasks.nice_date("2026-03-11", AS_OF) == "Mar 11"
+    assert tasks.nice_date(date(2025, 3, 11), AS_OF) == "Mar 11, 2025"
+    assert tasks.nice_date("2026-11-08T10:00:00", AS_OF) == "Nov 8"                     # no leading zero
+    assert tasks.nice_date(None, AS_OF) == ""
+    assert tasks.nice_date("2027-01-02", AS_OF) == "Jan 2, 2027"
