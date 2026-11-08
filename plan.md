@@ -808,3 +808,97 @@ Full mapping, wireframes and audit: `docs/problem-solution-mapping.md`.
   database field used to segment donors and match them to campaigns, events and programs; staff can add or remove
   tags. Today `donors.interests` is a free-form JSON list the agent never fills. Tag list and data model:
   `docs/research/interest-areas.md` (17 tags; Give Miami Day mappings marked ~ still to confirm). No tag is ever inferred from protected traits; untagged beats guessed.
+
+## 19. Finish-line build plan (Sharif, Sat Nov 7 night). No code before Sharif approves this section
+
+Interest tags approved (17, `docs/research/interest-areas.md`). The money card uses option (a): 2026 year to date
+plus per-quarter bars, because the current quarter alone is $750 on the sample data. Christian owns every screen;
+we ship the backend plus a written UI spec for him.
+
+### Builds (ours unless marked)
+| # | Build | Owner | Est. |
+|---|---|---|---|
+| B1 | **Interest tags:** `interest_tags` + `donor_interests` tables (donor_id INTEGER, matching `donors.id`), seed the 17 tags, the enrich agent returns tags (enum, confidence, evidence, source_url) plus public contact fields, staff add/remove routes, a `find_people(interest=...)` chat filter | builder A | 2 h |
+| B2 | **Money by quarter:** `GET /targets/quarters` returns every quarter's sum plus year to date, from the gifts table only (failed charges excluded) | builder B | 45 min |
+| B3 | **Voice-first backend:** `WS /transcribe/live` relays 16 kHz PCM to `gemini-3.5-transcribe-live` (the key stays server-side) and streams interim/final text back; `POST /people/{id}/call-notes` stores the transcript plus an OpenAI Agents SDK summary in a new `call_notes` table; `GET /people/{id}/call-notes` | builder C | 2.5 h |
+| B4 | **UI spec for Christian:** home 3-column layout, money card + quarter bars, alerts in the to-do list, onboarding (#70), interest chips + filter, 🎙 panel | me → Christian | 30 min |
+| B5 | **Ship-out:** demo script, README (models, limits), deploy + Playwright prod walk, repo public + MIT | me + submission-scribe | 2 h |
+| S1 | Stretch: Twilio recorded call → `gemini-3.5-transcribe` → same call-notes save | later | 3 h |
+
+### File tree (only what changes)
+```
+service/
+├── db.py                 B1 interest_tags, interest_subtags, donor_interests · B3 call_notes (new tables only; donors untouched)
+├── interests.py          NEW B1 seed list (17 tags + sub-tags), add/remove/list, agent-vs-staff merge rule
+├── enrich_agent.py       B1 structured output: interests[] (enum) + contact{}; writes donor_interests
+├── routes_data.py        B1 GET /interest-tags, GET/POST/DELETE /people/{id}/interests
+├── chat_agent.py         B1 find_people(interest=) filter
+├── targets.py            B2 quarters(conn, as_of) -> [{label, raised}], ytd
+├── routes_targets.py     B2 GET /targets/quarters
+├── transcribe.py         NEW B3 Gemini Live relay (+ recorded-file transcribe for S1)
+├── call_notes.py         NEW B3 summary agent (OpenAI Agents SDK) + store/list
+├── main.py               B3 mount WS /transcribe/live and /people/{id}/call-notes
+├── requirements.txt      B3 + google-genai
+└── tests/                test_interests.py, test_targets_quarters.py, test_call_notes.py
+scripts/                  smoke-gemini-live.py, smoke-transcribe-ws.py (B3)
+docs/ui-spec-finish.md    NEW B4 screens for Christian (wireframes from docs/problem-solution-mapping.md §3)
+README.md, docs/demo-script.md   B5
+```
+
+### Flow
+```
+[Enrich click] --> enrich_agent --(web search)--> {interests[], contact{}} --> donor_interests --> chips / find_people(interest)
+                                                                                  ^ staff add/remove (never overwritten)
+[Upload] --> ingest --> gifts --> targets.quarters --> GET /targets/quarters --> money card (YTD + bars)
+
+[🎙 click] --> browser PCM 16 kHz --WS--> /transcribe/live --> gemini-3.5-transcribe-live
+                    ^ interim/final text <------------------------------+
+          [Save to person] --> POST /call-notes --> OpenAI summary agent --> call_notes --> profile timeline
+```
+
+### UI wireframes
+Screens: `docs/problem-solution-mapping.md` §3 (home 3.2, voice panel 3.3, profile 3.4). Additions:
+```
+Money card (home, upper left)            Profile interest chips
++------------------------------+         +------------------------------------------------+
+| MONEY RAISED · 2026 YTD      |         | Interests  [Arts & Culture x] [Education x]    |
+| $49,615 of sample goal       |         |            [Animals · suggested x]  [+ Add]    |
+| ▁  ▁  ▆  ▁   Q1 Q2 Q3 Q4     |         | hover a chip -> "Board seat, <org> · source"   |
+| ⚠ 2 failed   ⏱ 3 late        |         +------------------------------------------------+
++------------------------------+         Givers list: [Interest: Arts v] filter
+```
+| UI piece | Before | After |
+|---|---|---|
+| Money card | current quarter vs sample goal | 2026 YTD + quarter bars + alert counts |
+| Interests | free-text, never filled | chips with a source tooltip; low confidence shows "suggested"; staff x / + Add |
+| Givers filter | status, tier | + interest |
+| Call notes | none (FakeRest notes vanish on reload) | timeline entries from `call_notes`, persisted |
+
+### Derisking (dependency order)
+| # | Proves | Command | Expected | If it fails |
+|---|---|---|---|---|
+| 1 | Gemini key reaches the live model | `python scripts/smoke-gemini-live.py <20s wav>` | final text contains the scripted words | check key tier and model ID in AI Studio; fall back to `gemini-3.5-transcribe` per chunk |
+| 2 | New tables create on an existing DB without touching `donors` | `pytest service/tests/test_interests.py -k schema` | pass; `donors` columns unchanged | make the migration CREATE IF NOT EXISTS only |
+| 3 | Quarter sums match the answer key | `pytest service/tests/test_targets_quarters.py` | 15 quarters, total 1269470, 2026 YTD 49615 | fix date parsing or failed-charge exclusion |
+| 4 | Enrich returns only enum tags with sources | `pytest service/tests/test_interests.py -k enrich` (mocked model) + 3 live orgs | 100% of tags in the enum, 100% with source_url | tighten the output schema |
+| 5 | Staff edits survive re-enrich | `pytest service/tests/test_interests.py -k staff_wins` | removed tag not re-added | fix the upsert rule |
+| 6 | Live relay streams text | `python scripts/smoke-transcribe-ws.py <20s wav>` | at least 1 interim + 1 final event | fix PCM framing (100 ms, 16 kHz mono LE) |
+| 7 | Call note persists with summary | `pytest service/tests/test_call_notes.py`, then curl POST, restart, GET | note returned after restart | fix table or route |
+| 8 | End to end on the demo laptop | upload sample → Enrich an org → speak 20 s → save → reload | tags with sources, YTD $49,615, note on profile, 0 console errors | walk back to the failing smoke |
+
+### Evaluation criteria (graded by an independent evaluator agent, not the builders)
+| Criterion | Threshold | How measured |
+|---|---|---|
+| Enrich tags interest areas with evidence | at least 2 of 3 sample orgs get 1+ tag; 100% of tags carry source_url + evidence; 0 tags outside the 17 | API run + SQL on donor_interests |
+| No guessed tags | 0 tags for a made-up person (ambiguous / not_found) | API run |
+| Staff wins | a staff-removed tag is absent after re-enrich | pytest + SQL |
+| Money by quarter is exact | total $1,269,470; 2026 YTD $49,615; each quarter equals the answer key | pytest vs answer_key.json |
+| Live transcript | first interim text within 2 s of speech; final text at least 90% word match on a scripted 20 s read | smoke script + word-error-rate check |
+| Call note persists | note + summary on the chosen person after a service restart | curl GET after restart |
+| Key never in the browser | 0 occurrences of the Gemini key in built JS or network traffic | grep `web/dist` + Playwright network log |
+| Demo path clean | 0 console errors, 0 4xx/5xx | Playwright on the demo laptop and the prod snapshot |
+
+### Order
+B1, B2 and B3 run in parallel on disjoint files, except `db.py`, where each adds only its own tables (B1 lands
+first, B3 rebases). B4 goes to Christian right after approval. Every PR goes through QA, then a merge pinned to the
+approved SHA, a deploy and a Playwright walk. B5 starts Sun 9 AM. Freeze Sun 4:15 PM.
