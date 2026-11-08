@@ -1104,3 +1104,11 @@
     transform: translateX(-16px);
   }
 }
+/* Setup step 1 is the landing page, over the app. */
+.onb-landing-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50; /* the dialog layer: its own Upload / sample dialogs open later in the DOM, above it */
+  overflow-y: auto;
+  background: #fff;
+}

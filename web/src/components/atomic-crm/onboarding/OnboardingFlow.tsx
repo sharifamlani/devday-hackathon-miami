@@ -10,7 +10,8 @@ import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 
-import { FilesStep, OrganizationStep } from "./OnboardingSteps";
+import { OrganizationStep } from "./OnboardingSteps";
+import { KindredLanding } from "../landing/KindredLanding";
 import { useQueryClient } from "@tanstack/react-query";
 import { readOrganizationInBackground } from "./backgroundRead";
 import { useOnboarding } from "./onboardingState";
@@ -45,26 +46,26 @@ export const OnboardingFlow = () => {
   }, [step, finish, location.pathname, navigate]);
   if (step >= 2) return null;
 
+  // Step 1 is the landing page itself (Upload donor data / Try sample data). Its import plays the
+  // folder animation, and Continue there moves setup on to the organization step.
+  if (step === 0)
+    return createPortal(
+      <div
+        className="onb-landing-screen"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Set up Gatherly"
+      >
+        <KindredLanding onSkip={finishLater} />
+      </div>,
+      document.body,
+    );
+
   return (
     <StepsScreen step={step} busy={busy} onBack={back} onEscape={finishLater}>
       {(headingRef) => {
         const frame = { headingRef, onBusy };
         switch (step) {
-          case 0:
-            return (
-              <FilesStep
-                {...frame}
-                onContinue={(files) => {
-                  update({ files });
-                  next();
-                }}
-                onReviewDuplicates={() => {
-                  // Setup waits; "Finish setup" in the profile menu resumes it.
-                  finishLater();
-                  navigate("/contacts");
-                }}
-              />
-            );
           case 1:
             return (
               <OrganizationStep

@@ -129,9 +129,12 @@ const useElapsed = (active: boolean) => {
 
 export const KindredLanding = ({
   onPreviewUpload,
+  onSkip,
 }: {
   /** Development-only click-through: no file is read or sent by this action. */
   onPreviewUpload?: () => void;
+  /** Setup step 1 only: leave setup for later (the dashboard opens). */
+  onSkip?: () => void;
 } = {}) => {
   const [areColorsPaused, setColorsPaused] = useState(false);
   const [isUploadOpen, setUploadOpen] = useState(false);
@@ -173,6 +176,27 @@ export const KindredLanding = ({
       setUploadOpen(true);
     },
   });
+
+  // Live "Try sample data": load the example files and import them like an upload, so the
+  // folder animation and its results lead on to the organization step.
+  const importSample = async () => {
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      const sample = await loadSampleFiles(await loadSampleManifest());
+      setFiles(sample);
+      setResult(await donorDeskMethods.uploadFiles(sample));
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "We couldn’t import the sample files.",
+      );
+    } finally {
+      setPending(false);
+    }
+  };
 
   const importDonors = async () => {
     if (!canUpload || !files.length || pending) return;
@@ -272,16 +296,30 @@ export const KindredLanding = ({
           className="kindred-sample"
           type="button"
           onClick={() =>
-            onPreviewUpload ? onPreviewUpload() : setSampleOpen(true)
+            onPreviewUpload
+              ? onPreviewUpload()
+              : canUpload
+                ? void importSample()
+                : setSampleOpen(true)
           }
         >
           Try sample data
         </button>
+        {error && !isUploadOpen && (
+          <p role="alert" className="kindred-file-hint">
+            {error}
+          </p>
+        )}
         <ol className="kindred-steps" aria-label="How Gatherly works">
           <li>Upload your list</li>
           <li>Understand your donors</li>
           <li>Reach out thoughtfully</li>
         </ol>
+        {onSkip && (
+          <button type="button" className="kindred-skip" onClick={onSkip}>
+            Skip for now
+          </button>
+        )}
       </div>
 
       <button

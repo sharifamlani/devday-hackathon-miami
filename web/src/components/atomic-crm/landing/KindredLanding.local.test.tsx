@@ -30,16 +30,14 @@ describe("Try sample data (local mode)", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("Go uploads every sample file and shows the import summary", async () => {
+  it("imports every sample file straight away and shows the processing screen", async () => {
     uploadFiles.mockResolvedValue({ donors: 33, gifts: 120, duplicates: 6, message: null, raw: {} });
     const screen = await render(<KindredLanding />);
     await screen.getByRole("button", { name: "Try sample data" }).click();
-    await screen.getByRole("button", { name: "Go" }).click();
 
-    await expect.element(screen.getByText("Your sample files are in.")).toBeVisible();
-    await expect.element(screen.getByText("33 donors · 120 gifts · 6 possible duplicates")).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Open the CRM" })).toBeVisible();
-
+    await expect
+      .element(screen.getByRole("button", { name: "Create organization profile" }))
+      .toBeVisible();
     expect(uploadFiles).toHaveBeenCalledTimes(1);
     const [files, target] = uploadFiles.mock.calls[0] as [File[], unknown];
     expect(files.map((f) => f.name)).toEqual([
@@ -50,21 +48,17 @@ describe("Try sample data (local mode)", () => {
     expect(target).toBeUndefined(); // the data layer's default: the agent sorts
   });
 
-  it("shows the error and points to the example files, not a cached workspace, when ingest isn't running", async () => {
+  it("shows the error on the landing when ingest isn't running", async () => {
     uploadFiles.mockRejectedValue(
       new Error("Upload isn't available yet: the ingest service is not running."),
     );
     const screen = await render(<KindredLanding />);
     await screen.getByRole("button", { name: "Try sample data" }).click();
-    await screen.getByRole("button", { name: "Go" }).click();
 
     await expect
       .element(screen.getByText("Upload isn't available yet: the ingest service is not running."))
       .toBeVisible();
-    await expect.element(screen.getByText(/You can also drag the example files/)).toBeVisible();
-    await expect
-      .element(screen.getByRole("link", { name: "Open the cached sample workspace instead" }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "Try sample data" })).toBeVisible();
   });
 });
 
