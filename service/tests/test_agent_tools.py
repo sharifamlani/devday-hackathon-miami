@@ -400,5 +400,5 @@ def test_approval_cards_name_the_person_and_the_batch(db_file):
         conn.close()
     assert ca.approval_summary("call_person", {"person_id": pid}) == f"Call {name} at ***-***-0104"
     batch = invoke("draft_email", person_ids=[pid], intent="thank_you")["batch_id"]
-    assert ca.approval_summary("send", {"batch_id": batch}).startswith("Send 1 email")
-    assert ca.approval_summary("merge_duplicate", {"suggestion_id": 1}) is None
+    assert ca.approval_summary("send", {"batch_id": batch}) == f"Send thank-you email to {name}"   # the recipient
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": 999999}) is None              # unknown: show args
