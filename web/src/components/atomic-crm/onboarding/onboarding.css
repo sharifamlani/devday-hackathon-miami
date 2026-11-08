@@ -140,11 +140,9 @@
   opacity: 0.45;
 }
 .onb-wordmark {
-  /* Same type as the app wordmark (@utility wordmark in index.css). */
-  font-size: 24px;
-  font-weight: 650;
-  line-height: 1.2;
-  letter-spacing: -1px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 .onb-progress-text {
   margin: 0 0 8px;
