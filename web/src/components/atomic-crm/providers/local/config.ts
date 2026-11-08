@@ -20,6 +20,13 @@ export const DATA_MODE: DataMode = resolveDataMode(
 );
 
 /**
+ * True only for the build made as the sample (Vercel): not a laptop build that fell back to the snapshot
+ * because its API was unreachable. Setup state is shared with live mode, so only the real sample build may
+ * mark it done (the landing's sample path).
+ */
+export const SAMPLE_BUILD: boolean = resolveDataMode(import.meta.env.VITE_DATA_MODE, false) === "snapshot";
+
+/**
  * Dev only: answer routes the API build doesn't serve yet with the
  * contract-shaped mocks in mocks.ts (plan.md §21.5), labeled as mocks.
  * Off by default; never set on the demo laptop.

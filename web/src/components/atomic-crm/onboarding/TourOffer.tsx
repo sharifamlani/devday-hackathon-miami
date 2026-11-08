@@ -8,6 +8,7 @@ import {
   X as XIcon,
 } from "lucide-react";
 
+import { DATA_MODE } from "../providers/local/config";
 import { backgroundLine, offerCopy } from "./firstRun";
 import { useOnboarding } from "./onboardingState";
 import "./onboarding.css";
@@ -32,7 +33,7 @@ export const TourOffer = ({ offer }: { offer: boolean }) => {
   const titleId = useId();
   const background =
     data.background && !data.background.hidden ? data.background : null;
-  const copy = offerCopy(data);
+  const copy = offerCopy(data, DATA_MODE !== "local");
 
   const hideStatus = () =>
     data.background &&

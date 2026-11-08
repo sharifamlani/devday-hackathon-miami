@@ -42,7 +42,6 @@ import { startBackgroundRead } from "./backgroundRead";
 import {
   ACCEPT_ATTRIBUTE,
   COLLAPSE_AFTER,
-  RECEIPT_MS,
   WELCOME_MS,
   addFiles,
   checklist,
@@ -1000,19 +999,13 @@ export const ContextStep = ({
       phase.phase === "welcome" ||
       phase.phase === "slow");
 
-  // Receipt, then a short welcome, then the dashboard.
+  // Receipt until the presenter clicks "Go to the dashboard" (the demo narrates it), then a short welcome,
+  // then the dashboard. Nothing advances on its own while the receipt is up.
   const onDoneRef = useRef(onDone);
   useEffect(() => {
     onDoneRef.current = onDone;
   });
   useEffect(() => {
-    if (phase.phase === "receipt") {
-      const timer = window.setTimeout(
-        () => send({ type: "welcome" }),
-        RECEIPT_MS,
-      );
-      return () => window.clearTimeout(timer);
-    }
     if (phase.phase === "welcome") {
       const done = contextSummary(phase);
       const timer = window.setTimeout(() => {
@@ -1039,7 +1032,7 @@ export const ContextStep = ({
       : phase.phase === "tasks"
         ? "Website read. Making today's tasks."
         : phase.phase === "receipt"
-          ? `${receiptLine(phase.receipt)}. Opening your dashboard.`
+          ? `${receiptLine(phase.receipt)}. Go to the dashboard when you're ready.`
           : phase.phase === "welcome"
             ? "Welcome to Donor Desk."
             : phase.phase === "slow"
@@ -1052,6 +1045,8 @@ export const ContextStep = ({
   };
 
   const finishNow = () => {
+    // From the receipt, the click shows the welcome card first; it opens the dashboard after WELCOME_MS
+    if (phase.phase === "receipt") return send({ type: "welcome" });
     if (summary) onDone(summary, savedLive);
   };
 
