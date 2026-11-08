@@ -1190,3 +1190,21 @@ Rules:
 
 Criterion: for each write tool, one chat request changes the row (SQL check) and the matching panel shows it
 without a reload (Playwright); Undo restores the row; 0 sends, merges or deletes without an approval click.
+
+### 20.11 Code to lift (from `docs/research/repos-to-lift.md`; copy first, adapt minimally)
+
+| Need | Lift | License | Goes to |
+|---|---|---|---|
+| Chat UI, tool steps, approval cards | assistant-ui (already in #69): `makeAssistantToolUI` + `addResult`; prompt-kit for suggestion chips | MIT | Christian + 80 |
+| Agent ↔ UI stream | `assistant-stream` (Python) emitting assistant-ui's data-stream from FastAPI; ~100-line Agents SDK event mapper + approve/discard resume route | MIT | 90 |
+| Approval before writes | `openai-agents-python/examples/agent_patterns/human_in_the_loop_server.py`, `human_in_the_loop_stream.py`; after-call extraction with `output_type=<Pydantic model>` | MIT | 90, 86 |
+| Mic capture (dictation + call) | `google-gemini/live-api-web-console`: `src/lib/audio-recorder.ts`, `src/lib/worklets/audio-processing.ts`, `src/lib/audioworklet-registry.ts`, wrapped as an assistant-ui `DictationAdapter` (template: assistant-ui `examples/with-elevenlabs-scribe`) | Apache-2.0 (keep headers + NOTICE) | 80 |
+| FastAPI relay to Gemini Live | ~60 lines written by us (two asyncio loops around `client.aio.live.connect`) | — | Agent Phone |
+| Mini calendar, tasks | shadcn `calendar` (react-day-picker) with an event-dot day button; originui snippets | MIT | Christian |
+| Find-a-donor pop-up, goal gauge | shadcn `command` (cmdk); shadcn radial `chart` (Recharts) | MIT | Christian |
+| Twilio stretch | `twilio-python`, `record=True` + `recording_status_callback` (~40 lines) | MIT | Agent Phone |
+
+Framework: **OpenAI Agents SDK + assistant-ui** (no LangGraph server, no rewrite). LangGraph's UI paths need a
+LangGraph Platform-style server or Next.js; CopilotKit does not list the Agents SDK as a backend. Do not use:
+agent-chat-ui, vercel/ai-elements (deprecated end of Nov 2026), the ChatKit widget, `gemilive` as a dependency,
+browser-direct Gemini with a long-lived key.
