@@ -80,10 +80,23 @@
   max-width: 900px;
   justify-self: center;
   background: var(--background);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
 }
 .home-greeting {
   flex: none;
   padding: 24px 24px 0;
+}
+.home-greeting-title {
+  margin: 0 0 24px;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.home-greeting-title b {
+  font-weight: 700;
 }
 .home-thread {
   display: flex;
@@ -94,6 +107,11 @@
   overflow-y: auto;
   padding: 24px;
   scrollbar-width: thin;
+}
+.home-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .home-user-message {
   align-self: flex-end;
@@ -111,10 +129,71 @@
   align-self: flex-start;
   max-width: 88%;
   flex-shrink: 0;
+  min-width: 0;
+  background: transparent;
+  border: 0;
   padding: 12px 0;
   font-size: 14px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+.home-agent-label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+.home-agent-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.home-agent-prose p {
+  margin-block: 0;
+  line-height: inherit;
+}
+.home-agent-prose p + p {
+  margin-top: 10px;
+}
+.home-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.home-suggestion {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #eef0f2;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.home-suggestion:hover {
+  background: #e3e7e9;
+}
+.dark .home-suggestion {
+  background: var(--surface);
+}
+.dark .home-suggestion:hover {
+  background: var(--accent);
+}
+.home-suggestion:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.home-suggestion:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.dark .home-user-message {
+  background: #49432c;
+  color: var(--foreground);
 }
 .home-composer {
   flex: none;
