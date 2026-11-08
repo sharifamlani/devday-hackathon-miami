@@ -24,6 +24,7 @@ import {
 import { useDropzone } from "react-dropzone";
 
 import {
+  DEMO_DATA_BASE,
   formatBytes,
   loadSampleFiles,
   loadSampleManifest,
@@ -84,7 +85,7 @@ import {
 /** The laptop build talks to the service; the Vercel snapshot has no API. */
 const LIVE = DATA_MODE === "local";
 
-/** Measured on the 8 example files against the local service: about a minute. */
+/** Uploads the curated demo-data fixtures through the local service. */
 const INGEST_TIME = "This usually takes about a minute.";
 
 const plural = (n: number, one: string, many: string) =>
@@ -394,7 +395,10 @@ export const FilesStep = ({
     setLoadingSample(true);
     setStatus(null);
     try {
-      const examples = await loadSampleFiles(await loadSampleManifest());
+      const examples = await loadSampleFiles(
+        await loadSampleManifest(DEMO_DATA_BASE),
+        DEMO_DATA_BASE,
+      );
       setFiles(examples);
       const result = await upload.mutateAsync({ files: examples, target: "auto" });
       update({ files: ingestSummary(result, examples.length) });
@@ -518,7 +522,7 @@ export const FilesStep = ({
             <Upload aria-hidden="true" size={22} strokeWidth={1.7} />
             <p className="onb-drop-title">Drop your files here</p>
             <p className="onb-note">
-              .xlsx · .docx · .md · .csv, up to 10 MB each
+              .xlsx · .docx · .md · .csv · .txt, up to 10 MB each
             </p>
             <div className="onb-drop-actions">
               <button

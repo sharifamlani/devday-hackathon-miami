@@ -26,15 +26,15 @@ import {
 
 /* ---------- Step 1: files ---------- */
 
-export const ACCEPTED_EXTENSIONS = ["xlsx", "docx", "md", "csv"] as const;
+export const ACCEPTED_EXTENSIONS = ["xlsx", "docx", "md", "csv", "txt"] as const;
 /** For the file picker's accept attribute. */
 export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.map((e) => `.${e}`).join(
   ",",
 );
 /** POST /ingest refuses anything bigger (service/ingest_router.py). */
 export const MAX_FILE_BYTES = 10_000_000;
-/** The example files live in the repo, so people can drag the whole folder's files in. */
-export const SAMPLE_FOLDER = "data/sample_inputs/";
+/** The demo upload fixtures live in the repo for reference or manual selection. */
+export const SAMPLE_FOLDER = "demo-data/";
 
 export interface SkippedFile {
   name: string;
@@ -47,14 +47,14 @@ const extensionOf = (name: string) =>
 /** Why a file stays out of the import, or null when ingest should read it. */
 export const skipReason = (file: { name: string; size: number }) => {
   const name = file.name;
-  // data/sample_inputs/_README.md: "Do not pass it to an importer".
+  // Keep documentation alongside the demo fixtures out of importer uploads.
   if (/answer[_-]?key/i.test(name))
     return "The answer key is for checking results, so it isn't imported.";
   if (/^_?readme\b/i.test(name))
     return "This describes the example files; it isn't data.";
   if (name.startsWith(".")) return "Hidden system file.";
   if (!(ACCEPTED_EXTENSIONS as readonly string[]).includes(extensionOf(name)))
-    return "Donor Desk reads .xlsx, .docx, .md and .csv files.";
+    return "Donor Desk reads .xlsx, .docx, .md, .csv and .txt files.";
   if (file.size > MAX_FILE_BYTES) return "Over 10 MB.";
   if (file.size === 0) return "This file is empty.";
   return null;
