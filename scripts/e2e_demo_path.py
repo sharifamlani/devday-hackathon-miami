@@ -207,7 +207,9 @@ def s2_website(page: Page, api: Api, shots: Path):
 
 @step("3 donors")
 def s3_donors(page: Page, api: Api, shots: Path):
-    page.get_by_role("link", name="Donors").first.click()
+    # Faye's home (#152): the CRM tile's "Open database" opens the Donors list; older layouts had a "Donors" link
+    crm = page.get_by_role("link", name=re.compile(r"^Open database"))
+    (crm if crm.count() else page.get_by_role("link", name="Donors")).first.click()
     page.wait_for_timeout(3000)
     page.screenshot(path=str(shots / "3_donors.png"))
     main = page.locator("main").first.inner_text()
@@ -266,16 +268,19 @@ def s5_home(page: Page, api: Api, web: str, shots: Path):
     close_overlays(page)
     page.screenshot(path=str(shots / "5_home.png"))
     s = api.get("/home/summary")
-    risk = page.get_by_role("link", name=re.compile(r"\d+ gifts? at risk")).first.inner_text()
-    dups = page.get_by_role("link", name=re.compile(r"\d+ possible duplicates?")).first.inner_text()
-    risk_n, dup_n = int(re.search(r"\d+", risk).group()), int(re.search(r"\d+", dups).group())
-    task_rows = page.get_by_role("button", name=re.compile(r"^Work on with the agent: ")).count()
-    today = [t for t in api.open_tasks() if t.get("due") == KEY.get("as_of", "2026-11-08")]
     alerts_expected = len(KEY["gift_alerts_expected"])
-    record("5 home", f"at risk = summary = {alerts_expected}; duplicates = summary; task rows = open tasks",
-           f"screen risk {risk_n} dup {dup_n} rows {task_rows}; API risk {s['gifts_at_risk']} dup {s['duplicates']} "
-           f"tasks_today {s['tasks_today']} open-today {len(today)}",
-           ok(risk_n == s["gifts_at_risk"] == alerts_expected and dup_n == s["duplicates"] and task_rows > 0))
+    open_tasks = api.open_tasks()
+    task_rows = page.get_by_role("button", name=re.compile(r"^Work on with the agent: ")).count()
+    side = page.get_by_role("complementary").first if page.get_by_role("complementary").count() else page.locator("body")
+    side_text = side.inner_text()
+    # Faye's home (#152): no glance tiles; the Tasks tile heading carries the open-task count
+    tasks_head = re.search(r"Tasks\s*\n?\s*(\d+)", side_text)
+    events_seen = [t for t in ("Give Miami Day", "Early Giving") if t in side_text]
+    record("5 home", f"API at risk = {alerts_expected} (answer key); Tasks tile count = open tasks; task rows; events in the agenda",
+           f"API risk {s['gifts_at_risk']} dup {s['duplicates']}; Tasks tile {tasks_head.group(1) if tasks_head else '-'} vs open "
+           f"{len(open_tasks)}; rows {task_rows}; agenda {events_seen}",
+           ok(s["gifts_at_risk"] == alerts_expected and bool(tasks_head) and int(tasks_head.group(1)) == len(open_tasks)
+              and task_rows > 0 and len(events_seen) == 2))
 
 
 @step("6 chat")
