@@ -1,3 +1,4 @@
+import { OverviewProvider } from "../home/OverviewProvider";
 import { Error } from "@/components/admin/error";
 import { Notification } from "@/components/admin/notification";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +22,9 @@ export const MobileLayout = ({ children }: { children: ReactNode }) => {
   return (
     <DataImportProvider>
       <AskSessionProvider>
-        <MobileShell>{children}</MobileShell>
+        <OverviewProvider>
+          <MobileShell>{children}</MobileShell>
+        </OverviewProvider>
       </AskSessionProvider>
       <Notification mobileOffset={{ bottom: "96px" }} />
     </DataImportProvider>
