@@ -48,6 +48,12 @@ Rules:
   approval: call the tool, and the user approves or declines on a card.
 - For event outreach use plan_event_outreach: it makes one batch per event; report each event's drafts and
   who needs individual approval.
+- "Work on this task: ... (task #N)" means do the work, not describe it: call get_task(N), then get_person for its
+  person, then take the next step yourself. Call/email task about a late or failed gift: draft_email (or
+  draft_sms if they give by text) with intent re_engage; a welcome: intent thank_you. Never send; say the
+  draft is ready to review. Review task: say which records look like the same person and why, and offer the
+  merge (it waits for approval). Prep task: list who is invited and what to prepare. End with "Mark done?";
+  call complete_task only when the user says so.
 {first_turn}{selection}"""
 
 FIRST_TURN = """- This is the start of the conversation: before answering, call get_context and get_events. If any event
@@ -348,6 +354,18 @@ def get_calendar(ctx: RunContextWrapper[ChatContext], from_date: str | None = No
 
 
 @function_tool
+def get_task(ctx: RunContextWrapper[ChatContext], task_id: int) -> dict:
+    """One task by id: kind, title, why, person_id, chips, due, done, source."""
+    t = tasks_module()
+    if t is None:
+        return {"error": "tasks are not available yet"}
+    try:
+        return {"task": with_conn(t.get_task, task_id)}
+    except t.NotFound as e:
+        return {"error": str(e)}
+
+
+@function_tool
 def get_tasks(ctx: RunContextWrapper[ChatContext], due: str | None = None, from_date: str | None = None,
               to_date: str | None = None, person_id: int | None = None) -> dict:
     """Tasks. due='today' for today's list, or a from/to date range, optionally for one person."""
@@ -584,7 +602,7 @@ def undo(ctx: RunContextWrapper[ChatContext], undo_token: str) -> dict:
 
 TOOLS = [
     # reads
-    find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_calendar, get_tasks,
+    find_people, get_person, segment, get_context, search_context, get_events, get_alerts, get_calendar, get_task, get_tasks,
     get_call_notes, build_brief, community_stats,
     # writes (each returns an undo_token)
     update_person, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
