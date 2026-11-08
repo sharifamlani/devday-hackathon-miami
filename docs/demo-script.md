@@ -8,7 +8,7 @@ the moment, not to more features.
 
 ## Landing entry in the React app
 
-Open the bare app URL to show “Less time on tasks. More time for people.” with “Your mission deserves more of your time.” underneath. “Try sample data” opens the existing donor workspace at `#/`. Existing workspace deep links continue to open directly.
+Open the bare app URL to show “Less time on tasks. More time for people.” with “Your mission deserves more of your time.” underneath. “Try sample data” opens the donor workspace at `#/`, which is now the home dashboard (today at a glance, outreach calendar, goal, recommended outreach). The Outreach inbox moved to `#/inbox` (rail Inbox icon). Existing workspace deep links continue to open directly.
 
 The upload controls sit inside a thin outlined CSV drop area. In local mode, “Upload donor data” opens the file chooser; selecting or dropping a CSV opens the confirmation dialog with its filename. In the hosted snapshot build it explains that uploads need the local donor service and offers the sample workspace. With `VITE_DATA_MODE=local`, the CSV form uses the existing `uploadFiles` client and offers the workspace after a successful import. Live ingest remains dependent on the team's ingest service; this design change adds no backend ingestion behavior.
 
@@ -25,7 +25,7 @@ The upload controls sit inside a thin outlined CSV drop area. In local mode, “
 
 | Seconds | Say | Do (click / speak / show) |
 |---|---|---|
-| 0:00–0:10 | “A missed gift should start a thoughtful conversation.” | Show Outreach inbox, with Rosa’s overdue gift and Elena’s simulated active call. |
+| 0:00–0:10 | “A missed gift should start a thoughtful conversation.” | Show Outreach inbox (`#/inbox`, rail Inbox icon), with Rosa’s overdue gift and Elena’s simulated active call. |
 | 0:10–0:25 | “First, one trustworthy donor history.” | Import the fictional CSV, preview mapped columns, review Rosa’s duplicate, approve merge, inspect preserved gift sources. |
 | 0:25–0:40 | “Here is who needs attention, and why.” | Open Rosa: compare last three monthly gifts with the next expected date, seven-day grace window, and unknown payment status; edit and approve the example follow-up draft. |
 | 0:40–0:52 | “A staff member can pick up with context.” | Open Elena’s flagged call, read the reason and fixture transcript; join simulation, mute, leave, then record an outcome. |

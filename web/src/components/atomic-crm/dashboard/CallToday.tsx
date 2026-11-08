@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
   Heart,
   Inbox,
+  Moon,
   Search,
   ShieldCheck,
   Sparkles,
@@ -33,7 +35,13 @@ import type { DonorSummary } from "../providers/local/types";
 import { TargetsCard } from "./TargetsCard";
 import "./donor-inbox.css";
 
-type InboxFilter = "all" | "attention" | "due" | "on_track" | "stars";
+type InboxFilter =
+  | "all"
+  | "attention"
+  | "due"
+  | "on_track"
+  | "lapsed"
+  | "stars";
 
 const belongsTo = (donor: DonorSummary, filter: InboxFilter) =>
   filter === "all" ||
@@ -48,15 +56,27 @@ const filters = [
   { id: "attention", label: "Needs attention", icon: Heart },
   { id: "due", label: "Upcoming", icon: CalendarDays },
   { id: "on_track", label: "On track", icon: CheckCircle2 },
+  { id: "lapsed", label: "Lapsed", icon: Moon },
   { id: "stars", label: "Star donors", icon: Sparkles },
 ] as const;
+
+/** `/inbox?view=attention|due|on_track|lapsed|stars` (sidebar donor lists). */
+const viewFrom = (value: string | null): InboxFilter =>
+  filters.some((item) => item.id === value) ? (value as InboxFilter) : "all";
 
 /** Inbox presentation over the existing donor service; score and mutations stay in the shared layer. */
 export const CallToday = () => {
   const { data: donors, isPending, error } = useDonors();
   const { data: sourceLabel } = useSourceLabel();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [filter, setFilter] = useState<InboxFilter>("all");
+  const [params, setParams] = useSearchParams();
+  const filter = viewFrom(params.get("view"));
+  const setFilter = (next: InboxFilter) => {
+    const updated = new URLSearchParams(params);
+    if (next === "all") updated.delete("view");
+    else updated.set("view", next);
+    setParams(updated, { replace: true });
+  };
   const [query, setQuery] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const ranked = [...(donors ?? [])].sort((a, b) => b.score - a.score);

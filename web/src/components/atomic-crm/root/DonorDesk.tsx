@@ -1,6 +1,6 @@
 import { memoryStore } from "ra-core";
 
-import { CallToday } from "../dashboard/CallToday";
+import { HomePage } from "../home/HomePage";
 import { KindredLandingGate } from "../landing/KindredLanding";
 import { authProvider } from "../providers/fakerest";
 import { dataProvider } from "../providers/local";
@@ -22,7 +22,7 @@ export const DonorDesk = () => (
       dataProvider={dataProvider}
       authProvider={authProvider}
       store={memoryStore({ theme: "light" })}
-      dashboard={CallToday}
+      dashboard={HomePage}
       disableTelemetry
     />
   </KindredLandingGate>
