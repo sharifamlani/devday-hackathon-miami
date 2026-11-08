@@ -3,7 +3,8 @@ import { render } from "vitest-browser-react";
 import { ContactCreateBasic } from "./ContactCreate.stories";
 import { page } from "vitest/browser";
 
-describe("ContactCreate", () => {
+// Skipped: screen removed in #84; Import donors replaces create/edit (rewrite for the Donors CRM later).
+describe.skip("ContactCreate", () => {
   beforeAll(() => {
     page.viewport(1600, 900);
   });

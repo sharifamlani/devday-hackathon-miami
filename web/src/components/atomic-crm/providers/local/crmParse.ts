@@ -110,7 +110,15 @@ export const parsePerson = (raw: ApiPerson, fallbackTab: Tab): Person => {
     next_step: raw.next_step ?? null,
     needs_review: !!(raw.tab_review ?? raw.needs_review),
     review_reason: raw.tab_review ?? raw.review_reason ?? null,
+    notes: isBlank(raw.notes) ? null : (raw.notes as string).trim(),
+    source: sourceFile(raw.source_row),
   };
+};
+
+/** "file.xlsx: sheet:Nov 1 Open House:row 4" → "file.xlsx" (the file part of an ingest source_row). */
+export const sourceFile = (row: string | null | undefined): string | null => {
+  const file = (row ?? "").split(":")[0].trim();
+  return file || null;
 };
 
 export const parsePeople = (raw: ApiPeopleResponse, tab: Tab): PeoplePage => {

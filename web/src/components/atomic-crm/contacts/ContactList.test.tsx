@@ -236,7 +236,8 @@ describe("ContactList", () => {
     });
   });
 
-  describe("header on mobile", () => {
+  // Skipped: the old name-search header was removed in #84; the Donors list has its own search box.
+  describe.skip("header on mobile", () => {
     beforeAll(() => {
       page.viewport(375, 667);
     });
