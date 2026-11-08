@@ -49,8 +49,8 @@ import {
   savedConfirmation,
   type CallSummary,
 } from "./summarize";
+import { micTranscriptSource, usesGeminiCaptions } from "./geminiTranscriptSource";
 import {
-  browserSpeechSource,
   DEMO_FALLBACK_DONOR,
   demoCallScript,
   demoTranscriptSource,
@@ -165,7 +165,7 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
   const campaigns = useCampaigns();
   // The mic needs getUserMedia; captions also need SpeechRecognition.
   const [micOk] = useState(micAvailable);
-  const [captionsOk] = useState(() => getSpeechRecognition() != null);
+  const [captionsOk] = useState(() => usesGeminiCaptions() || getSpeechRecognition() != null);
 
   const cardDonor = findCardFailedDonor(donors.data);
   const demoDonorNow = cardDonor?.full_name ?? DEMO_FALLBACK_DONOR;
@@ -294,14 +294,14 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
       micRef.current = mic;
       setMicOn(true);
       setStatus("live");
-      if (!getSpeechRecognition()) {
+      if (!usesGeminiCaptions() && !getSpeechRecognition()) {
         setNotice({
           text: "Live captions need Chrome or Edge; the demo call shows how it works.",
           offerDemo: true,
         });
         return;
       }
-      runSource(browserSpeechSource());
+      runSource(micTranscriptSource());
     },
     [stopAll, runSource],
   );
