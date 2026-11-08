@@ -304,7 +304,8 @@ async def summarize_call(req: SummarizeRequest, conn: sqlite3.Connection = Depen
 # ----------------------------------------------------------------------------------------------
 
 @router.post("/calls")
-def save_call(note: CallNoteIn, background: BackgroundTasks, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+def save_call(note: CallNoteIn, conn: sqlite3.Connection = Depends(get_conn),
+              background: BackgroundTasks = None) -> dict:
     for dest in note.destinations:
         if dest.kind == "donor" and (not dest.id.isdigit() or conn.execute(
                 "SELECT 1 FROM donors WHERE id = ?", (int(dest.id),)).fetchone() is None):
@@ -319,7 +320,10 @@ def save_call(note: CallNoteIn, background: BackgroundTasks, conn: sqlite3.Conne
     log.info("calls: saved %s (%d lines, %d destinations)", saved["id"], len(note.transcript), len(note.destinations))
     if any(d.kind == "donor" for d in note.destinations):   # each donor's "About" summary learns from the note
         from service import donor_summary
-        background.add_task(donor_summary.refresh_in_background, saved)
+        if background is not None:                          # POST /calls: after the response, one model call
+            background.add_task(donor_summary.refresh_in_background, saved)
+        else:                                               # phone.py calls this directly, already off the request
+            donor_summary.refresh_from_call_note(conn, saved)
     return saved
 
 
