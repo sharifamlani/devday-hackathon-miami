@@ -326,7 +326,8 @@ def send_message(conn: sqlite3.Connection, m: sqlite3.Row, sent_at: str) -> dict
     simulated = bool(r.get("simulated", not r.get("delivered")))
     status = r.get("status") or ("sent" if r.get("delivered") else "queued (dry run)")
     if status.startswith("failed"):
-        return {"sent": False, "reason": status, "failed": True, "detail": r.get("detail")}
+        return {"sent": False, "reason": status, "failed": True, "detail": r.get("detail"),
+                "provider": r.get("provider") or "dryrun"}
     if "provider" in {c[1] for c in conn.execute("PRAGMA table_info(outbox)")}:
         outbox_id = conn.execute(
             "INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, "
@@ -341,7 +342,7 @@ def send_message(conn: sqlite3.Connection, m: sqlite3.Row, sent_at: str) -> dict
             "VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
             (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at)).lastrowid
     conn.execute("UPDATE campaign_messages SET status = 'sent', sent_at = ? WHERE id = ?", (sent_at, m["id"]))
-    return {"sent": True, "outbox_id": outbox_id, "simulated": simulated}
+    return {"sent": True, "outbox_id": outbox_id, "simulated": simulated, "provider": r.get("provider") or "dryrun"}
 
 
 @router.post("/campaigns/{campaign_id}/send")
@@ -349,7 +350,7 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
     """Approved messages go out through send_message (the deliver hook: a dry run unless configured).
     A failed delivery stays 'approved' and is reported under "failed"."""
     campaign_detail(conn, campaign_id)
-    sent, no_address, failed, any_real = 0, [], [], False
+    sent, no_address, failed, any_real, providers = 0, [], [], False, {}
     sent_at = now()
     rows = conn.execute("""SELECT m.*, d.email, d.phone, d.full_name FROM campaign_messages m
                            JOIN donors d ON d.id = m.donor_id
@@ -360,9 +361,10 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
             if result["sent"]:
                 sent += 1
                 any_real = any_real or not result["simulated"]
+                providers[result["provider"]] = providers.get(result["provider"], 0) + 1
             elif result.get("failed"):
                 failed.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"],
-                               "detail": result.get("detail")})
+                               "detail": result.get("detail"), "provider": result["provider"]})
             elif result["reason"].startswith("no "):
                 no_address.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"]})
         left = conn.execute("SELECT COUNT(*) FROM campaign_messages WHERE campaign_id = ? AND status IN ('draft', 'approved')",
@@ -370,7 +372,7 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
         if sent and not left:
             conn.execute("UPDATE campaigns SET status = 'sent' WHERE id = ?", (campaign_id,))
     detail = campaign_detail(conn, campaign_id)
-    return {"simulated": not any_real, "sent": sent, "no_address": no_address, "failed": failed,
+    return {"simulated": not any_real, "sent": sent, "providers": providers, "no_address": no_address, "failed": failed,
             "not_approved": detail["counts"]["draft"], "campaign": detail}
 
 
