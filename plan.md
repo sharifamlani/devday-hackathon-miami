@@ -1841,7 +1841,8 @@ here is run until Sharif says go.
 plan.md                         §22 (this section): run order, T-minus checklist, smokes, criteria, roles, fallbacks
 docs/demo-script.md             read only here: the words and bold labels for every step below
 scripts/demo_reset.py           T-30: --warm empties the db, warms the upload cache, checks the stage numbers
-scripts/public_tunnel.py        T-15: on | off | status for the public site (tunnels the LIVE stack, :8001 by default)
+scripts/public_tunnel.py        T-15: on | off | status for the public site (the tunnel runs on --port 8401)
+scripts/live_stack.ps1          T-30: stops / starts LIVE's service (:8001) and web (:5173) in C:\Users\Shari\dd-live-main
 scripts/smoke-openai.py         smoke 1: key + model tiers + one Agents SDK tool call (7/7)
 data/sample_inputs/             the 8 files dragged in on stage (not answer_key.json or _README.md)
 ```
@@ -1855,7 +1856,7 @@ No UI or code changes: this section only orders what is already on main.
        +-----------------------+-----------------------+
                                v
        +-----------------------------------------------+
-       | start service :8000 + web :5173 (local mode)   |  commands the reset prints
+       | LIVE service :8001 + web :5173 (local mode)    |  scripts\live_stack.ps1 (IT lane)
        | smokes 1-4 (22.4)  ->  browser on Step 1 of 3  |
        +-----------------------+-----------------------+
                                v
@@ -1924,14 +1925,38 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
 
 ### 22.3. T-minus checklist (laptop operator)
 - [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
-- [ ] **T-30 (reset):** stop the service, then `python scripts/demo_reset.py --warm`. It must end with
-      **`PASS stage numbers: 77 people / 9 duplicate suggestions`**. Exit 1 means run it again. Start the service
-      (:8000) and the web (:5173, `VITE_DATA_MODE=local`) with the commands it prints.
+- [ ] **T-30 (reset), OWNER: the IT lane (session 20).** The stage laptop runs LIVE: the service on :8001 (the
+      writable one; :5173's `VITE_API_URL` points there) and the web on :5173. `demo_reset.py` resets the db of the
+      folder it runs from, so it runs from `C:\Users\Shari\dd-live-main`, **never the Dropbox repo**.
+      1. Stop :8401 (the public copy: a second service with `PUBLIC_MODE=1` over LIVE's db; the IT lane owns it).
+      2. Stop LIVE's service only: `scripts\live_stack.ps1 stop -Stack live -Only service`.
+      3. `cd C:\Users\Shari\dd-live-main; python scripts\demo_reset.py --warm --port 8001`. It must end with
+         **`PASS stage numbers: 77 people / 9 duplicate suggestions`**. Exit 1 means run it again.
+      4. Start LIVE's service: `scripts\live_stack.ps1 start -Stack live -Only service`.
+      5. Smokes 3–4 (22.4) on :8001 / :5173.
+      6. Restart :8401 (the IT lane), then the T-15 checks.
 - [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
       key, and a busy key slows invites and agent replies (Nov 8: 429s).
 - [ ] **T-20:** smokes 1–4 (22.4), in order.
-- [ ] **T-15 (public site):** `python scripts/public_tunnel.py status`. Turn it `on` only if the public link is part
-      of the pitch (it tunnels the LIVE stack, :8001 by default); otherwise `off`. Write down the state.
+- [ ] **T-15 (public site):** the public link (https://devday-donor-desk.vercel.app) shows the laptop's live data
+      through the tunnel (`docs/public-tunnel.md`). The tunnel runs on `--port 8401`: the public copy with
+      `PUBLIC_MODE=1` over LIVE's db. :8001 stays the writable laptop service and is never tunnelled.
+      1. `python scripts/public_tunnel.py status` must print the pid, the tunnel URL and `health: HTTP 200`, and
+         `curl -s http://localhost:8401/public-mode` must return `{"enabled": true}` (with #254 merged:
+         `"enabled": true, "redacted": false`, the show-all mode).
+      2. Open the public link in a fresh incognito window: no **Sample data** badge; the dashboard, the CRM and the
+         calendar (4 events) all load with the live data, and the DevTools console shows 0 errors.
+      **Fallback (the snapshot):** if `status` prints `off`, the health check fails, or the page shows **Sample
+      data**, the public link is serving the read-only snapshot, which is fine for judges: say "the public link
+      shows a snapshot of the same data". Only with 10+ minutes to spare, bring it back with
+      **`python scripts/public_tunnel.py on --port 8401`** (always with `--port 8401`: a bare `on` defaults to 8001 and
+      would tunnel LIVE's unrestricted, writable API), then the 3 steps it prints, in order:
+      (1) restart the public copy from `C:\Users\Shari\dd-live-main` (LIVE's db):
+      `PUBLIC_MODE=1 PUBLIC_ORIGINS=https://devday-donor-desk.vercel.app uvicorn service.main:app --host 127.0.0.1 --port 8401`;
+      (2) from `web/`, in Git Bash: `printf '%s' "<tunnel url>" | vercel env add VITE_API_URL production`, then
+      `local` for `VITE_DATA_MODE` (`vercel env rm` the old values first);
+      (3) `vercel --prod --yes`.
+      Write down which state it's in.
 - [ ] **T-10 (mic):** open **Live transcript** (it should show **Listening**), then **Open Ask sidebar** →
       **Dictate** → **Stop dictation**. Grant the browser mic permission.
 - [ ] **T-5 (screen):** browser zoom 110%, notifications off, DevTools console open on a second screen; close other
@@ -1945,19 +1970,25 @@ the Give Miami 5K, then the after-call card and **Apply selected**; `docs/demo-s
    **Command:** `.venv/Scripts/python.exe scripts/smoke-openai.py` · **Expected:** `7/7`, exit 0.
    **If it fails →** check `.env` (`OPENAI_API_KEY`, `OPENAI_MODEL_*`), then rerun; don't start the demo on a failing key.
 2. **What it proves:** the upload reads the 8 files to the stage numbers, and the cache is warm.
-   **Command:** `python scripts/demo_reset.py --warm` (service stopped) · **Expected:** `PASS stage numbers: 77 people
+   **Command:** `cd C:\Users\Shari\dd-live-main; python scripts\demo_reset.py --warm --port 8001` (LIVE's service
+   stopped; never from the Dropbox repo) · **Expected:** `PASS stage numbers: 77 people
    / 9 duplicate suggestions (expected 77 / 9, …)`, exit 0. **If it fails →** run it again (it retries the model read);
    twice FAIL means demo the counts the receipt shows and say "the agent sorted them".
 3. **What it proves:** the service is up, empty and private.
-   **Command:** `curl -s http://localhost:8000/health` · `curl -s http://localhost:8000/events` ·
-   `curl -s http://localhost:8000/public-mode` · **Expected:** HTTP 200 · `[]` · `{"enabled":false}`.
+   **Command:** `curl -s http://localhost:8001/health` · `curl -s http://localhost:8001/events` ·
+   `curl -s http://localhost:8001/public-mode` · **Expected:** HTTP 200 · `[]` · `{"enabled":false}` (:8001 is
+   never in public mode).
    **If it fails →** restart the service from the reset's printout; a non-empty `/events` means rerun step 2.
 4. **What it proves:** the web talks to that service in local mode.
    **Command:** open http://localhost:5173 · **Expected:** **Donor Desk · Step 1 of 3**, 0 errors in the DevTools
-   console. **If it fails →** check `VITE_API_URL=http://localhost:8000` and `VITE_DATA_MODE=local`; restart the web.
-5. **What it proves:** the public switch is in the state you want.
-   **Command:** `python scripts/public_tunnel.py status` · **Expected:** `off` (or the pid + URL + `health: HTTP 200`
-   if it's part of the pitch). **If it fails →** `python scripts/public_tunnel.py off`, then decide again.
+   console. **If it fails →** check `VITE_API_URL=http://localhost:8001` and `VITE_DATA_MODE=local`; restart the web
+   (`scripts\live_stack.ps1 restart -Stack live -Only web`).
+5. **What it proves:** the public link serves the live laptop data (or, knowingly, the snapshot).
+   **Command:** `python scripts/public_tunnel.py status`; `curl -s http://localhost:8401/public-mode`; then open
+   https://devday-donor-desk.vercel.app incognito · **Expected:** the pid + URL + `health: HTTP 200`;
+   `"enabled": true` (with #254: `"redacted": false` too); the page loads without the **Sample data** badge.
+   **If it fails →** the snapshot is the fallback (see T-15); restart the tunnel only with 10+ minutes to spare, and
+   only as `python scripts/public_tunnel.py on --port 8401` (never a bare `on`: it tunnels :8001).
 6. **What it proves (end to end, T-60 only):** the whole run works and the data is right.
    **Command:** run 22.2 steps 1–5 in the browser, then `python scripts/demo_reset.py --check` (it approves the
    suggested merges on a COPY of the db) · **Expected:** `PASS` lines for people / gifts / alerts against
@@ -2002,4 +2033,5 @@ fallback before T-30.
 | 4f Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
 | 4g Enhance | slow (cache miss) | "It's reading the public web; every tag will carry its source." Skip **Save to profile** if over 30 s. |
 | 4h Summary | **About …** says no notes | "The agent writes this from calls and notes as they come in." |
+| Public link | the tunnel is down or the page shows **Sample data** | "The public link shows a snapshot of the same data." Keep demoing on the laptop. |
 | Any | laptop, network or service down | Switch to the Vercel tab: "This is the read-only preview of the same data." |

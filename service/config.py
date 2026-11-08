@@ -75,3 +75,6 @@ PUBLIC_MODE = (os.getenv("PUBLIC_MODE") or "").strip().lower() in ("1", "true", 
 PUBLIC_ORIGINS = [o.strip().rstrip("/") for o in (os.getenv("PUBLIC_ORIGINS") or "").split(",") if o.strip()]
 if PUBLIC_MODE:
     CORS_ORIGINS = CORS_ORIGINS + [o for o in PUBLIC_ORIGINS if o not in CORS_ORIGINS]
+# Demo data is fictional (Sharif, Sun Nov 8): PUBLIC_SHOW_ALL=1 keeps public mode read-only and rate limited but
+# hides nothing: every GET is served, contacts are not masked, call notes, staff notes, summaries and staff tasks show.
+PUBLIC_SHOW_ALL = (os.getenv("PUBLIC_SHOW_ALL") or "").strip().lower() in ("1", "true", "on", "yes")

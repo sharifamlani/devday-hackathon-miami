@@ -45,6 +45,12 @@ def enabled() -> bool:
     return config.PUBLIC_MODE
 
 
+def redacting() -> bool:
+    """True when public mode hides private data (masking, blanking, the GET allow-list). PUBLIC_SHOW_ALL turns that off;
+    writes stay refused and the rate limit stays either way."""
+    return config.PUBLIC_MODE and not config.PUBLIC_SHOW_ALL
+
+
 def forced_simulated() -> bool:
     """True when no email or text may leave the laptop."""
     return config.PUBLIC_MODE
@@ -83,6 +89,9 @@ def group_of(path: str) -> str | None:
 
 
 def allowed(method: str, path: str) -> bool:
+    if method == "GET" and not redacting() and not path.startswith("/phone/"):
+        return True     # PUBLIC_SHOW_ALL: every read, still no writes. /phone/* stays out: the preview carries the real
+                        # STAFF_PHONE from .env, and GET /phone/calls/{id} can mark a stale call failed
     return any(m == method and rx.match(path) for m, rx in ALLOW)
 
 
@@ -107,7 +116,10 @@ BLANK_KEYS = {"call_notes", "transcript", "notes", "private_notes", "background"
 
 
 def mask_json(value, key: str = ""):
-    """Blank staff free-text fields; mask email/phone values (by key name) and any email address in a string."""
+    """Blank staff free-text fields; mask email/phone values (by key name) and any email address in a string.
+    PUBLIC_SHOW_ALL: unchanged (HTTP responses and agent tool outputs alike)."""
+    if config.PUBLIC_SHOW_ALL:
+        return value
     k = key.lower()
     if k in BLANK_KEYS:
         return [] if isinstance(value, list) else ("" if isinstance(value, str) else None)
@@ -180,7 +192,7 @@ class PublicModeMiddleware:
             if wait is not None:
                 return await respond_json(send, 429, {"detail": "Too many requests. Try again shortly."},
                                           [(b"retry-after", str(int(wait) + 1).encode())])
-        return await self.app(scope, receive, mask_sender(send))
+        return await self.app(scope, receive, mask_sender(send) if redacting() else send)
 
 
 async def respond_json(send, status: int, payload: dict, extra: list | None = None) -> None:

@@ -272,7 +272,7 @@ def list_tasks(conn: sqlite3.Connection, *, due: str | None = None, from_: str |
     """due='today' → open tasks due today or overdue, plus today's done ones. from/to filter by due date.
     public_only leaves out the Donors tab's private tasks (for the public snapshot)."""
     today = (as_of or default_as_of()).isoformat()
-    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if (public_only or public_mode.enabled()) else []), []
+    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if (public_only or public_mode.redacting()) else []), []
     if due == "today":
         where.append("(due = ? OR (due < ? AND done = 0) OR (due IS NULL AND done = 0))")
         args += [today, today]
@@ -331,7 +331,7 @@ def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None 
     if kind == "event":
         items.sort(key=lambda i: (i["date"], i["time"] or "", i["ref"]))
         return items
-    private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
+    private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.redacting()) else ""
     for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL{private} AND due BETWEEN ? AND ?", (lo, hi)):
         items.append({"date": r["due"], "time": r["time"], "title": r["title"], "kind": "task",
                       "source": r["source"], "ref": f"task:{r['id']}", "task_kind": r["kind"],
@@ -755,7 +755,7 @@ def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | 
     if ids and _has_table(conn, "tasks"):
         for chunk in range(0, len(ids), 500):
             part = ids[chunk:chunk + 500]
-            private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
+            private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.redacting()) else ""
             for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL AND done = 0{private} AND person_id IN "
                                   f"({', '.join('?' * len(part))})", part):
                 r = dict(r)

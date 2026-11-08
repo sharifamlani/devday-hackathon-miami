@@ -50,7 +50,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from service import db
-from service.public_mode import PublicModeMiddleware, enabled as public_mode_enabled
+from service.public_mode import PublicModeMiddleware, enabled as public_mode_enabled, redacting as public_mode_redacting
 from service.routes_ask import router as ask_router
 from service.routes_calls import router as calls_router
 from service.routes_crm import router as crm_router
@@ -118,7 +118,7 @@ def health() -> dict:
 @app.get("/public-mode")
 def public_mode_flag() -> dict:
     """The web app shows a 'public demo' banner when this is true (docs/public-tunnel.md)."""
-    return {"enabled": public_mode_enabled()}
+    return {"enabled": public_mode_enabled(), "redacted": public_mode_redacting()}
 
 
 def load_donor_row(donor_id: int) -> dict:

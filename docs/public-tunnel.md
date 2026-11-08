@@ -21,18 +21,31 @@ Turn it OFF right after the event.
 
 ```bash
 winget install --id Cloudflare.cloudflared      # once; the script never downloads anything itself
-python scripts/public_tunnel.py on [--port 8001]  # default 8001 (the LIVE stack); starts the tunnel, writes .public-tunnel.json, prints the next 3 commands
+python scripts/public_tunnel.py on --port 8401   # ALWAYS pass --port 8401 (the public copy); starts the tunnel, writes .public-tunnel.json, prints the next 3 commands
 ```
+
+The demo setup tunnels **:8401**: a second service with `PUBLIC_MODE=1` over LIVE's db (run from
+`C:\Users\Shari\dd-live-main`). **:8001 stays LIVE's writable laptop service and is never tunnelled.** A bare `on`
+defaults to 8001, which would put LIVE's unrestricted, writable API on the internet, so always pass `--port 8401`.
 
 The script prints (and does not run) these:
 
-1. Restart the service: `PUBLIC_MODE=1 PUBLIC_ORIGINS=https://devday-donor-desk.vercel.app uvicorn service.main:app --host 127.0.0.1 --port 8001`  (match the port you pass to the script)
+1. Restart the public copy: `PUBLIC_MODE=1 PUBLIC_ORIGINS=https://devday-donor-desk.vercel.app uvicorn service.main:app --host 127.0.0.1 --port 8401`  (the port you passed to the script)
 2. From `web/`, in Git Bash (not PowerShell: CRLF corrupts the value):
    `printf '%s' "<tunnel url>" | vercel env add VITE_API_URL production`, then the same with `local` for `VITE_DATA_MODE`
    (`vercel env rm <name> production` first if it exists).
 3. `vercel --prod --yes`
 
 Quick tunnel URLs change on every start, so repeat steps 2 and 3 after each `on`.
+
+## Show everything (`PUBLIC_SHOW_ALL=1`)
+
+The demo data is fictional, so the demo runs public mode with `PUBLIC_SHOW_ALL=1` (Sharif, Sun Nov 8): every GET
+is served (still only with the Vercel `Origin`), nothing is masked or blanked (contacts, call notes, transcripts,
+staff notes, summaries and staff tasks all show), and the chat agent may read call notes and call sheets.
+**Writes stay refused** and the rate limit stays. `GET /public-mode` answers `{"enabled": true, "redacted": false}`,
+and the web then loads everything as in local mode. Unset, public mode redacts as described below. Anything saved
+to the db later (a real call, a real number) goes public too.
 
 ## Allow-list (everything else is 403)
 
