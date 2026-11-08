@@ -4,23 +4,19 @@ import { Link } from "react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type {
-  CampaignSummary,
-  DonationTarget,
-  DonorSummary,
-} from "../providers/local/types";
+import type { AttentionPerson } from "../providers/local/homeSummary";
+import type { DonationTarget } from "../providers/local/types";
 import type { DayMarks } from "../outreach/calendarMonth";
 import { describeMarks } from "../outreach/calendarMonth";
 import { formatDayLong, formatDayShort } from "../outreach/dates";
-import type { CallNote } from "../voice/callNotes";
 import {
-  donorMeta,
-  donorTag,
+  crmTag,
   formatCompactUsd,
   formatMonthDay,
   formatRange,
   initials,
   type AgendaLine,
+  type ArtifactRow,
   type HomeTask,
 } from "./homeData";
 import { focusRing, tagTone, tile, tileTitle } from "./tile";
@@ -53,14 +49,23 @@ const ARC = Math.PI * 44; // semicircle, r = 44
 
 export const Q4ProgressTile = ({
   target,
+  goal,
+  reachedToday,
   isPending,
 }: {
   target: DonationTarget | undefined;
+  /** The goal the person set in onboarding; null when none (the service's own goal is a labeled sample). */
+  goal: number | null;
+  /** Distinct people contacted today (GET /home/summary); null while unknown. */
+  reachedToday: number | null;
   isPending: boolean;
 }) => {
   const headingId = useId();
   const gradientId = `q4-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const percent = target?.percent ?? null;
+  const percent =
+    target && goal != null && goal > 0
+      ? Math.round((target.raised / goal) * 1000) / 10
+      : null;
   const filled =
     percent == null ? 0 : Math.min(Math.max(percent, 0), 100) / 100;
   return (
@@ -79,7 +84,7 @@ export const Q4ProgressTile = ({
         <Skeleton className="h-16 w-full rounded-xl" />
       ) : !target ? (
         <p className="text-sm text-muted-foreground">
-          Goals aren’t in this data yet.
+          Upload your files to see this quarter’s giving.
         </p>
       ) : (
         <div className="flex items-center gap-3.5">
@@ -124,22 +129,21 @@ export const Q4ProgressTile = ({
               <dt className="text-xs text-muted-foreground">Raised</dt>
               <dd className="font-semibold tabular-nums">
                 {formatCompactUsd(target.raised)}
-                {target.goal != null && ` / ${formatCompactUsd(target.goal)}`}
+                {goal != null && ` / ${formatCompactUsd(goal)}`}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">
-                Donors this quarter
-              </dt>
+              <dt className="text-xs text-muted-foreground">Reached today</dt>
               <dd className="font-semibold tabular-nums">
-                {target.donors_count}{" "}
-                {target.donors_count === 1 ? "donor" : "donors"}
+                {reachedToday == null
+                  ? "—"
+                  : `${reachedToday} ${reachedToday === 1 ? "donor" : "donors"}`}
               </dd>
             </div>
           </dl>
           <p className="sr-only">
             {percent == null
-              ? "No goal set."
+              ? "No quarter goal set."
               : `${Math.round(percent)} percent of the ${target.label} goal.`}
           </p>
         </div>
@@ -193,14 +197,15 @@ export const GlanceTile = ({
   atRisk,
   duplicates,
   tasks,
-  gmdDays,
+  nextEvent,
   isPending,
 }: {
   today: string;
   atRisk: number | null;
   duplicates: number | null;
-  tasks: number;
-  gmdDays: number;
+  tasks: number | null;
+  /** The next big event from GET /home/summary; null when there is none. */
+  nextEvent: { title: string; days: number } | null;
   isPending: boolean;
 }) => {
   const headingId = useId();
@@ -238,17 +243,25 @@ export const GlanceTile = ({
         </li>
         <li>
           <Bubble
-            value={isPending ? "—" : String(tasks)}
+            value={show(tasks)}
             caption={tasks === 1 ? "task today" : "tasks today"}
           />
         </li>
         <li>
           <Bubble
-            value={gmdDays === 0 ? "Today" : String(gmdDays)}
+            value={
+              isPending || !nextEvent
+                ? "—"
+                : nextEvent.days === 0
+                  ? "Today"
+                  : String(nextEvent.days)
+            }
             caption={
-              gmdDays === 0
-                ? "is Give Miami Day"
-                : `${gmdDays === 1 ? "day" : "days"} to Give Miami Day`
+              !nextEvent
+                ? "no upcoming event"
+                : nextEvent.days === 0
+                  ? `is ${nextEvent.title}`
+                  : `${nextEvent.days === 1 ? "day" : "days"} to ${nextEvent.title}`
             }
           />
         </li>
@@ -260,13 +273,17 @@ export const GlanceTile = ({
 /* ---------- CRM ---------- */
 
 export const CrmTile = ({
-  donors,
+  people,
+  hasData,
   isPending,
   error,
   onFind,
   onOpenDonor,
 }: {
-  donors: DonorSummary[];
+  /** GET /people/attention rows. */
+  people: AttentionPerson[];
+  /** False while the database is empty (nothing uploaded yet). */
+  hasData: boolean;
   isPending: boolean;
   error: Error | null;
   onFind: () => void;
@@ -314,19 +331,21 @@ export const CrmTile = ({
             <Skeleton key={i} className="h-10 w-full rounded-xl" />
           ))}
         </div>
-      ) : donors.length === 0 ? (
+      ) : people.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          No donors need attention right now.
+          {hasData
+            ? "No donors need attention right now."
+            : "Upload your files to see your donors here."}
         </p>
       ) : (
         <ul className="mt-2 -mx-1 min-h-0 flex-1 overflow-y-auto">
-          {donors.map((donor) => {
-            const tag = donorTag(donor);
+          {people.map((person) => {
+            const tag = crmTag(person.badge);
             return (
-              <li key={donor.id}>
+              <li key={person.id}>
                 <button
                   type="button"
-                  onClick={() => onOpenDonor(donor.id)}
+                  onClick={() => onOpenDonor(person.id)}
                   className={cn(
                     "flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-1 py-2 text-left hover:bg-surface",
                     focusRing,
@@ -336,14 +355,14 @@ export const CrmTile = ({
                     aria-hidden="true"
                     className="grid size-8 shrink-0 place-items-center rounded-full bg-quiet text-[11px] font-bold text-quiet-foreground"
                   >
-                    {initials(donor.full_name)}
+                    {person.initials || initials(person.name)}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">
-                      {donor.full_name}
+                      {person.name}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {donorMeta(donor)}
+                      {person.line}
                     </span>
                   </span>
                   <span
@@ -481,12 +500,15 @@ export const WeekTile = ({
 
 export const TasksTile = ({
   tasks,
+  hasData,
   selectedKey,
   onSelect,
   onPlan,
   isPending,
 }: {
   tasks: HomeTask[];
+  /** False while the database is empty (nothing uploaded yet). */
+  hasData: boolean;
   selectedKey: string | null;
   onSelect: (key: string) => void;
   onPlan: () => void;
@@ -518,7 +540,9 @@ export const TasksTile = ({
         </div>
       ) : tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nothing left for today. Nice work.
+          {hasData
+            ? "Nothing left for today. Nice work."
+            : "Upload your files to see tasks."}
         </p>
       ) : (
         <ul className="grid min-h-0 gap-1.5 overflow-y-auto">
@@ -544,9 +568,11 @@ export const TasksTile = ({
                     <span className="block text-sm font-semibold">
                       {task.title}
                     </span>
-                    <span className="line-clamp-2 block text-xs text-muted-foreground">
-                      {task.why}
-                    </span>
+                    {task.why && (
+                      <span className="line-clamp-2 block text-xs text-muted-foreground">
+                        {task.why}
+                      </span>
+                    )}
                   </span>
                 </button>
               </li>
@@ -560,35 +586,12 @@ export const TasksTile = ({
 
 /* ---------- Artifacts ---------- */
 
-export const ArtifactsTile = ({
-  notes,
-  campaigns,
-}: {
-  notes: CallNote[];
-  campaigns: CampaignSummary[];
-}) => {
+const ARTIFACT_ICON: Record<string, typeof FileText> = {
+  call_note: AudioLines,
+};
+
+export const ArtifactsTile = ({ rows }: { rows: ArtifactRow[] }) => {
   const headingId = useId();
-  const drafts = [...campaigns]
-    .filter((c) => c.counts.draft > 0)
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const rows = [
-    ...notes.map((note) => ({
-      key: `note-${note.id}`,
-      at: note.createdAt,
-      icon: AudioLines,
-      label: note.title || "Call notes",
-      to: null as string | null,
-    })),
-    ...drafts.map((c) => ({
-      key: `campaign-${c.id}`,
-      at: c.created_at,
-      icon: FileText,
-      label: `${c.name} drafts (${c.counts.draft})`,
-      to: `/campaigns/${c.id}`,
-    })),
-  ]
-    .sort((a, b) => b.at.localeCompare(a.at))
-    .slice(0, 5);
   return (
     <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
       <TileHead id={headingId} title="Artifacts">
@@ -601,26 +604,26 @@ export const ArtifactsTile = ({
       ) : (
         <ul className="grid gap-0.5">
           {rows.map((row) => {
-            const Icon = row.icon;
+            const Icon = ARTIFACT_ICON[row.kind] ?? FileText;
             const inner = (
               <>
                 <Icon
                   className="size-4 shrink-0 text-muted-foreground"
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                <span className="min-w-0 flex-1 truncate">{row.title}</span>
                 <time
-                  dateTime={row.at}
+                  dateTime={row.date}
                   className="shrink-0 text-xs text-muted-foreground"
                 >
-                  {formatMonthDay(row.at)}
+                  {formatMonthDay(row.date)}
                 </time>
               </>
             );
             const shell =
               "flex min-h-9 items-center gap-2 rounded-lg px-1 py-1.5 text-[13px]";
             return (
-              <li key={row.key}>
+              <li key={row.key} className="min-w-0">
                 {row.to ? (
                   <Link
                     to={row.to}

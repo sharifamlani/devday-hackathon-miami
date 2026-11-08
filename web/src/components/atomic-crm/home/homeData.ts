@@ -1,41 +1,25 @@
-import type {
-  CampaignSummary,
-  DonorStatus,
-  DonorSummary,
-  TargetsByPeriod,
-} from "../providers/local/types";
+import type { DonorSummary, TargetsByPeriod } from "../providers/local/types";
 import type { AskAnswer, AskIntentKind } from "../providers/local/ask";
+import type {
+  Artifact,
+  CalendarItem as ApiCalendarItem,
+} from "../providers/local/calendarFeed";
+import { attentionTag } from "../providers/local/homeFeed";
+import type { Task } from "../providers/local/tasks";
 import { campaignHref } from "../ask/askChips";
 import { formatUsd } from "../contacts/donorFormat";
+import { computeDayMarks, type DayMarks } from "../outreach/calendarMonth";
 import { addDays, giveMiamiDayFor, mondayIndex } from "../outreach/dates";
-import { itemsOn, type OutreachPlanItem } from "../outreach/outreachPlan";
-import type { RecCampaign, Recommendation } from "../outreach/recommend";
 
 /**
  * Pure helpers behind the home board. Every figure is read from the donor
- * service's data (score.py statuses, targets.py totals, campaign counts) or
- * the viewer's outreach plan; nothing here invents a number.
+ * service (GET /home/summary, /tasks, /people/attention, /calendar,
+ * /artifacts, /targets); nothing here invents a number or a person.
  */
 
-/** "Needs attention" in the inbox: lapsing or lapsed donors. */
-export const needsCall = (donor: Pick<DonorSummary, "status">) =>
-  donor.status === "lapsing" || donor.status === "lapsed";
-
-/** Campaigns as the recommendation rules read them (no end date in the API yet). */
-export const toRecCampaigns = (campaigns: CampaignSummary[]): RecCampaign[] =>
-  campaigns
-    .filter((campaign) => campaign.status === "draft")
-    .map((campaign) => ({
-      id: campaign.id,
-      name: campaign.name,
-      drafts: campaign.counts.draft,
-      ends_on: null,
-    }));
-
 /**
- * Days a fundraising window closes, for the calendar's "ends" mark. Campaigns
- * carry no end date yet, so these are the month and quarter goal periods from
- * GET /targets.
+ * Days a fundraising window closes, for the calendar's "ends" mark: the month
+ * and quarter goal periods from GET /targets.
  */
 export const goalEnds = (targets: TargetsByPeriod | undefined) =>
   (["month", "quarter"] as const).flatMap((period) => {
@@ -70,7 +54,7 @@ export const formatCompactUsd = (amount: number | null | undefined) =>
 export const greeting = (hour: number) =>
   hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-/** "Denise Shaw" → "Denise"; null when there is no usable name. */
+/** "Sam Rivera" → "Sam"; null when there is no usable name. */
 export const firstName = (fullName: string | null | undefined) => {
   const first = fullName?.trim().split(/\s+/)[0];
   return first ? first : null;
@@ -126,26 +110,6 @@ export const donorTag = (donor: TagDonor): DonorTag => {
   return { label: "On track", tone: "good" };
 };
 
-const ATTENTION: Record<DonorStatus, boolean> = {
-  lapsing: true,
-  due: true,
-  lapsed: true,
-  on_track: false,
-  no_gifts: false,
-};
-
-/** Donors worth a look today: late, due, lapsed or brand new; highest score first. */
-export const attentionDonors = <
-  T extends Pick<DonorSummary, "status" | "gift_count" | "score">,
->(
-  donors: T[],
-  limit = 5,
-): T[] =>
-  donors
-    .filter((d) => ATTENTION[d.status] || d.gift_count === 1)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
-
 /** One line under a donor's name: "Monthly · $50" or "First gift Oct 22". */
 export const donorMeta = (
   donor: Pick<
@@ -163,18 +127,6 @@ export const donorMeta = (
     .filter(Boolean)
     .join(" · ");
 };
-
-/** Two or three fact chips for the focused task. */
-export const donorFacts = (
-  donor: Pick<DonorSummary, "total_given" | "last_gift_date" | "usual_cadence">,
-): string[] =>
-  [
-    `Lifetime ${formatUsd(donor.total_given)}`,
-    donor.last_gift_date
-      ? `Last gift ${formatMonthDay(donor.last_gift_date)}`
-      : null,
-    donor.usual_cadence ? capitalize(donor.usual_cadence) : null,
-  ].filter((fact): fact is string => fact != null);
 
 /** "priya@example.org" → "p•••@example.org", so the pop-up never shows a full address. */
 export const maskEmail = (email: string | null | undefined) => {
@@ -212,121 +164,77 @@ export const searchDonors = <
 
 export interface HomeTask {
   key: string;
-  /** "plan" = on the viewer's outreach plan today; "agent" = recommended. */
-  source: "plan" | "agent";
-  kind: "donor" | "campaign";
+  /** The tasks-table id: Mark done is PATCH /tasks/{id}. */
+  id: number;
+  /** "call" | "email" | "review" | "prep" (the generator's kinds). */
+  kind: string;
   title: string;
-  why: string;
+  why: string | null;
   donorId: number | null;
-  campaignId: number | null;
-  planItemId: string | null;
+  /** "Lifetime $600", "Last gift $50 · 2026-11-03": straight from the task. */
+  chips: string[];
+  source: string | null;
 }
 
+/** GET /tasks?due=today → the open tasks, in the order the service sent them. */
+export const tasksFromApi = (tasks: Task[] | undefined): HomeTask[] =>
+  (tasks ?? [])
+    .filter((task) => !task.done)
+    .map((task) => ({
+      key: `task-${task.id}`,
+      id: task.id,
+      kind: task.kind,
+      title: task.title,
+      why: task.why,
+      donorId: task.person_id,
+      chips: task.chips ?? [],
+      source: task.source,
+    }));
+
+const KIND_LABEL: Record<string, string> = {
+  call: "Call",
+  email: "Email",
+  review: "Review",
+  prep: "Prep",
+};
+
+/** "TASK 1 OF 5 · CALL": the kind as the card names it. */
+export const kindLabel = (kind: string) =>
+  KIND_LABEL[kind] ?? capitalize(kind.replace(/_/g, " "));
+
+const INTENT: Record<string, AskIntentKind> = {
+  call: "re_engage",
+  email: "thank_you",
+};
+
 /**
- * Today's tasks, in order: open plan items for today, then the outreach
- * agent's recommendations, then other donors who need a call. One task per
- * donor or campaign.
+ * Where "Draft email" goes: a one-donor campaign draft for a task about a
+ * person. Review and prep tasks have no email, so null (the card then asks
+ * the agent).
  */
-export const buildTasks = ({
-  today,
-  plan,
-  recommendations,
-  donors,
-  dismissed = new Set<string>(),
-  limit = 6,
-}: {
-  today: string;
-  plan: OutreachPlanItem[];
-  recommendations: Recommendation[];
-  donors: Pick<
-    DonorSummary,
-    "id" | "full_name" | "status" | "score" | "why_short"
-  >[];
-  dismissed?: ReadonlySet<string>;
-  limit?: number;
-}): HomeTask[] => {
-  const seen = new Set<string>();
-  const tasks: HomeTask[] = [];
-  const whyOf = new Map(donors.map((d) => [d.id, d.why_short]));
-  const push = (task: HomeTask) => {
-    const subject =
-      task.donorId != null ? `d${task.donorId}` : `c${task.campaignId}`;
-    if (seen.has(subject) || dismissed.has(task.key)) return;
-    seen.add(subject);
-    tasks.push(task);
-  };
-
-  for (const item of itemsOn(plan, today)) {
-    if (item.done) continue;
-    const isCampaign = item.campaign_id != null;
-    push({
-      key: `plan-${item.id}`,
-      source: "plan",
-      kind: isCampaign ? "campaign" : "donor",
-      title: `${isCampaign ? "Review" : "Contact"} ${item.label}`,
-      why:
-        item.note ||
-        (item.donor_id != null ? whyOf.get(item.donor_id) : null) ||
-        "On today’s plan",
-      donorId: item.donor_id,
-      campaignId: item.campaign_id,
-      planItemId: item.id,
-    });
-  }
-  for (const rec of recommendations) {
-    push({
-      key: rec.key,
-      source: "agent",
-      kind: rec.kind,
-      title:
-        rec.kind === "campaign"
-          ? `Review drafts for ${rec.label}`
-          : `Call ${rec.label}`,
-      why: rec.reason,
-      donorId: rec.donor_id,
-      campaignId: rec.campaign_id,
-      planItemId: null,
-    });
-  }
-  for (const donor of [...donors]
-    .filter(needsCall)
-    .sort((a, b) => b.score - a.score)) {
-    push({
-      key: `donor-${donor.id}`,
-      source: "agent",
-      kind: "donor",
-      title: `Call ${donor.full_name}`,
-      why: donor.why_short,
-      donorId: donor.id,
-      campaignId: null,
-      planItemId: null,
-    });
-  }
-  return tasks.slice(0, limit);
-};
-
-const INTENT: Record<DonorStatus, AskIntentKind> = {
-  lapsing: "re_engage",
-  lapsed: "re_engage",
-  due: "check_in",
-  on_track: "thank_you",
-  no_gifts: "check_in",
-};
-
-/** Where "Draft email" goes: a one-donor campaign draft, or the campaign's review page. */
 export const draftEmailHref = (
-  task: Pick<HomeTask, "kind" | "donorId" | "campaignId">,
-  donor: Pick<DonorSummary, "status"> | undefined,
-): string | null => {
-  if (task.kind === "campaign" && task.campaignId != null)
-    return `/campaigns/${task.campaignId}`;
-  if (task.donorId != null && donor)
-    return campaignHref([task.donorId], {
-      kind: INTENT[donor.status],
-      channel_hint: "email",
-    });
-  return null;
-};
+  task: Pick<HomeTask, "kind" | "donorId">,
+): string | null =>
+  task.donorId != null && (task.kind === "call" || task.kind === "email")
+    ? campaignHref([task.donorId], {
+        kind: INTENT[task.kind],
+        channel_hint: "email",
+      })
+    : null;
+
+/* ---------- CRM tile ---------- */
+
+/**
+ * GET /people/attention sends badge "failed" (the alert kind); the hook's
+ * attentionTag only knows "card_failed", so name that one here.
+ */
+export const crmTag = (badge: string): DonorTag =>
+  badge === "failed"
+    ? { label: "Card failed", tone: "alert" }
+    : attentionTag(badge);
+
+/** A /calendar row; the service also sends `done` on task rows (not in the hook's type yet). */
+export type CalendarItem = ApiCalendarItem & { done?: boolean };
 
 /* ---------- Week calendar ---------- */
 
@@ -336,50 +244,111 @@ export const weekDays = (today: string): string[] => {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 };
 
+/**
+ * Day marks from GET /calendar: an open task is a planned dot, a done task a
+ * done mark, an event is an event; goal period ends and Give Miami Day come
+ * from /targets.
+ */
+export const calendarMarks = ({
+  items,
+  campaignEnds,
+  giveMiamiDay: gmd,
+}: {
+  items: CalendarItem[];
+  campaignEnds: { date: string; label: string }[];
+  giveMiamiDay: string | null;
+}): Map<string, DayMarks> => {
+  const marks = computeDayMarks({
+    campaignEnds,
+    events: items
+      .filter((item) => item.kind === "event")
+      .map((item) => ({ date: item.date, label: item.title })),
+    giveMiamiDay: gmd,
+  });
+  for (const item of items) {
+    if (item.kind !== "task") continue;
+    const date = item.date.slice(0, 10);
+    const entry = marks.get(date) ?? {
+      planned: 0,
+      done: 0,
+      campaignEnds: [],
+      events: [],
+      giveMiamiDay: false,
+    };
+    if (item.done) entry.done += 1;
+    else entry.planned += 1;
+    marks.set(date, entry);
+  }
+  return marks;
+};
+
 export interface AgendaLine {
   date: string;
   label: string;
 }
 
 /**
- * The next few things on the calendar from today on: org events, the
- * viewer's open plan items (several on one day read as one line) and Give
- * Miami Day.
+ * "Coming up" under the week: events from /calendar, tasks due after today
+ * (today's are in the tasks list) and the next big event from
+ * /home/summary. Soonest first.
  */
-export const agendaLines = ({
+export const agendaFromCalendar = ({
   today,
-  events,
-  plan,
-  giveMiamiDay: gmd,
+  items,
+  nextEvent,
   limit = 3,
 }: {
   today: string;
-  events: { date: string; label: string }[];
-  plan: OutreachPlanItem[];
-  giveMiamiDay: string | null;
+  items: CalendarItem[];
+  nextEvent: { title: string; date: string } | null | undefined;
   limit?: number;
 }): AgendaLine[] => {
-  const lines: AgendaLine[] = events
-    .filter((e) => e.date >= today)
-    .map((e) => ({ date: e.date, label: e.label }));
-  const hasGmd = lines.some((l) => /give\s*miami\s*day/i.test(l.label));
-  if (gmd && gmd >= today && !hasGmd)
-    lines.push({ date: gmd, label: "Give Miami Day" });
-
-  const byDay = new Map<string, OutreachPlanItem[]>();
-  for (const item of plan) {
-    if (item.done || item.date < today) continue;
-    byDay.set(item.date, [...(byDay.get(item.date) ?? []), item]);
-  }
-  for (const [date, items] of byDay) {
-    const label =
-      items.length === 1
-        ? `${items[0].campaign_id != null ? "Review" : "Contact"} ${items[0].label}`
-        : `${items.length} planned contacts`;
-    lines.push({ date, label });
+  const lines: AgendaLine[] = items
+    .filter(
+      (item) =>
+        !item.done &&
+        item.date >= today &&
+        (item.kind === "event" || item.date > today),
+    )
+    .map((item) => ({
+      date: item.date.slice(0, 10),
+      label:
+        item.source === "agent" ? `${item.title} (added by agent)` : item.title,
+    }));
+  if (nextEvent && nextEvent.date >= today) {
+    const date = nextEvent.date.slice(0, 10);
+    if (!lines.some((l) => l.date === date && l.label === nextEvent.title))
+      lines.push({ date, label: nextEvent.title });
   }
   return lines.sort((a, b) => a.date.localeCompare(b.date)).slice(0, limit);
 };
+
+/* ---------- Artifacts ---------- */
+
+export interface ArtifactRow {
+  key: string;
+  kind: string;
+  title: string;
+  date: string;
+  /** In-app route when the artifact has a page of its own. */
+  to: string | null;
+}
+
+/** GET /artifacts → the newest few rows; a campaign opens its review page. */
+export const artifactRows = (
+  artifacts: Artifact[] | undefined,
+  limit = 5,
+): ArtifactRow[] =>
+  [...(artifacts ?? [])]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, limit)
+    .map((a, i) => ({
+      key: `${a.kind}-${a.ref ?? i}`,
+      kind: a.kind,
+      title: a.title,
+      date: a.date,
+      to: a.kind === "campaign" && a.ref != null ? `/campaigns/${a.ref}` : null,
+    }));
 
 /* ---------- Agent thread ---------- */
 
