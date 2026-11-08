@@ -115,18 +115,26 @@ def test_reached_today_counts_distinct_people_from_the_outbox(key_conn):
     assert targets.reached_today(key_conn, date(2026, 11, 7)) == 1
 
 
-def test_reached_today_switches_on_call_notes_when_the_table_exists(key_conn):
-    a, b = (r[0] for r in key_conn.execute("SELECT id FROM donors ORDER BY id LIMIT 2"))
+def add_call(conn, note_id, created_at, destinations):
+    """A call note shaped like #78's POST /calls: people live in destinations JSON, not a person_id column."""
+    db.save_call_note(conn, {"id": note_id, "title": "Call", "created_at": created_at, "duration_sec": 60,
+                             "destinations": destinations})
+    conn.commit()
+
+
+def test_reached_today_counts_donors_in_call_note_destinations(key_conn):
+    a, b, c = (r[0] for r in key_conn.execute("SELECT id FROM donors ORDER BY id LIMIT 3"))
     day = AS_OF.isoformat()
+    assert targets.has_table(key_conn, "call_notes") and targets.reached_today(key_conn, AS_OF) == 0
     add_send(key_conn, a, f"{day} 09:00:00")
     key_conn.commit()
-    assert not targets.has_table(key_conn, "call_notes") and targets.reached_today(key_conn, AS_OF) == 1
-    key_conn.execute("CREATE TABLE call_notes (id INTEGER PRIMARY KEY, person_id INTEGER NOT NULL, title TEXT, created_at TEXT NOT NULL)")
-    key_conn.executemany("INSERT INTO call_notes (person_id, title, created_at) VALUES (?, 'call', ?)",
-                         [(a, f"{day}T11:00:00+00:00"),            # already reached by email: once
-                          (b, f"{day}T12:00:00+00:00"),
-                          (b, "2026-11-01T12:00:00+00:00")])       # another day
-    key_conn.commit()
+    add_call(key_conn, "n1", f"{day}T11:00:00+00:00", [{"kind": "donor", "id": str(a), "label": "A"},   # already emailed: once
+                                                      {"kind": "donor", "id": b, "label": "B"},
+                                                      {"kind": "group", "id": "7", "label": "Gala list"},   # not a person
+                                                      {"kind": "project", "id": "9", "label": "Spring"}])
+    add_call(key_conn, "n2", f"{day}T15:00:00Z", [{"kind": "donor", "id": b, "label": "B"}])        # same person, 2nd call
+    add_call(key_conn, "n3", "2026-11-01T12:00:00+00:00", [{"kind": "donor", "id": c, "label": "C"}])  # another day
+    add_call(key_conn, "n4", f"{day}T16:00:00+00:00", [])                                           # no destinations
     assert targets.reached_today(key_conn, AS_OF) == 2
 
 

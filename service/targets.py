@@ -176,8 +176,19 @@ def reached_today(conn: sqlite3.Connection, today: date | None = None) -> int:
         people |= {r[0] for r in conn.execute(
             "SELECT DISTINCT donor_id FROM outbox WHERE donor_id IS NOT NULL AND date(sent_at) = ?", (day,))}
     if has_table(conn, "call_notes"):
-        people |= {r[0] for r in conn.execute(
-            "SELECT DISTINCT person_id FROM call_notes WHERE person_id IS NOT NULL AND date(created_at) = ?", (day,))}
+        # a note is addressed to people through destinations JSON [{kind: donor|group|project, id, label}];
+        # only kind "donor" is a person (the id is a donors.id, sometimes stored as text)
+        for (destinations,) in conn.execute("SELECT destinations FROM call_notes WHERE date(created_at) = ?", (day,)):
+            try:
+                items = json.loads(destinations or "[]")
+            except ValueError:
+                continue
+            for item in items if isinstance(items, list) else []:
+                if isinstance(item, dict) and item.get("kind") == "donor":
+                    try:
+                        people.add(int(item["id"]))
+                    except (KeyError, TypeError, ValueError):
+                        pass
     return len(people)
 
 

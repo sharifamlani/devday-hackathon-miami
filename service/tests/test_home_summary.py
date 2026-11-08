@@ -102,8 +102,9 @@ def test_duplicates_are_the_open_suggestions(client, conn, ids):
 
 def test_tasks_today_is_zero_without_the_tasks_table_then_counts_open_ones(client, conn):
     assert client.get("/home/summary").json()["tasks_today"] == 0
-    conn.execute("CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT, due TEXT, "
-                 "done INTEGER NOT NULL DEFAULT 0, deleted_at TEXT)")
+    # the columns that matter are #79's: kind (required), title, due, done, deleted_at
+    conn.execute("CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'call', "
+                 "title TEXT NOT NULL, due TEXT, done INTEGER NOT NULL DEFAULT 0, deleted_at TEXT)")
     conn.executemany("INSERT INTO tasks (title, due, done, deleted_at) VALUES (?, ?, ?, ?)", [
         ("call A", DAY, 0, None), ("call B", DAY, 0, None),
         ("done", DAY, 1, None), ("deleted", DAY, 0, "2026-11-08"),
@@ -133,10 +134,11 @@ def test_reached_today_counts_outbox_sends_and_call_notes(client, conn, ids):
     conn.execute("INSERT INTO outbox (donor_id, channel, to_address, body, sent_at) "
                  "VALUES (?, 'email', 'x@example.com', 'hi', ?)", (a, f"{DAY} 09:00:00"))
     conn.commit()
-    assert client.get("/home/summary").json()["reached_today"] == 1       # no call_notes table yet
-    conn.execute("CREATE TABLE call_notes (id INTEGER PRIMARY KEY, person_id INTEGER NOT NULL, created_at TEXT NOT NULL)")
-    conn.executemany("INSERT INTO call_notes (person_id, created_at) VALUES (?, ?)",
-                     [(a, f"{DAY}T10:00:00Z"), (b, f"{DAY}T11:00:00Z")])
+    assert client.get("/home/summary").json()["reached_today"] == 1       # no call notes yet
+    for note_id, dests in (("c1", [{"kind": "donor", "id": str(a), "label": "A"}]),     # a again: still once
+                           ("c2", [{"kind": "donor", "id": b, "label": "B"}, {"kind": "group", "id": "3", "label": "G"}])):
+        db.save_call_note(conn, {"id": note_id, "title": "Call", "created_at": f"{DAY}T10:00:00+00:00",
+                                 "duration_sec": 30, "destinations": dests})
     conn.commit()
     assert client.get("/home/summary").json()["reached_today"] == 2
 
