@@ -56,10 +56,14 @@ export const DailyBriefing = ({
         </p>
       ) : (
         <ul className="mt-2 flex flex-col gap-1.5">
-          {briefing.lines.map((line) => (
+          {briefing.lines.map((line, i) => (
             <li
               key={line.key}
-              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-border px-3 py-2"
+              // Lines arrive one after another (motion variables; none when motion is reduced).
+              style={{
+                animationDelay: `calc(${i} * 0.25 * var(--motion-base))`,
+              }}
+              className="motion-enter flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-border px-3 py-2"
             >
               <span
                 id={`${baseId}-${line.key}`}

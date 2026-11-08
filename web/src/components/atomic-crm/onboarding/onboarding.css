@@ -741,6 +741,15 @@
   gap: 10px 12px;
   color: var(--foreground);
   box-shadow: 0 18px 50px rgba(20, 22, 23, 0.2);
+  animation: motion-enter var(--motion-base) var(--ease-enter) both;
+}
+/* Never on top of the Ask or transcript pane: beside a docked pane, hidden while it covers the page. */
+:root:has(#ask-sidebar[role="complementary"]) .onb-offer {
+  right: calc(16px + 392px + 12px);
+}
+:root:has(#ask-sidebar[role="dialog"]) .onb-offer,
+:root:has(#ask-sidebar[data-expanded]) .onb-offer {
+  display: none;
 }
 .dark .onb-offer {
   --onb-tglow-y: rgba(244, 217, 88, 0.08);
@@ -805,6 +814,7 @@
   position: fixed;
   inset: 0;
   z-index: 50; /* same layer as dialogs; later in the DOM, so above the app chrome */
+  animation: motion-fade-in var(--motion-base) var(--ease-enter) both;
 }
 .onb-coach-scrim {
   position: fixed;
@@ -846,15 +856,14 @@
   margin: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .onb-coach-spot,
-  .onb-coach-card {
-    transition:
-      top 0.2s ease,
-      left 0.2s ease,
-      width 0.2s ease,
-      height 0.2s ease;
-  }
+/* Between tour stops the spotlight and card glide (motion variables; none when motion is reduced). */
+.onb-coach-spot,
+.onb-coach-card {
+  transition:
+    top var(--motion-base) var(--ease-move),
+    left var(--motion-base) var(--ease-move),
+    width var(--motion-base) var(--ease-move),
+    height var(--motion-base) var(--ease-move);
 }
 
 /* Headings get focus only so screen readers announce each step; they are not

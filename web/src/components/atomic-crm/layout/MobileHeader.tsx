@@ -3,6 +3,7 @@ import { UserMenu } from "@/components/admin/user-menu";
 
 import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
+import { MotionMenuItems } from "./MotionMenuItems";
 import { SampleDataBadge } from "./SampleDataBadge";
 import { avatarSlot } from "./shellState";
 
@@ -28,6 +29,7 @@ const MobileHeader = ({ children }: { children: React.ReactNode }) => {
         <span className={avatarSlot("size-9")}>
           <UserMenu>
             <RestartOnboardingMenuItem />
+            <MotionMenuItems />
           </UserMenu>
         </span>
       </div>

@@ -277,6 +277,7 @@ export const AskSidebar = ({
       aria-labelledby={titleId}
       tabIndex={-1}
       onKeyDown={onKeyDown}
+      data-expanded={paneExpanded || undefined}
       className={cn(
         "tile flex min-h-0 flex-col overflow-hidden text-foreground outline-none",
         docked
@@ -391,7 +392,8 @@ export const AskSidebar = ({
       <div
         aria-hidden="true"
         onClick={close}
-        className="fixed inset-0 z-40 bg-foreground/30 motion-safe:animate-in motion-safe:fade-in"
+        data-pane-scrim
+        className="fixed inset-0 z-40 bg-foreground/30 duration-(--motion-base) ease-enter animate-in fade-in"
       />
       {panel}
     </>
