@@ -734,14 +734,18 @@ const BulkBar = () => {
       <span className="mr-auto text-sm font-medium" aria-live="polite">
         {n} selected
       </span>
-      <Link
-        to={`/campaigns/new?donors=${selectedIds.join(",")}`}
-        className={cn(buttonVariants({ size: "sm" }), "rounded-full")}
-      >
-        <Megaphone aria-hidden />
-        Add to a campaign
-      </Link>
-      <BulkTagButton />
+      {!PUBLIC_READ_ONLY && (
+        <>
+          <Link
+            to={`/campaigns/new?donors=${selectedIds.join(",")}`}
+            className={cn(buttonVariants({ size: "sm" }), "rounded-full")}
+          >
+            <Megaphone aria-hidden />
+            Add to a campaign
+          </Link>
+          <BulkTagButton />
+        </>
+      )}
       <BulkExportButton label="Export CSV" />
       <Button
         size="icon"
