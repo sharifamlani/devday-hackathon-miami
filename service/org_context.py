@@ -281,7 +281,19 @@ FOUNDATION_URLS = {"name": "The Miami Foundation", "website": "https://miamifoun
                    "instagram_url": "https://www.instagram.com/miamifoundation/"}
 
 
+KINDS = ("success_story", "program_update", "use_of_funds", "org_health", "event", "news", "other")
+Kind = Literal["success_story", "program_update", "use_of_funds", "org_health", "event", "news", "other"]
+STORY_KINDS = ("success_story", "use_of_funds", "org_health")     # what every campaign must draw on (§21.2.4)
+KIND_GUIDE = ("success_story = a person, family, group or nonprofit the organization helped, and the result; "
+              "use_of_funds = where money went (grants awarded, investments, scholarships paid, dollars to a program); "
+              "org_health = how the organization itself is doing (assets, totals raised or invested, records, donor "
+              "counts, milestones); program_update = a program launched, expanded or run; event = an upcoming or "
+              "recent event; news = other announcements; other = anything else.")
+
+
 class ContextFact(BaseModel):
+    kind: Kind = Field(description=KIND_GUIDE)
+    title: str = Field(description="A 3-8 word headline for this fact, no figures that aren't in the fact")
     fact: str = Field(description="One plain sentence about what the organization did or runs, numbers copied exactly")
     quote: str = Field(description="A short verbatim span from the search result that supports the fact")
     url: str = Field(description="The exact page URL on the organization's site where this appears, as returned by search")
@@ -351,11 +363,14 @@ def context_prompts(host: str, today: str, priorities: list[str]) -> dict:
              "page's exact URL. Copy numbers exactly; never add a number, name or date that isn't in the result. "
              "posted_at is the date shown for that page or post (YYYY-MM-DD); leave it empty if none is shown. "
              f"Plain text only: no links or markdown in fact or quote. {tag}")
+    story = ("Cover, wherever the site has them, at least two of each: success stories (who was helped and the "
+             "result), how money is being spent (grants, investments, scholarships paid), and how the organization "
+             f"is doing (assets, totals raised or invested, records, milestones). Classify each fact's kind: {KIND_GUIDE}")
     return {
         "website": (f"Find 8-10 concrete programs, investments or results from {host}'s own dated pages: "
-                    f"year-in-review posts, impact reports, program launches and announcements, newest first. {rules}"),
+                    f"year-in-review posts, impact reports, program launches and announcements, newest first. {story} {rules}"),
         "news": (f"Find 8-10 accomplishments from {host}'s news posts and newsletters published in the 90 days "
-                 f"before {today}, newest first. {rules}"),
+                 f"before {today}, newest first. {story} {rules}"),
     }
 
 
@@ -426,6 +441,7 @@ def apply_request(out: dict, urls: dict, website: str | None, socials: dict) -> 
     prof["voice"]["phrases"] = [clean_phrase(v) for v in prof["voice"].get("phrases", [])]
     for f in out["facts"]:
         f["fact"], f["quote"] = clean_text(f.get("fact")), clean_text(f.get("quote"))
+        f["cached"] = True
     for k, u in socials.items():
         out["sources"][k] = "skipped"
         out["source_notes"][k] = "saved, not connected" if u else "not provided"
@@ -559,6 +575,8 @@ def validate_source(source: str, found: list, cited: set[str], host: str, priori
             why_dropped.append("Press Forward total (sources disagree)")
         else:
             kept.append({"source": source, "url": url, "posted_at": f.posted_at, "fact": clean_text(strip_links(f.fact)),
+                         "kind": f.kind if f.kind in KINDS else heuristic_kind(f.fact),
+                         "title": clean_text(strip_links(f.title)) or short_title(f.fact),
                          "quote": clean_text(strip_links(f.quote)), "priority": match_priority(f.priority, priorities),
                          "captured_at": captured_at, "verification": "search-cited"})
     if kept:
@@ -615,12 +633,193 @@ def context_as_org_facts() -> list[dict]:
             con.row_factory = sqlite3.Row
             if con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_context'").fetchone():
                 rows = [dict(r) for r in con.execute("SELECT * FROM org_context")]
-    if not rows:                                      # runtime file first, then the committed cache
-        runs = read_runs(CONTEXT_CACHE) | read_runs(CONTEXT_LIVE)
-        rows = [f for run in runs.values() for f in run["facts"]]
+    if not rows:                                      # the last live run only: the committed cache is a failure fallback
+        rows = [f for run in read_runs(CONTEXT_LIVE).values() for f in run["facts"]]
     return [{"date": r.get("posted_at"), "kind": r.get("source"), "fact": r["fact"], "quote": r.get("quote"),
              "priority": normalize_priority(r.get("priority")) or r.get("priority"), "url": r["url"]}
             for r in rows if r.get("fact") and r.get("url")]
+
+
+# ----------------------------------------------------------------------------------------------
+# Context store (§21.2.3): every row has a kind and a title, is embedded, and is searched by
+# cosine similarity x recency (half-life 90 days), newest first on ties.
+# ----------------------------------------------------------------------------------------------
+
+EMBED_MODEL = "text-embedding-3-small"
+HALF_LIFE_DAYS = 90
+STORE_COLUMNS = {"kind": "TEXT", "title": "TEXT", "embedding": "BLOB", "cached": "INTEGER NOT NULL DEFAULT 0"}
+
+
+def short_title(fact: str) -> str:
+    words = re.sub(r"^The Miami Foundation('s)?\s+", "", fact or "").split()
+    return " ".join(words[:8]).rstrip(",.;:") + ("…" if len(words) > 8 else "")
+
+
+def heuristic_kind(text: str) -> str:
+    """The no-model fallback (and a backstop for legacy rows): keyword rules, conservative."""
+    t = (text or "").lower()
+    if re.search(r"\b(invested over|assets|record|raised|fundholders|donors|milestone|anniversary|\$1 billion)\b", t):
+        return "org_health"
+    if re.search(r"\b(awarded|grants? (to|of|totaling)|investment in|invest(ed|ing) \$|scholarships totaling|committed \$|\$[\d,.]+ (in|to))\b", t):
+        return "use_of_funds"
+    if re.search(r"\b(helped|served|students|families|graduat|received|benefit|reached)\b", t):
+        return "success_story"
+    if re.search(r"\b(launch|program|initiative|fund\b|fellows)\b", t):
+        return "program_update"
+    return "news"
+
+
+class Classified(BaseModel):
+    i: int
+    kind: Kind = Field(description=KIND_GUIDE)
+    title: str = Field(description="A 3-8 word headline, no figures that aren't in the fact")
+
+
+class ClassifiedBatch(BaseModel):
+    items: list[Classified]
+
+
+def classify_facts(facts: list[str]) -> list[tuple[str, str]]:
+    """(kind, title) per fact: one structured-output model call for the batch, keyword rules without a key."""
+    if not facts:
+        return []
+    fallback = [(heuristic_kind(f), short_title(f)) for f in facts]
+    load_dotenv(REPO_ROOT / ".env")
+    if not (os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_MODEL_DEFAULT")):
+        return fallback
+    from agents import Agent, ModelSettings, Runner
+    from openai.types.shared import Reasoning
+    try:
+        from service.outreach_agent import bounded_model
+    except ImportError:                                   # imported as a top-level module (scripts, tests)
+        from outreach_agent import bounded_model
+    try:
+        agent = Agent(name="ContextClassifier", model=bounded_model(), output_type=ClassifiedBatch,
+                      instructions="Classify each numbered fact about a nonprofit into exactly one kind and give it a "
+                                   "short headline. " + KIND_GUIDE,
+                      model_settings=ModelSettings(reasoning=Reasoning(effort="low")))
+        out = Runner.run_sync(agent, "\n".join(f"{i}. {f}" for i, f in enumerate(facts))).final_output
+        got = {c.i: (c.kind, clean_text(c.title) or short_title(facts[c.i])) for c in out.items if 0 <= c.i < len(facts)}
+        return [got.get(i, fallback[i]) for i in range(len(facts))]
+    except Exception:
+        return fallback
+
+
+def embed_texts(texts: list[str]) -> list[bytes | None]:
+    """float32 embeddings as bytes, one OpenAI call for the batch; None each when there's no key or it fails."""
+    import numpy as np
+    if not texts:
+        return []
+    load_dotenv(REPO_ROOT / ".env")
+    if not os.getenv("OPENAI_API_KEY"):
+        return [None] * len(texts)
+    try:
+        from openai import OpenAI
+        resp = OpenAI(timeout=CONTEXT_TIMEOUT_S, max_retries=1).embeddings.create(model=EMBED_MODEL, input=texts)
+        return [np.asarray(d.embedding, dtype=np.float32).tobytes() for d in sorted(resp.data, key=lambda d: d.index)]
+    except Exception:
+        return [None] * len(texts)
+
+
+def store_connection(conn=None):
+    """The donors.db connection (DONORS_DB overrides), with the store's columns present."""
+    import sqlite3
+    if conn is None:
+        db = Path(os.environ.get("DONORS_DB", REPO_ROOT / "data" / "donors.db"))
+        if not db.exists():
+            return None
+        conn = sqlite3.connect(db)
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_context'").fetchone():
+        return conn
+    have = {r[1] for r in conn.execute("PRAGMA table_info(org_context)")}
+    for name, kind in STORE_COLUMNS.items():             # same guarded columns as db.ADDED_COLUMNS
+        if name not in have:
+            conn.execute(f"ALTER TABLE org_context ADD COLUMN {name} {kind}")
+    return conn
+
+
+def index_context(conn=None) -> dict:
+    """Give every org_context row a kind, a title and an embedding. The kind and title come from the
+    run that found the fact (runtime file, then the committed cache) when it has them; otherwise one
+    batched model call classifies the rest. Idempotent: rows already indexed are left alone."""
+    import sqlite3
+    conn = store_connection(conn)
+    if conn is None or not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_context'").fetchone():
+        return {"classified": 0, "embedded": 0}
+    known = {}
+    for path in (CONTEXT_CACHE, CONTEXT_LIVE):           # live last, so the newest run wins
+        for run in read_runs(path).values():
+            for f in run.get("facts", []):
+                if f.get("kind") in KINDS:
+                    known[(norm_url(f["url"]), f["fact"])] = (f["kind"], f.get("title") or short_title(f["fact"]), bool(f.get("cached")))
+    rows = conn.execute("SELECT id, url, fact, kind, title, embedding FROM org_context").fetchall()
+    todo = [r for r in rows if r[3] is None or not r[4]]
+    unknown = [r for r in todo if (norm_url(r[1]), r[2]) not in known]
+    guessed = dict(zip([r[0] for r in unknown], classify_facts([r[2] for r in unknown])))
+    for r in todo:
+        kind, title, cached = known.get((norm_url(r[1]), r[2]), (*guessed.get(r[0], (heuristic_kind(r[2]), short_title(r[2]))), False))
+        conn.execute("UPDATE org_context SET kind = COALESCE(kind, ?), title = COALESCE(title, ?), cached = ? WHERE id = ?",
+                     (kind, title, int(cached), r[0]))
+    missing = conn.execute("SELECT id, title, fact FROM org_context WHERE embedding IS NULL").fetchall()
+    vectors = embed_texts([f"{t or ''}. {f}" for _, t, f in missing])
+    for (rid, _, _), v in zip(missing, vectors):
+        if v is not None:
+            conn.execute("UPDATE org_context SET embedding = ? WHERE id = ?", (sqlite3.Binary(v), rid))
+    conn.commit()
+    return {"classified": len(todo), "embedded": sum(v is not None for v in vectors)}
+
+
+def recency_weight(posted_at: str | None, as_of: str) -> float:
+    if not posted_at:
+        return 0.25                                       # undated: kept, but behind anything dated
+    from datetime import date as _d
+    age = max((_d.fromisoformat(as_of[:10]) - _d.fromisoformat(posted_at[:10])).days, 0)
+    return 0.5 ** (age / HALF_LIFE_DAYS)
+
+
+def search_context(query: str | None = None, kinds: list[str] | tuple[str, ...] | None = None, k: int = 8,
+                   conn=None, as_of: str | None = None) -> list[dict]:
+    """[{id, kind, title, text, source_url, posted_at, score}] best first. score = cosine(query, row) x
+    recency weight; with no query (or no embeddings) it's recency alone, so the newest come first.
+    Ties go to the newest. Indexes any unindexed rows first."""
+    import numpy as np
+    conn = store_connection(conn)
+    if conn is None or not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_context'").fetchone():
+        return []
+    index_context(conn)
+    as_of = as_of or os.environ.get("SCORE_AS_OF") or datetime.now(timezone.utc).date().isoformat()
+    kinds = [x for x in (kinds or []) if x in KINDS]
+    sql = "SELECT id, kind, title, fact, url, posted_at, embedding FROM org_context"
+    rows = conn.execute(sql + (f" WHERE kind IN ({','.join('?' * len(kinds))})" if kinds else ""), kinds).fetchall()
+    qv = None
+    if query and query.strip():
+        got = embed_texts([query.strip()])
+        if got and got[0] is not None:
+            qv = np.frombuffer(got[0], dtype=np.float32)
+    out = []
+    for rid, kind, title, fact, url, posted_at, emb in rows:
+        score = recency_weight(posted_at, as_of)
+        if qv is not None and emb:
+            v = np.frombuffer(emb, dtype=np.float32)
+            score *= max(float(v @ qv / (np.linalg.norm(v) * np.linalg.norm(qv) or 1.0)), 0.0)
+        out.append({"id": rid, "kind": kind, "title": title, "text": fact, "source_url": url,
+                    "posted_at": posted_at, "score": round(score, 4)})
+    out.sort(key=lambda r: (r["score"], r["posted_at"] or ""), reverse=True)
+    return out[:max(int(k), 0)]
+
+
+def after_context_saved(conn=None) -> dict:
+    """What the onboarding run does once save_context has stored the facts: index the store, then
+    generate the day's tasks (3a's generator) once that exists."""
+    done = {"index": index_context(conn), "tasks": None}
+    try:
+        from service import tasks as _tasks              # 3a's lane; not landed yet on every branch
+        gen = getattr(_tasks, "generate_tasks", None) or getattr(_tasks, "generate", None)
+        if gen:
+            done["tasks"] = gen(store_connection(conn))
+    except ImportError:
+        done["tasks"] = "tasks generator not available yet"
+    return done
 
 
 if __name__ == "__main__":

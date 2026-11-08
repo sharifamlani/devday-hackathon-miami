@@ -53,6 +53,7 @@ export const FocusTaskCard = ({
   if (!task)
     return (
       <section
+        data-tour="chat"
         aria-labelledby={headingId}
         className={cn(focusCard, "p-[18px]")}
       >

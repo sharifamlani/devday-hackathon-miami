@@ -26,6 +26,7 @@ import { saveCallNoteEverywhere } from "../providers/local/calls";
 import { useCampaigns, useDonors } from "../providers/local/hooks";
 import {
   saveCallNote,
+  type CallNote,
   type NoteDestination,
   type NoteDestinationKind,
   type TranscriptLine,
@@ -487,6 +488,18 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
     }
   };
 
+  // The note waiting on the debounce below. If the pane closes first, post it
+  // now so the service still gets it (the browser copy is already saved).
+  const pendingSave = useRef<CallNote | null>(null);
+  useEffect(
+    () => () => {
+      const note = pendingSave.current;
+      pendingSave.current = null;
+      if (note) void saveCallNoteEverywhere(note);
+    },
+    [],
+  );
+
   // Once summarized, keep the saved note in step with edits: this browser
   // and, with the live service, POST /calls (an upsert by id), debounced so
   // typing in My notes doesn't post on every key.
@@ -504,7 +517,9 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
       nextSteps: draft.summary.nextSteps,
     };
     saveCallNote(note);
+    pendingSave.current = note;
     const timer = window.setTimeout(() => {
+      pendingSave.current = null;
       void saveCallNoteEverywhere(note);
     }, 800);
     return () => window.clearTimeout(timer);
@@ -945,7 +960,9 @@ export const LiveTranscriptPane = ({ expanded }: LiveTranscriptPaneProps) => {
             <button
               type="button"
               onClick={() => void generateSummary()}
-              disabled={summarizing || draft.lines.length === 0}
+              disabled={
+                summarizing || (draft.lines.length === 0 && !draft.notes.trim())
+              }
               className={cn(
                 pill,
                 "bg-primary px-5 text-primary-foreground hover:bg-primary/90",

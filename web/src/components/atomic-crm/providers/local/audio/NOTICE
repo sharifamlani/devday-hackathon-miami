@@ -1,0 +1,20 @@
+This directory contains code from google-gemini/live-api-web-console
+https://github.com/google-gemini/live-api-web-console
+Commit 0a4542fe0e39 (2025-10-14)
+Copyright 2024 Google LLC
+Licensed under the Apache License, Version 2.0 (see LICENSE in this directory).
+
+Files copied (original paths); unchanged except where noted:
+  src/lib/audio-recorder.ts            -> audio-recorder.ts
+      changed: an "eslint-disable" comment after the license header, and a
+      "// @ts-expect-error" comment above `new Promise(async (resolve, reject)` so this
+      repo's strict TypeScript (noUnusedParameters) accepts the unused `reject`.
+  src/lib/audioworklet-registry.ts     -> audioworklet-registry.ts
+  src/lib/utils.ts                     -> utils.ts
+      changed: an "eslint-disable" comment after the license header.
+  src/lib/worklets/audio-processing.ts -> worklets/audio-processing.ts
+  src/lib/worklets/vol-meter.ts        -> worklets/vol-meter.ts
+
+The rest of this repository is MIT-licensed; these files remain under Apache-2.0.
+Used by ../dictation.ts (useDictation, useCallTranscript) to capture the
+microphone as 16 kHz PCM16.

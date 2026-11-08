@@ -257,7 +257,13 @@ export const buildTasks = ({
   };
 
   for (const item of itemsOn(plan, today)) {
-    if (item.done) continue;
+    if (item.done) {
+      // Done today: don't let a recommendation bring the same work back.
+      seen.add(
+        item.donor_id != null ? `d${item.donor_id}` : `c${item.campaign_id}`,
+      );
+      continue;
+    }
     const isCampaign = item.campaign_id != null;
     push({
       key: `plan-${item.id}`,

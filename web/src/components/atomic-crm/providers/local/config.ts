@@ -8,8 +8,18 @@
  */
 export type DataMode = "local" | "snapshot";
 
+// "live" (the laptop path, plan.md §21) is the same as "local".
 export const DATA_MODE: DataMode =
-  import.meta.env.VITE_DATA_MODE === "local" ? "local" : "snapshot";
+  import.meta.env.VITE_DATA_MODE === "local" || import.meta.env.VITE_DATA_MODE === "live"
+    ? "local"
+    : "snapshot";
+
+/**
+ * Dev only: answer routes the API build doesn't serve yet with the
+ * contract-shaped mocks in mocks.ts (plan.md §21.5), labeled as mocks.
+ * Off by default; never set on the demo laptop.
+ */
+export const MOCK_ENDPOINTS: boolean = import.meta.env.VITE_MOCK_ENDPOINTS === "1";
 
 export const API_URL: string = (
   import.meta.env.VITE_API_URL ?? "http://localhost:8000"

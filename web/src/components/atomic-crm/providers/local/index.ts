@@ -4,6 +4,7 @@ import { dataProvider as fakerestDataProvider } from "../fakerest";
 import type { CrmDataProvider } from "../types";
 import { DATA_MODE } from "./config";
 import { crmHttpMethods } from "./crmHttp";
+import { withDonorCrm } from "./crmResources";
 import { crmSnapshotMethods } from "./crmSnapshot";
 import { localApiMethods } from "./httpClient";
 import { snapshotMethods } from "./snapshotClient";
@@ -18,12 +19,14 @@ export const donorDeskMethods: DonorDeskMethods =
 export type DonorDeskDataProvider = CrmDataProvider & DonorDeskMethods;
 
 /**
- * The CRM keeps FakeRest for the atomic-crm screens it still shows (login,
- * notes, tags). Every Donor Desk screen reads the donor methods, which call
- * the local API or the snapshot depending on VITE_DATA_MODE.
+ * The Donors tab's react-admin resources (contacts = donors, companies =
+ * organizations, notes, tasks, tags) read the donor data (crmResources.ts);
+ * FakeRest keeps the rest (the signed-in user, configuration). Every Donor
+ * Desk screen reads the donor methods, which call the local API or the
+ * snapshot depending on VITE_DATA_MODE.
  */
 export const dataProvider: DonorDeskDataProvider = {
-  ...fakerestDataProvider,
+  ...withDonorCrm(fakerestDataProvider),
   ...donorDeskMethods,
 };
 

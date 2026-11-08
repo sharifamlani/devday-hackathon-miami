@@ -27,7 +27,7 @@ def stubs(monkeypatch):
     enrich = types.ModuleType("service.enrich_agent")
     enrich.read_cache = lambda: {"Amazon": [], "Frederick A. DeLuca Foundation": []}
 
-    def enrich_donor(name, org_name=None, city=None, focus=None, refresh=False):
+    def enrich_donor(name, org_name=None, city=None, focus=None, refresh=False, use_cache=False):
         calls["enriched"].append(name)
         return [{"fact": f"{name} funds Miami arts", "source_url": f"https://example.org/{len(name)}",
                  "retrieved_at": "2026-11-07T00:00:00+00:00"}]
@@ -70,13 +70,13 @@ def stubs(monkeypatch):
     outreach.draft_outreach, outreach.save_draft, outreach.draft_prospect = draft_outreach, save_draft, draft_prospect
 
     icp = types.ModuleType("service.icp_agent")
-    icp.build_profile = lambda refresh=False: {
+    icp.build_profile = lambda refresh=False, use_cache=False: {
         "traits": [{"trait": "sector", "value": "foundation", "evidence": []},
                    {"trait": "cause", "value": "arts", "evidence": []}],
         "stats": {"org_donors": 5}, "evidence": [{"trait": "cause", "donor": "Frederick A. DeLuca Foundation",
                                                   "fact": "funds arts", "url": "https://example.org/a"}]}
 
-    def find_prospects(profile, exclude_names, refresh=False):
+    def find_prospects(profile, exclude_names, refresh=False, use_cache=False):
         calls["excluded"] = set(exclude_names)
         return [
             {"name": "Coral Reef Arts Fund", "org_type": "foundation", "city": "Miami", "fit_score": 88,

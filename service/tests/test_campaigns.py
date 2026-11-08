@@ -12,7 +12,7 @@ from service import db
 from service.main import app
 from service.export_snapshot import build_snapshot
 
-# Seed ids (db.SEED_DONORS order): 1 Maria Delgado, 3 James Carter, 4 Biscayne Harbor (star org),
+# Seed ids (fixtures_seed.SEED_DONORS order): 1 Maria Delgado, 3 James Carter, 4 Biscayne Harbor (star org),
 # 5 Robert Nguyen, 6 Angela Brooks, 9 Knight Foundation (org, no email), 11 DeLuca (star org)
 FIVE = [1, 3, 4, 5, 6]
 

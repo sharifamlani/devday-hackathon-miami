@@ -6,6 +6,18 @@ import { authProvider } from "../providers/fakerest";
 import { dataProvider } from "../providers/local";
 import { CRM } from "./CRM";
 
+/** Donor work, not sales: "thank-you" also marks a donor Thanked once done. */
+const donorTaskTypes = [
+  { value: "call", label: "Call" },
+  { value: "thank-you", label: "Thank you" },
+  { value: "email", label: "Email" },
+  { value: "meeting", label: "Meeting" },
+  { value: "follow-up", label: "Follow-up" },
+  { value: "event-invite", label: "Event invite" },
+  { value: "visit", label: "Stewardship visit" },
+  { value: "none", label: "Other" },
+];
+
 /**
  * Donor Desk: the atomic-crm shell configured for the hackathon demo.
  * Used by both entry points (src/App.tsx for `npm run dev`, demo/App.tsx for
@@ -23,6 +35,7 @@ export const DonorDesk = () => (
       authProvider={authProvider}
       store={memoryStore({ theme: "light" })}
       dashboard={HomePage}
+      taskTypes={donorTaskTypes}
       disableTelemetry
     />
   </KindredLandingGate>

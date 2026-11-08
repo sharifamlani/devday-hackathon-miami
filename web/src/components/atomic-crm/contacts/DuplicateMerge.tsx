@@ -27,10 +27,14 @@ import { formatUsd } from "./donorFormat";
  * Built from ContactMergeButton's dialog (same Dialog/Alert layout and merge
  * wording), but driven by suggested pairs instead of a contact picker.
  */
-export const DuplicateBanner = () => {
+export const DuplicateBanner = ({ donorId }: { donorId?: number } = {}) => {
   const { data: duplicates } = useDuplicates();
   const [open, setOpen] = useState(false);
-  const pending = duplicates ?? [];
+  // On a donor profile, only the pairs that include this donor.
+  const pending = (duplicates ?? []).filter(
+    (pair) =>
+      donorId == null || pair.donors.some((donor) => donor.id === donorId),
+  );
 
   useEffect(() => {
     if (open && pending.length === 0) setOpen(false);
@@ -48,8 +52,13 @@ export const DuplicateBanner = () => {
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-card text-brand-soft-foreground">
             <AlertTriangle className="size-[18px]" aria-hidden />
           </span>
-          {pending.length} possible duplicate
-          {pending.length === 1 ? "" : "s"} found
+          {donorId != null
+            ? `This donor may also be on file as ${pending
+                .flatMap((pair) => pair.donors)
+                .filter((donor) => donor.id !== donorId)
+                .map((donor) => donor.full_name)
+                .join(", ")}`
+            : `${pending.length} possible duplicate${pending.length === 1 ? "" : "s"} found`}
         </span>
         <Button
           size="sm"
