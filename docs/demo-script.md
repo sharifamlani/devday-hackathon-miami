@@ -244,7 +244,7 @@ If the laptop or network fails, switch to the Vercel tab and reload it: it falls
 
 - [ ] **Loaded data (no reset):** don't run `demo_reset.py` (it empties the db). LIVE keeps the loaded data
       (78 donors, Christian included).
-- [ ] **Browser:** Open a NEW incognito window (close any old one first) at http://localhost:5173/, never a rehearsal tab: the home chat thread lives in the tab's sessionStorage (`donor-desk-agent-chat`), so a reused tab shows the rehearsal conversation after the reset. It opens on the loaded dashboard: **Good afternoon, Sharif.**, the gauge **66%** / **$98.8k**, **5 usual gifts look late.**, **9 possible duplicates to review.**
+- [ ] **Browser:** Open a NEW incognito window (close any old one first) at http://localhost:5173/, never a rehearsal tab: the home chat thread lives in the tab's sessionStorage (`donor-desk-agent-chat`), so a reused tab shows the conversation from earlier. It opens on the loaded dashboard: **Good afternoon, Sharif.**, the gauge **66%** / **$98.8k**, **5 usual gifts look late.**, **9 possible duplicates to review.**
 - [ ] Web on **http://localhost:5173 or :5174** (the service's CORS allows only these). Hard refresh.
 - [ ] Say **"Give Miami Day donors"**, not "gala" (the sample data has Give Miami Day gifts, no gala).
 - [ ] **Laptop live-mode env vars:** web `VITE_DATA_MODE=local`, `VITE_API_URL=http://localhost:8001`; service

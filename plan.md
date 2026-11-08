@@ -1835,7 +1835,7 @@ store + story-first campaigns, tasks, voice, after-call, agent write tools.
 Sharif: *"Start with showing the onboarding about putting in the data and then taking it to the dashboard."* This
 section is the run order, the checks around it and the fallbacks. The bold labels, spoken lines and per-step timings
 are in `docs/demo-script.md` (the script wins on wording; this section wins on order and checks). It describes main
-as of Sun Nov 8 afternoon: the landing as setup step 1, no suggestion chips (every prompt is typed), the dashboard briefing, streaming agent replies, calendar v3. Nothing
+as of Sun Nov 8 afternoon: the loaded dashboard (no setup in this run), no suggestion chips (every prompt is typed), the dashboard briefing, streaming agent replies, calendar v3. Nothing
 here is run until Sharif says go.
 
 **Changed Sun Nov 8, ~4:25 PM (Sharif): no empty-start onboarding.** LIVE (579b7e4) keeps the loaded data (78 donors, Christian included) and the demo opens on the dashboard. **Never run `demo_reset.py` or `tminus30.sh` before the demo: they empty the db.** Skipped below: rows 1–2b, the flowchart's (1)–(2), smokes 2 and 6, the T-60 reset, and the 1/2 fallbacks.
@@ -1844,7 +1844,7 @@ here is run until Sharif says go.
 ```
 plan.md                         §22 (this section): run order, T-minus checklist, smokes, criteria, roles, fallbacks
 docs/demo-script.md             read only here: the words and bold labels for every step below
-scripts/demo_reset.py           T-30: --warm empties the db, warms the upload cache, checks the stage numbers
+scripts/demo_reset.py           NOT used in this run (Sharif ~4:25 PM): it empties the db
 scripts/public_tunnel.py        T-15: on | off | status for the public site (the tunnel runs on --port 8401)
 scripts/live_stack.ps1          T-30: stops / starts LIVE's service (:8001) and web (:5173) in C:\Users\Shari\dd-live-main
 scripts/smoke-openai.py         smoke 1: key + model tiers + one Agents SDK tool call (7/7)
