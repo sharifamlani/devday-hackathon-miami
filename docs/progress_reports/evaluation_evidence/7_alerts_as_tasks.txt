@@ -1,0 +1,14 @@
+alert keys: ['cadence', 'days_late', 'donor', 'donor_id', 'evidence', 'expected_date', 'kind', 'last_gift', 'reason']
+alerts: 5 | call tasks: 5 | review tasks: 9 | pending suggestions: 9
+call task titles: ['Call Hye-jin Park', 'Call Lucia Ferrante', 'Call Rafael Quintero', 'Call Teodoro Salinas', 'Call Walter Brandt']
+alerts shown as call tasks: 5/5
+people: 40
+[pre-approval] alerts: [('Hye-jin Park', 'failed'), ('Lucia Ferrante', 'late'), ('Rafael Quintero', 'failed'), ('Teodoro Salinas', 'late'), ('Walter Brandt', 'late')]
+[pre-approval] open call tasks: ['Call Hye-jin Park', 'Call Lucia Ferrante', 'Call Rafael Quintero', 'Call Teodoro Salinas', 'Call Walter Brandt']
+[pre-approval] alerts with an open call task for the same person: 5/5
+pending after approving all: 0
+[post-approval] alerts: [('Hye-jin Park', 'failed'), ('Rafael Quintero', 'failed'), ('Teodoro Salinas', 'late'), ('Veloria Bay Foundation', 'late'), ('Walter Brandt', 'late')]
+[post-approval] open call tasks: ['Call Hye-jin Park', 'Call Lucia Ferrante', 'Call Rafael Quintero', 'Call Teodoro Salinas', 'Call Walter Brandt']
+[post-approval] alerts with an open call task for the same person: 4/5
+[copy] POST /tasks/generate after merges: {'created': 1, 'updated': 0} ['Call Veloria Bay Foundation']
+[copy] alerts with an open call task: 5/5; stale call tasks (no alert): 1

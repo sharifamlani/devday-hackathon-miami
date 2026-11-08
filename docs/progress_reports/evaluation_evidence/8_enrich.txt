@@ -1,0 +1,9 @@
+interest-tags: 17 slugs
+[fictional sample org] Ostrander-Pell Charitable Trust: HTTP 200 in 10s | tags [] | outside the 17: [] | unsourced: [] | identity: 
+[fictional sample org] Veloria Bay Foundation: HTTP 200 in 7s | tags [] | outside the 17: [] | unsourced: [] | identity: 
+[fictional sample org] Whitaker Family Charitable Fund: HTTP 200 in 16s | tags [('youth_family', None, 'https://capabeaufort.org/wp-content/uploads/2024/02/Annual-R')] | outside the 17: [] | unsourced: [] | identity: 
+[real org] John S. and James L. Knight Foundation: HTTP 200 in 12s | tags [('arts_culture', None, 'https://knightfoundation.org/'), ('community_development', None, 'https://knightfoundation.org/')] | outside the 17: [] | unsourced: [] | identity: 
+[real org] Frederick A. DeLuca Foundation: HTTP 200 in 15s | tags [('education', 'k12', 'https://www.bgca.org/about-us/our-partners/the-frederick-a-d'), ('basic_needs', 'disaster_relief', 'https://www.delucafdn.org/about-frederick-a-deluca/'), ('economic_mobility', 'workforce', 'https://www.delucafdn.org/about-frederick-a-deluca/'), ('youth_family', None, 'https://www.delucafdn.org/about-frederick-a-deluca/')] | outside the 17: [] | unsourced: [] | identity: 
+[real org] McDermott Will & Schulte: HTTP 200 in 12s | tags [('economic_mobility', 'small_business', 'https://www.mcdermottlaw.com/news/mcdermotts-miami-office-re'), ('equity_rights', 'legal_aid', 'https://www.mcdermottlaw.com/news/mcdermotts-miami-office-re')] | outside the 17: [] | unsourced: [] | identity: 
+[made-up person] Zephyrine Quillabottom-Adeyemi: HTTP 200 in 0s | tags [] | outside the 17: [] | unsourced: [] | identity: 
+donor_interests rows before/after dry runs: 0/0 (0 writes expected)

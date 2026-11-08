@@ -1,0 +1,10 @@
+POST /context/run 200 in 25s state=done served_from=live detail=None
+sources: {'website': 'done', 'news': 'done', 'x': 'not provided', 'linkedin': 'not provided', 'instagram': 'not provided'}
+org_context columns: ['id', 'source', 'url', 'posted_at', 'fact', 'quote', 'priority', 'captured_at', 'kind', 'title', 'embedding', 'cached']
+rows: 18 | rows without source_url: no source_url column
+kinds: {'org_health': 4, 'program_update': 3, 'success_story': 5, 'use_of_funds': 6}
+GET /context first 6 (posted_at, kind, source): [('2026-10-01', 'program_update', ''), ('2026-10-01', 'org_health', ''), ('2026-10-01', 'success_story', ''), ('2026-10-01', 'org_health', ''), ('2026-10-01', 'success_story', ''), ('2026-09-23', 'use_of_funds', '')]
+GET /context rows: 18 | dated: 18 | newest-first holds over dated rows: True
+[recheck] rows: 18 | rows without url: 0 | by host: {'https://miamifoundation.org/': 18}
+[recheck] GET /context row keys: ['cached', 'captured_at', 'fact', 'id', 'kind', 'posted_at', 'priority', 'quote', 'source', 'title', 'url']
+[recheck] sample: {'kind': 'program_update', 'posted_at': '2026-10-01', 'url': 'https://miamifoundation.org/news/foundation-newsletter-september-2026/'}

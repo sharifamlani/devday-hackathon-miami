@@ -1,0 +1,15 @@
+12 passed, 6 warnings in 18.96s
+run 1: drafter=None actions={'create_task': 1, 'add_context_note': 2, 'record_pledge': 1, 'rsvp_event': 1} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 2: drafter=None actions={'create_task': 1, 'add_context_note': 2, 'record_pledge': 1, 'rsvp_event': 1} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 3: drafter=None actions={'create_task': 1, 'add_context_note': 2, 'record_pledge': 1, 'rsvp_event': 1} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 3 Apply -> {'tasks': 1, 'pledges': 1, 'research_facts': 2, 'rsvp': 1}
+--- rerun with drafted_by printed:
+run 1: drafted_by=rules actions={'create_task': 1, 'add_context_note': 2, 'record_pledge': 1, 'rsvp_event': 1} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 2: drafted_by=rules actions={'create_task': 1, 'add_context_note': 2, 'record_pledge': 1, 'rsvp_event': 1} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 3: drafted_by=rules actions={'create_task': 1, 'add_context_note': 2, 'record_pledge': 1, 'rsvp_event': 1} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 3 Apply -> {'tasks': 1, 'pledges': 1, 'research_facts': 2, 'rsvp': 1}
+--- rerun, harness fixed (model path):
+run 1: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_event': 1, 'add_context_note': 2, 'tag_interest': 1} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: False
+run 2: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_event': 1, 'add_context_note': 2} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 3: drafted_by=model actions={'create_task': 1, 'record_pledge': 1, 'rsvp_event': 1, 'add_context_note': 2} pledge=50.0/monthly rsvp_event=beach | writes before Apply: False | exact: True
+run 3 Apply -> {'tasks': 1, 'pledges': 1, 'research_facts': 2, 'rsvp': 1}

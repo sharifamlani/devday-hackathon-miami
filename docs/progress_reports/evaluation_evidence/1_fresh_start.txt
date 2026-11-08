@@ -1,0 +1,14 @@
+health db: fresh.db | fresh file existed before start: False
+GET /donors -> 200 []
+GET /tasks -> 200 []
+GET /context -> 200 []
+GET /home/summary -> 200 {'gifts_at_risk': 0, 'duplicates': 0, 'tasks_today': 0, 'next_event': {'title': 'Give Miam
+donors: 0 rows
+gifts: 0 rows
+tasks: 0 rows
+org_context: 0 rows
+org_profile: 0 rows
+outreach_drafts: 0 rows
+campaigns: 0 rows
+call_notes: 0 rows
+events: 0 rows

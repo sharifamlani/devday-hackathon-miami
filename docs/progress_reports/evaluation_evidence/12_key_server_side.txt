@@ -1,0 +1,12 @@
+web/dist: 73 files, 21,464,972 bytes; key loaded for search: True (length 53, never printed)
+  occurrences of GEMINI_API_KEY value: 0
+  occurrences of key first 12 chars: 0
+  occurrences of 'generativelanguage': 0
+  occurrences of 'GEMINI_API_KEY' name: 0
+  occurrences of 'aiplatform.googleapis': 0
+onboarding buttons matched: ['Finish later', 'Skip for now']
+onboarding still visible: False
+sidebar buttons: ['Expand to full page', 'Close Ask sidebar', 'Ask', 'Who helped us reach our Q4 goa', 'Who needs outreach because the', 'Monthly donors whose last gift', "Big donors we haven't called t"]
+requests: 566 | websockets: ['ws://localhost:5181/?token=FiRTbbGkeg4G']
+hosts contacted: ['localhost:5181', 'localhost:8016']
+requests carrying the Gemini key (url, headers or body): 0 | requests to Google API hosts: 0

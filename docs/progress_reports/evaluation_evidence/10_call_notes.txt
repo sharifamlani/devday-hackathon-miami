@@ -1,0 +1,12 @@
+PASS  live call: interim events  41 interim, first at 0.89s
+PASS  live call: final text  'Good afternoon. This is a quick update from the development team. Our holiday food drive collected 4,000 lb of groceries last weekend, and more than 60 help sort and pack the boxes. Next month we will host a donor breakfast at the community center on Flagler Street. Please remind your contacts that matching gifts are doubled until the end of Thank you for everything you do for our neighbors.'
+PASS  dictation: final text (SMART)  'Good afternoon. This is a quick update from the development team. Our holiday food drive collected 4,000 pounds of groceries last weekend, and more than 60 volunteers. Help sort and pack the boxes. Next month we will host a donor breakfast at the community center on Flagler Street. Please remind your contacts that matching gifts are doubled until the end of December. Thank you for everything you do for our neighbors.'
+PASS  dictation: adds 0 call notes  0 saved call(s) before and 0 after
+PASS  file pass: >= 2 speakers  HTTP 200 in 5.0s, 4 segments, speakers ['them', 'you']
+PASS  call note saved via POST /calls  HTTP 200 id=ebdedfc4129a4f20a05e2c6977ac4459 lines=4
+POST /calls/summarize 200 {'summary': ['Hye-jin’s October monthly gift did not go through because her card expired.', 'She plans to update her card today and keep the forty dollars a month.'], 'next_steps': ['Email Hye-jin a secure link this afternoon.', 'Update the card today.'], 'source': 'model', 'detail': None}
+POST /calls 200 id a82d79eba46b4c60969fb2c238d57d58 | summary saved: ['Hye-jin’s October monthly gift did not go through because her card expired.', 'She plans to update her card today and keep the forty dollars a month.']
+(service restarted)
+PASS  note survives a restart  2 saved call(s)
+after restart: summarized note present: True | summary: ['Hye-jinâ€™s October monthly gift did not go through because her card expired.', 'She plans to update her card today and keep the forty dollars a month.'] | next_steps: ['Email Hye-jin a secure link this afternoon.', 'Update the card today.']
+SQL call_notes rows: 2 (2 saved calls; dictation runs added none)

@@ -1,0 +1,37 @@
+service.ingest.router not found; its routes are not mounted
+--- run 1: POST /ingest 200 (8 files)
+--- run 2: POST /ingest 200 (8 files)
+=== run 1: pre-approval
+PASS  run 1: POST /ingest 200  | 200
+PASS  run 1: GET /duplicates 200 after a real upload  | 200
+PASS  run 1: GET /people?type=community 200 after a real upload  | 200
+PASS  run 1: GET /community/stats 200 after a real upload  | 200
+PASS  run 1: GET /alerts 200 after a real upload  | 200
+PASS  run 1: GET /donors 200 after a real upload  | 200
+PASS  run 1: gifts 131 = $1,367,535  | 131 = $1,367,535
+PASS  run 1: every planted duplicate group is merged on exact identity or pending  | pending groups ['DG2', 'DG4', 'DG5'], merged at ingest ['DG1', 'DG3', 'DG6'], uncovered []
+PASS  run 1: at least one suggestion pending for staff (challenge #2)  | 9 pending (6 not in a planted group)
+=== run 1: after approving all 9 pending suggestions
+PASS  run 1: every merge approval succeeds  | Counter({200: 9})
+PASS  run 1: every gift still attached after merges (count + total unchanged, 0 orphans)  | (131, 1367535.0) -> (131, 1367535.0), orphans 0
+PASS  run 1: people 68  | 68
+PASS  run 1: tabs {'giver': 33, 'neighbor': 20, 'community': 15}  | {'giver': 33, 'community': 15, 'neighbor': 20}
+PASS  run 1: alerts == key  | got [('Hye-jin Park', 'failed'), ('Rafael Quintero', 'failed'), ('Teodoro Salinas', 'late'), ('Veloria Bay Foundation', 'late'), ('Walter Brandt', 'late')] | want [('Hye-jin Park', 'failed'), ('Rafael Quintero', 'failed'), ('Teodoro Salinas', 'late'), ('Veloria Bay Foundation', 'late'), ('Walter Brandt', 'late')]
+=== run 2: pre-approval
+PASS  run 2: POST /ingest 200  | 200
+PASS  run 2: GET /duplicates 200 after a real upload  | 200
+PASS  run 2: GET /people?type=community 200 after a real upload  | 200
+PASS  run 2: GET /community/stats 200 after a real upload  | 200
+PASS  run 2: GET /alerts 200 after a real upload  | 200
+PASS  run 2: GET /donors 200 after a real upload  | 200
+PASS  run 2: gifts 131 = $1,367,535  | 131 = $1,367,535
+PASS  run 2: every planted duplicate group is merged on exact identity or pending  | pending groups ['DG2', 'DG4', 'DG5'], merged at ingest ['DG1', 'DG3', 'DG6'], uncovered []
+PASS  run 2: at least one suggestion pending for staff (challenge #2)  | 9 pending (6 not in a planted group)
+=== run 2: after approving all 9 pending suggestions
+PASS  run 2: every merge approval succeeds  | Counter({200: 9})
+PASS  run 2: every gift still attached after merges (count + total unchanged, 0 orphans)  | (131, 1367535.0) -> (131, 1367535.0), orphans 0
+PASS  run 2: people 68  | 68
+PASS  run 2: tabs {'giver': 33, 'neighbor': 20, 'community': 15}  | {'giver': 33, 'community': 15, 'neighbor': 20}
+PASS  run 2: alerts == key  | got [('Hye-jin Park', 'failed'), ('Rafael Quintero', 'failed'), ('Teodoro Salinas', 'late'), ('Veloria Bay Foundation', 'late'), ('Walter Brandt', 'late')] | want [('Hye-jin Park', 'failed'), ('Rafael Quintero', 'failed'), ('Teodoro Salinas', 'late'), ('Veloria Bay Foundation', 'late'), ('Walter Brandt', 'late')]
+PASS  deterministic: identical people across runs (pre-approval)  | differs by []
+29/29 PASS
