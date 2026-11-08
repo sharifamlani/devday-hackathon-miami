@@ -60,6 +60,7 @@ import { AutoMergeFlag } from "./AutoMergeFlag";
 import { DonorRowDetails } from "./DonorRowDetails";
 import { DuplicateBanner } from "./DuplicateMerge";
 import { countSourceFiles } from "./sourceFiles";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 const SORTS = [
   { value: "score:DESC", label: "Priority score" },
@@ -105,15 +106,17 @@ const DonorListLayout = () => {
           <DonorsTabs />
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={() => setImportOpen(true)}
-          >
-            <Upload aria-hidden />
-            Import donors
-          </Button>
+          {!PUBLIC_READ_ONLY && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload aria-hidden />
+              Import donors
+            </Button>
+          )}
           <ExportAllButton />
         </div>
       </div>
@@ -706,7 +709,7 @@ const EmptyState = ({
         >
           Clear filters
         </Button>
-      ) : (
+      ) : PUBLIC_READ_ONLY ? null : (
         <Button className="rounded-full" onClick={onImport}>
           <Upload aria-hidden />
           Import donors

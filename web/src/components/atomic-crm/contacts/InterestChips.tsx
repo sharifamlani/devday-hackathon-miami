@@ -1,7 +1,11 @@
 import { useId, useState } from "react";
 import { Check, Plus, X } from "lucide-react";
 
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
   type InterestConfidence,
@@ -12,6 +16,7 @@ import {
   useRemoveInterest,
 } from "../providers/local/interests";
 import { SourceLink } from "./ResearchPanel";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 /* Interest areas (plan §21.2.6): 17 tags, each with confidence, evidence and a source.
    Chips open a popover rather than a hover tooltip, so the source link stays clickable
@@ -32,7 +37,10 @@ const confidenceDot: Record<InterestConfidence, string> = {
 const chipBase =
   "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
-export const tagLabel = (interest: PersonInterest, labels: Map<string, string>) =>
+export const tagLabel = (
+  interest: PersonInterest,
+  labels: Map<string, string>,
+) =>
   interest.label ?? labels.get(interest.tag) ?? interest.tag.replace(/_/g, " ");
 
 export const useTagLabels = () => {
@@ -46,11 +54,22 @@ const subTag = (s: string | null) => (s ? s.replace(/_/g, " ") : null);
 const byAgent = (interest: PersonInterest) => interest.set_by !== "staff";
 
 /** What a chip's popover says: who set it, how sure, the evidence and its source. */
-const InterestDetails = ({ interest, label }: { interest: PersonInterest; label: string }) => (
+const InterestDetails = ({
+  interest,
+  label,
+}: {
+  interest: PersonInterest;
+  label: string;
+}) => (
   <div className="grid gap-1.5">
     <p className="font-semibold">
       {label}
-      {interest.sub_tag && <span className="font-normal text-muted-foreground"> · {subTag(interest.sub_tag)}</span>}
+      {interest.sub_tag && (
+        <span className="font-normal text-muted-foreground">
+          {" "}
+          · {subTag(interest.sub_tag)}
+        </span>
+      )}
     </p>
     <p className="text-xs text-muted-foreground">
       {byAgent(interest)
@@ -61,7 +80,9 @@ const InterestDetails = ({ interest, label }: { interest: PersonInterest; label:
     {interest.source_url && (
       <p className="text-xs">
         Source: <SourceLink href={interest.source_url} />{" "}
-        <span className="break-all text-muted-foreground">{new URL(interest.source_url).hostname}</span>
+        <span className="break-all text-muted-foreground">
+          {new URL(interest.source_url).hostname}
+        </span>
       </p>
     )}
   </div>
@@ -91,7 +112,9 @@ export const InterestChip = ({
     <li
       className={cn(
         "inline-flex items-center rounded-full",
-        reviewing && !selected ? "bg-surface text-muted-foreground line-through" : "bg-quiet text-quiet-foreground",
+        reviewing && !selected
+          ? "bg-surface text-muted-foreground line-through"
+          : "bg-quiet text-quiet-foreground",
       )}
     >
       {reviewing && (
@@ -107,7 +130,9 @@ export const InterestChip = ({
             aria-hidden
             className={cn(
               "grid size-4 place-items-center rounded-full border",
-              selected ? "border-foreground bg-foreground text-background" : "border-muted-foreground",
+              selected
+                ? "border-foreground bg-foreground text-background"
+                : "border-muted-foreground",
             )}
           >
             {selected && <Check className="size-3" />}
@@ -115,11 +140,19 @@ export const InterestChip = ({
         </button>
       )}
       <Popover>
-        <PopoverTrigger className={cn(chipBase, reviewing ? "pl-1" : "")} aria-label={`${label}: details and source`}>
-          <span aria-hidden className={cn("size-2 rounded-full", confidenceDot[confidence])} />
+        <PopoverTrigger
+          className={cn(chipBase, reviewing ? "pl-1" : "")}
+          aria-label={`${label}: details and source`}
+        >
+          <span
+            aria-hidden
+            className={cn("size-2 rounded-full", confidenceDot[confidence])}
+          />
           {label}
           {byAgent(interest) && (
-            <span className="font-normal opacity-75">· {confidenceLabel[confidence]}</span>
+            <span className="font-normal opacity-75">
+              · {confidenceLabel[confidence]}
+            </span>
           )}
         </PopoverTrigger>
         <PopoverContent align="start" className="w-80">
@@ -132,7 +165,10 @@ export const InterestChip = ({
           onClick={onRemove}
           disabled={removing}
           aria-label={`Remove ${label}`}
-          className={cn(chipBase, "-ml-1 px-2 hover:text-foreground disabled:opacity-50")}
+          className={cn(
+            chipBase,
+            "-ml-1 px-2 hover:text-foreground disabled:opacity-50",
+          )}
         >
           <X className="size-3.5" aria-hidden />
         </button>
@@ -172,8 +208,16 @@ export const InterestAreasEditor = ({ personId }: { personId: number }) => {
   const [choice, setChoice] = useState("");
   const selectId = useId();
 
-  if (error) return <p role="alert" className="text-sm text-destructive">Couldn’t load interest areas: {error.message}</p>;
-  if (isPending) return <p className="text-sm text-muted-foreground">Loading interest areas…</p>;
+  if (error)
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        Couldn’t load interest areas: {error.message}
+      </p>
+    );
+  if (isPending)
+    return (
+      <p className="text-sm text-muted-foreground">Loading interest areas…</p>
+    );
 
   const present = new Set((interests ?? []).map((i) => i.tag));
   const available = (tags ?? []).filter((t) => !present.has(t.slug));
@@ -189,7 +233,11 @@ export const InterestAreasEditor = ({ personId }: { personId: number }) => {
               interest={interest}
               label={tagLabel(interest, labels)}
               removing={busy}
-              onRemove={() => remove.mutate({ personId, tag: interest.tag })}
+              onRemove={
+                PUBLIC_READ_ONLY
+                  ? undefined
+                  : () => remove.mutate({ personId, tag: interest.tag })
+              }
             />
           ))}
         </ul>
@@ -198,12 +246,16 @@ export const InterestAreasEditor = ({ personId }: { personId: number }) => {
           None yet. Enrich an organization, or add one your team knows about.
         </p>
       )}
-      {available.length > 0 && (
+      {available.length > 0 && !PUBLIC_READ_ONLY && (
         <form
           className="flex min-w-0 items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (choice) add.mutate({ personId, tag: choice }, { onSuccess: () => setChoice("") });
+            if (choice)
+              add.mutate(
+                { personId, tag: choice },
+                { onSuccess: () => setChoice("") },
+              );
           }}
         >
           <label htmlFor={selectId} className="sr-only">
@@ -225,7 +277,10 @@ export const InterestAreasEditor = ({ personId }: { personId: number }) => {
           <button
             type="submit"
             disabled={!choice || busy}
-            className={cn(chipBase, "bg-primary text-primary-foreground hover:bg-primary/85 disabled:opacity-50")}
+            className={cn(
+              chipBase,
+              "bg-primary text-primary-foreground hover:bg-primary/85 disabled:opacity-50",
+            )}
           >
             <Plus className="size-3.5" aria-hidden />
             Add

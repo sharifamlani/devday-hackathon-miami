@@ -20,6 +20,7 @@ import { TagChip } from "../tags/TagChip";
 import { TagCreateModal } from "../tags/TagCreateModal";
 import { useTags } from "../tags/useTags";
 import type { Contact, Tag } from "../types";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 export const TagsListEdit = () => {
   const record = useRecordContext<Contact>();
@@ -97,6 +98,26 @@ export const TagsListEdit = () => {
   );
 
   if (isPendingRecordTags || isPendingAllTags) return null;
+
+  if (PUBLIC_READ_ONLY)
+    // public mode: the tags, nothing to edit
+    return (
+      <div className="flex flex-wrap gap-2">
+        {tags?.length ? (
+          tags.map((tag) => (
+            <span
+              key={tag.id}
+              className="rounded-md px-2 py-1 text-sm text-black md:text-xs"
+              style={{ backgroundColor: tag.color }}
+            >
+              {tag.name}
+            </span>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">No tags yet.</p>
+        )}
+      </div>
+    );
 
   return (
     <div className="flex flex-wrap gap-2">

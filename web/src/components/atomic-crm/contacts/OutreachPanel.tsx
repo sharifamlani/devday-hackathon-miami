@@ -4,7 +4,11 @@ import { Check, Mail, PenLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { DATA_MODE } from "../providers/local/config";
+import {
+  DATA_MODE,
+  PUBLIC_READ_ONLY,
+  READ_ONLY_PREVIEW,
+} from "../providers/local/config";
 import { useApproveDraft, useDraftOutreach } from "../providers/local/hooks";
 import type { DonorDetail } from "../providers/local/types";
 import { formatDay } from "./donorFormat";
@@ -117,6 +121,10 @@ export const OutreachPanel = ({ donor }: { donor: DonorDetail }) => {
                   Demo only: not saved (cached sample)
                 </span>
               )}
+            </p>
+          ) : PUBLIC_READ_ONLY ? (
+            <p className="text-right text-xs text-muted-foreground">
+              {READ_ONLY_PREVIEW}
             </p>
           ) : (
             <div className="flex justify-end gap-2">

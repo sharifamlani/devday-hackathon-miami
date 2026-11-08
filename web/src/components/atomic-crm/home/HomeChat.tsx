@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   ArrowRight,
   AudioLines,
@@ -24,8 +31,19 @@ import { type AskAnswer } from "../providers/local/ask";
 import { DATA_MODE } from "../providers/local/config";
 import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
-import { decide, sendToAgent, undoMergedPair, undoStep, useAgentChat } from "./agentChat";
-import { ApprovalCard, StepCard, UndoneNote, undoneSummary } from "./AgentCards";
+import {
+  decide,
+  sendToAgent,
+  undoMergedPair,
+  undoStep,
+  useAgentChat,
+} from "./agentChat";
+import {
+  ApprovalCard,
+  StepCard,
+  UndoneNote,
+  undoneSummary,
+} from "./AgentCards";
 import { DictationButton, DictationHint } from "../voice/DictationButton";
 import { useDictationInput } from "../voice/useDictationInput";
 import { DICTATION_TOGGLE_EVENT } from "./useWorkspaceHotkeys";
@@ -36,6 +54,7 @@ import {
   type HomeTask,
 } from "./homeData";
 import { focusRing } from "./tile";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 const pill = cn(
   "inline-flex min-h-9 items-center justify-center gap-2 rounded-[10px] px-3 text-sm font-medium transition-colors",
@@ -193,14 +212,16 @@ export const FocusTaskCard = ({
             Draft email
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => onDone(task)}
-          className={cn(pill, "bg-surface hover:bg-accent")}
-        >
-          <Check className="size-4" aria-hidden="true" />
-          Mark done
-        </button>
+        {!PUBLIC_READ_ONLY && (
+          <button
+            type="button"
+            onClick={() => onDone(task)}
+            className={cn(pill, "bg-surface hover:bg-accent")}
+          >
+            <Check className="size-4" aria-hidden="true" />
+            Mark done
+          </button>
+        )}
       </div>
     </section>
   );
@@ -263,8 +284,13 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
   const last = messages[messages.length - 1];
   // While a reply streams in, its own step cards and text show the progress; "Thinking…" covers the wait before
   const streamingShown =
-    last?.role === "assistant" && Boolean(last.streaming) && (last.steps.length > 0 || last.text !== "");
-  const progress = last?.role === "assistant" ? `${last.steps.length}:${last.text.length}` : "";
+    last?.role === "assistant" &&
+    Boolean(last.streaming) &&
+    (last.steps.length > 0 || last.text !== "");
+  const progress =
+    last?.role === "assistant"
+      ? `${last.steps.length}:${last.text.length}`
+      : "";
 
   useEffect(() => {
     // Nothing said yet: stay at the top so an opening briefing is read from its first line.
@@ -292,7 +318,9 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
             key={i}
             className="flex min-w-0 max-w-full flex-col gap-2 self-start rounded-2xl sm:max-w-[78%] rounded-bl-[4px] bg-surface px-3.5 py-2.5 text-sm"
           >
-            <span className="block text-[11px] font-bold text-muted-foreground">Agent</span>
+            <span className="block text-[11px] font-bold text-muted-foreground">
+              Agent
+            </span>
             {m.steps.length > 0 && (
               <ul aria-label="Steps" className="flex flex-col gap-1.5">
                 {m.steps.map((step, j) => (
@@ -309,17 +337,26 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
               <ApprovalCard
                 key={a.call_id}
                 approval={a}
-                decided={Boolean(m.handled) || m.decisions?.[a.call_id] !== undefined}
+                decided={
+                  Boolean(m.handled) || m.decisions?.[a.call_id] !== undefined
+                }
                 decision={m.decisions?.[a.call_id]}
                 handled={m.handled}
                 disabled={pending}
-                onDecide={(approve) => decide(i, { [a.call_id]: approve }, refetch)}
+                onDecide={(approve) =>
+                  decide(i, { [a.call_id]: approve }, refetch)
+                }
               />
             ))}
             {m.text && (
               // every change in this reply undone: grey the prose so "Added …" can't read as still true
-              <div className={cn(undoneSummary(m.steps).all && "opacity-55")} data-undone={undoneSummary(m.steps).all || undefined}>
-                <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">{m.text}</Markdown>
+              <div
+                className={cn(undoneSummary(m.steps).all && "opacity-55")}
+                data-undone={undoneSummary(m.steps).all || undefined}
+              >
+                <Markdown className="[&_p]:my-2 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:!px-2 [&_th]:!py-1 [&_td]:!px-2 [&_td]:!py-1">
+                  {m.text}
+                </Markdown>
               </div>
             )}
             <UndoneNote steps={m.steps} />
@@ -517,7 +554,12 @@ export const Composer = ({ onUploadList }: { onUploadList: () => void }) => {
           <ArrowRight className="size-5" aria-hidden="true" />
         </button>
       </form>
-      <DictationHint error={dictation.error} listening={dictation.state === "listening"} interim={dictation.interim} className="px-2" />
+      <DictationHint
+        error={dictation.error}
+        listening={dictation.state === "listening"}
+        interim={dictation.interim}
+        className="px-2"
+      />
     </div>
   );
 };

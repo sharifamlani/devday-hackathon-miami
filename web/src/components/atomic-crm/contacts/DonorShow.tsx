@@ -35,6 +35,7 @@ import { TagsListEdit } from "./TagsListEdit";
 import { AutoMergeFlag } from "./AutoMergeFlag";
 import { AboutPanel } from "./AboutPanel";
 import { isNonGiver, TAB_ONE } from "./personTab";
+import { PUBLIC_READ_ONLY } from "../providers/local/config";
 
 const TABS = ["overview", "notes", "tasks"] as const;
 type ProfileTab = (typeof TABS)[number];
@@ -146,15 +147,17 @@ const DonorShowContent = () => {
                 title="Tasks"
                 caption="Calls, thank-yous and follow-ups for this donor"
                 actions={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => setTaskOpen(true)}
-                  >
-                    <ListPlus aria-hidden />
-                    Add task
-                  </Button>
+                  PUBLIC_READ_ONLY ? undefined : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => setTaskOpen(true)}
+                    >
+                      <ListPlus aria-hidden />
+                      Add task
+                    </Button>
+                  )
                 }
               >
                 <ContactTasksList />
@@ -177,7 +180,13 @@ const ProfileHeader = ({
 }) => (
   <header className={cn(tileClass, "p-4 sm:p-5")}>
     <div className="flex flex-wrap items-start gap-4">
-      <InitialsAvatar name={record.full_name ?? [record.first_name, record.last_name].filter(Boolean).join(" ")} size="lg" />
+      <InitialsAvatar
+        name={
+          record.full_name ??
+          [record.first_name, record.last_name].filter(Boolean).join(" ")
+        }
+        size="lg"
+      />
       <div className="min-w-0 flex-1">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {record.is_star && (
@@ -238,20 +247,24 @@ const ProfileHeader = ({
     </div>
     <div className="mt-4 flex flex-wrap gap-2">
       <PhoneCallButton donorId={record.id} />
-      <Button size="sm" className="rounded-full" onClick={onAddTask}>
-        <ListPlus aria-hidden />
-        Add task
-      </Button>
-      <Link
-        to={`/campaigns/new?donors=${record.id}`}
-        className={cn(
-          buttonVariants({ size: "sm", variant: "outline" }),
-          "rounded-full",
-        )}
-      >
-        <Megaphone aria-hidden />
-        Add to a campaign
-      </Link>
+      {!PUBLIC_READ_ONLY && (
+        <Button size="sm" className="rounded-full" onClick={onAddTask}>
+          <ListPlus aria-hidden />
+          Add task
+        </Button>
+      )}
+      {!PUBLIC_READ_ONLY && (
+        <Link
+          to={`/campaigns/new?donors=${record.id}`}
+          className={cn(
+            buttonVariants({ size: "sm", variant: "outline" }),
+            "rounded-full",
+          )}
+        >
+          <Megaphone aria-hidden />
+          Add to a campaign
+        </Link>
+      )}
     </div>
   </header>
 );
@@ -380,7 +393,10 @@ const ProfileAside = ({ record }: { record: DonorContactDetail }) => (
 const Row = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="flex justify-between gap-3">
     <dt className="text-muted-foreground">{label}</dt>
-    <dd className="min-w-0 truncate text-right font-medium" title={typeof value === "string" ? value : undefined}>
+    <dd
+      className="min-w-0 truncate text-right font-medium"
+      title={typeof value === "string" ? value : undefined}
+    >
       {value}
     </dd>
   </div>

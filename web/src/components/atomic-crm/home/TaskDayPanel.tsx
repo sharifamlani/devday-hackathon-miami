@@ -9,7 +9,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { DATA_MODE } from "../providers/local/config";
+import { DATA_MODE, PUBLIC_READ_ONLY } from "../providers/local/config";
 import { useCalendarFeed } from "../providers/local/calendarFeed";
 import {
   useCreateTask,
@@ -58,7 +58,7 @@ const TaskDayContent = ({
   const [time, setTime] = useState("");
   const [kind, setKind] = useState("call");
   const [message, setMessage] = useState("");
-  const live = DATA_MODE === "local";
+  const live = DATA_MODE === "local" && !PUBLIC_READ_ONLY; // public mode refuses task writes
   const events = (feed.data ?? []).filter((item) => item.kind === "event");
   const submit = async (event: FormEvent) => {
     event.preventDefault();
