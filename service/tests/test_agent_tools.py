@@ -627,3 +627,24 @@ def test_several_cards_get_a_short_waiting_line_not_every_card_again():
     five = [{"tool": "merge_duplicate", "summary": f"Merge pair {i}"} for i in range(5)]
     assert ca.waiting_line(one_card) == "Waiting for you: Send 2 emails."
     assert ca.waiting_line(five) == "Waiting for you: 5 decisions on the cards above."
+
+
+def test_a_gift_on_both_records_is_named_as_counted_once_not_hidden(db_file):
+    """#185: the same gift recorded on both records is counted once after the merge, so the totals move; the
+    tool must say which gift instead of letting the agent claim the totals are unchanged."""
+    pair = one(db_file, "SELECT id, donor_a_id, donor_b_id FROM duplicate_suggestions WHERE status = 'pending' "
+                        "ORDER BY confidence DESC LIMIT 1")
+    conn = sqlite3.connect(db_file)
+    try:
+        # ingest's count-once rule: same amount, within 2 days, from different files, one of them the check log
+        for donor, channel, source in ((pair["donor_a_id"], "check", "check_deposit_log.docx | row:3"),
+                                       (pair["donor_b_id"], "online", "online_gifts.xlsx | row:9")):
+            conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, source_row, status) "
+                         "VALUES (?, 777, '2026-05-05', ?, ?, 'ok')", (donor, channel, source))
+        conn.commit()
+    finally:
+        conn.close()
+    out = invoke("resolve_duplicates")
+    merged = next(m for m in out["merged"] if m["suggestion_id"] == pair["id"])
+    assert merged["counted_once"] == [{"amount": 777, "date": "2026-05-05"}]
+    assert out["gifts_unchanged"] is False

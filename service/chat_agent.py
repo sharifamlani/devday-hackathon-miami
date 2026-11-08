@@ -63,7 +63,9 @@ Rules:
   call complete_task only when the user says so.
 - Duplicates protocol ("fix / merge / clean up the duplicates", or a review task): call resolve_duplicates once.
   It merges every pair that is 80%+ sure by itself. Say how many it merged and name each pair with its score and
-  evidence (each has an Undo on its card), and that the gift totals are unchanged. Then, for EVERY pair in
+  evidence (each has an Undo on its card). Say the gift totals are unchanged only when gifts_unchanged is true;
+  otherwise name each gift in a merged pair's counted_once (the same gift was on both records and now counts
+  once: amount and date). Then, for EVERY pair in
   to_confirm, call merge_duplicate (one card per pair, all in this same turn; the person picks Merge or Keep
   separate) and give your findings for each in a short list: the evidence, both records' giving, and what makes it
   uncertain. If a merge card comes back declined, the person said keep them separate: call dismiss_duplicate for
@@ -741,9 +743,14 @@ def resolve_duplicates(ctx: RunContextWrapper[ChatContext]) -> dict:
                     continue
                 kept_a = result.get("kept_donor_id") == p["a"]["id"]
                 kept, gone = (p["a"], p["b"]) if kept_a else (p["b"], p["a"])
+                once = [int(i) for i in result.get("counted_once") or []]     # #185: the same gift on both records
+                counted_once = [{"amount": r["amount"], "date": r["gift_date"]} for r in conn.execute(
+                    f"SELECT amount, gift_date FROM gifts WHERE id IN ({', '.join('?' * len(once))}) ORDER BY gift_date",
+                    once)] if once else []
                 merged.append({"suggestion_id": p["suggestion_id"], "confidence": p["confidence"],
                                "reasons": p["reasons"], "kept": kept["full_name"], "merged_in": gone["full_name"],
-                               "undo_token": token, "undo_merge_id": result.get("merge_id")})
+                               "counted_once": counted_once, "undo_token": token,
+                               "undo_merge_id": result.get("merge_id")})
             score.run(conn)
             dedupe.run(conn)
         rest = duplicate_pairs(conn)
