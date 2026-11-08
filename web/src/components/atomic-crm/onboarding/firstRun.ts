@@ -643,7 +643,7 @@ export const offerCopy = (
   if (outcome === "saved")
     return {
       title: "Your desk is open.",
-      body: "This preview shows the facts already saved for your organization. Want a one-minute tour of where things are?",
+      body: "This preview can't read websites, so it shows what's already here. Want a one-minute tour of where things are?",
     };
   if (outcome === "background" && data.background?.status !== "failed")
     return {

@@ -21,6 +21,7 @@ import { requireWebsite } from "./validate";
 import {
   isPublicPreviewRefusal,
   PUBLIC_PREVIEW_MESSAGE,
+  PUBLIC_PREVIEW_READ_MESSAGE,
 } from "./publicPreview";
 import {
   parseContext,
@@ -88,7 +89,9 @@ export const request = async <T>(
     }
     throw new ApiError(
       isPublicPreviewRefusal(response.status, body)
-        ? PUBLIC_PREVIEW_MESSAGE
+        ? method === "GET"
+          ? PUBLIC_PREVIEW_READ_MESSAGE
+          : PUBLIC_PREVIEW_MESSAGE
         : `${method} ${path} failed: ${response.status} ${detail}`.trim(),
       response.status,
       body,

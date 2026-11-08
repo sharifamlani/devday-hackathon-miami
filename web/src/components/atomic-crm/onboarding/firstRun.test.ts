@@ -668,7 +668,7 @@ describe("the dashboard card's copy", () => {
       context: { outcome: "saved", items: 13, tasks: null },
       background: null,
     });
-    expect(copy.body).toContain("already saved");
+    expect(copy.body).toContain("can't read websites");
     expect(copy.body).not.toContain("wasn't read");
   });
 

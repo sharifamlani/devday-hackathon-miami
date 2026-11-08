@@ -1086,7 +1086,7 @@ export const ContextStep = ({
     phase.phase === "welcome"
       ? (phase.receipt.orgName ?? "Opening your dashboard.")
       : previewOnly
-        ? "It's read-only. Your dashboard shows the facts already saved for this organization."
+        ? "It's read-only, so nothing new is read. Your dashboard shows what's already in this preview."
         : phase.phase === "error"
           ? "You can still use Donor Desk and run it again later."
           : phase.phase === "slow"

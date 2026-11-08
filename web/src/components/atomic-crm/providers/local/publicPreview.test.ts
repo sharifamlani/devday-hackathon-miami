@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { isPublicPreviewRefusal, PUBLIC_PREVIEW_MESSAGE } from "./publicPreview";
+import {
+  isPublicPreviewRefusal,
+  PUBLIC_PREVIEW_MESSAGE,
+  PUBLIC_PREVIEW_READ_MESSAGE,
+} from "./publicPreview";
 
 describe("public preview refusals", () => {
   it("recognises only the preview's own 403", () => {
@@ -12,6 +16,8 @@ describe("public preview refusals", () => {
   });
 
   it("reads as a plain sentence, with no status code or route", () => {
-    expect(PUBLIC_PREVIEW_MESSAGE).not.toMatch(/403|POST|\//);
+    for (const message of [PUBLIC_PREVIEW_MESSAGE, PUBLIC_PREVIEW_READ_MESSAGE])
+      expect(message).not.toMatch(/403|POST|GET|\//);
+    expect(PUBLIC_PREVIEW_READ_MESSAGE).not.toContain("saved");
   });
 });

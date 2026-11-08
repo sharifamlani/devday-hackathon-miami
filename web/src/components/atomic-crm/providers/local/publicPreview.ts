@@ -6,6 +6,10 @@
 export const PUBLIC_PREVIEW_MESSAGE =
   "This is a read-only preview, so changes can't be saved here.";
 
+/** The same refusal for a read (a GET the preview doesn't serve): nothing was being saved. */
+export const PUBLIC_PREVIEW_READ_MESSAGE =
+  "This part isn't available in the public preview.";
+
 export const isPublicPreviewRefusal = (status: number, body: unknown) =>
   status === 403 &&
   (body as { detail?: unknown } | null)?.detail ===
