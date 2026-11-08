@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Search, Sparkles } from "lucide-react";
 
 import {
@@ -10,6 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { EmailLink, PhoneLink } from "../contacts/ContactLinks";
 import { SourceLink } from "../contacts/ResearchPanel";
 import { formatUsd } from "../contacts/donorFormat";
 import { DATA_MODE } from "../providers/local/config";
@@ -223,7 +224,7 @@ export const FindDonorDialog = ({
   );
 };
 
-const Fact = ({ label, value }: { label: string; value: string }) => (
+const Fact = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="rounded-xl bg-surface px-3 py-2">
     <dt className="text-xs text-muted-foreground">{label}</dt>
     <dd className="truncate font-semibold">{value}</dd>
@@ -294,8 +295,14 @@ const DonorSummaryView = ({
       <dl className="grid grid-cols-2 gap-2 text-sm">
         <Fact label="Lifetime" value={formatUsd(donor.total_given)} />
         <Fact label="Gifts" value={String(donor.gift_count)} />
-        <Fact label="Email" value={contactEmail(donor.email) ?? "—"} />
-        <Fact label="Phone" value={contactPhone(donor.phone) ?? "—"} />
+        <Fact
+          label="Email"
+          value={<EmailLink email={contactEmail(donor.email)} />}
+        />
+        <Fact
+          label="Phone"
+          value={<PhoneLink phone={contactPhone(donor.phone)} />}
+        />
         <Fact label="Pattern" value={donorMeta(donor) || "—"} />
       </dl>
       <Saved donor={donor} live={live} />
