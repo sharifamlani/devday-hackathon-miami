@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataImportProvider } from "../dataImport/DataImportProvider";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import Header from "./Header";
+import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
 import { Rail } from "./Rail";
 
 /**
@@ -18,30 +19,36 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   useConfigurationLoader();
   return (
     <DataImportProvider>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
-      >
-        Skip to content
-      </a>
-      <div className="min-h-screen bg-background p-4 xl:p-7">
-        <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1600px] grid-cols-[60px_minmax(0,1fr)] gap-4 rounded-[34px] bg-surface py-[18px] pr-[22px] pl-2.5 shadow-[0_20px_70px_#3430260a] xl:min-h-[calc(100vh-3.5rem)] xl:grid-cols-[68px_minmax(0,1fr)] xl:gap-7 xl:pt-[22px] xl:pr-[26px] xl:pl-4">
-          <Rail />
-          <div className="min-w-0">
-            <Header />
-            <main id="main-content" tabIndex={-1} className="outline-none">
-              <ErrorBoundary FallbackComponent={Error}>
-                <Suspense
-                  fallback={<Skeleton className="h-12 w-12 rounded-full" />}
-                >
-                  {children}
-                </Suspense>
-              </ErrorBoundary>
-            </main>
+      <ProjectsSidebarProvider>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+        >
+          Skip to content
+        </a>
+        <div className="min-h-screen bg-background p-4 xl:p-7">
+          <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1600px] grid-cols-[60px_minmax(0,1fr)] gap-4 rounded-[34px] bg-surface py-[18px] pr-[22px] pl-2.5 shadow-[0_20px_70px_#3430260a] xl:min-h-[calc(100vh-3.5rem)] xl:grid-cols-[68px_minmax(0,1fr)] xl:gap-7 xl:pt-[22px] xl:pr-[26px] xl:pl-4">
+            <Rail />
+            {/* Projects sidebar (Codex-style, collapsible) beside the workspace. */}
+            <div className="flex min-w-0 gap-4 xl:gap-6">
+              <ProjectsSidebar />
+              <div className="min-w-0 flex-1">
+                <Header />
+                <main id="main-content" tabIndex={-1} className="outline-none">
+                  <ErrorBoundary FallbackComponent={Error}>
+                    <Suspense
+                      fallback={<Skeleton className="h-12 w-12 rounded-full" />}
+                    >
+                      {children}
+                    </Suspense>
+                  </ErrorBoundary>
+                </main>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <Notification />
+        <Notification />
+      </ProjectsSidebarProvider>
     </DataImportProvider>
   );
 };

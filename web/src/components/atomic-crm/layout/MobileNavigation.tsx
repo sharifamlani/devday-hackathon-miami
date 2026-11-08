@@ -1,13 +1,27 @@
 import { cn } from "@/lib/utils";
-import { House, PhoneCall, Send, Sparkles, Users } from "lucide-react";
+import {
+  FolderOpen,
+  House,
+  PhoneCall,
+  Send,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { useTranslate } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
+
+import {
+  SIDEBAR_ID,
+  SIDEBAR_TOGGLE_ID,
+  useProjectsSidebar,
+} from "./projectsSidebarContext";
 
 export const MobileNavigation = () => {
   const location = useLocation();
   const translate = useTranslate();
   const onHome = !!matchPath("/", location.pathname);
   const onInbox = !!matchPath("/inbox", location.pathname);
+  const sidebar = useProjectsSidebar();
   const onDonors = !!matchPath("/contacts/*", location.pathname);
   const onCampaigns =
     !!matchPath("/campaigns/*", location.pathname) ||
@@ -59,10 +73,33 @@ export const MobileNavigation = () => {
           label={translate("crm.campaigns.title", { _: "Campaigns" })}
           isActive={onCampaigns}
         />
+        {sidebar && (
+          <button
+            id={SIDEBAR_TOGGLE_ID}
+            type="button"
+            onClick={sidebar.toggle}
+            aria-expanded={sidebar.open}
+            aria-controls={SIDEBAR_ID}
+            className={cn(
+              navButton,
+              sidebar.open
+                ? "bg-primary text-brand dark:text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <FolderOpen className="size-[18px]" aria-hidden />
+            <span className="text-[10px] font-medium leading-none">
+              Projects
+            </span>
+          </button>
+        )}
       </div>
     </nav>
   );
 };
+
+const navButton =
+  "flex min-h-[50px] min-w-[52px] flex-1 max-w-[74px] flex-col items-center justify-center gap-1 rounded-[15px] px-1 py-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 const NavigationButton = ({
   href,
@@ -79,7 +116,7 @@ const NavigationButton = ({
     to={href}
     aria-current={isActive ? "page" : undefined}
     className={cn(
-      "flex min-h-[50px] min-w-[56px] flex-1 max-w-[74px] flex-col items-center justify-center gap-1 rounded-[15px] px-1 py-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+      navButton,
       isActive
         ? "bg-primary text-brand dark:text-primary-foreground"
         : "text-muted-foreground hover:bg-accent hover:text-foreground",
