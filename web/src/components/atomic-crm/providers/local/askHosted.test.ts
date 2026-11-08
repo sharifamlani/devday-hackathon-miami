@@ -7,7 +7,7 @@ import {
   type ApiSnapshotWithAsk,
   type AskFilter,
 } from "./ask";
-import { ASK_API_URL, HOSTED_MESSAGES, askHosted } from "./askHosted";
+import { ASK_API_URL, HOSTED_MESSAGES, askHosted, resetHostedAsk } from "./askHosted";
 
 const snapshot = () =>
   structuredClone(snapshotJson) as unknown as ApiSnapshotWithAsk;
@@ -26,6 +26,34 @@ const reply = (status: number, body: unknown) =>
   );
 
 describe("askHosted: snapshot mode with /api/ask", () => {
+  beforeEach(() => resetHostedAsk());
+  afterEach(() => resetHostedAsk());
+
+  it("after one 503 (not configured), later free-text questions make no request", async () => {
+    const first = reply(503, { error: "not_configured" });
+    const a1 = await askHosted(snapshot(), "hello?", null, null, first);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(a1.understood).toBe(false);
+    expect(a1.interpretation).toBe(HOSTED_MESSAGES.notConfigured);
+
+    const later = reply(200, {});
+    const a2 = await askHosted(snapshot(), "who are my top donors this fall?", null, null, later);
+    expect(later).not.toHaveBeenCalled();
+    expect(a2.interpretation).toBe(HOSTED_MESSAGES.notConfigured);
+
+    // Example questions still answer from the cache.
+    const examples = await askHosted(snapshot(), EXAMPLE_QUESTIONS[0], null, null, later);
+    expect(examples.understood).toBe(true);
+    expect(later).not.toHaveBeenCalled();
+  });
+
+  it("a 429 or 502 doesn't stop later questions from asking the API", async () => {
+    await askHosted(snapshot(), "who gave last week?", null, null, reply(429, { error: "rate_limited" }));
+    const later = reply(200, {});
+    await askHosted(snapshot(), "who gave this week?", null, null, later);
+    expect(later).toHaveBeenCalledTimes(1);
+  });
+
   it("answers examples from the cache without calling the API", async () => {
     const fetchImpl = reply(200, {});
     const answer = await askHosted(

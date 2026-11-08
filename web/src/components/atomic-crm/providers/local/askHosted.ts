@@ -18,6 +18,41 @@ import {
 
 export const ASK_API_URL = "/api/ask";
 
+/**
+ * Once /api/ask says it isn't configured (503), later free-text questions skip the request and go straight
+ * to the friendly fallback, so a deployment without a key logs one console error, not one per question.
+ * Remembered for the browser session; VITE_ASK_API=off skips the API from the first question.
+ */
+const UNCONFIGURED_KEY = "donordesk.askApi.unconfigured";
+let unconfigured = import.meta.env.VITE_ASK_API === "off" || readUnconfigured();
+
+function readUnconfigured(): boolean {
+  try {
+    return window.sessionStorage.getItem(UNCONFIGURED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const rememberUnconfigured = () => {
+  unconfigured = true;
+  try {
+    window.sessionStorage.setItem(UNCONFIGURED_KEY, "1");
+  } catch {
+    /* private mode: remembered for this page load */
+  }
+};
+
+/** For tests: forget a cached 503. */
+export const resetHostedAsk = () => {
+  unconfigured = import.meta.env.VITE_ASK_API === "off";
+  try {
+    window.sessionStorage.removeItem(UNCONFIGURED_KEY);
+  } catch {
+    /* nothing stored */
+  }
+};
+
 export const HOSTED_MESSAGES = {
   notConfigured:
     "Live AI isn't configured on this deployment. Pick one of the example questions, then edit its filters.",
@@ -68,6 +103,7 @@ export const askHosted = async (
   const text = question.trim();
   if (text.length < 3 || text.length > 300)
     return notAnswered(HOSTED_MESSAGES.length);
+  if (unconfigured) return notAnswered(HOSTED_MESSAGES.notConfigured);
 
   let response: Response;
   try {
@@ -79,8 +115,10 @@ export const askHosted = async (
   } catch {
     return notAnswered(HOSTED_MESSAGES.unavailable);
   }
-  if (response.status === 503)
+  if (response.status === 503) {
+    rememberUnconfigured();
     return notAnswered(HOSTED_MESSAGES.notConfigured);
+  }
   if (response.status === 429) return notAnswered(HOSTED_MESSAGES.rateLimited);
   if (!response.ok) return notAnswered(HOSTED_MESSAGES.unavailable);
 
