@@ -19,7 +19,7 @@ import { googleWorkplaceDomain } from "./authConfig";
 export const SignupPage = () => {
   const queryClient = useQueryClient();
   const dataProvider = useDataProvider<CrmDataProvider>();
-  const { darkModeLogo: logo, title } = useConfigurationContext();
+  const { title } = useConfigurationContext();
   const navigate = useNavigate();
   const translate = useTranslate();
   const { data: isInitialized, isPending } = useQuery({
@@ -98,12 +98,6 @@ export const SignupPage = () => {
   return (
     <div className="h-screen p-8">
       <div className="flex items-center gap-4">
-        <img
-          src={logo}
-          alt={title}
-          width={24}
-          className="filter brightness-0 dark:invert"
-        />
         <h1 className="text-xl font-semibold">{title}</h1>
       </div>
       <div className="h-full">
