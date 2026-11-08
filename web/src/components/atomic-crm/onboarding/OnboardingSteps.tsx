@@ -9,7 +9,6 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { useGetIdentity } from "ra-core";
 import { Database, Upload } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -175,7 +174,7 @@ const Field = ({
   );
 };
 
-/** Fill an empty value once, when data arrives late (org profile, identity). */
+/** Fill an empty value once, when data arrives late (org profile). */
 const usePrefill = (
   value: string,
   setValue: (v: string) => void,
@@ -198,11 +197,10 @@ export const WelcomeStep = ({
   onContinue: (patch: Pick<OnboardingData, "personName" | "orgName">) => void;
 }) => {
   const { data } = useOnboarding();
-  const { data: identity } = useGetIdentity();
   const { data: profile } = useOrgProfile();
   const [personName, setPersonName] = useState(data.personName);
   const [orgName, setOrgName] = useState(data.orgName);
-  usePrefill(personName, setPersonName, identity?.fullName);
+  // The name is the person's own to type: the demo login's "Jane Doe" is a placeholder, never prefilled.
   usePrefill(orgName, setOrgName, profile?.name);
   const id = useId();
 
