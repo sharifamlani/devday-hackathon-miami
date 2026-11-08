@@ -1161,7 +1161,12 @@ def approval_summary(tool: str, args: dict) -> str | None:
                      "JOIN donors b ON b.id = s.donor_b_id WHERE s.id = ?", (args["suggestion_id"],))
         if rows:
             r = rows[0]
-            keep_a = args.get("keep_id") in (None, r["a_id"])
+            keep_id = args.get("keep_id")
+            if keep_id is None:            # dedupe.merge's default keeper: more gifts, ties -> lower id
+                counts = {d: query("SELECT COUNT(*) AS n FROM gifts WHERE donor_id = ?", (d,))[0]["n"]
+                          for d in (r["a_id"], r["b_id"])}
+                keep_id = sorted(counts, key=lambda d: (-counts[d], d))[0]
+            keep_a = keep_id == r["a_id"]
             kept, merged = (r["a_name"], r["b_name"]) if keep_a else (r["b_name"], r["a_name"])
             pair = next((p for p in with_conn(duplicate_pairs) if p["suggestion_id"] == args["suggestion_id"]), None)
             if pair is None:

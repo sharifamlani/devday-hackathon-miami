@@ -662,3 +662,18 @@ def test_a_named_pair_is_found_and_only_that_pair_is_handled(db_file):
     none = invoke("resolve_duplicates", names=["Bill Hartwell", "Nobody Here"])
     assert none["merged"] == [] and none["to_confirm"] == []
     assert none["note"] == "No pending duplicate pair for Bill Hartwell and Nobody Here."
+
+
+def test_the_merge_card_names_the_record_the_merge_will_keep(db_file):
+    """dedupe.merge keeps the record with more gifts (ties: lower id); the card must say the same."""
+    nickname_pair(db_file)
+    william = one(db_file, "SELECT id FROM donors WHERE full_name = 'William Hartwell'")["id"]
+    conn = sqlite3.connect(db_file)
+    try:
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 50, '2026-04-01', 'online')",
+                     (william,))
+        conn.commit()
+    finally:
+        conn.close()
+    sid = next(p["suggestion_id"] for p in invoke("resolve_duplicates", names=["Bill Hartwell", "William Hartwell"])["to_confirm"])
+    assert ca.approval_summary("merge_duplicate", {"suggestion_id": sid}).startswith("Merge Bill Hartwell into William Hartwell")
