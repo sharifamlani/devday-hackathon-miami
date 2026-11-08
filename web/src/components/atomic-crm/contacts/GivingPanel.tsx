@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { givingSummary } from "../providers/local/crmDonors";
+import { cn } from "@/lib/utils";
+import { givingSummary, isCountedGift } from "../providers/local/crmDonors";
 import type { DonorDetail } from "../providers/local/types";
 import { ProfileSection, Stat } from "./donorCrmUi";
 import { formatDay, formatUsd } from "./donorFormat";
@@ -94,24 +95,43 @@ export const GivingPanel = ({
               </tr>
             </thead>
             <tbody>
-              {visible.map((gift) => (
-                <tr
-                  key={gift.id}
-                  className="border-b border-border/60 last:border-0"
-                >
-                  <td className="py-1.5 pr-3 whitespace-nowrap">
-                    {formatDay(gift.gift_date)}
-                  </td>
-                  <td className="py-1.5 pr-3 text-muted-foreground">
-                    {[gift.channel, gift.fund_type]
-                      .filter(Boolean)
-                      .join(" · ") || "Not recorded"}
-                  </td>
-                  <td className="py-1.5 text-right font-medium tabular-nums">
-                    {formatUsd(gift.amount)}
-                  </td>
-                </tr>
-              ))}
+              {visible.map((gift) => {
+                const counted = isCountedGift(gift);
+                return (
+                  <tr
+                    key={gift.id}
+                    className={cn(
+                      "border-b border-border/60 last:border-0",
+                      !counted && "text-muted-foreground",
+                    )}
+                  >
+                    <td className="py-1.5 pr-3 whitespace-nowrap">
+                      {formatDay(gift.gift_date)}
+                    </td>
+                    <td className="py-1.5 pr-3 text-muted-foreground">
+                      {[gift.channel, gift.fund_type]
+                        .filter(Boolean)
+                        .join(" · ") || "Not recorded"}
+                    </td>
+                    <td className="py-1.5 text-right font-medium tabular-nums">
+                      {counted ? (
+                        formatUsd(gift.amount)
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="rounded-full bg-alert px-2 py-0.5 text-[11px] font-semibold text-alert-foreground">
+                            {gift.status === "failed" ? "Failed" : "Declined"}
+                          </span>
+                          <s
+                            aria-label={`${formatUsd(gift.amount)}, not a gift`}
+                          >
+                            {formatUsd(gift.amount)}
+                          </s>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {compact && gifts.length > SHORT_LIST && (

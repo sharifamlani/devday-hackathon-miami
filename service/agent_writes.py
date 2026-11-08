@@ -146,6 +146,8 @@ def dismiss_duplicate(conn: sqlite3.Connection, suggestion_id: int, actor: str =
     token = _log(conn, actor, "dismiss_duplicate", f"duplicate:{suggestion_id}", {"status": row["status"]},
                  {"status": "dismissed"})
     conn.commit()
+    from service import tasks
+    tasks.generate_safely(conn, "dismiss")    # its review task retires
     return {"suggestion_id": suggestion_id, "status": "dismissed"}, token
 
 
@@ -243,6 +245,6 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
         raise WriteError(f"can't undo a {kind} change")
     conn.execute("UPDATE agent_actions SET undone_at = ? WHERE id = ?", (_now(), action["id"]))
     conn.commit()
-    if kind == "merge":
-        tasks.generate_safely(conn, "merge undo")
+    if kind in ("merge", "duplicate"):         # the pair is pending again: its review task comes back
+        tasks.generate_safely(conn, f"{kind} undo")
     return {"undone": True, "target": action["target"], "action": action["action"]}

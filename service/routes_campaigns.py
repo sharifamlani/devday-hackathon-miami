@@ -387,9 +387,10 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
                                "detail": result.get("detail"), "provider": result["provider"]})
             elif result["reason"].startswith("no "):
                 no_address.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"]})
-        left = conn.execute("SELECT COUNT(*) FROM campaign_messages WHERE campaign_id = ? AND status IN ('draft', 'approved')",
-                            (campaign_id,)).fetchone()[0]
-        if sent and not left:
+        # Sent (a dry run counts) once anything went out. What didn't (a draft awaiting one-by-one approval, no
+        # address, a failed delivery) stays visible: the list's counter and outcome label come from the messages
+        # and the outbox, not from this status.
+        if sent:
             conn.execute("UPDATE campaigns SET status = 'sent' WHERE id = ?", (campaign_id,))
     detail = campaign_detail(conn, campaign_id)
     return {"simulated": not any_real, "sent": sent, "providers": providers, "no_address": no_address, "failed": failed,

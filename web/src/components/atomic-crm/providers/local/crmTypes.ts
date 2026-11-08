@@ -386,6 +386,8 @@ export interface ContextStatus {
   refreshing: boolean;
   /** Ready to show: "Context updated today 7:00 AM · 2 new events". */
   label: string;
+  /** After Refresh now: sources the pass couldn't read (e.g. ["website", "news"]). */
+  unread_sources?: string[];
 }
 
 export interface CrmMethods {
