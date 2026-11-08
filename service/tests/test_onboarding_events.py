@@ -70,6 +70,51 @@ def test_a_search_that_finds_nothing_leaves_the_calendar_alone(db_file, monkeypa
     assert body["calendar"]["events"] == 0 and body["calendar"]["invites"] == "not started"
 
 
+def slow_context(urls, refresh=False):
+    time.sleep(0.6)                                   # past the (shortened) read deadline
+    return context_ok(urls, refresh)
+
+
+def events_after(seconds, events):
+    """Stand in for main.start_events_search: a search that finishes after `seconds`."""
+    async def found():
+        await asyncio.sleep(seconds)
+        return [dict(e) for e in events]
+    return lambda website: asyncio.ensure_future(found())
+
+
+def test_a_slow_read_still_lands_with_events_and_prep_tasks(db_file, monkeypatch):
+    monkeypatch.setattr(main.config, "CONTEXT_DEADLINE_S", 0.2)
+    monkeypatch.setattr(main.config, "ONBOARDING_EVENTS_GRACE_S", 5)
+    monkeypatch.setattr(main, "start_events_search", events_after(0.4, EVENTS))   # done after the read gave up
+    monkeypatch.setattr(org_context, "build_context", slow_context)
+    with main.REFRESH_LOCK:
+        main.REFRESH_JOB.update(status="idle")
+    body = TestClient(main.app).post("/context/run", json={"website": "https://miamifoundation.org"}).json()
+    assert body["served_from"] == "fallback"                                        # the web goes on in the background
+    assert body["calendar"]["events"] == 2 and body["calendar"]["prep_tasks"] >= 1
+    assert body["calendar"]["invites"] == "with the background read"
+    assert main.refresh_job_state()["status"] == "idle"           # the refresh slot is free for POST /context/refresh
+    conn = db.connect(db_file)
+    assert conn.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 2
+    assert conn.execute("SELECT COUNT(*) FROM tasks WHERE kind = 'prep'").fetchone()[0] >= 1
+    conn.close()
+
+
+def test_a_slow_read_and_a_slower_search_answer_on_time_with_no_events(db_file, monkeypatch):
+    monkeypatch.setattr(main.config, "CONTEXT_DEADLINE_S", 0.2)
+    monkeypatch.setattr(main.config, "ONBOARDING_EVENTS_GRACE_S", 0.2)
+    monkeypatch.setattr(main, "start_events_search", events_after(5, EVENTS))
+    monkeypatch.setattr(org_context, "build_context", slow_context)
+    t0 = time.monotonic()
+    body = TestClient(main.app).post("/context/run", json={"website": "https://miamifoundation.org"}).json()
+    assert time.monotonic() - t0 < 3                              # capped: the grace, not the search, sets the wait
+    assert body["served_from"] == "fallback" and body["calendar"]["events"] == 0
+    conn = db.connect(db_file)
+    assert conn.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 0
+    conn.close()
+
+
 def test_events_refresh_runs_the_real_pass(db_file, monkeypatch):
     monkeypatch.setattr(main, "events_agent", lambda: None)            # don't import the real module here
     monkeypatch.setattr(main, "run_refresh", lambda: {"state": "done", "detail": None, "changes": {"events": {"new": []}}})

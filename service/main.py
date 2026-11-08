@@ -506,6 +506,10 @@ async def context_run(req: ContextRun) -> dict:
         # The site is still worth reading: keep what the user typed (never their facts) so
         # POST /context/refresh can finish the job in the background on these URLs.
         saved = await run_in_threadpool(persist_urls, urls)
+        # The events search started with the read and is usually nearly done: give it a short grace so the
+        # dashboard lands with events and prep tasks. Invites wait for that background refresh (step 3), so
+        # this job never holds the refresh slot the web is about to ask for.
+        calendar = await onboarding_calendar(events_job, wait_s=config.ONBOARDING_EVENTS_GRACE_S, invites=False)
     return {"state": state, "cached": cached, "served_from": served_from, "detail": detail,
             "started_at": started_at, "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,
@@ -556,22 +560,23 @@ def _safe_extract(ea, hints: list[dict], website: str) -> list[dict]:
         return []
 
 
-async def onboarding_calendar(events_job) -> dict | None:
+async def onboarding_calendar(events_job, wait_s: float | None = None, invites: bool = True) -> dict | None:
     """The first run's calendar, so the dashboard isn't empty after onboarding: save the events the search
     found and generate tasks (prep tasks for events within 14 days) before step 3 answers; then draft every
     event's invites in the background (GET /context/refresh shows that job). A search that failed or found
-    nothing leaves the calendar as it was."""
+    nothing leaves the calendar as it was. invites=False (a slow read) leaves the invites to the background
+    refresh the web starts next."""
     if events_job is None:
         return None
     try:
-        events = await asyncio.wait_for(events_job, config.CONTEXT_DEADLINE_S)
+        events = await asyncio.wait_for(events_job, config.CONTEXT_DEADLINE_S if wait_s is None else wait_s)
     except Exception as e:  # timeout or search error: the daily refresh (or "Refresh now") will pick events up
         log.warning("onboarding events search failed: %s", e)
         return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": f"{type(e).__name__}: {e}"[:200]}
     if not events:
         return {"events": 0, "prep_tasks": 0, "invites": "not started", "detail": "no upcoming events found"}
     out, ids, stored = await run_in_threadpool(save_onboarding_calendar, events)
-    out["invites"] = start_invites_job(events, ids, stored)["status"]
+    out["invites"] = start_invites_job(events, ids, stored)["status"] if invites else "with the background read"
     return out
 
 
