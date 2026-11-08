@@ -250,6 +250,57 @@ describe("geminiTranscriptSource", () => {
   });
 });
 
+describe("graceful stop", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const started = async () => {
+    await takeCallRecordings();
+    const h = setup();
+    await vi.advanceTimersByTimeAsync(0); // the call recorder comes up
+    h.sockets[0].open();
+    h.recorders[0].frame([0, 0]);
+    h.callRecorder.chunk("a");
+    return h;
+  };
+
+  it("stopped mid-sentence: sends end, and the last final lands in the stretch's tail", async () => {
+    const h = await started();
+    h.sockets[0].server({ type: "final", text: "Luis gives every" });
+    h.sockets[0].server({ type: "interim", text: "and he prefers phone calls in" });
+    const finishing = h.source.finishRecording();
+    h.source.stop();
+    expect(h.sockets[0].sent.at(-1)).toBe(JSON.stringify({ type: "end" }));
+    expect(h.sockets[0].closed).toBe(false); // left open to drain
+    h.sockets[0].server({ type: "final", text: "And he prefers phone calls in December." });
+    h.sockets[0].onclose?.(); // the server closes after the final
+    const rec = await finishing;
+    expect(rec?.texts).toEqual(["Luis gives every"]);
+    expect(rec?.tail).toEqual(["And he prefers phone calls in December."]);
+    expect(h.lines.map((l) => l.text)).toEqual(["Luis gives every"]); // nothing reaches the pane after stop
+  });
+
+  it("no final within the drain time: the unfinished words stand in", async () => {
+    const h = await started();
+    h.sockets[0].server({ type: "interim", text: "phone calls in December" });
+    const finishing = h.source.finishRecording();
+    h.source.stop();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect((await finishing)?.tail).toEqual(["phone calls in December"]);
+    expect(h.sockets[0].closed).toBe(true);
+  });
+
+  it("nothing being recognized: closes at once, no end sent, empty tail", async () => {
+    const h = await started();
+    h.sockets[0].server({ type: "final", text: "All said." });
+    const finishing = h.source.finishRecording();
+    h.source.stop();
+    expect(h.sockets[0].closed).toBe(true);
+    expect(h.sockets[0].sent).not.toContain(JSON.stringify({ type: "end" }));
+    expect((await finishing)?.tail).toEqual([]);
+  });
+});
+
 describe("warmUpCaptions", () => {
   it("keeps one 16 kHz context, runs it briefly, and runs it again on the first pointer press", async () => {
     const made: { sampleRate?: number; runs: number; state: string }[] = [];
