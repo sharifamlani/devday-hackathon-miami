@@ -1,18 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  WAITING_PREFIX,
-  agentChatMessages,
-  applyStreamLine,
-  decide,
-  resetAgentChat,
-  scopesOf,
-  sendToAgent,
-  type AgentStep,
-  CHAT_STORAGE_KEY,
-  loadSavedChat,
-  waitingLine,
-} from "./agentChat";
+import { agentChatMessages, applyStreamLine, CHAT_STORAGE_KEY, decide, decidedLabel, loadSavedChat, resetAgentChat, scopesOf, sendToAgent, type AgentStep, WAITING_PREFIX, waitingLine } from "./agentChat";
 
 const reply = (body: unknown) =>
   Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
@@ -312,5 +300,13 @@ describe("agent chat: the last conversation survives a reload", () => {
     ]));
     const loaded = loadSavedChat();
     expect(loaded[1]).toMatchObject({ streaming: undefined, steps: [expect.objectContaining({ status: "error", summary: "no result" })] });
+  });
+});
+
+describe("decidedLabel: a decided event delete", () => {
+  it("says deleting or kept until the run's own line arrives", () => {
+    expect(decidedLabel("delete_event", true)).toBe("deleting");
+    expect(decidedLabel("delete_event", false)).toBe("kept (not deleted)");
+    expect(decidedLabel("delete_task", false)).toBe("declined");
   });
 });

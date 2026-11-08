@@ -1182,15 +1182,50 @@ def summarize(output) -> str:
     return json.dumps(data)[:160]
 
 
-DECLINED = {"merge_duplicate": "kept separate", "send": "not sent", "call_person": "not called"}
+DECLINED = {"merge_duplicate": "kept separate", "send": "not sent", "call_person": "not called",
+            "delete_event": "kept (not deleted)", "delete_calendar_item": "kept (not deleted)"}
+
+
+def nice_when(starts_at: str, with_time: bool = True) -> str:
+    """'2026-11-10T15:00' -> 'Tue Nov 10, 3:00 PM'; a date alone -> 'Tue Nov 10'."""
+    day = date.fromisoformat(starts_at[:10])
+    out = f"{day:%a} {day:%b} {day.day}"
+    clock = starts_at[11:16]
+    if with_time and len(clock) == 5:
+        h, m = int(clock[:2]), int(clock[3:])
+        out += f", {h % 12 or 12}:{m:02d} {'AM' if h < 12 else 'PM'}"
+    return out
+
+
+def event_line(tool: str, data: dict) -> str | None:
+    """The step line for an event write (add_event / move_event / delete_event and the calendar-item versions),
+    or None when the output isn't an event."""
+    if not (isinstance(data, dict) and data.get("title") and data.get("starts_at") and "source" in data
+            and "kind" not in data):
+        return None
+    try:
+        if tool.startswith("delete_"):
+            day = date.fromisoformat(data["starts_at"][:10])
+            return f"Deleted {data['title']} ({day:%b} {day.day})"
+        when = nice_when(data["starts_at"])
+    except ValueError:
+        return None
+    return f"Moved {data['title']} to {when}" if tool.startswith("move_") else f"Added {data['title']} · {when}"
 
 
 def step_summary(tool: str, output) -> str:
     """The step card's line. A card the person declined comes back as the SDK's "Tool execution was not
-    approved."; say what that meant instead."""
+    approved."; say what that meant instead. Event writes read as a sentence ("Added Board meeting · Tue Nov 10,
+    3:00 PM"); other deletes say "deleted: ..." (tasks' public shape has no deleted_at)."""
     if isinstance(output, str) and "not approved" in output.lower():
         return DECLINED.get(tool, "declined")
-    return summarize(output)
+    line = event_line(tool, output_data(output))
+    if line:
+        return line
+    summary = summarize(output)
+    if tool.startswith("delete_") and not summary.startswith("error"):
+        summary = "deleted: " + summary.split(": ", 1)[-1]
+    return summary
 
 
 def output_data(output) -> dict:
@@ -1220,8 +1255,6 @@ def steps_from(items) -> list[dict]:
             call_id = raw.get("call_id") if isinstance(raw, dict) else getattr(raw, "call_id", None)
             if call_id in calls:
                 summary = step_summary(calls[call_id]["tool"], item.output)
-                if calls[call_id]["tool"].startswith("delete_") and not summary.startswith("error") and summary != "declined":
-                    summary = "deleted: " + summary.split(": ", 1)[-1]     # tasks' public shape has no deleted_at
                 calls[call_id]["summary"] = summary
                 calls[call_id]["status"] = "error" if summary.startswith("error") else "done"
                 calls[call_id]["undo_token"] = output_data(item.output).get("undo_token")
@@ -1433,4 +1466,33 @@ def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> di
         if item.call_id in decisions:
             (state.approve if decisions[item.call_id] else state.reject)(item)
     result = Runner.run_sync(agent, state, context=ctx, max_turns=12)
-    return respond(result, ctx, spec, spec["steps"])
+    return with_outcome(respond(result, ctx, spec, spec["steps"]), decisions, spec["steps"])
+
+
+# A reply written as if the card were still waiting ("pending deletion", "approve on the card").
+STILL_PENDING = re.compile(r"\b(pending|waiting for (your )?approval|ready for (your )?approval|approve (it )?on the card)\b",
+                           re.I)
+
+
+def with_outcome(out: dict, decisions: dict[str, bool], shown: list[dict]) -> dict:
+    """After the person decides, the reply says what happened. When the resumed run says nothing, or still talks
+    as if the card were waiting, the reply becomes the decided steps' own lines ("Deleted Board meeting (Nov 10).",
+    "Kept Board meeting (2026-11-10)."). A run that paused again keeps its reply."""
+    if out.get("approvals") or (out.get("reply") and not STILL_PENDING.search(out["reply"])):
+        return out
+    args = {s["call_id"]: (s["tool"], s.get("args") or {}) for s in shown if s.get("call_id") in decisions}
+    lines = []
+    for step in out.get("steps") or []:
+        if step.get("call_id") not in decisions or step.get("status") == "error":
+            continue
+        tool, a = args.get(step["call_id"], (step.get("tool") or "", step.get("args") or {}))
+        if decisions[step["call_id"]]:
+            lines.append(step["summary"][:1].upper() + step["summary"][1:])
+        else:
+            card = approval_summary(tool, a) or ""
+            what = card.split(": ", 1)[1] if ": " in card else ""
+            lines.append(f"Kept {what}" if tool.startswith("delete_") and what else
+                         (DECLINED.get(tool, "declined")[:1].upper() + DECLINED.get(tool, "declined")[1:]))
+    if lines:
+        out["reply"] = " ".join(line.rstrip(".") + "." for line in lines)
+    return out
