@@ -67,3 +67,5 @@ Prod: https://devday-donor-desk.vercel.app. Lead deploys by hand only if 12 is d
   Findings: Whitaker fund mis-enriched by name-only match → 42 identity rule; live transcript drops a word at
   segment boundaries → Agent Phone.
 - **#107 MERGED (f84f35b)** ~2:45 AM on in-session APPROVE. #95 closed. #110/#112/#113 retargeted to main (all MERGEABLE) → QA grading (#110+#113 together). 12 walking prod; c9 grading the 3 rows that waited on #107.
+- ~3:00 AM: #114 MERGED (8f6aa51, demo_reset.py: run `python scripts/demo_reset.py --warm` before rehearsals). #115 Enrich UI (a391e58, base main) → in-session reviewer running. #116 Ask dictation (a7db7de) → QA queue. Agent Phone doing composer mic on top of feat/homechat-agent-2 + graceful stop. 42 next: home layout overlap at 1440x900 ("Files & drafts" covers Find a donor) + "Enrich again" through review, then org identity rule. In-session reviews running: #111 (ce7ff67), #115.
+- Still pending Sharif: exact-match duplicates (lead recommends one-click review cards), Codex wording, kindred vs Donor Desk.
