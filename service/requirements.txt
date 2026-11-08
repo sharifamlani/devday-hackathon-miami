@@ -5,3 +5,6 @@ uvicorn
 httpx
 pytest
 python-multipart
+pandas
+openpyxl
+python-docx

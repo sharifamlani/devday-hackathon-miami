@@ -175,17 +175,18 @@ def default_name(intent: str, channel: str, n: int) -> str:
 
 
 def insert_campaign(conn: sqlite3.Connection, name: str, intent: str, channel: str, created_by: str,
-                    rows: list[dict]) -> int:
+                    rows: list[dict], event_id: int | None = None) -> int:
+    """rows: {donor, draft}; a row may carry its own "channel" (a 'mixed' event batch)."""
     with conn:
-        cid = conn.execute("INSERT INTO campaigns (name, intent, channel, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
-                           (name, intent, channel, created_by, now())).lastrowid
+        cid = conn.execute("INSERT INTO campaigns (name, intent, channel, created_by, created_at, event_id) "
+                           "VALUES (?, ?, ?, ?, ?, ?)", (name, intent, channel, created_by, now(), event_id)).lastrowid
         for r in rows:
             d = r["draft"]
             conn.execute(
                 "INSERT INTO campaign_messages (campaign_id, donor_id, channel, subject, body, facts_used, flags, "
                 "drafted_by, draft_note, needs_individual_approval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (cid, r["donor"]["id"], channel, d.subject, d.body, json.dumps(d.facts_used), json.dumps(d.flags),
-                 d.drafted_by, d.note, int(ca.needs_individual_approval(r["donor"]))))
+                (cid, r["donor"]["id"], r.get("channel", channel), d.subject, d.body, json.dumps(d.facts_used),
+                 json.dumps(d.flags), d.drafted_by, d.note, int(ca.needs_individual_approval(r["donor"]))))
     return cid
 
 
@@ -288,42 +289,65 @@ def approve_small(campaign_id: int, approved_by: str | None = Body(None, embed=T
 
 
 # ----------------------------------------------------------------------------------------------
-# Delivery: ONE place where a real provider would plug in. Today it is simulated and sends nothing.
+# Delivery: ONE place where a provider plugs in (deliver). outbound.deliver is a dry run by default:
+# nothing leaves the laptop unless EMAIL_SEND=on / SMS_PROVIDER is set (service/README.md).
 # ----------------------------------------------------------------------------------------------
 
 def simulated_adapter(channel: str, to_address: str, subject: str | None, body: str) -> dict:
-    """The default delivery adapter: delivers nothing. A real adapter (SMS / email, dry-run by default)
-    takes the same arguments and returns the same shape; the outbox row is written either way."""
+    """Delivers nothing. Same arguments and shape as any adapter; the outbox row is written either way."""
     return {"delivered": False, "simulated": True, "provider": None}
 
 
-# >>> DELIVERY ADAPTER HOOK: set this to a provider adapter to deliver for real (not in this PR). <<<
-deliver = simulated_adapter
+def outbound_adapter(channel: str, to_address: str, subject: str | None, body: str) -> dict:
+    """service.outbound.deliver (dry run unless configured) in this hook's shape, plus its status fields."""
+    from service import outbound
+
+    r = outbound.deliver(channel, to_address, subject, body)
+    return {**r, "delivered": not r["simulated"] and r["status"] == "sent"}
+
+
+# >>> DELIVERY ADAPTER HOOK: every approved message goes through this, once. <<<
+deliver = outbound_adapter
 
 
 def send_message(conn: sqlite3.Connection, m: sqlite3.Row, sent_at: str) -> dict:
     """One approved message -> (delivery adapter) -> one outbox row; the message becomes 'sent'.
 
-    Returns {"sent": True, "outbox_id"} or {"sent": False, "reason"}. The caller commits."""
+    Returns {"sent": True, "outbox_id", "simulated"} or {"sent": False, "reason", ...}. A failed delivery
+    leaves the message 'approved' and writes no outbox row. The caller commits."""
     if m["status"] != "approved" or m["flags"] != "[]" or not (m["approved_by"] or "").strip():
         return {"sent": False, "reason": "not approved"}        # the db triggers block these too
     address = m["email"] if m["channel"] == "email" else m["phone"]
     if not address:
         return {"sent": False, "reason": f"no {'email' if m['channel'] == 'email' else 'phone'} on file"}
-    deliver(m["channel"], address, m["subject"], m["body"])     # simulated: delivers nothing
-    outbox_id = conn.execute(
-        "INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, simulated) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
-        (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at)).lastrowid
+    r = deliver(m["channel"], address, m["subject"], m["body"])
+    simulated = bool(r.get("simulated", not r.get("delivered")))
+    status = r.get("status") or ("sent" if r.get("delivered") else "queued (dry run)")
+    if status.startswith("failed"):
+        return {"sent": False, "reason": status, "failed": True, "detail": r.get("detail")}
+    if "provider" in {c[1] for c in conn.execute("PRAGMA table_info(outbox)")}:
+        outbox_id = conn.execute(
+            "INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, "
+            "simulated, provider, delivery_status, provider_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at, int(simulated),
+             r.get("provider") or "dryrun", status, r.get("provider_id"))).lastrowid
+    elif not simulated:     # an outbox from before the provider columns can't log a real send honestly
+        return {"sent": False, "reason": "failed: outbox has no provider columns", "failed": True, "detail": None}
+    else:
+        outbox_id = conn.execute(
+            "INSERT INTO outbox (campaign_message_id, donor_id, channel, to_address, subject, body, sent_at, simulated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+            (m["id"], m["donor_id"], m["channel"], address, m["subject"], m["body"], sent_at)).lastrowid
     conn.execute("UPDATE campaign_messages SET status = 'sent', sent_at = ? WHERE id = ?", (sent_at, m["id"]))
-    return {"sent": True, "outbox_id": outbox_id}
+    return {"sent": True, "outbox_id": outbox_id, "simulated": simulated}
 
 
 @router.post("/campaigns/{campaign_id}/send")
 def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    """Approved messages go to the SIMULATED outbox through send_message. No provider is called."""
+    """Approved messages go out through send_message (the deliver hook: a dry run unless configured).
+    A failed delivery stays 'approved' and is reported under "failed"."""
     campaign_detail(conn, campaign_id)
-    sent, no_address = 0, []
+    sent, no_address, failed, any_real = 0, [], [], False
     sent_at = now()
     rows = conn.execute("""SELECT m.*, d.email, d.phone, d.full_name FROM campaign_messages m
                            JOIN donors d ON d.id = m.donor_id
@@ -333,6 +357,10 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
             result = send_message(conn, m, sent_at)
             if result["sent"]:
                 sent += 1
+                any_real = any_real or not result["simulated"]
+            elif result.get("failed"):
+                failed.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"],
+                               "detail": result.get("detail")})
             elif result["reason"].startswith("no "):
                 no_address.append({"message_id": m["id"], "donor_name": m["full_name"], "reason": result["reason"]})
         left = conn.execute("SELECT COUNT(*) FROM campaign_messages WHERE campaign_id = ? AND status IN ('draft', 'approved')",
@@ -340,7 +368,7 @@ def send_campaign(campaign_id: int, conn: sqlite3.Connection = Depends(get_conn)
         if sent and not left:
             conn.execute("UPDATE campaigns SET status = 'sent' WHERE id = ?", (campaign_id,))
     detail = campaign_detail(conn, campaign_id)
-    return {"simulated": True, "sent": sent, "no_address": no_address,
+    return {"simulated": not any_real, "sent": sent, "no_address": no_address, "failed": failed,
             "not_approved": detail["counts"]["draft"], "campaign": detail}
 
 

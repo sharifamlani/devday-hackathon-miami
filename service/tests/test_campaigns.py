@@ -146,7 +146,8 @@ def test_send_moves_approved_messages_to_a_masked_simulated_outbox(client):
 
 def test_send_calls_the_single_delivery_hook_once_per_message(client, monkeypatch):
     from service import routes_campaigns
-    assert routes_campaigns.deliver is routes_campaigns.simulated_adapter      # default: simulated, sends nothing
+    # default: outbound.deliver, a dry run unless EMAIL_SEND / SMS_PROVIDER are set (service/README.md)
+    assert routes_campaigns.deliver is routes_campaigns.outbound_adapter
     calls = []
     monkeypatch.setattr(routes_campaigns, "deliver", lambda *a: calls.append(a) or {"delivered": False})
     c = client.post("/campaigns", json={"donor_ids": [1, 3], "intent": "check_in", "channel": "email"}).json()
