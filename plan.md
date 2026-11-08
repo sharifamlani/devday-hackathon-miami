@@ -1238,3 +1238,9 @@ browser-direct Gemini with a long-lived key.
 - Build mapping: step 1 exists (ingest adapter); step 2 screen is Christian's (from draft #70); step 3 backend exists
   (`/context/run`, `/context/refresh`, events) and gains a final call to `/tasks/generate` (3a, B11); step 4 is the
   mockup wired per `docs/ui-integration.md`.
+
+### 20.14 Consolidated finish plan
+
+The reviewable, consolidated plan is `docs/finish-plan.md` (empty start from example files, time-ordered context RAG,
+campaigns that always cite success stories / use of funds / org health, owners, smokes, criteria). It supersedes the
+owner columns above where they differ.
