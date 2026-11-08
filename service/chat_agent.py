@@ -45,6 +45,8 @@ Rules:
 - On the community tab, outreach is about programs and help only: never ask for a donation (intent check_in).
 - If a tool says data is not loaded yet, say so plainly.
 - Today is {today}. Turn relative dates ("Tuesday", "next week") into YYYY-MM-DD from today before calling a tool.
+- The calendar holds organization events only: add_event / move_event / delete_event. A to-do for staff is a task
+  (create_task), never a calendar event.
 - You can change records directly (people, tasks, calendar, interests, RSVPs, duplicates). Each change applies at
   once and the user sees an Undo button; say what you changed. Sends, merges and deletes wait for the user's
   approval: call the tool, and the user approves or declines on a card.
@@ -679,15 +681,54 @@ def delete_task(ctx: RunContextWrapper[ChatContext], task_id: int) -> dict:
     return write(lambda conn: t.delete_task(conn, task_id, actor="agent"))
 
 
+# ---------- calendar v3: organization events (3a). The calendar holds events only; tasks stay on the to-do list.
+
+EventKind = Literal["fundraising", "stewardship", "community", "other"]
+
+
+def event_write(fn) -> dict:
+    """An events_crud write as a tool result: the event + undo_token, or {"error"}."""
+    from service import events_crud as ev
+    try:
+        event, token = with_conn(fn)
+    except (ev.EventError, ev.EventNotFound, ev.EventLocked) as e:
+        return {"error": str(e)}
+    return {**event, "undo_token": token}
+
+
+@function_tool
+def add_event(ctx: RunContextWrapper[ChatContext], title: str, date: str, time: str | None = None,
+              place: str | None = None, event_kind: EventKind | None = None, notes: str | None = None) -> dict:
+    """Add an organization event to the calendar (a board meeting, a gala, an open house) on a YYYY-MM-DD date,
+    optional HH:MM time. Applies at once; the user sees Undo. Tasks go through create_task, not here."""
+    from service import events_crud as ev
+    return event_write(lambda conn: ev.add_event(conn, title=title, starts_at_=ev.starts_at(day=date, time=time),
+                                                 source="agent", actor="agent", place=place, event_kind=event_kind,
+                                                 notes=notes))
+
+
+@function_tool
+def move_event(ctx: RunContextWrapper[ChatContext], event_id: int, date: str, time: str | None = None) -> dict:
+    """Move an event the staff or the agent added (event_id from get_calendar's ref 'event:N') to a new date/time.
+    Events found on the Foundation's website can't be moved here."""
+    from service import events_crud as ev
+    return event_write(lambda conn: ev.move_event(conn, event_id, day=date, time=time, actor="agent"))
+
+
+@function_tool(needs_approval=True)
+def delete_event(ctx: RunContextWrapper[ChatContext], event_id: int) -> dict:
+    """Remove an event the staff or the agent added. Needs the user's approval; Undo puts it back."""
+    from service import events_crud as ev
+    return event_write(lambda conn: ev.delete_event(conn, event_id, actor="agent"))
+
+
 @function_tool
 def add_calendar_item(ctx: RunContextWrapper[ChatContext], title: str, date: str, time: str | None = None,
-                      kind: TaskKind = "other", why: str | None = None, person_id: int | None = None) -> dict:
-    """Put something on the calendar on a YYYY-MM-DD date (a dated task)."""
-    t = tasks_module()
-    if t is None:
-        return {"error": "the calendar is not available yet"}
-    return write(lambda conn: t.add_calendar_item(conn, title=title, date_=date, time=time, kind=kind, why=why,
-                                                  person_id=person_id, actor="agent"))
+                      place: str | None = None) -> dict:
+    """Put an organization event on the calendar (same as add_event). A to-do for staff is create_task instead."""
+    from service import events_crud as ev
+    return event_write(lambda conn: ev.add_event(conn, title=title, starts_at_=ev.starts_at(day=date, time=time),
+                                                 source="agent", actor="agent", place=place))
 
 
 @function_tool
@@ -816,7 +857,7 @@ TOOLS = [
     get_call_notes, build_brief, community_stats,
     # writes (each returns an undo_token)
     update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
-    create_task, update_task, complete_task, add_calendar_item, move_calendar_item, get_after_call_actions,
+    create_task, update_task, complete_task, add_calendar_item, add_event, move_event, delete_event, move_calendar_item, get_after_call_actions,
     apply_after_call_actions,
     draft_email, draft_sms, plan_event_outreach, undo,
     # approval-gated: the run pauses on an approval card
@@ -996,6 +1037,10 @@ def approval_summary(tool: str, args: dict) -> str | None:
             keep_a = args.get("keep_id") in (None, r["a_id"])
             kept, merged = (r["a_name"], r["b_name"]) if keep_a else (r["b_name"], r["a_name"])
             return f"Merge {merged} into {kept}"
+    if tool == "delete_event" and args.get("event_id") is not None:
+        rows = query("SELECT title, starts_at FROM events WHERE id = ?", (args["event_id"],))
+        if rows:
+            return f"Delete event: {rows[0]['title']} ({rows[0]['starts_at'][:10]})"
     if tool in ("delete_task", "delete_calendar_item"):
         ref = args.get("task_id") if tool == "delete_task" else str(args.get("ref") or "").partition(":")[2]
         rows = query("SELECT title FROM tasks WHERE id = ?", (ref,)) if str(ref or "").isdigit() else []
