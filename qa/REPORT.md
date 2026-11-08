@@ -317,3 +317,8 @@ Possible main issue: #116 Ask-prompt dictation stays "listening" with no text (f
 | #151 integration-wheel (final) | c0f1f1a | the tooling is safe (refused reset, PID verification, lock, ports, CORS); spare-port walk 14/16: 6c approval PASS (dry run, 0 sent), counts 33 / 131 / $1,367,535 / 5 at-risk | APPROVE |
 
 Product findings from the #151 walk on main 3ce79eb (routed): (1) the home Tasks tile shows 20 vs 21 open tasks due ≤ today (Faye home #152); (2) the Enrich button click is blocked by an overlapping div `flex min-h-9 … text-[13px]` (Givers flow, demo-visible).
+
+### Integration tree (Sun Nov 8): main 3fe1f9a + #123 #148 #150 #151 #153 #159 @ 049e674
+pytest 574 passed; tsc + build clean; vitest 804/815 (11 pre-existing failures on main). #137 conflicts with #150 (chat_agent.py) and #151 (config.py).
+Live walk: onboarding → dashboard PASS; 33/20/15 → 68 / 131 / $1,367,535 PASS; chat, calendar, dictation, Enrich (real org) PASS; 0 ≥400; no overflow at 390.
+Top blockers (Givers first): (1) 10 "Review possible duplicate" tasks stay open after merges (and the agent recommends them); (2) the import summary says 132 gifts (#145 needs a rebase); (3) the Givers tab shows 11/12 auto-merge flags; (4) Enrich finds nothing for the fictional sample orgs; (5) CampaignReview duplicate React keys.
