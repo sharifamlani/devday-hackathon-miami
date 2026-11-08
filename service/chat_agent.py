@@ -147,16 +147,18 @@ def with_gifts_and_interests(people: list[dict], no_gift_in_days: int | None, in
 @function_tool
 def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, tier: str | None = None,
                 star_only: bool = False, gave_via: str | None = None, no_gift_in_days: int | None = None,
-                interest: str | None = None, limit: int = 25) -> dict:
+                interest: str | None = None, name: str | None = None, limit: int = 25) -> dict:
     """Find people on the current tab, each with last_gift_date and interests. status: lapsing | lapsed | due |
     on_track. tier: small | mid | major. gave_via: people with a gift whose channel matches (e.g. "Give Miami Day",
     "event", "check", "online"). no_gift_in_days: people whose last gift is at least that many days old ("hasn't
-    given in 7 days" = 7). interest: people whose interests mention it (e.g. "environment", "kids")."""
+    given in 7 days" = 7). interest: people whose interests mention it (e.g. "environment", "kids").
+    name: people whose name contains it (use it to look someone up by name)."""
     via = gave_via_ids(gave_via)
     people = tab_people(ctx.context.tab)
     if people is not None:
         people = [p for p in people if (not status or p.get("status") == status) and (not tier or p.get("tier") == tier)
-                  and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)]
+                  and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)
+                  and (not name or name.strip().lower() in (p.get("full_name") or "").lower())]
         people = with_gifts_and_interests(people, no_gift_in_days, interest)[:min(limit, 50)]
         keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status",
                 "last_gift_date", "interests")
@@ -840,17 +842,19 @@ def build_agent(tab: str, selection: list[int], event_id: int | None, first_turn
                  model_settings=ModelSettings(reasoning=Reasoning(effort="low")))
 
 
-def respond(result, ctx: ChatContext, spec: dict, earlier_steps: list[dict] | None = None) -> dict:
-    """The /chat response for a finished or paused run."""
+def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = None) -> dict:
+    """The /chat response for a finished or paused run. shown = steps the thread already displays (a resumed
+    run): the SDK's resumed result repeats them, so only new steps and the approved call's result go back."""
     from service import routes_campaigns as rc
 
-    steps = (earlier_steps or []) + steps_from(result.new_items)
+    done = {s["call_id"] for s in (shown or []) if s["status"] != "awaiting_approval"}
+    steps = [s for s in steps_from(result.new_items) if s["call_id"] not in done]
     approvals = [{"call_id": i.call_id, "tool": i.name, "args": output_data(i.arguments)}
                  for i in (getattr(result, "interruptions", None) or [])]
     run_id = None
     if approvals:
         run_id = uuid.uuid4().hex
-        PENDING[run_id] = {**spec, "state": result.to_state().to_string(), "steps": steps}
+        PENDING[run_id] = {**spec, "state": result.to_state().to_string(), "steps": (shown or []) + steps}
         waiting = {a["call_id"] for a in approvals}
         for s in steps:
             if s["call_id"] in waiting:
@@ -893,5 +897,4 @@ def resume_chat(run_id: str, decisions: dict[str, bool], approved_by: str) -> di
     for item in state.get_interruptions():
         (state.approve if decisions.get(item.call_id) else state.reject)(item)
     result = Runner.run_sync(agent, state, context=ctx, max_turns=12)
-    done = [s for s in spec["steps"] if s["status"] != "awaiting_approval"]
-    return respond(result, ctx, spec, done)
+    return respond(result, ctx, spec, spec["steps"])

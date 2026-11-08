@@ -20,11 +20,11 @@ from service import db
 TOOLS = {t.name: t for t in ca.TOOLS}
 
 
-def invoke(name: str, **args) -> dict:
-    tool = TOOLS[name]
+def invoke(tool_name: str, /, **args) -> dict:
+    tool = TOOLS[tool_name]
     payload = json.dumps(args)
-    ctx = ToolContext(context=ca.ChatContext(tab="givers", approved_by="Test approver"), tool_name=name,
-                      tool_call_id=f"test-{name}", tool_arguments=payload)
+    ctx = ToolContext(context=ca.ChatContext(tab="givers", approved_by="Test approver"), tool_name=tool_name,
+                      tool_call_id=f"test-{tool_name}", tool_arguments=payload)
     out = asyncio.run(tool.on_invoke_tool(ctx, payload))
     return out if isinstance(out, dict) else json.loads(out)
 
@@ -359,6 +359,8 @@ def test_find_people_filters_by_days_since_last_gift_and_interest(db_file):
     assert set(people[lapsed]["interests"]) >= {"kids program", "environment"}
     tagged = invoke("find_people", interest="environment", limit=50)["people"]
     assert [p["id"] for p in tagged] == [lapsed]
+    name = one(db_file, "SELECT full_name FROM donors WHERE id = ?", lapsed)["full_name"]
+    assert lapsed in [p["id"] for p in invoke("find_people", name=name.split()[0].lower())["people"]]
 
 
 def test_campaign_drafts_are_given_the_donors_interests(db_file):
@@ -372,3 +374,17 @@ def test_campaign_drafts_are_given_the_donors_interests(db_file):
     text = " ".join(f["fact"] for f in research)
     assert "kids program" in text and "Biscayne Bay cleanup" in text
     assert any(f["source_url"] == "https://example.org/bay" for f in research)
+
+
+def test_a_resumed_run_returns_only_steps_the_user_has_not_seen(monkeypatch):
+    """The SDK's resumed result repeats the items from before the pause; the thread already shows those."""
+    from types import SimpleNamespace
+    shown = [{"tool": "find_people", "call_id": "a", "status": "done", "summary": "2 people", "undo_token": None},
+             {"tool": "send", "call_id": "b", "status": "awaiting_approval", "summary": "waiting", "undo_token": None}]
+    rerun = [dict(shown[0]), {**shown[1], "status": "done", "summary": "Approved: batch #1, 2 sent"},
+             {"tool": "get_tasks", "call_id": "c", "status": "done", "summary": "0 tasks", "undo_token": None}]
+    monkeypatch.setattr(ca, "steps_from", lambda items: [dict(s) for s in rerun])
+    result = SimpleNamespace(new_items=[], interruptions=[], final_output="Sent.")
+    out = ca.respond(result, ca.ChatContext(tab="home"), {"tab": "home"}, shown)
+    assert [s["call_id"] for s in out["steps"]] == ["b", "c"]
+    assert out["steps"][0]["summary"].startswith("Approved")
