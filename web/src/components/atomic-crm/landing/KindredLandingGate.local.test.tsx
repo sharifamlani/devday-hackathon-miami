@@ -1,5 +1,7 @@
+import { act } from "react";
 import { render } from "vitest-browser-react";
 
+import { onboardingStore } from "../onboarding/onboardingState";
 import { KindredLandingGate } from "./KindredLanding";
 
 // Local mode: the bare URL shows the landing only while the app has no people.
@@ -10,22 +12,60 @@ vi.mock("../providers/local", () => ({
 }));
 
 describe("KindredLandingGate (local mode)", () => {
+  const finishSetup = () => onboardingStore.dispatch({ type: "finish" });
+
   beforeEach(() => {
     getDonors.mockReset();
     window.location.hash = "";
+    window.localStorage.clear();
+    onboardingStore.forget();
   });
   afterEach(() => {
     window.location.hash = "";
+    window.localStorage.clear();
+    onboardingStore.forget();
   });
 
-  it("shows the landing while the app is empty", async () => {
+  it("skips the landing for an empty app while first-run setup is still to do", async () => {
     getDonors.mockResolvedValue([]);
     const screen = await render(
       <KindredLandingGate>
         <p>the board</p>
       </KindredLandingGate>,
     );
-    await expect.element(screen.getByRole("button", { name: "Try sample data" })).toBeVisible();
+    await expect.element(screen.getByText("the board")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Try sample data" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("stays on the board when setup finishes in this page load, though /donors was empty at mount", async () => {
+    getDonors.mockResolvedValue([]);
+    const screen = await render(
+      <KindredLandingGate>
+        <p>the board</p>
+      </KindredLandingGate>,
+    );
+    await expect.element(screen.getByText("the board")).toBeVisible();
+    // Onboarding step 1 imported the files; finishing flips setup to done.
+    act(() => finishSetup());
+    await expect.element(screen.getByText("the board")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Try sample data" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("shows the landing while the app is empty and setup is already done", async () => {
+    finishSetup();
+    getDonors.mockResolvedValue([]);
+    const screen = await render(
+      <KindredLandingGate>
+        <p>the board</p>
+      </KindredLandingGate>,
+    );
+    await expect
+      .element(screen.getByRole("button", { name: "Try sample data" }))
+      .toBeVisible();
     await expect.element(screen.getByText("the board")).not.toBeInTheDocument();
   });
 
@@ -37,7 +77,9 @@ describe("KindredLandingGate (local mode)", () => {
       </KindredLandingGate>,
     );
     await expect.element(screen.getByText("the board")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Try sample data" })).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Try sample data" }))
+      .not.toBeInTheDocument();
   });
 
   it("#/welcome always shows the landing", async () => {
@@ -48,6 +90,8 @@ describe("KindredLandingGate (local mode)", () => {
         <p>the board</p>
       </KindredLandingGate>,
     );
-    await expect.element(screen.getByRole("button", { name: "Try sample data" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Try sample data" }))
+      .toBeVisible();
   });
 });

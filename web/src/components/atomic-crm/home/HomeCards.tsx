@@ -13,25 +13,24 @@ import { Link } from "react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type {
-  CampaignSummary,
-  DonationTarget,
-  DonorSummary,
-} from "../providers/local/types";
+import type { AttentionPerson } from "../providers/local/homeSummary";
+import type { DonationTarget } from "../providers/local/types";
 import type { DayMarks } from "../outreach/calendarMonth";
 import { describeMarks } from "../outreach/calendarMonth";
 import { formatDayLong, formatDayShort } from "../outreach/dates";
-import type { CallNote } from "../voice/callNotes";
 import {
-  donorMeta,
-  donorTag,
+  crmTag,
   formatCompactUsd,
   formatMonthDay,
   initials,
   type AgendaLine,
+  type ArtifactRow,
   type HomeTask,
 } from "./homeData";
 import { focusRing, tagTone, tile, tileTitle } from "./tile";
+
+/** What the panels without a snapshot source say instead of a false "all caught up". */
+export const LIVE_ONLY = "Live data appears when the service is connected.";
 
 const TileHead = ({
   id,
@@ -61,14 +60,23 @@ const ARC = Math.PI * 44; // semicircle, r = 44
 
 export const Q4ProgressTile = ({
   target,
+  goal,
+  goalIsSample = false,
   isPending,
 }: {
   target: DonationTarget | undefined;
+  /** The quarter goal: one the person set, else the service's (labeled sample). Null when there is none. */
+  goal: number | null;
+  /** True when `goal` is the service's sample goal, so the tile says so. */
+  goalIsSample?: boolean;
   isPending: boolean;
 }) => {
   const headingId = useId();
   const gradientId = `q4-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const percent = target?.percent ?? null;
+  const percent =
+    target && goal != null && goal > 0
+      ? Math.round((target.raised / goal) * 1000) / 10
+      : null;
   const filled =
     percent == null ? 0 : Math.min(Math.max(percent, 0), 100) / 100;
   return (
@@ -81,14 +89,14 @@ export const Q4ProgressTile = ({
         <Skeleton className="h-16 w-full rounded-xl" />
       ) : !target ? (
         <p className="text-sm text-muted-foreground">
-          Goals aren’t in this data yet.
+          Upload your files to see this quarter’s giving.
         </p>
       ) : (
         <div className="home-quarter-summary">
           <div className="home-quarter-gauge">
             <svg
               className="home-quarter-arc"
-              viewBox="0 0 104 60"
+              viewBox="0 0 104 68"
               aria-hidden="true"
             >
               <defs>
@@ -104,7 +112,7 @@ export const Q4ProgressTile = ({
                 </linearGradient>
               </defs>
               <path
-                d="M 8 52 A 44 44 0 0 1 96 52"
+                d="M 8 56 A 44 44 0 0 1 96 56"
                 fill="none"
                 strokeWidth="10"
                 strokeLinecap="round"
@@ -112,7 +120,7 @@ export const Q4ProgressTile = ({
               />
               {filled > 0 && (
                 <path
-                  d="M 8 52 A 44 44 0 0 1 96 52"
+                  d="M 8 56 A 44 44 0 0 1 96 56"
                   fill="none"
                   strokeWidth="10"
                   strokeLinecap="round"
@@ -120,24 +128,35 @@ export const Q4ProgressTile = ({
                   strokeDasharray={`${ARC * filled} ${ARC}`}
                 />
               )}
+              <text
+                className="home-quarter-percent"
+                x="52"
+                y="58"
+                textAnchor="middle"
+              >
+                {percent == null ? "—" : `${Math.round(percent)}%`}
+              </text>
             </svg>
-            <span className="home-quarter-percent">
-              {percent == null ? "—" : `${Math.round(percent)}%`}
-            </span>
           </div>
           <dl className="grid min-w-0 gap-1 text-sm">
             <div>
-              <dt className="text-xs text-muted-foreground">Raised</dt>
+              <dt className="text-xs text-muted-foreground">
+                Raised{goal != null && ` of ${formatCompactUsd(goal)}`}
+              </dt>
               <dd className="font-semibold tabular-nums">
                 {formatCompactUsd(target.raised)}
-                {target.goal != null && ` / ${formatCompactUsd(target.goal)}`}
+                {goal != null && goalIsSample && (
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    Sample goal
+                  </span>
+                )}
               </dd>
             </div>
           </dl>
           <p className="sr-only">
             {percent == null
-              ? "No goal set."
-              : `${Math.round(percent)} percent of the ${target.label} goal.`}
+              ? "No quarter goal set."
+              : `${Math.round(percent)} percent of the ${goalIsSample ? "sample " : ""}${target.label} goal.`}
           </p>
         </div>
       )}
@@ -190,14 +209,15 @@ export const GlanceTile = ({
   atRisk,
   duplicates,
   tasks,
-  gmdDays,
+  nextEvent,
   isPending,
 }: {
   today: string;
   atRisk: number | null;
   duplicates: number | null;
-  tasks: number;
-  gmdDays: number;
+  tasks: number | null;
+  /** The next big event from GET /home/summary; null when there is none. */
+  nextEvent: { title: string; days: number } | null;
   isPending: boolean;
 }) => {
   const headingId = useId();
@@ -214,7 +234,7 @@ export const GlanceTile = ({
           {formatDayShort(today)}
         </span>
       </TileHead>
-      <ul className="grid grid-cols-2 gap-2">
+      <ul className="home-glance-grid grid grid-cols-2 gap-2">
         <li>
           <Bubble
             value={show(atRisk)}
@@ -235,17 +255,25 @@ export const GlanceTile = ({
         </li>
         <li>
           <Bubble
-            value={isPending ? "—" : String(tasks)}
+            value={show(tasks)}
             caption={tasks === 1 ? "task today" : "tasks today"}
           />
         </li>
         <li>
           <Bubble
-            value={gmdDays === 0 ? "Today" : String(gmdDays)}
+            value={
+              isPending || !nextEvent
+                ? "—"
+                : nextEvent.days === 0
+                  ? "Today"
+                  : String(nextEvent.days)
+            }
             caption={
-              gmdDays === 0
-                ? "is Give Miami Day"
-                : `${gmdDays === 1 ? "day" : "days"} to Give Miami Day`
+              !nextEvent
+                ? "no upcoming event"
+                : nextEvent.days === 0
+                  ? `is ${nextEvent.title}`
+                  : `${nextEvent.days === 1 ? "day" : "days"} to ${nextEvent.title}`
             }
           />
         </li>
@@ -257,13 +285,20 @@ export const GlanceTile = ({
 /* ---------- CRM ---------- */
 
 export const CrmTile = ({
-  donors,
+  people,
+  hasData,
+  live = true,
   isPending,
   error,
   onFind,
   onOpenDonor,
 }: {
-  donors: DonorSummary[];
+  /** GET /people/attention rows. */
+  people: AttentionPerson[];
+  /** False while the database is empty (nothing uploaded yet). */
+  hasData: boolean;
+  /** False in the read-only snapshot build, where these panels have no live source. */
+  live?: boolean;
   isPending: boolean;
   error: Error | null;
   onFind: () => void;
@@ -278,7 +313,7 @@ export const CrmTile = ({
     >
       <TileHead id={headingId} title="CRM">
         <Link
-          to="/contacts"
+          to="/?workspace=donors"
           className={cn(
             "inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] underline underline-offset-3 hover:decoration-2",
             focusRing,
@@ -311,19 +346,23 @@ export const CrmTile = ({
             <Skeleton key={i} className="h-10 w-full rounded-xl" />
           ))}
         </div>
-      ) : donors.length === 0 ? (
+      ) : people.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          No donors need attention right now.
+          {!live
+            ? LIVE_ONLY
+            : hasData
+              ? "No donors need attention right now."
+              : "Upload your files to see your donors here."}
         </p>
       ) : (
         <ul className="mt-2 -mx-1 min-h-0 flex-1 overflow-y-auto">
-          {donors.map((donor) => {
-            const tag = donorTag(donor);
+          {people.map((person) => {
+            const tag = crmTag(person.badge);
             return (
-              <li key={donor.id}>
+              <li key={person.id}>
                 <button
                   type="button"
-                  onClick={() => onOpenDonor(donor.id)}
+                  onClick={() => onOpenDonor(person.id)}
                   className={cn(
                     "flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-1 py-2 text-left hover:bg-surface",
                     focusRing,
@@ -333,14 +372,14 @@ export const CrmTile = ({
                     aria-hidden="true"
                     className="grid size-8 shrink-0 place-items-center rounded-full bg-quiet text-[11px] font-bold text-quiet-foreground"
                   >
-                    {initials(donor.full_name)}
+                    {person.initials || initials(person.name)}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">
-                      {donor.full_name}
+                      {person.name}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {donorMeta(donor)}
+                      {person.line}
                     </span>
                   </span>
                   <span
@@ -480,12 +519,18 @@ export const WeekTile = ({
 
 export const TasksTile = ({
   tasks,
+  hasData,
+  live = true,
   selectedKey,
   onSelect,
   onPlan,
   isPending,
 }: {
   tasks: HomeTask[];
+  /** False while the database is empty (nothing uploaded yet). */
+  hasData: boolean;
+  /** False in the read-only snapshot build. */
+  live?: boolean;
   selectedKey: string | null;
   onSelect: (key: string) => void;
   onPlan: () => void;
@@ -493,28 +538,22 @@ export const TasksTile = ({
 }) => {
   const headingId = useId();
   const listId = useId();
-  const [closed, setClosed] = useState<ReadonlySet<string>>(
-    () => new Set(["records", "campaigns"]),
-  );
+  const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set());
   const groups = [
     {
       id: "outreach",
       title: "Donor outreach",
-      items: tasks.filter(
-        (t) => t.kind === "donor" && !/duplicate|record/i.test(t.title),
-      ),
+      items: tasks.filter((t) => t.kind === "call" || t.kind === "email"),
     },
     {
       id: "records",
       title: "Donor records",
-      items: tasks.filter(
-        (t) => t.kind === "donor" && /duplicate|record/i.test(t.title),
-      ),
+      items: tasks.filter((t) => t.kind === "review"),
     },
     {
-      id: "campaigns",
-      title: "Campaigns",
-      items: tasks.filter((t) => t.kind === "campaign"),
+      id: "prep",
+      title: "Preparation",
+      items: tasks.filter((t) => !["call", "email", "review"].includes(t.kind)),
     },
   ];
   return (
@@ -541,7 +580,11 @@ export const TasksTile = ({
         <Skeleton className="h-20 rounded-lg" />
       ) : tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nothing left for today. Nice work.
+          {!live
+            ? LIVE_ONLY
+            : hasData
+              ? "Nothing left for today. Nice work."
+              : "Upload your files to see tasks."}
         </p>
       ) : (
         <ul className="home-project-list" aria-label="Task projects">
@@ -587,8 +630,14 @@ export const TasksTile = ({
                         <button
                           type="button"
                           aria-pressed={task.key === selectedKey}
-                          aria-label={`${task.title}: ${task.why}`}
-                          title={`${task.title} — ${task.why}`}
+                          aria-label={
+                            task.why ? `${task.title}: ${task.why}` : task.title
+                          }
+                          title={
+                            task.why
+                              ? `${task.title} — ${task.why}`
+                              : task.title
+                          }
                           className={cn("home-project-thread", focusRing)}
                           onClick={() => onSelect(task.key)}
                         >
@@ -612,35 +661,12 @@ export const TasksTile = ({
 
 /* ---------- Artifacts ---------- */
 
-export const ArtifactsTile = ({
-  notes,
-  campaigns,
-}: {
-  notes: CallNote[];
-  campaigns: CampaignSummary[];
-}) => {
+const ARTIFACT_ICON: Record<string, typeof FileText> = {
+  call_note: AudioLines,
+};
+
+export const ArtifactsTile = ({ rows }: { rows: ArtifactRow[] }) => {
   const headingId = useId();
-  const drafts = [...campaigns]
-    .filter((c) => c.counts.draft > 0)
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const rows = [
-    ...notes.map((note) => ({
-      key: `note-${note.id}`,
-      at: note.createdAt,
-      icon: AudioLines,
-      label: note.title || "Call notes",
-      to: null as string | null,
-    })),
-    ...drafts.map((c) => ({
-      key: `campaign-${c.id}`,
-      at: c.created_at,
-      icon: FileText,
-      label: `${c.name} drafts (${c.counts.draft})`,
-      to: `/campaigns/${c.id}`,
-    })),
-  ]
-    .sort((a, b) => b.at.localeCompare(a.at))
-    .slice(0, 5);
   return (
     <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
       <TileHead id={headingId} title="Files & drafts" />
@@ -651,26 +677,26 @@ export const ArtifactsTile = ({
       ) : (
         <ul className="grid gap-0.5">
           {rows.map((row) => {
-            const Icon = row.icon;
+            const Icon = ARTIFACT_ICON[row.kind] ?? FileText;
             const inner = (
               <>
                 <Icon
                   className="size-4 shrink-0 text-muted-foreground"
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                <span className="min-w-0 flex-1 truncate">{row.title}</span>
                 <time
-                  dateTime={row.at}
+                  dateTime={row.date}
                   className="shrink-0 text-xs text-muted-foreground"
                 >
-                  {formatMonthDay(row.at)}
+                  {formatMonthDay(row.date)}
                 </time>
               </>
             );
             const shell =
               "flex min-h-9 items-center gap-2 rounded-lg px-1 py-1.5 text-[13px]";
             return (
-              <li key={row.key}>
+              <li key={row.key} className="min-w-0">
                 {row.to ? (
                   <Link
                     to={row.to}
