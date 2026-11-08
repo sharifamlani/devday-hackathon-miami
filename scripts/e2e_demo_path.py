@@ -27,6 +27,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -429,8 +430,12 @@ def main() -> int:
     api = Api(args.api)
 
     if args.reset:
-        subprocess.run(["powershell", "-NoProfile", "-File", str(REPO_ROOT / "scripts" / "live_stack.ps1"), "reset", "-Stack", "test"],
-                       check=True)
+        # Reset the stack this walk points at: its service port from --api, its worktree from --db (<root>/data/donors.db)
+        api_port = urllib.parse.urlparse(args.api).port or 80
+        web_port = urllib.parse.urlparse(web).port or 80
+        subprocess.run(["powershell", "-NoProfile", "-File", str(REPO_ROOT / "scripts" / "live_stack.ps1"), "reset", "-Stack", "test",
+                        "-TestRoot", str(Path(args.db).resolve().parent.parent),
+                        "-TestServicePort", str(api_port), "-TestWebPort", str(web_port)], check=True)
     if api.people_counts()["giver"]:
         print(f"refused: {args.api} is not empty (run with --reset)")
         return 2
