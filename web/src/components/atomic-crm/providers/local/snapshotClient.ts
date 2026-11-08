@@ -24,7 +24,7 @@ import {
   parseProspectDetail,
   parseTargets,
 } from "./parse";
-import type { DonorDeskMethods, ImportedDonorRow } from "./types";
+import type { BaseDonorDeskMethods, ImportedDonorRow } from "./types";
 
 /**
  * Serves `python -m service.export_snapshot` output (VITE_DATA_MODE=snapshot).
@@ -34,7 +34,7 @@ import type { DonorDeskMethods, ImportedDonorRow } from "./types";
  */
 let snapshotPromise: Promise<ApiSnapshot> | null = null;
 
-const loadSnapshot = () => {
+export const loadSnapshot = () => {
   if (!snapshotPromise) {
     snapshotPromise = fetch(SNAPSHOT_URL).then(async (response) => {
       if (!response.ok) {
@@ -305,7 +305,7 @@ const applyGiftTotals = (
   };
 };
 
-export const snapshotMethods: DonorDeskMethods = {
+export const snapshotMethods: BaseDonorDeskMethods = {
   getDonors: async () => (await loadSnapshot()).donors.map(parseDonorRow),
   getDonor: async (id) => {
     const snapshot = await loadSnapshot();
