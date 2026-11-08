@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
+import { DATA_MODE } from "../providers/local/config";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { DonorDrawer } from "../contacts/DonorDrawer";
@@ -57,11 +58,14 @@ const BOARD_HEIGHT = "@min-[1081px]:h-full";
  * outreach plan; the full calendar is /calendar.
  */
 export const HomePage = () => {
-  const today = toIsoDate(new Date());
   const isMobile = useIsMobile();
+  const targets = useTargets();
+  // "Today" is the service's as-of date (the demo runs as of Nov 8), not this
+  // browser's clock; the browser's date only holds until /targets answers.
+  const today = targets.data?.quarter?.as_of ?? toIsoDate(new Date());
+  const live = DATA_MODE === "local";
   const home = useHomeData(today);
   const donors = useDonors();
-  const targets = useTargets();
   const campaigns = useCampaigns();
   const plan = useOutreachPlan();
   const profile = useOrgProfile();
@@ -205,11 +209,8 @@ export const HomePage = () => {
         <div className="order-2 flex min-h-0 flex-col gap-3 @min-[721px]:order-none">
           <Q4ProgressTile
             target={targets.data?.quarter}
-            goal={
-              targets.data?.quarter && !targets.data.quarter.goal_is_sample
-                ? targets.data.quarter.goal
-                : null
-            }
+            goal={targets.data?.quarter?.goal ?? null}
+            goalIsSample={targets.data?.quarter?.goal_is_sample ?? false}
             reachedToday={summary ? summary.reached_today : null}
             isPending={targets.isPending}
           />
@@ -231,6 +232,7 @@ export const HomePage = () => {
           <CrmTile
             people={home.attention.data ?? []}
             hasData={hasData}
+            live={live}
             isPending={home.attention.isPending}
             error={home.attention.error}
             onFind={() => setFindOpen(true)}
@@ -266,6 +268,7 @@ export const HomePage = () => {
               onDone={markDone}
               isPending={tasksPending}
               hasData={hasData}
+              live={live}
             />
           </div>
           <AgentThread />
@@ -295,6 +298,7 @@ export const HomePage = () => {
           <TasksTile
             tasks={tasks}
             hasData={hasData}
+            live={live}
             selectedKey={focus?.key ?? null}
             onSelect={setSelectedKey}
             onPlan={() => openDay(today)}

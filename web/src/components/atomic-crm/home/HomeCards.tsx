@@ -21,6 +21,9 @@ import {
 } from "./homeData";
 import { focusRing, tagTone, tile, tileTitle } from "./tile";
 
+/** What the panels without a snapshot source say instead of a false "all caught up". */
+export const LIVE_ONLY = "Live data appears when the service is connected.";
+
 const TileHead = ({
   id,
   title,
@@ -50,12 +53,15 @@ const ARC = Math.PI * 44; // semicircle, r = 44
 export const Q4ProgressTile = ({
   target,
   goal,
+  goalIsSample = false,
   reachedToday,
   isPending,
 }: {
   target: DonationTarget | undefined;
-  /** The goal the person set in onboarding; null when none (the service's own goal is a labeled sample). */
+  /** The quarter goal: one the person set, else the service's (labeled sample). Null when there is none. */
   goal: number | null;
+  /** True when `goal` is the service's sample goal, so the tile says so. */
+  goalIsSample?: boolean;
   /** Distinct people contacted today (GET /home/summary); null while unknown. */
   reachedToday: number | null;
   isPending: boolean;
@@ -130,6 +136,11 @@ export const Q4ProgressTile = ({
               <dd className="font-semibold tabular-nums">
                 {formatCompactUsd(target.raised)}
                 {goal != null && ` / ${formatCompactUsd(goal)}`}
+                {goal != null && goalIsSample && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    sample goal
+                  </span>
+                )}
               </dd>
             </div>
             <div>
@@ -144,7 +155,7 @@ export const Q4ProgressTile = ({
           <p className="sr-only">
             {percent == null
               ? "No quarter goal set."
-              : `${Math.round(percent)} percent of the ${target.label} goal.`}
+              : `${Math.round(percent)} percent of the ${goalIsSample ? "sample " : ""}${target.label} goal.`}
           </p>
         </div>
       )}
@@ -275,6 +286,7 @@ export const GlanceTile = ({
 export const CrmTile = ({
   people,
   hasData,
+  live = true,
   isPending,
   error,
   onFind,
@@ -284,6 +296,8 @@ export const CrmTile = ({
   people: AttentionPerson[];
   /** False while the database is empty (nothing uploaded yet). */
   hasData: boolean;
+  /** False in the read-only snapshot build, where these panels have no live source. */
+  live?: boolean;
   isPending: boolean;
   error: Error | null;
   onFind: () => void;
@@ -333,9 +347,11 @@ export const CrmTile = ({
         </div>
       ) : people.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          {hasData
-            ? "No donors need attention right now."
-            : "Upload your files to see your donors here."}
+          {!live
+            ? LIVE_ONLY
+            : hasData
+              ? "No donors need attention right now."
+              : "Upload your files to see your donors here."}
         </p>
       ) : (
         <ul className="mt-2 -mx-1 min-h-0 flex-1 overflow-y-auto">
@@ -501,6 +517,7 @@ export const WeekTile = ({
 export const TasksTile = ({
   tasks,
   hasData,
+  live = true,
   selectedKey,
   onSelect,
   onPlan,
@@ -509,6 +526,8 @@ export const TasksTile = ({
   tasks: HomeTask[];
   /** False while the database is empty (nothing uploaded yet). */
   hasData: boolean;
+  /** False in the read-only snapshot build. */
+  live?: boolean;
   selectedKey: string | null;
   onSelect: (key: string) => void;
   onPlan: () => void;
@@ -540,9 +559,11 @@ export const TasksTile = ({
         </div>
       ) : tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {hasData
-            ? "Nothing left for today. Nice work."
-            : "Upload your files to see tasks."}
+          {!live
+            ? LIVE_ONLY
+            : hasData
+              ? "Nothing left for today. Nice work."
+              : "Upload your files to see tasks."}
         </p>
       ) : (
         <ul className="grid min-h-0 gap-1.5 overflow-y-auto">

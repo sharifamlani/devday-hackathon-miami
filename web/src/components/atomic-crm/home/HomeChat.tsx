@@ -44,6 +44,7 @@ export const FocusTaskCard = ({
   onDone,
   isPending,
   hasData,
+  live = true,
 }: {
   task: HomeTask | null;
   index: number;
@@ -53,6 +54,8 @@ export const FocusTaskCard = ({
   isPending: boolean;
   /** False while the database is empty (nothing uploaded yet). */
   hasData: boolean;
+  /** False in the read-only snapshot build: no "all caught up" there. */
+  live?: boolean;
 }) => {
   const session = useAskSession();
   const headingId = useId();
@@ -66,15 +69,19 @@ export const FocusTaskCard = ({
         <h2 id={headingId} className="text-lg font-bold">
           {isPending
             ? "Loading today’s tasks…"
-            : hasData
-              ? "You’re all caught up"
-              : "Upload your files to see tasks"}
+            : !live
+              ? "Live tasks appear here"
+              : hasData
+                ? "You’re all caught up"
+                : "Upload your files to see tasks"}
         </h2>
         {!isPending && (
           <p className="mt-1 text-sm opacity-85">
-            {hasData
-              ? "No tasks left for today. Ask the agent below what to do next."
-              : "Add your donor files with the + below and Donor Desk lines up today’s tasks."}
+            {!live
+              ? "Live data appears when the service is connected."
+              : hasData
+                ? "No tasks left for today. Ask the agent below what to do next."
+                : "Add your donor files with the + below and Donor Desk lines up today’s tasks."}
           </p>
         )}
       </section>
