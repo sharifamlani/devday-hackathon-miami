@@ -663,12 +663,19 @@ describe("the dashboard card's copy", () => {
       { phase: "reading" },
       { type: "run_failed", message: PUBLIC_PREVIEW_MESSAGE },
     );
-    expect(contextSummary(reading)?.outcome).toBe("saved");
+    expect(contextSummary(reading)?.outcome).toBe("preview");
     const copy = offerCopy({
-      context: { outcome: "saved", items: 13, tasks: null },
+      context: { outcome: "preview", items: 13, tasks: null },
       background: null,
     });
     expect(copy.body).toContain("can't read websites");
+    // v2's "saved" outcome (showed saved context) never gets the preview copy.
+    expect(
+      offerCopy({
+        context: { outcome: "saved", items: 3, tasks: null },
+        background: null,
+      }).body,
+    ).not.toContain("preview");
     expect(copy.body).not.toContain("wasn't read");
   });
 

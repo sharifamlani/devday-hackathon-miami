@@ -498,8 +498,8 @@ export const contextSummary = (phase: ContextPhase): ContextSummary | null => {
       };
     case "error":
       return {
-        // The public preview refuses the read: it shows the context already saved, so nothing "failed".
-        outcome: phase.message === PUBLIC_PREVIEW_MESSAGE ? "saved" : "failed",
+        // The public preview refuses the read; that isn't a failed read of the website.
+        outcome: phase.message === PUBLIC_PREVIEW_MESSAGE ? "preview" : "failed",
         items: phase.run?.facts.length ?? 0,
         tasks: null,
       };
@@ -640,7 +640,7 @@ export const offerCopy = (
       title: "Your desk is ready.",
       body: "Want a one-minute tour of where things are?",
     };
-  if (outcome === "saved")
+  if (outcome === "preview")
     return {
       title: "Your desk is open.",
       body: "This preview can't read websites, so it shows what's already here. Want a one-minute tour of where things are?",
