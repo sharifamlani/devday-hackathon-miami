@@ -13,6 +13,7 @@ import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import { MobileNavigation } from "./MobileNavigation";
 import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
 import { PullToRefresh } from "./PullToRefresh";
+import { OnboardingGate } from "../onboarding/OnboardingGate";
 
 export const MobileLayout = ({ children }: { children: ReactNode }) => {
   useConfigurationLoader();
@@ -23,18 +24,22 @@ export const MobileLayout = ({ children }: { children: ReactNode }) => {
           <MobileShell>{children}</MobileShell>
         </ProjectsSidebarProvider>
       </AskSessionProvider>
-      <Notification mobileOffset={{ bottom: "88px" }} />
+      <Notification mobileOffset={{ bottom: "96px" }} />
     </DataImportProvider>
   );
 };
 
-/** The Ask sidebar opens as a full-screen sheet; the page and tab bar behind it are inert. */
+/**
+ * The right pane (Ask or Live transcript) opens as a full-screen sheet; the
+ * page and tab bar behind it are inert. The page sits on the white canvas
+ * with the Kindred glows (index.css, body).
+ */
 const MobileShell = ({ children }: { children: ReactNode }) => {
   const { sidebarOpen } = useAskSession();
   return (
     <>
       <div inert={sidebarOpen}>
-        <div className="min-h-screen bg-surface pb-[calc(78px+env(safe-area-inset-bottom))]">
+        <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom))]">
           <ScrollRestoration />
           <PullToRefresh />
           <ErrorBoundary FallbackComponent={Error}>
@@ -49,6 +54,7 @@ const MobileShell = ({ children }: { children: ReactNode }) => {
         <ProjectsSidebar />
       </div>
       {sidebarOpen && <AskSidebar docked={false} />}
+      <OnboardingGate />
     </>
   );
 };

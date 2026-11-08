@@ -2,7 +2,11 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import type { AskAnswer, AskFilter, AskIntent } from "../providers/local/ask";
 import { useAsk } from "../providers/local/hooks";
-import { AskSessionContext, type AskSession } from "./askSessionContext";
+import {
+  AskSessionContext,
+  type AskSession,
+  type PaneMode,
+} from "./askSessionContext";
 import { readSidebarOpen, writeSidebarOpen } from "./askSidebarState";
 
 /** Holds the shared Ask session; mounted once per layout (Layout, MobileLayout). */
@@ -14,6 +18,8 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
   const [intent, setIntentState] = useState<AskIntent | null>(null);
   const [sidebarOpen, setSidebarOpenState] = useState(readSidebarOpen);
   const [openedByUser, setOpenedByUser] = useState(false);
+  const [paneMode, setPaneMode] = useState<PaneMode>("ask");
+  const [paneExpanded, setPaneExpandedState] = useState(false);
   const { mutateAsync, isPending } = ask;
 
   const run = useCallback(
@@ -44,6 +50,7 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
     setSidebarOpenState(open);
     writeSidebarOpen(open);
     if (byUser) setOpenedByUser(open);
+    if (!open) setPaneExpandedState(false);
   }, []);
 
   const value = useMemo<AskSession>(
@@ -69,10 +76,28 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
         if (original) setAnswer(original);
       },
       sidebarOpen,
-      openSidebar: () => setSidebarOpen(true, true),
+      openSidebar: () => {
+        setPaneMode("ask");
+        setSidebarOpen(true, true);
+      },
       closeSidebar: () => setSidebarOpen(false, true),
-      toggleSidebar: () => setSidebarOpen(!sidebarOpen, true),
+      // The Ask buttons: open in Ask mode, switch to Ask if the pane shows
+      // the transcript, close only when Ask is already showing.
+      toggleSidebar: () => {
+        if (sidebarOpen && paneMode === "ask") setSidebarOpen(false, true);
+        else {
+          setPaneMode("ask");
+          setSidebarOpen(true, true);
+        }
+      },
       openedByUser,
+      paneMode,
+      openPane: (mode) => {
+        setPaneMode(mode);
+        setSidebarOpen(true, true);
+      },
+      paneExpanded,
+      setPaneExpanded: setPaneExpandedState,
     }),
     [
       draft,
@@ -85,6 +110,8 @@ export const AskSessionProvider = ({ children }: { children: ReactNode }) => {
       sidebarOpen,
       openedByUser,
       setSidebarOpen,
+      paneMode,
+      paneExpanded,
     ],
   );
 

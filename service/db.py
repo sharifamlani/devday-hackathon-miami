@@ -444,6 +444,27 @@ SCHEMA += INTEREST_SCHEMA   # the 17 tags are seeded by service.interests.ensure
                             # runs on every request, so it must stay write-free once the tables exist
 TABLES = ["donor_interests", "interest_subtags", "interest_tags"] + TABLES
 
+# Call notes from the live transcript pane (service/routes_calls.py). Its own block so other branches
+# editing db.py merge cleanly. CREATE ... IF NOT EXISTS is the migration: an older donors.db gains the
+# table the next time create_schema runs. Lists are JSON text; destinations mirror the web's NoteDestination.
+CALLS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS call_notes (
+    id           TEXT PRIMARY KEY,             -- the browser's note id, so saving again updates the row
+    title        TEXT NOT NULL,
+    created_at   TEXT NOT NULL,                -- ISO timestamp, when the call started
+    duration_sec INTEGER NOT NULL DEFAULT 0 CHECK (duration_sec >= 0),
+    destinations TEXT NOT NULL DEFAULT '[]',   -- JSON [{kind: donor|group|project, id, label}]
+    transcript   TEXT NOT NULL DEFAULT '[]',   -- JSON [{speaker: you|them, name, text, at}]
+    notes        TEXT NOT NULL DEFAULT '',
+    summary      TEXT NOT NULL DEFAULT '[]',   -- JSON list of strings
+    next_steps   TEXT NOT NULL DEFAULT '[]',   -- JSON list of strings
+    saved_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_call_notes_created ON call_notes(created_at);
+"""
+SCHEMA += CALLS_SCHEMA
+TABLES = ["call_notes"] + TABLES
+
 CONTACT_TYPES = ("giver", "neighbor", "community")
 # Self-reported fields the nonprofit records for the Community tab; nothing is inferred or searched.
 DEMOGRAPHIC_FIELDS = ("age_range", "gender", "household_size", "zip", "language", "programs")
@@ -717,6 +738,49 @@ def save_event_draft(conn: sqlite3.Connection, event_id: int, person_id: int, dr
     conn.execute("INSERT INTO event_drafts (event_id, draft_id) VALUES (?, ?)", (event_id, draft_id))
     conn.commit()
     return draft_id
+
+
+# Call notes (service/routes_calls.py): the only code that writes call_notes.
+CALL_NOTE_JSON = ("destinations", "transcript", "summary", "next_steps")
+
+
+def call_note_out(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    for key in CALL_NOTE_JSON:
+        d[key] = json.loads(d[key] or "[]")
+    return d
+
+
+def save_call_note(conn: sqlite3.Connection, note: dict) -> dict:
+    """Insert or replace one call note by id (saving the same note again updates it). Returns the saved row."""
+    values = {k: json.dumps(note.get(k) or [], ensure_ascii=False) if k in CALL_NOTE_JSON else note.get(k)
+              for k in ("id", "title", "created_at", "duration_sec", "notes") + CALL_NOTE_JSON}
+    values["notes"] = values["notes"] or ""
+    values["duration_sec"] = int(values["duration_sec"] or 0)
+    cols = ", ".join(values)
+    conn.execute(
+        f"INSERT INTO call_notes ({cols}, saved_at) VALUES ({', '.join('?' for _ in values)}, datetime('now')) "
+        f"ON CONFLICT(id) DO UPDATE SET {', '.join(f'{c} = excluded.{c}' for c in values if c != 'id')}, "
+        "saved_at = datetime('now')", tuple(values.values()))
+    conn.commit()
+    return call_note_out(conn.execute("SELECT * FROM call_notes WHERE id = ?", (note["id"],)).fetchone())
+
+
+def list_call_notes(conn: sqlite3.Connection, donor_id: int | None = None, project_id: str | None = None,
+                    limit: int | None = None) -> list[dict]:
+    """Newest call first. donor_id / project_id keep notes with that destination (both = both must match)."""
+    where, params = [], []
+    for kind, ref in (("donor", donor_id), ("project", project_id)):
+        if ref is not None:
+            where.append("EXISTS (SELECT 1 FROM json_each(c.destinations) j "
+                         "WHERE json_extract(j.value, '$.kind') = ? AND CAST(json_extract(j.value, '$.id') AS TEXT) = ?)")
+            params += [kind, str(ref)]
+    sql = "SELECT c.* FROM call_notes c" + (f" WHERE {' AND '.join(where)}" if where else "")
+    sql += " ORDER BY c.created_at DESC, c.saved_at DESC, c.id"
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(int(limit))
+    return [call_note_out(r) for r in conn.execute(sql, params)]
 
 
 # SAMPLE seed: fictional, hand-built histories so scoring/dedupe/UI aren't blocked on ingest.

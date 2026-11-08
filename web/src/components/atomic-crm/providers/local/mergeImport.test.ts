@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiDonorDetail, ApiDonorRow, ApiSnapshot } from "./apiTypes";
 import { parseDonorDetail, parseMergeResult } from "./parse";
-import type { snapshotMethods } from "./snapshotClient";
+import { __resetSnapshotForTests, snapshotMethods } from "./snapshotClient";
 import type { ImportedDonorRow } from "./types";
 
 const AS_OF = "2026-11-08";
@@ -116,16 +116,14 @@ const imported = (over: Partial<ImportedDonorRow>): ImportedDonorRow => ({
   ...over,
 });
 
-type Methods = typeof snapshotMethods;
-let methods: Methods;
+const methods = snapshotMethods;
 
-beforeEach(async () => {
-  vi.resetModules(); // a fresh snapshot (and merge log) per test
+beforeEach(() => {
+  __resetSnapshotForTests(); // a fresh snapshot (and merge log) per test
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response(JSON.stringify(makeSnapshot()), { status: 200 })),
   );
-  methods = (await import("./snapshotClient")).snapshotMethods;
 });
 afterEach(() => vi.unstubAllGlobals());
 
