@@ -66,8 +66,10 @@ def fake_transcriber(audio: bytes, mime: str) -> list[dict]:
 class FakeTwilio:
     """Each leg plays a scripted list of statuses: fetch_call returns the next one and then repeats the last."""
 
-    def __init__(self, staff: list[str], donor: list[str] | None = None, recording: bytes | None = None):
+    def __init__(self, staff: list[str], donor: list[str] | None = None, recording: bytes | None = None,
+                 room: list[bool] | None = None):
         self.script = {"CA-staff": list(staff), "CA-donor": list(donor or ["ringing"])}
+        self.room = list(room or [True])        # room_open() answers, in order; the last repeats
         self.created, self.updates, self.deleted = [], [], []
         self.recording = recording
 
@@ -86,6 +88,10 @@ class FakeTwilio:
         if status:
             self.script[sid] = [status]
         return {}
+
+    def room_open(self, room):
+        assert room.startswith("dd-")
+        return self.room.pop(0) if len(self.room) > 1 else self.room[0]
 
     def recordings(self, call_sid):
         assert call_sid == "CA-staff"
@@ -384,3 +390,64 @@ def test_strip_phrases():
     assert phone.strip_phrases("you have a trial account. Hi there!", list(phone.TRIAL_PHRASES)) == "Hi there!"
     assert phone.strip_phrases("CALLING james carter, please hold", ["Calling James Carter. Please hold."]) == ""
     assert phone.has_phrase("... Calling James Carter. Please hold.", "Calling James Carter. Please hold.")
+
+
+
+# ----------------------------------------------------------------------------------------------
+# The staff leg must JOIN the room before the donor is dialed (live LIVE calls, Sun Nov 8)
+# ----------------------------------------------------------------------------------------------
+
+def test_donor_is_dialed_only_after_the_staff_phone_joins_the_room(setup, db_file):
+    fake = FakeTwilio(staff=["in-progress", "in-progress", "in-progress", "completed"],
+                      donor=["in-progress", "completed"], room=[False, False, True],
+                      recording=wav([STAFF_SIDE, HEARD_SIDE]))
+    call = phone.start_call(setup, JAMES, client=fake, background=False)
+    polls = []
+    phone.run_call(call["id"], fake, sleep=lambda s: polls.append(len(fake.created)), connect=lambda: db.connect(db_file),
+                   transcriber=fake_transcriber)
+    assert polls[:2] == [1, 1]          # still one call (the staff leg) while the room didn't exist
+    assert len(fake.created) == 2 and phone.get_call(setup, call["id"])["status"] == "done"
+
+
+def test_trial_key_not_pressed_never_dials_the_donor(setup, db_file):
+    """Answered (in-progress) but never joins: the trial message wasn't answered with a key, Twilio hangs up."""
+    fake = FakeTwilio(staff=["in-progress", "in-progress", "completed"], room=[False])
+    call = run(setup, db_file, fake)
+    assert call["status"] == "failed" and "press any key" in call["detail"]
+    assert len(fake.created) == 1       # the donor was never called
+    assert setup.execute("SELECT COUNT(*) FROM call_notes").fetchone()[0] == 0
+
+
+def test_staff_leg_dropping_mid_call_hangs_up_the_donor(setup, db_file):
+    fake = FakeTwilio(staff=["in-progress", "in-progress", "completed"],
+                      donor=["in-progress", "in-progress", "in-progress", "completed"],
+                      recording=wav([STAFF_SIDE, HEARD_SIDE]))
+    run(setup, db_file, fake)
+    assert {"sid": "CA-donor", "twiml": None, "status": "completed"} in fake.updates
+
+
+
+def test_a_room_lookup_error_keeps_waiting(setup, db_file):
+    class Flaky(FakeTwilio):
+        def room_open(self, room):
+            if self.room and self.room[0] == "error":
+                self.room.pop(0)
+                raise phone.PhoneError("Twilio said: 503")
+            return super().room_open(room)
+    fake = Flaky(staff=["in-progress", "in-progress", "in-progress", "completed"], donor=["in-progress", "completed"],
+                 room=["error", "error", True], recording=wav([STAFF_SIDE, HEARD_SIDE]))
+    assert run(setup, db_file, fake)["status"] == "done"
+
+
+def test_a_worker_crash_hangs_up_both_legs(setup, db_file):
+    class Crashing(FakeTwilio):
+        def fetch_call(self, sid):
+            out = super().fetch_call(sid)
+            if sid == "CA-donor" and out["status"] == "in-progress":
+                raise RuntimeError("boom")
+            return out
+    fake = Crashing(staff=["in-progress"], donor=["in-progress"])
+    call = run(setup, db_file, fake)
+    assert call["status"] == "failed" and "boom" in call["detail"]
+    ended = {u["sid"] for u in fake.updates if u["status"] in ("completed", "canceled")}
+    assert ended == {"CA-staff", "CA-donor"}
