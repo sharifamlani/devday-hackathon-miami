@@ -52,6 +52,9 @@ export const TOOL_SCOPES: Record<string, RefetchScope[]> = {
   merge_duplicate: ["people", "summary", "tasks", "calendar"],   // the generator retires/creates tasks (3a)
   resolve_duplicates: ["people", "summary", "tasks", "calendar"],   // the agent's 80%+ merges, same refresh
   dismiss_duplicate: ["people", "summary", "tasks", "calendar"],   // the generator retires/creates tasks (3a)
+  add_event: ["calendar", "summary"],
+  move_event: ["calendar", "summary"],
+  delete_event: ["calendar", "summary"],
   add_calendar_item: ["calendar", "summary"],
   move_calendar_item: ["calendar", "summary"],
   delete_calendar_item: ["calendar", "summary"],

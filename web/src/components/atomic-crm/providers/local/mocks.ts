@@ -7,6 +7,7 @@
  * All people, numbers and dates are fictional, matching data/sample_inputs.
  */
 import type { CalendarItem, Artifact } from "./calendarFeed";
+import type { CalendarEvent, OrgEvent } from "./events";
 import type { ContextItem } from "./contextSearch";
 import { registerMock } from "./endpoint";
 import type { AttentionPerson, HomeSummary, TargetQuarters } from "./homeSummary";
@@ -193,7 +194,51 @@ registerMock("DELETE", "/tasks/{id}", ({ path }) => {
 });
 registerMock("POST", "/tasks/generate", () => ({ created: 0 })); // idempotent: already generated
 registerMock("POST", "/undo/{token}", () => ({ undone: true }));
-registerMock("GET", "/calendar", () => MOCK.calendar);
+// Calendar v3 events (staff / agent / website). GET /calendar?kind=event|task filters; no kind = both.
+let mockEvents: OrgEvent[] = [
+  { id: 3, title: "Give Miami Day early giving opens", starts_at: "2026-11-14", ends_at: null, place: null, event_kind: "fundraising", source: "website", source_url: "https://www.miamifoundation.org/give-miami-day", notes: null, status: "upcoming" },
+];
+let nextEventId = 100;
+const eventItem = (e: OrgEvent): CalendarEvent => ({
+  date: e.starts_at.slice(0, 10),
+  time: e.starts_at.length > 10 ? e.starts_at.slice(11, 16) : null,
+  title: e.title,
+  kind: "event",
+  source: e.source ?? "staff",
+  ref: `event:${e.id}`,
+  place: e.place ?? null,
+  event_kind: e.event_kind ?? null,
+  source_url: e.source_url ?? null,
+  status: e.status ?? "upcoming",
+});
+registerMock("GET", "/calendar", ({ query }) => {
+  const kind = query.get("kind");
+  const from = query.get("from") ?? "";
+  const to = query.get("to") ?? "9999";
+  const tasksOnly = MOCK.calendar.filter((i) => i.kind === "task");
+  const items = [...mockEvents.map(eventItem), ...(kind === "event" ? [] : tasksOnly)];
+  return items.filter((i) => (!kind || i.kind === kind) && i.date >= from && i.date <= to);
+});
+registerMock("GET", "/events", () => mockEvents);
+registerMock("POST", "/events", ({ body }) => {
+  const b = body as Partial<OrgEvent> & { title?: string; starts_at?: string };
+  const event: OrgEvent = {
+    id: nextEventId++, title: b.title ?? "", starts_at: b.starts_at ?? "", ends_at: b.ends_at ?? null,
+    place: b.place ?? null, event_kind: b.event_kind ?? null, source: "staff", source_url: null, notes: b.notes ?? null, status: "upcoming",
+  };
+  mockEvents.push(event);
+  return { ...event, undo_token: `undo-event-${event.id}` };
+});
+registerMock("PATCH", "/events/{id}", ({ path, body }) => {
+  const event = mockEvents.find((e) => e.id === idFrom(path));
+  if (!event) throw new Error(`event ${idFrom(path)} not found`);
+  Object.assign(event, body);
+  return { ...event, undo_token: `undo-event-${event.id}` };
+});
+registerMock("DELETE", "/events/{id}", ({ path }) => {
+  mockEvents = mockEvents.filter((e) => e.id !== idFrom(path));
+  return { deleted: true, undo_token: `undo-event-delete-${idFrom(path)}` };
+});
 registerMock("GET", "/artifacts", () => MOCK.artifacts);
 registerMock("POST", "/transcribe/file", () => ({ segments: MOCK.segments }));
 registerMock("POST", "/call-notes/{id}/actions", () => MOCK.afterCall);

@@ -2,10 +2,8 @@ import { useId, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Link } from "react-router";
 import { zoomClick } from "./workspaceView";
-import {
-  useCalendarFeed,
-  type CalendarItem,
-} from "../providers/local/calendarFeed";
+import type { CalendarItem } from "../providers/local/calendarFeed";
+import { useCalendarEvents } from "../providers/local/events";
 import { addDays } from "../outreach/dates";
 import { parseWhen } from "../providers/local/parseWhen";
 import { cn } from "@/lib/utils";
@@ -75,34 +73,9 @@ export const dayHeading = (date: string, today: string) => {
   return date === today ? `Today · ${text}` : text;
 };
 
-const kindNames: Record<string, [string, string]> = {
-  call: ["call", "calls"],
-  review: ["review", "reviews"],
-  email: ["email", "emails"],
-  prep: ["prep", "preps"],
-};
-
-/** A day's untimed tasks as one label: "6 calls · 1 review" (a lone task keeps its own title). */
-export const taskSummary = (tasks: CalendarItem[]) => {
-  if (tasks.length === 1) return tasks[0].title;
-  const byKind = new Map<string, number>();
-  for (const t of tasks) {
-    const key = t.task_kind ?? "other";
-    byKind.set(key, (byKind.get(key) ?? 0) + 1);
-  }
-  return [...byKind.entries()]
-    .sort(([, a], [, b]) => b - a)
-    .map(([key, n]) => {
-      const [one, many] = kindNames[key] ?? ["task", "tasks"];
-      return `${n} ${n === 1 ? one : many}`;
-    })
-    .join(" · ");
-};
-
 /**
- * Open items from `start` for `days` days, grouped by day (soonest first, empty days omitted).
- * Within a day: "All day" rows first (each untimed event, then one row summarizing the untimed
- * tasks so a busy day can't flood the tile), then timed rows by time. Today is always listed
+ * Organization events from `start` for `days` days, grouped by day (soonest first, empty days omitted).
+ * Within a day: "All day" rows first, then timed rows by time. Today is always listed
  * when it is in range, empty or not.
  */
 export const agendaDays = (
@@ -115,7 +88,7 @@ export const agendaDays = (
   const byDate = new Map<string, CalendarItem[]>();
   for (const item of items) {
     const date = item.date.slice(0, 10);
-    if (item.done || date < start || date > end) continue;
+    if (item.kind !== "event" || item.done || date < start || date > end) continue;
     byDate.set(date, [...(byDate.get(date) ?? []), item]);
   }
   const row = (i: CalendarItem, n: number): AgendaRow => ({
@@ -126,21 +99,6 @@ export const agendaDays = (
   });
   if (today >= start && today <= end && !byDate.has(today))
     byDate.set(today, []);
-  const untimedTasks = (list: CalendarItem[]): AgendaRow[] => {
-    const tasks = list.filter(
-      (i) => minutes(i.time) == null && i.kind !== "event",
-    );
-    return tasks.length
-      ? [
-          {
-            key: `tasks-${tasks[0].ref ?? tasks[0].title}`,
-            time: "All day",
-            label: taskSummary(tasks),
-            byAgent: tasks.length === 1 && tasks[0].source === "agent",
-          },
-        ]
-      : [];
-  };
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, list]) => ({
@@ -149,7 +107,6 @@ export const agendaDays = (
         ...list
           .filter((i) => minutes(i.time) == null && i.kind === "event")
           .map(row),
-        ...untimedTasks(list),
         ...list
           .filter((i) => minutes(i.time) != null)
           .sort((a, b) => minutes(a.time)! - minutes(b.time)!)
@@ -174,7 +131,7 @@ export const AgendaList = ({
   const listRef = useRef<HTMLDivElement>(null);
   const start = addDays(today, offset * 7);
   const strip = weekStrip(start);
-  const feed = useCalendarFeed(start, addDays(start, LIST_DAYS - 1));
+  const feed = useCalendarEvents(start, addDays(start, LIST_DAYS - 1));
   const days = agendaDays(feed.data ?? [], start, today);
   const hasItems = new Set(
     days.filter((d) => d.rows.length).map((d) => d.date),

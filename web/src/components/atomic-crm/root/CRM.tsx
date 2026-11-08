@@ -7,7 +7,7 @@ import type {
 import { CustomRoutes, localStorageStore, Resource } from "ra-core";
 import { useEffect, useMemo } from "react";
 import { Route } from "react-router";
-import { CalendarPage } from "../calendar";
+import { CalendarV3 } from "../home/calendar/CalendarV3";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -287,7 +287,7 @@ const DesktopAdmin = (
 
       {/* Event calendar (feat/calendar-view): one route inside the layout. */}
       <CustomRoutes>
-        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/calendar" element={<div className="p-4"><CalendarV3 /></div>} />
       </CustomRoutes>
     </Admin>
   );
@@ -362,7 +362,7 @@ const MobileAdmin = (
             path="/calendar"
             element={
               <div className="px-4 pt-4">
-                <CalendarPage />
+                <CalendarV3 />
               </div>
             }
           />
