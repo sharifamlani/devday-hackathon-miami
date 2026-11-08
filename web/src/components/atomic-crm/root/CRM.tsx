@@ -7,6 +7,7 @@ import type {
 import { CustomRoutes, localStorageStore, Resource } from "ra-core";
 import { useEffect, useMemo } from "react";
 import { Route } from "react-router";
+import { CalendarPage } from "../calendar";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -272,6 +273,11 @@ const DesktopAdmin = (
       <Resource name="tasks" />
       <Resource name="sales" />
       <Resource name="tags" />
+
+      {/* Event calendar (feat/calendar-view): one route inside the layout. */}
+      <CustomRoutes>
+        <Route path="/calendar" element={<CalendarPage />} />
+      </CustomRoutes>
     </Admin>
   );
 };
