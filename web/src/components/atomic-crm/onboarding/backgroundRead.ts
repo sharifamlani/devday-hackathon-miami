@@ -1,14 +1,26 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import { DATA_MODE, donorDeskMethods } from "../providers/local";
+import { sourceOf } from "../providers/local/endpoint";
+import { generateTasks } from "../providers/local/tasks";
 import { call } from "../providers/local/endpoint";
 import {
   POLL_MS,
+  contextReducer,
+  contextSummary,
+  plainError,
+  type TasksResult,
   backgroundStarted,
   readRefreshJob,
   type RefreshJob,
 } from "./firstRun";
-import { onboardingStore, type BackgroundRead } from "./onboardingState";
+import {
+  onboardingStore,
+  type BackgroundRead,
+  type OrgLinks,
+  type OnboardingPatch,
+} from "./onboardingState";
 
 /**
  * A slow first read goes on in the background: POST /context/refresh starts
@@ -87,4 +99,67 @@ export const useBackgroundWatcher = (running: boolean) => {
       window.clearTimeout(timer);
     };
   }, [running, queryClient]);
+};
+
+/** Save/research the organization without holding the dashboard behind a receipt.
+ * This promise outlives the setup form; service writes and the existing slow-read
+ * watcher retain the same behavior after the form unmounts.
+ */
+export const readOrganizationInBackground = async (
+  links: OrgLinks,
+): Promise<void> => {
+  const update = (patch: OnboardingPatch) =>
+    onboardingStore.dispatch({ type: "update", patch });
+  update({ background: null, context: null });
+  try {
+    const run = await donorDeskMethods.runContext({
+      website: links.website,
+      x_url: links.x || null,
+      linkedin_url: links.linkedin || null,
+      instagram_url: links.instagram || null,
+    });
+    let phase = contextReducer({ phase: "reading" }, { type: "run_ok", run });
+    if (phase.phase === "tasks") {
+      let tasks: TasksResult = {
+        state: "skipped",
+        reason: "Not in this preview",
+      };
+      const source = await sourceOf("POST", "/tasks/generate");
+      if (source !== "snapshot" && source !== "unavailable") {
+        try {
+          const made = await generateTasks();
+          tasks = { state: "made", created: made?.created ?? 0 };
+        } catch {
+          tasks = { state: "failed", reason: "Couldn't make the list" };
+        }
+      }
+      phase = contextReducer(phase, { type: "tasks", result: tasks });
+    }
+    update({
+      context: contextSummary(phase),
+      linksSavedTo: DATA_MODE === "local" ? "live" : "local",
+    });
+    if (phase.phase === "slow") await startBackgroundRead();
+    else if (phase.phase === "error") throw new Error(phase.message);
+  } catch (cause) {
+    update({
+      context: {
+        outcome: "failed",
+        items: onboardingStore.get().data.context?.items ?? 0,
+        tasks: null,
+      },
+      background: {
+        status: "failed",
+        startedAt: null,
+        finishedAt: new Date().toISOString(),
+        facts: null,
+        titles: [],
+        hidden: false,
+        detail: plainError(
+          cause,
+          "We couldn't read your website. You can try again from your profile menu.",
+        ),
+      },
+    });
+  }
 };

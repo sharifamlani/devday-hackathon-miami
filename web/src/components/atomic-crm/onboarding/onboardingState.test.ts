@@ -119,7 +119,10 @@ describe("onboardingReducer", () => {
 
   it("never adopts mid-setup: a reload after the upload step resumes at the saved step", () => {
     // Step 1 uploaded people (so the service has them), then the page reloaded before steps 2-3
-    const midway = reduce(reduce(initialOnboarding(), { type: "start", step: 0 }), { type: "next" });
+    const midway = reduce(
+      reduce(initialOnboarding(), { type: "start", step: 0 }),
+      { type: "next" },
+    );
     expect(midway.status).toBe("in_progress");
     expect(midway.step).toBe(1);
     expect(shouldAdopt(midway, true)).toBe(false);
@@ -428,7 +431,7 @@ describe("onboardingStore persistence", () => {
   });
 
   it("a successful import is saved at once, so Finish later and a reload keep it", () => {
-    const summary = FILES;
+    const summary = { ...FILES, duplicatesRemoved: 2 };
     onboardingStore.dispatch({ type: "start" }, { open: true });
     onboardingStore.dispatch({ type: "update", patch: { files: summary } });
     onboardingStore.dispatch({ type: "finishLater" }, { open: false });
