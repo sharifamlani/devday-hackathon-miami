@@ -243,13 +243,14 @@ def find_people(ctx: RunContextWrapper[ChatContext], status: str | None = None, 
     "event", "check", "online"). no_gift_in_days: people whose last gift is at least that many days old ("hasn't
     given in 7 days" = 7). interest: people whose interests mention it (e.g. "environment", "kids").
     name: people whose name contains it (use it to look someone up by name)."""
+    from service.donor_summary import fold
     via = gave_via_ids(gave_via)
     statuses = STATUS_ALSO.get(status, (status,)) if status else None
     people = tab_people(ctx.context.tab)
     if people is not None:
         people = [p for p in people if (not statuses or p.get("status") in statuses) and (not tier or p.get("tier") == tier)
                   and (not star_only or p.get("is_star")) and (via is None or p["id"] in via)
-                  and (not name or name.strip().lower() in (p.get("full_name") or "").lower())]
+                  and (not name or fold(name) in fold(p.get("full_name")))]   # accent-insensitive
         people = with_gifts_and_interests(people, no_gift_in_days, interest)
         keep = ("id", "full_name", "donor_type", "contact_type", "score", "tier", "is_star", "status",
                 "last_gift_date", "interests", "next_step")
