@@ -2,6 +2,7 @@ import type {
   AskFilter,
   AskIntent,
   AskIntentKind,
+  AskServedFrom,
   AskSort,
 } from "../providers/local/ask";
 
@@ -139,4 +140,12 @@ export const campaignHref = (donorIds: number[], intent: AskIntent) => {
   if (intent.channel_hint) params.set("channel", intent.channel_hint);
   // URLSearchParams encodes the commas; keep the ids readable.
   return `/campaigns/new?${params.toString().replace(/%2C/g, ",")}`;
+};
+
+/** Who answered: the pill on an answer. */
+export const SERVED: Record<AskServedFrom, string> = {
+  model: "Read by the AI model (OpenAI Agents SDK)",
+  cache: "Cached answer",
+  rules: "Read by keyword rules (no AI model)",
+  edited: "Your edited filters",
 };
