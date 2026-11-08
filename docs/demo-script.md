@@ -58,9 +58,12 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
      **Open calendar**;
    - the **Q4 2026 outreach** gauge (**66%**, **$98.8k** raised of $150k, **Sample goal**) and the **Impact & story**
      card (e.g. **14 sourced facts · Copy for a grant report**);
-   - the week strip (**November · Nov 8 – 14**) with the events the agent found on the Foundation's site during setup:
-     **Today · Sunday, Nov 8 — nothing scheduled**, Sat 14 **Give Miami Day — Early Giving opens**, Sun 15 **The Give
-     Miami 5K** (8:00 AM) and the Post-Race Festival (8:30 AM), Thu 19 **Give Miami Day**;
+   - the calendar tile (**November · Nov 8 – 14**): a week grid with coloured event blocks for the events the agent
+     found on the Foundation's site during setup (Sat 14 **Give Miami Day — Early Giving opens**; next week Sun 15 **The
+     Give Miami 5K** at 8:00 AM and the Post-Race Festival at 8:30 AM, Thu 19 **Give Miami Day**). Overlapping events
+     share one block in the week grid, so Sun 15 reads like "T… / T…": point at the day view or the **By day** list
+     for the full names and times. Chat requests only land here when they say "calendar event" (e.g. *"Add a calendar
+     event Tuesday at 10am: thank-you breakfast"*, ~6 s); "add a thank-you call Tuesday at 10" makes a task;
    - **Tasks** (e.g. 18; the heading opens the full list), grouped: **Donor outreach** (e.g. 6: failed cards, late
      gifts, a new donor), **Donor records** (e.g. 9 possible duplicates), **Preparation** (one per upcoming event);
    - the **CRM** tile (its heading opens the donor database): **Find a donor** and the donors needing attention with
