@@ -70,6 +70,12 @@ describe("buildBriefing", () => {
     expect(b.lines[3].text).toBe(
       "Next event: Give Miami Day, in 12 days (Nov 20).",
     );
+    expect(b.lines[3].action).toEqual({
+      kind: "panel",
+      view: "calendar",
+      label: "Open calendar",
+      date: "2026-11-20",
+    });
     expect(b.lines[4]).toEqual({
       key: "reached",
       text: "You’ve reached 1 person today.",

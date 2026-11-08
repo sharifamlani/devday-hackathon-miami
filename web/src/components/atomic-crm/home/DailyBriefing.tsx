@@ -10,6 +10,7 @@ import { sendToAgent, useAgentChat } from "./agentChat";
 import type { Briefing, BriefingAction } from "./briefing";
 import { focusRing } from "./tile";
 import { openWorkspace } from "./workspaceView";
+import { focusCalendarOn } from "../calendar/calendarFocus";
 
 const action = cn(
   "inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full bg-surface px-3 text-xs font-semibold hover:bg-accent disabled:opacity-60",
@@ -37,7 +38,10 @@ export const DailyBriefing = ({
     else if (a.kind === "ask") {
       if (live) void sendToAgent(a.question, refetch);
       else session.submit(a.question);
-    } else if (a.kind === "panel") openWorkspace(a.view, el);
+    } else if (a.kind === "panel") {
+      if (a.date) focusCalendarOn(a.date);
+      openWorkspace(a.view, el);
+    }
   };
 
   return (

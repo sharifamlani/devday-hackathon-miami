@@ -261,6 +261,8 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Nothing said yet: stay at the top so an opening briefing is read from its first line.
+    if (messages.length === 0 && !pending) return;
     endRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [messages.length, pending]);
 
@@ -345,6 +347,7 @@ const AskThread = ({ intro }: { intro?: ReactNode }) => {
   }, [answer]);
 
   useEffect(() => {
+    if (history.length === 0 && !pending) return; // keep an opening briefing at its top
     endRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [history.length, pending]);
 

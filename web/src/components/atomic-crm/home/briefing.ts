@@ -6,7 +6,7 @@ export type BriefingAction =
   | { kind: "task"; taskKey: string; label: string }
   | { kind: "ask"; question: string; label: string }
   | { kind: "link"; to: string; label: string }
-  | { kind: "panel"; view: "calendar" | "tasks"; label: string };
+  | { kind: "panel"; view: "calendar" | "tasks"; label: string; date?: string };
 
 export interface BriefingLine {
   key: "tasks" | "late" | "duplicates" | "event" | "reached";
@@ -102,7 +102,12 @@ export const buildBriefing = (
     lines.push({
       key: "event",
       text: `Next event: ${event.title}, ${whenText(event.days, event.date)}.`,
-      action: { kind: "panel", view: "calendar", label: "Open calendar" },
+      action: {
+        kind: "panel",
+        view: "calendar",
+        label: "Open calendar",
+        date: event.date,
+      },
     });
 
   if (summary.reached_today > 0)
