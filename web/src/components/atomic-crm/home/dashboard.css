@@ -498,3 +498,47 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---- Collapsible overview tiles (TileCollapse.tsx): fold to the title row ---- */
+.tile-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 0;
+  transition:
+    grid-template-rows var(--motion-base) var(--ease-move),
+    opacity var(--motion-base) var(--ease-move);
+}
+.tile-body-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.home-tile[data-collapsed] > .tile-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.home-overview > .home-tile[data-collapsed] {
+  flex: 0 0 auto;
+}
+.home-overview > .home-tile > div:first-child {
+  transition: margin-bottom var(--motion-base) var(--ease-move);
+}
+.home-overview > .home-tile[data-collapsed] > div:first-child {
+  margin-bottom: 0;
+}
+.tile-collapse-toggle svg {
+  transition: transform var(--motion-fast) var(--ease-move);
+}
+.tile-collapse-toggle[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+.home-overview .tile-body-inner > ul {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+/* The CRM tile's list still takes spare room and scrolls inside the body. */
+.home-overview > .home-tile[data-tour="crm"] > .tile-body {
+  flex: 1 1 auto;
+}
