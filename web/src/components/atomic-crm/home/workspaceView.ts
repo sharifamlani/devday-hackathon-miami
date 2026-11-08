@@ -3,16 +3,10 @@ import { flushSync } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import { runZoomTransition, type ZoomKind, waitForCommit } from "./zoomTransition";
 
-export const WORKSPACE_VIEWS = [
-  "calendar",
-  "tasks",
-  "crm",
-  "impact",
-  "organizations",
-] as const;
+export const WORKSPACE_VIEWS = ["calendar", "tasks", "crm", "impact"] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
 
-/** "donors" is the legacy name for the crm view. */
+/** "donors" and "organizations" are the legacy names for the crm view (see crmSubview). */
 export function parseWorkspace(
   search: string | URLSearchParams | null | undefined,
 ): WorkspaceView | null {
@@ -21,10 +15,23 @@ export function parseWorkspace(
       ? new URLSearchParams(search ?? "")
       : search;
   const raw = params.get("workspace");
-  if (raw === "donors") return "crm";
+  if (raw === "donors" || raw === "organizations") return "crm";
   return (WORKSPACE_VIEWS as readonly string[]).includes(raw ?? "")
     ? (raw as WorkspaceView)
     : null;
+}
+
+/** Which CRM list the URL asks for; Donors first (givers). */
+export function crmSubview(
+  search: string | URLSearchParams | null | undefined,
+): "donors" | "organizations" {
+  const params =
+    typeof search === "string" || search == null
+      ? new URLSearchParams(search ?? "")
+      : search;
+  return params.get("workspace") === "organizations"
+    ? "organizations"
+    : "donors";
 }
 
 /** Returns a "?a=b" search string (or "") with workspace set or removed. */

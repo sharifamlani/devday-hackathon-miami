@@ -1,11 +1,4 @@
 /* Workspace panel zoom: layout beside the chat + View Transition animation. */
-.desk-home > .home-conversation {
-  view-transition-name: zoom-chat;
-}
-.desk-home.has-panel > .home-conversation {
-  display: none;
-}
-
 .desk-main-panel {
   view-transition-name: zoom-frame;
   display: flex;
@@ -61,29 +54,7 @@
   color: var(--muted-foreground);
 }
 
-/* >=1200px: panel 2/3 left, chat 1/3 right (380px floor). */
-@media (min-width: 1200px) {
-  .desk-home.has-panel {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(380px, 1fr);
-    gap: 16px;
-  }
-  .desk-home.has-panel > .home-conversation {
-    display: flex;
-    grid-column: 2;
-    grid-row: 1;
-    max-width: none;
-    margin: 0;
-    height: 100%;
-  }
-  .desk-home.has-panel > .desk-main-panel {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .desk-panel-back {
-    display: none !important;
-  }
-}
+/* Layout beside the chat (>=1200px grid, chat name zoom-chat) lives in the Home host (PR-R wiring). */
 /* Phone: full-screen sheet. */
 @media (max-width: 767px) {
   .desk-main-panel {

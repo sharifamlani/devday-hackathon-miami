@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeWorkspace,
+  crmSubview,
   openWorkspace,
   parseWorkspace,
   resetWorkspaceStateForTest,
@@ -28,6 +29,9 @@ describe("parse/serialize", () => {
     expect(parseWorkspace("?workspace=calendar")).toBe("calendar");
     expect(parseWorkspace("?workspace=donors")).toBe("crm");
     expect(parseWorkspace("?workspace=crm")).toBe("crm");
+    expect(parseWorkspace("?workspace=organizations")).toBe("crm");
+    expect(crmSubview("?workspace=organizations")).toBe("organizations");
+    expect(crmSubview("?workspace=crm")).toBe("donors");
     expect(parseWorkspace("?workspace=bogus")).toBeNull();
     expect(parseWorkspace("")).toBeNull();
   });

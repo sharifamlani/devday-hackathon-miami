@@ -7,7 +7,6 @@ export const PANEL_TITLES: Record<WorkspaceView, string> = {
   tasks: "Tasks",
   crm: "Donors",
   impact: "Impact",
-  organizations: "Organizations",
 };
 
 /** The shared zoom frame: toolbar (heading, back, close) around a named content layer. */
