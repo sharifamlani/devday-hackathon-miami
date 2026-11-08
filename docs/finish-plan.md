@@ -92,6 +92,105 @@ Code to lift (`docs/research/repos-to-lift.md`): assistant-ui tool UI + approval
 Google's live-api-web-console audio capture (Apache-2.0, keep headers), shadcn calendar / command / radial chart,
 a ~60-line Gemini relay of our own.
 
+## 2.5 How we build it: the loop and each agent's build card
+
+### The loop every agent follows (the shipping flywheel)
+```
+lead sends a 5-field brief (CONTEXT / OWNS / TASK / DONE WHEN / RETURN)
+  --> agent: git worktree add --no-track <branch> origin/main (outside Dropbox); push -u; confirm @{upstream} != main
+  --> agent: copy the listed code first, adapt minimally; write tests from the smoke list first
+  --> agent: open a PR early (schema + stubs) so others can rebase; push small commits
+  --> QA 98: one subagent per PR, runs the build's smokes + full pytest + contract check --> APPROVE <sha> or CHANGES
+  --> lead: gh pr merge --merge --match-head-commit <sha>; flips ROADMAP; tells dependents to rebase
+  --> 12: auto-deploys main to Vercel within 30 s; walks the laptop + Vercel paths; posts counts
+  --> c9 (Sunday): grades the criteria; FAILs go back to the owning agent
+```
+Rules for every agent: never push to main; touch only the files in OWNS; add tables with `CREATE TABLE IF NOT EXISTS`
+in the landing order below; new routers get one `include_router` line in `main.py`; every write the agent can make
+is a service function that returns an undo token (so the chat tools in B10 can wrap it); no seeded data, ever.
+
+### Build cards
+
+**8b: D1 empty start + D2 example dataset (wave 1)**
+1. Make `reset_db()` / startup create the schema with no seed by default; keep `SEED_DONORS` only for tests (move it under `service/tests/`).
+2. Remove the "Try sample data → cached snapshot" path from the laptop build; the landing points to "drag in the files from `data/sample_inputs/`".
+3. Load web caches only inside the live call's `except` branch, and tag those rows `cached=1` so the UI can label them.
+4. Generate a fictional `online_gifts_oct_nov_2026.xlsx` with the existing generator script; update `answer_key.json` (gifts, totals, per-quarter) and `_README.md`.
+5. Tests: fresh start has 0 rows; upload of the folder matches the key. Hands off to: 48 (new totals), 12 (walk from empty).
+
+**86: C1 context store + C2 story-first campaigns (wave 1)**
+1. Add columns to `org_context`: `kind`, `title`, `embedding` (BLOB), `cached`; backfill none (empty start).
+2. In `org_context.py`, the context agent classifies each found item into a kind with structured output (enum), then embeds `title + text` with `text-embedding-3-small`.
+3. `search_context(query=None, kinds=None, k=8)`: cosine similarity in numpy over the rows, times a recency weight (half-life 90 days), newest first on ties; no query = newest of the asked kinds.
+4. Campaign, thank-you, outreach and event-invite agents call `search_context(kinds=[success_story, use_of_funds, org_health])` before drafting; the prompt must use ≥1 of each when present and cite each by id; the draft carries `sources[]`; a post-check rejects drafts with uncited claims.
+5. Tests: rows ordered newest first; 5 campaign drafts each cite all three kinds; 0 claims without a source id. Hands off to: 90 (tool `search_context`), 80 (campaign review shows sources).
+
+**3a: B11/B12 tasks, calendar feed, artifacts (wave 1; critical path)**
+1. `tasks` + `agent_actions` tables (lands first in `db.py`).
+2. `/tasks` CRUD and service functions with undo tokens; `undo(token)`.
+3. `POST /tasks/generate` (idempotent) from alerts, duplicates, first-time donors, events within 14 days; call it at the end of the onboarding context run and the daily refresh.
+4. `/calendar` (events + dated tasks, `source` marks "added by agent"), `/artifacts` (drafts now, call notes when that table exists).
+5. Tests: one call per expected alert (5), one review per duplicate group, rerun adds 0; CRUD + undo. Hands off to: 48 (tasks_today), 90 and the B6 agent (write tools), 80 (hooks).
+
+**42: B1 interest tags (wave 1)**
+1. `interest_tags` (seeded with the 17 approved tags; reference data, not donor data), `interest_subtags`, `donor_interests`.
+2. Enrich agent: structured output with the 17 slugs as an enum, plus `contact{}`; identity check; empty when ambiguous.
+3. `POST /enrich/{id}?dry_run=1` proposes; `/people/{id}/enrichment/accept` writes; add/remove routes; staff rows never overwritten.
+4. Tests: smokes 9; 3 live runs on sample organizations. Hands off to: 90 (`add_interest`, `remove_interest`, `accept_enrichment`, `find_people(interest=)`), 80.
+
+**48: B2/B13 money and home (wave 1)**
+1. `targets.quarters()` + `/targets/quarters`; `reached_today` on `/targets`.
+2. `/home/summary` (glance counts, next event, suggestion chips from today's tasks) and `/people/attention` (badges).
+3. Guard missing tables (tasks, call_notes) until 3a and Agent Phone merge, then switch to real queries.
+4. Tests: quarters equal the updated answer key; gifts at risk = 5. Hands off to: 80.
+
+**Agent Phone: B3 voice (wave 1)**
+1. `transcribe.py`: a ~60-line FastAPI WebSocket relay to `gemini-3.5-transcribe-live` (two asyncio loops: browser → Gemini audio, Gemini → browser interim/final). `purpose=dictation` uses SMART mode and stores nothing.
+2. `POST /transcribe/file`: `gemini-3.5-transcribe` with speaker diarization on the recorded call.
+3. `call_notes` table + save/list routes; summary by an OpenAI Agents SDK agent; `save_call_note` returns an undo token.
+4. Smoke scripts for the key and the relay; tests for persistence. Hands off to: 80 (audio capture + hooks), B6 agent (reads notes), 90 (tool).
+
+**80: B9 web hooks (wave 1)**
+1. Types + hooks for every endpoint in `docs/ui-integration.md` §2, returning contract-shaped mocks first.
+2. Lift Google's live-api-web-console audio capture (Apache-2.0, keep headers + NOTICE) into `providers/local/audio/`; build `useDictation()` and `useCallTranscript()` on it (template: assistant-ui's dictation adapter example).
+3. A refetch helper the chat calls after every agent write (tasks, calendar, people, targets, summary, context).
+4. Flip each hook from mock to real as its PR merges. Tests per hook; snapshot build still renders. Hands off to: Christian's screens (Sharif integrates).
+
+**90 [113a1a]: B10 agent tools (wave 2)**
+1. Wrap every service function above as an Agents SDK tool (reads: people, alerts, events, calendar, tasks, call notes, `search_context`; writes: CRM, interests, calendar, tasks, call notes, after-call apply).
+2. Writes return undo tokens shown as Undo in the thread; sends, merges and deletes use the SDK's human-in-the-loop approval (copy `examples/agent_patterns/human_in_the_loop_server.py`).
+3. Stream events to assistant-ui with `assistant-stream` plus a ~100-line event mapper; tool steps render as tool UI cards.
+4. Tests: each write tool changes its row and Undo restores it. Hands off to: 12 (walk), c9 (grading).
+
+**90 [58e3c2]: B6 after-call agent (wave 2)**
+1. Agents SDK agent with `output_type` = a Pydantic list of typed actions (`create_task`, `rsvp_event`, `record_pledge`, `add_context_note`, `tag_interest`).
+2. `/call-notes/{id}/actions` proposes; `/apply` calls 3a's and 42's service functions; pledges table + `event_audience.rsvp` column.
+3. Tests on a recorded transcript: expected actions, nothing written before Apply. Hands off to: 90 (tool `apply_after_call_actions`).
+
+**Christian + Sharif: screens**
+Christian builds the mockup screens; when the first draft is ready he messages the team, and Sharif wires them to 80's
+hooks. Each screen then goes through the same loop (PR → QA → merge → auto-deploy → walk).
+
+**98 QA · 12 deploy monitor · c9 evaluator · 37 writer · lead**
+- 98: standing pool of review subagents, one per PR, target < 30 min per review.
+- 12: auto-deploy of main (kept) + laptop and Vercel walks, numbers per SHA.
+- c9: grades §6 from Sunday 9 AM, loops until every criterion passes.
+- 37: README (models, how to run from an empty start, limits) and the demo-script skeleton for Sharif.
+- Lead: briefs, contract upkeep, merge order, ROADMAP flips, unblocking, status to Sharif.
+
+### Hand-offs and landing order
+| Order | Lands | Unblocks |
+|---|---|---|
+| 1 | 3a `tasks`, `agent_actions` | 48 tasks_today, B6, B10 |
+| 2 | 8b empty start + new example sheet | 48 totals, 12 walk from empty |
+| 3 | 42 interest tables | B6 `tag_interest`, B10 |
+| 4 | Agent Phone `call_notes` | 48 reached_today, 3a artifacts, B6 |
+| 5 | 86 `org_context` columns + `search_context` | C2 campaigns, B10 |
+| 6 | B6 pledges + RSVP | B10 `apply_after_call_actions` |
+| 7 | B10 tools | full agent-first walk, c9 grading |
+
+80's hooks run in parallel the whole time (mock first, real on each merge).
+
 ## 3. Files touched
 
 ```
