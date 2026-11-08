@@ -824,3 +824,24 @@ def test_a_saved_enrichment_step_reads_as_a_sentence():
     assert ca.summarize(out) == "saved 4 facts and 6 interest tags"
     one_each = {"saved": {"facts": 1, "interests": 1, "skipped_staff_tags": ["arts_culture"]}, "undo_token": "t"}
     assert ca.summarize(one_each) == "saved 1 fact and 1 interest tag (1 staff tag kept as is)"
+
+
+def test_enrich_person_gives_up_at_the_cap_instead_of_hanging(db_file, monkeypatch):
+    import time
+    from service import enrich_agent, routes_interests
+    monkeypatch.setattr(enrich_agent, "enrich_full", lambda *a, **k: time.sleep(3) or FAKE_ENRICHMENT)
+    monkeypatch.setattr(routes_interests, "ENRICH_TIMEOUT_S", 0.2)
+    pid = one(db_file, "SELECT id FROM donors ORDER BY id LIMIT 1")["id"]
+    started = time.time()
+    out = invoke("enrich_person", person_id=pid)
+    assert "error" in out and time.time() - started < 1.5
+
+
+def test_saving_with_tag_labels_works_like_codes(db_file, monkeypatch):
+    """The agent may pass the display label ("Climate & resilience"); it must save, not show an error card."""
+    from service import enrich_agent
+    monkeypatch.setattr(enrich_agent, "enrich_full", lambda *a, **k: FAKE_ENRICHMENT)
+    pid = one(db_file, "SELECT id FROM donors WHERE donor_type = 'organization' ORDER BY id LIMIT 1")["id"]
+    invoke("enrich_person", person_id=pid)
+    saved = invoke("accept_enrichment", person_id=pid, fact_ids=["f1"], tags=["climate & RESILIENCE"])
+    assert "error" not in saved and saved["saved"]["interests"] == 1

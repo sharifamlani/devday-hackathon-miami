@@ -55,7 +55,8 @@ Rules:
   tool says no one or several people match, ask who they meant; never guess or write it to someone else.
 - Enrich protocol ("enrich / research <person>"): call enrich_person. List each proposed fact with its source and
   each proposed interest tag, then ask whether to save them; save only the ones the user agrees to, with
-  accept_enrichment(person_id, fact_ids, tags). Nothing is saved before that. If it found nothing (an individual:
+  accept_enrichment(person_id, fact_ids, tags), passing the facts' ids and the tags' codes (the "tag" field, not
+  the label). Nothing is saved before that. If it found nothing (an individual:
   no live web research; or an uncertain identity), say why in one line.
 - Call protocol: "call <person>", "phone <person>" or a call task -> call prep_call, and nothing that dials. Its
   sheet has the Call button; that button is how the user calls. Say in a line or two who they are and the
@@ -677,7 +678,11 @@ def accept_enrichment(ctx: RunContextWrapper[ChatContext], person_id: int, fact_
         proposal = routes_interests.PROPOSALS.get(person_id) or read_interest_cache().get(row["full_name"])
         if proposal is None:
             raise LookupError("no enrichment proposal for this person yet; research them first")
-        return i.accept_enrichment(conn, person_id, proposal, fact_ids, tags,
+        # The model may pass a tag's label ("Climate & resilience") instead of its code; map it, case-insensitive
+        codes = {str(x.get("label") or "").strip().lower(): x["tag"] for x in proposal.get("interests", [])}
+        codes |= {t["label"].strip().lower(): t["slug"] for t in i.list_tags(conn)}
+        picked = [codes.get(str(t).strip().lower(), t) for t in tags]
+        return i.accept_enrichment(conn, person_id, proposal, fact_ids, picked,
                                    agent_run_id=f"chat-accept-{uuid.uuid4().hex[:12]}")
     return interest_write(accept)
 
@@ -693,14 +698,17 @@ def enrich_person(ctx: RunContextWrapper[ChatContext], person_id: int) -> dict:
     if not rows:
         return {"error": f"person {person_id} not found"}
     d = rows[0]
-    # The research runs its own agent, which can't share this run's event loop: give it a worker thread
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        job = pool.submit(enrich_agent.enrich_full, d["full_name"], d["org_name"], d["city"], d["donor_type"],
-                          False, d["state"], d["email"])
-        try:
-            result = job.result(timeout=routes_interests.ENRICH_TIMEOUT_S)
-        except Timeout:
-            return {"error": f"the research took longer than {routes_interests.ENRICH_TIMEOUT_S} s; try again"}
+    # The research runs its own agent, which can't share this run's event loop: give it a worker thread. No
+    # `with` block: leaving one waits for the thread, so a stalled search would hang the turn past the cap.
+    pool = ThreadPoolExecutor(max_workers=1)
+    job = pool.submit(enrich_agent.enrich_full, d["full_name"], d["org_name"], d["city"], d["donor_type"],
+                      False, d["state"], d["email"])
+    try:
+        result = job.result(timeout=routes_interests.ENRICH_TIMEOUT_S)
+    except Timeout:
+        pool.shutdown(wait=False, cancel_futures=True)
+        return {"error": f"the research took longer than {routes_interests.ENRICH_TIMEOUT_S} s; try again"}
+    pool.shutdown(wait=False)
     routes_interests.PROPOSALS[person_id] = result           # what accept_enrichment saves from
     return {"person_id": person_id, "full_name": d["full_name"], "identity_match": result.get("identity_match"),
             "facts": [{"id": f["id"], "fact": f["fact"], "source_url": f["source_url"]} for f in result.get("facts", [])],
