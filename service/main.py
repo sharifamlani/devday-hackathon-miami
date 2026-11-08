@@ -65,6 +65,8 @@ app.include_router(targets_router)
 from service.routes_campaigns import router as campaigns_router  # noqa: E402  (#38: simulated outbox only)
 app.include_router(campaigns_router)
 app.include_router(ask_router)  # POST /ask (issue #36)
+from service.routes_voice import router as voice_router  # noqa: E402  (B3: /transcribe/*, call notes)
+app.include_router(voice_router)
 
 def module_present(name: str) -> bool:
     try:
