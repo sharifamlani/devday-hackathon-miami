@@ -1,13 +1,160 @@
-/* Light theming of react-big-calendar onto the Kindred tokens. Christian restyles from here. */
-.donor-calendar .rbc-calendar { font-size: 13px; }
-.donor-calendar .rbc-toolbar button { border-radius: 9999px; border-color: var(--border); color: inherit; }
+/*
+ * react-big-calendar in the Kindred look. Only theme tokens from src/index.css,
+ * so light and dark mode both follow. The weekday header gets the dark
+ * "calendar card" treatment (ink in light mode, card in dark mode).
+ */
+.donor-calendar .rbc-calendar {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--card-foreground);
+}
+
+/* Toolbar: month title and pill buttons, 44px targets. */
+.donor-calendar .rbc-toolbar {
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.donor-calendar .rbc-toolbar .rbc-toolbar-label {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.donor-calendar .rbc-toolbar button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--surface);
+  color: inherit;
+  font-weight: 500;
+}
+.donor-calendar .rbc-btn-group > button:not(:first-child):not(:last-child),
+.donor-calendar .rbc-btn-group > button:first-child:not(:last-child),
+.donor-calendar .rbc-btn-group > button:last-child:not(:first-child) {
+  border-radius: 9999px;
+}
+.donor-calendar .rbc-btn-group {
+  display: inline-flex;
+  gap: 6px;
+}
+.donor-calendar .rbc-btn-group > button + button {
+  margin-left: 0;
+}
+.donor-calendar .rbc-toolbar button:hover,
+.donor-calendar .rbc-toolbar button:focus {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-color: var(--border);
+  box-shadow: none;
+}
 .donor-calendar .rbc-toolbar button.rbc-active,
-.donor-calendar .rbc-toolbar button:hover { background: var(--brand-soft); color: var(--brand-soft-foreground); box-shadow: none; }
-.donor-calendar .rbc-today { background: var(--brand-soft); }
-.donor-calendar .rbc-off-range-bg { background: transparent; opacity: .5; }
-.donor-calendar .rbc-event { background: var(--brand); color: var(--brand-foreground); border-radius: 8px; }
-.donor-calendar .rbc-event:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
-.donor-calendar .rbc-month-view,
+.donor-calendar .rbc-toolbar button.rbc-active:hover {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: transparent;
+  box-shadow: none;
+}
+.donor-calendar .rbc-toolbar button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Month grid. */
+.donor-calendar .rbc-month-view {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.donor-calendar .rbc-month-header {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.dark .donor-calendar .rbc-month-header {
+  background: var(--surface);
+  color: var(--foreground);
+}
+.donor-calendar .rbc-header {
+  padding: 10px 4px;
+  border-color: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.donor-calendar .rbc-header + .rbc-header {
+  border-left-color: transparent;
+}
 .donor-calendar .rbc-month-row,
-.donor-calendar .rbc-day-bg + .rbc-day-bg,
-.donor-calendar .rbc-header { border-color: var(--border); }
+.donor-calendar .rbc-month-row + .rbc-month-row,
+.donor-calendar .rbc-day-bg + .rbc-day-bg {
+  border-color: var(--border);
+}
+.donor-calendar .rbc-date-cell {
+  padding: 6px 8px 2px;
+  font-variant-numeric: tabular-nums;
+}
+.donor-calendar .rbc-date-cell > a,
+.donor-calendar .rbc-date-cell > button {
+  color: inherit;
+}
+.donor-calendar .rbc-off-range {
+  color: var(--muted-foreground);
+}
+.donor-calendar .rbc-off-range-bg {
+  background: var(--surface);
+}
+.donor-calendar .rbc-today {
+  background: var(--brand-soft);
+}
+.donor-calendar .rbc-now > a,
+.donor-calendar .rbc-now > button {
+  font-weight: 700;
+}
+.donor-calendar .rbc-slot-selection,
+.donor-calendar .rbc-selected-cell {
+  background: var(--accent);
+}
+
+/* Event chips: pill shaped, family colors are set inline from eventKinds.ts. */
+.donor-calendar .rbc-event,
+.donor-calendar .rbc-day-slot .rbc-background-event {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.donor-calendar .rbc-event.rbc-selected {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+.donor-calendar .rbc-event:focus,
+.donor-calendar .rbc-event:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+.donor-calendar .donor-calendar-plan.is-done .rbc-event-content {
+  text-decoration: line-through;
+}
+.donor-calendar .rbc-show-more {
+  background: transparent;
+  color: var(--card-foreground);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.donor-calendar .rbc-show-more:focus-visible {
+  outline: 2px solid var(--ring);
+}
+
+/* The "+N more" overlay. */
+.rbc-overlay {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 20px 50px #24272824;
+}
+.rbc-overlay-header {
+  border-bottom-color: var(--border);
+  font-weight: 600;
+}
