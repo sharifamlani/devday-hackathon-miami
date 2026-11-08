@@ -1,5 +1,14 @@
-import { useId, type ReactNode } from "react";
-import { ArrowRight, AudioLines, FileText, Plus, Search } from "lucide-react";
+import { useId, useState, type ReactNode } from "react";
+import {
+  ArrowRight,
+  AudioLines,
+  ChevronDown,
+  Clock,
+  FileText,
+  Folder,
+  Plus,
+  Search,
+} from "lucide-react";
 import { Link } from "react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +27,6 @@ import {
   donorTag,
   formatCompactUsd,
   formatMonthDay,
-  formatRange,
   initials,
   type AgendaLine,
   type HomeTask,
@@ -67,14 +75,8 @@ export const Q4ProgressTile = ({
     <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
       <TileHead
         id={headingId}
-        title={target ? `${target.label} progress` : "Quarter progress"}
-      >
-        {target && (
-          <span className="text-xs text-muted-foreground">
-            {formatRange(target.start, target.end)}
-          </span>
-        )}
-      </TileHead>
+        title={target ? `${target.label} outreach` : "Quarter progress"}
+      />
       {isPending ? (
         <Skeleton className="h-16 w-full rounded-xl" />
       ) : !target ? (
@@ -82,9 +84,13 @@ export const Q4ProgressTile = ({
           Goals aren’t in this data yet.
         </p>
       ) : (
-        <div className="flex items-center gap-3.5">
-          <div className="relative h-[60px] w-[104px] shrink-0">
-            <svg viewBox="0 0 104 60" className="size-full" aria-hidden="true">
+        <div className="home-quarter-summary">
+          <div className="home-quarter-gauge">
+            <svg
+              className="home-quarter-arc"
+              viewBox="0 0 104 60"
+              aria-hidden="true"
+            >
               <defs>
                 <linearGradient id={gradientId} x1="0" x2="1" y1="0" y2="0">
                   <stop offset="0%" style={{ stopColor: "var(--brand)" }} />
@@ -115,7 +121,7 @@ export const Q4ProgressTile = ({
                 />
               )}
             </svg>
-            <span className="absolute inset-x-0 bottom-0 text-center text-[22px] leading-none font-bold tabular-nums">
+            <span className="home-quarter-percent">
               {percent == null ? "—" : `${Math.round(percent)}%`}
             </span>
           </div>
@@ -125,15 +131,6 @@ export const Q4ProgressTile = ({
               <dd className="font-semibold tabular-nums">
                 {formatCompactUsd(target.raised)}
                 {target.goal != null && ` / ${formatCompactUsd(target.goal)}`}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">
-                Donors this quarter
-              </dt>
-              <dd className="font-semibold tabular-nums">
-                {target.donors_count}{" "}
-                {target.donors_count === 1 ? "donor" : "donors"}
               </dd>
             </div>
           </dl>
@@ -468,7 +465,9 @@ export const WeekTile = ({
                 {formatDayShort(line.date).replace(/,.*/, "")}{" "}
                 {Number(line.date.slice(8, 10))}
               </time>
-              <span className="min-w-0">{line.label}</span>
+              <span className="min-w-0 truncate" title={line.label}>
+                {line.label}
+              </span>
             </li>
           ))}
         </ul>
@@ -493,65 +492,118 @@ export const TasksTile = ({
   isPending: boolean;
 }) => {
   const headingId = useId();
+  const listId = useId();
+  const [closed, setClosed] = useState<ReadonlySet<string>>(
+    () => new Set(["records", "campaigns"]),
+  );
+  const groups = [
+    {
+      id: "outreach",
+      title: "Donor outreach",
+      items: tasks.filter(
+        (t) => t.kind === "donor" && !/duplicate|record/i.test(t.title),
+      ),
+    },
+    {
+      id: "records",
+      title: "Donor records",
+      items: tasks.filter(
+        (t) => t.kind === "donor" && /duplicate|record/i.test(t.title),
+      ),
+    },
+    {
+      id: "campaigns",
+      title: "Campaigns",
+      items: tasks.filter((t) => t.kind === "campaign"),
+    },
+  ];
   return (
     <section
       data-tour="tasks"
       aria-labelledby={headingId}
-      className={cn(tile, "flex min-h-0 flex-col p-4 @min-[1081px]:flex-1")}
+      className={cn(tile, "home-projects")}
     >
-      <TileHead id={headingId} title="Tasks to do today">
+      <TileHead id={headingId} title="Tasks">
+        <span className="ml-auto text-xs text-muted-foreground">
+          {tasks.length}
+        </span>
         <button
           type="button"
           onClick={onPlan}
           aria-label="Add a task to today’s plan"
-          title="Add a task"
+          title="Add task"
           className={roundIcon}
         >
           <Plus className="size-4" aria-hidden="true" />
         </button>
       </TileHead>
       {isPending ? (
-        <div className="flex flex-col gap-1.5" aria-label="Loading tasks">
-          {Array.from({ length: 3 }, (_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-[14px]" />
-          ))}
-        </div>
+        <Skeleton className="h-20 rounded-lg" />
       ) : tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Nothing left for today. Nice work.
         </p>
       ) : (
-        <ul className="grid min-h-0 gap-1.5 overflow-y-auto">
-          {tasks.map((task) => {
-            const selected = task.key === selectedKey;
-            return (
-              <li key={task.key}>
-                <button
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => onSelect(task.key)}
-                  className={cn(
-                    "flex w-full items-start gap-2.5 rounded-[14px] border bg-card p-2.5 text-left hover:bg-surface",
-                    selected ? "border-foreground" : "border-border",
-                    focusRing,
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="mt-0.5 size-4 shrink-0 rounded-[5px] border-[1.5px] border-muted-foreground"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold">
-                      {task.title}
-                    </span>
-                    <span className="line-clamp-2 block text-xs text-muted-foreground">
-                      {task.why}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+        <ul className="home-project-list" aria-label="Task projects">
+          {groups
+            .filter((g) => g.items.length > 0)
+            .map((group) => {
+              const expanded = !closed.has(group.id);
+              const panelId = `${listId}-${group.id}`;
+              return (
+                <li key={group.id}>
+                  <button
+                    type="button"
+                    className={cn("home-project-toggle", focusRing)}
+                    aria-expanded={expanded}
+                    aria-controls={panelId}
+                    onClick={() =>
+                      setClosed((previous) => {
+                        const next = new Set(previous);
+                        if (next.has(group.id)) next.delete(group.id);
+                        else next.add(group.id);
+                        return next;
+                      })
+                    }
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "size-3 shrink-0",
+                        !expanded && "-rotate-90",
+                      )}
+                      aria-hidden="true"
+                    />
+                    <Folder className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span className="flex-1 text-left">{group.title}</span>
+                    <span>{group.items.length}</span>
+                  </button>
+                  <ul
+                    id={panelId}
+                    hidden={!expanded}
+                    className="home-project-threads"
+                  >
+                    {group.items.map((task) => (
+                      <li key={task.key}>
+                        <button
+                          type="button"
+                          aria-pressed={task.key === selectedKey}
+                          aria-label={`${task.title}: ${task.why}`}
+                          title={`${task.title} — ${task.why}`}
+                          className={cn("home-project-thread", focusRing)}
+                          onClick={() => onSelect(task.key)}
+                        >
+                          <Clock
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <span className="truncate">{task.title}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
         </ul>
       )}
     </section>
@@ -591,9 +643,7 @@ export const ArtifactsTile = ({
     .slice(0, 5);
   return (
     <section aria-labelledby={headingId} className={cn(tile, "p-4")}>
-      <TileHead id={headingId} title="Artifacts">
-        <span className="text-xs text-muted-foreground">Notes and drafts</span>
-      </TileHead>
+      <TileHead id={headingId} title="Files & drafts" />
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Call notes and drafts show up here.
