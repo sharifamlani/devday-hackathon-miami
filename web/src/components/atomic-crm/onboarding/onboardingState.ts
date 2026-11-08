@@ -61,6 +61,12 @@ export const EMPTY_LINKS: OrgLinks = {
   instagram: "",
 };
 
+/** A new browser's organization step: the demo organization, name and website, both editable. */
+export const DEMO_LINKS: OrgLinks = {
+  ...EMPTY_LINKS,
+  website: "https://miamifoundation.org",
+};
+
 /** The three CRM tabs POST /ingest sorts people into (by_tab). */
 export const TABS = ["giver", "neighbor", "community"] as const;
 export type TabId = (typeof TABS)[number];
@@ -137,7 +143,7 @@ export const initialOnboarding = (): OnboardingData => ({
   version: ONBOARDING_VERSION,
   status: "new",
   step: 0,
-  links: { ...EMPTY_LINKS },
+  links: { ...DEMO_LINKS },
   linksSavedTo: null,
   files: null,
   context: null,

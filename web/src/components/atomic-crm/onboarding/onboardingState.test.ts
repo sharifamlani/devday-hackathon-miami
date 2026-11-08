@@ -66,6 +66,19 @@ describe("the first-run steps (plan.md §21.2.2)", () => {
   });
 });
 
+describe("a new browser's organization defaults (docs/plans/user-journey.md §7.2)", () => {
+  it("starts with The Miami Foundation's name and website, editable like any typed value", () => {
+    const { links } = initialOnboarding();
+    expect(links.name).toBe("The Miami Foundation");
+    expect(links.website).toBe("https://miamifoundation.org");
+    expect(fieldsFromLinks(links).website).toBe("miamifoundation.org");
+  });
+
+  it("a cleared website stays empty: the default only seeds a new browser", () => {
+    expect(linksFromFields({ ...EMPTY_LINKS, website: "" }).website).toBe("");
+  });
+});
+
 describe("onboardingReducer", () => {
   it("walks forward and back within the three steps", () => {
     let state = reduce(initialOnboarding(), { type: "start" });
