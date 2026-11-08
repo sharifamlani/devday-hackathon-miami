@@ -29,6 +29,21 @@ describe("Ask Donor Desk in snapshot mode", () => {
     }
   });
 
+  it("never counts a declined charge as a gift (matches Python's apply_filter)", () => {
+    const snap = snapshot();
+    const id = snap.donors[0].id;
+    const detail = snap.donor_details[String(id)];
+    detail.gifts = [
+      { id: 1, donor_id: id, amount: 40, gift_date: "2026-10-10", channel: null, fund_type: null, status: "declined" },
+      { id: 2, donor_id: id, amount: 40, gift_date: "2026-09-10", channel: null, fund_type: null, status: "ok" },
+    ];
+    const october = { ...EMPTY_FILTER, gave_between: { start: "2026-10-01", end: "2026-11-08" } };
+    const ids = applyAskFilter(snap as ApiSnapshot, october).map((m) => m.row.id);
+    expect(ids).not.toContain(id);
+    detail.gifts[0].status = "ok";
+    expect(applyAskFilter(snap as ApiSnapshot, october).map((m) => m.row.id)).toContain(id);
+  });
+
   it("answers an example from the cache, case- and space-insensitively", () => {
     const answer = askSnapshot(
       snapshot(),

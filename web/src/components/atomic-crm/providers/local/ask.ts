@@ -231,6 +231,9 @@ export const applyAskFilter = (
     const detail = snapshot.donor_details[String(row.id)];
     const why = row.why;
     const gifts = (detail?.gifts ?? [])
+      // A declined or failed charge is not a gift, as in Python's apply_filter (targets._counted): it must not
+      // make someone a giver to thank, a recent giver, or count toward amounts.
+      .filter((g) => g.status == null || g.status === "ok")
       .map((g) => ({
         day: g.gift_date.slice(0, 10),
         amount: Number(g.amount),
