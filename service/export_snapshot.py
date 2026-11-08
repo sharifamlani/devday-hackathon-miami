@@ -24,14 +24,14 @@ The shapes come from the route functions themselves, so the UI parses both modes
       plan.md §21 home (live-only routes, read from here by the snapshot build):
       "home_summary": {...}        # == GET /home/summary
       "people_attention": [...]    # == GET /people/attention?limit=50 (the UI slices)
-      "tasks": [...]               # == GET /tasks (every task; the UI filters from/to/person)
-      "tasks_today": [...]         # == GET /tasks?due=today
-      "calendar": [...]            # == GET /calendar (whole range; the UI filters from/to)
+      "tasks": [...]               # == GET /tasks minus the Donors tab's private tasks (the UI filters from/to/person)
+      "tasks_today": [...]         # == GET /tasks?due=today, same exclusion (and home_summary.tasks_today counts it)
+      "calendar": [...]            # == GET /calendar, same exclusion (whole range; the UI filters from/to)
       "artifacts": [...]           # == GET /artifacts, minus call notes (they stay on the laptop)
       "target_quarters": {...}     # == GET /targets/quarters
     }
 
-Never exported: the Donors tab's notes, tasks and tags (crm_* tables, routes_crm.py). They are private staff
+Never exported: the Donors tab's notes, tasks and tags (crm_* tables and tasks rows with tasks.crm, routes_crm.py). They are private staff
 notes; in snapshot mode the browser keeps its own in localStorage, tied to meta.snapshot_id: a hash of every
 donor's id and name, so re-exporting the same donors keeps them and a snapshot whose ids mean other donors
 starts clean.
@@ -107,12 +107,16 @@ def home_snapshot(conn, as_of: date | None) -> dict:
 
     today = as_of or score.default_as_of()
     tasks.generate(conn, today)
+    # The Donors tab's tasks are private staff records (like crm notes): never in the public snapshot, not
+    # even as a count. Generated and agent tasks stay.
+    tasks_today = tasks.list_tasks(conn, due="today", as_of=today, public_only=True)
+    summary = {**home_summary(as_of=today, conn=conn), "tasks_today": sum(1 for t in tasks_today if not t["done"])}
     return {
-        "home_summary": home_summary(as_of=today, conn=conn),
+        "home_summary": summary,
         "people_attention": attention(conn, today, 50),
-        "tasks": tasks.list_tasks(conn, as_of=today),
-        "tasks_today": tasks.list_tasks(conn, due="today", as_of=today),
-        "calendar": tasks.calendar(conn, None, None),
+        "tasks": tasks.list_tasks(conn, as_of=today, public_only=True),
+        "tasks_today": tasks_today,
+        "calendar": tasks.calendar(conn, None, None, public_only=True),
         "artifacts": [a for a in tasks.artifacts(conn, 50) if a.get("kind") != "call_note"],
         "target_quarters": targets.quarters(conn, today),
     }
