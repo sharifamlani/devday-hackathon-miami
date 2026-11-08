@@ -167,3 +167,88 @@ describe("pre-filling the note's donor from the agent's match", () => {
   });
 });
 
+describe("a late or duplicate /actions response never undoes the person's choices (IT lane bug)", () => {
+  const deferred = <T,>() => {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>((r) => (resolve = r));
+    return { promise, resolve };
+  };
+  const ROSA_REWORDED: AfterCallProposal = {
+    steps: [],
+    actions: [
+      { id: "b1", type: "create_task", label: "Send Rosa a card-update link", payload: {} },
+      { id: "b2", type: "rsvp_event", label: "Beach Cleanup: Rosa yes", payload: {} },
+      { id: "b3", type: "add_context_note", label: "Card changed in October", payload: {} },
+    ],
+    person: ROSA.person,
+  };
+
+  it("S1: one /actions request per card under StrictMode, even when the first is slow", async () => {
+    const slow = deferred<AfterCallProposal>();
+    api.propose.mockReturnValue(slow.promise);
+    const screen = await render(
+      <StrictMode>
+        <AfterCallCard noteId="n1" />
+      </StrictMode>,
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    slow.resolve(ROSA);
+    await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    expect(api.propose).toHaveBeenCalledOnce();
+  });
+
+  it("S2: untick, then a delayed duplicate response arrives: the untick is kept and Apply sends only the ticked", async () => {
+    // Two requests really go out: the cache is cleared and a re-render with a changed effect
+    // input starts a newer request while the first is still in flight.
+    const first = deferred<AfterCallProposal>();
+    const second = deferred<AfterCallProposal>();
+    let calls = 0;
+    api.propose.mockImplementation(() => {
+      calls += 1;
+      return calls === 1 ? first.promise : second.promise;
+    });
+    api.mutate.mockImplementation((vars, opts) => opts.onSuccess(applied(vars.actionIds)));
+    const screen = await render(<AfterCallCard noteId="n1" retryMs={1} />);
+    await expect.poll(() => calls).toBe(1);
+    forgetProposals(); // as if the cache weren't there: a real second request
+    await screen.rerender(<AfterCallCard noteId="n1" retryMs={2} />);
+    await expect.poll(() => calls).toBe(2); // the duplicate really went out
+    second.resolve(ROSA); // the newer request answers first
+    await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    await screen.getByRole("checkbox").nth(2).click(); // the person unticks the context note
+    first.resolve(ROSA_REWORDED); // the stale, differently worded answer lands late
+    await new Promise((r) => setTimeout(r, 100));
+    expect(screen.getByText("Send Rosa a card-update link", { exact: false }).elements()).toHaveLength(0);
+    expect((screen.getByRole("checkbox").elements() as HTMLInputElement[]).map((b) => b.checked)).toEqual([true, true, false]);
+    await screen.getByRole("button", { name: "Apply selected" }).click();
+    expect(api.mutate.mock.calls[0][0]).toEqual({ callNoteId: "n1", actionIds: ["a1", "a2"] });
+  });
+
+  it("once the person has edited, nothing re-asks the agent or resets their card", async () => {
+    api.propose.mockResolvedValue(ROSA);
+    const screen = await render(<AfterCallCard noteId="n1" retryMs={1} />);
+    await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    await screen.getByRole("checkbox").nth(0).click(); // edited
+    forgetProposals();
+    await screen.rerender(<AfterCallCard noteId="n1" retryMs={2} />); // something that would start a newer request
+    await new Promise((r) => setTimeout(r, 100));
+    expect(api.propose).toHaveBeenCalledOnce(); // no second model call
+    expect((screen.getByRole("checkbox").elements() as HTMLInputElement[]).map((b) => b.checked)).toEqual([false, true, true]);
+  });
+
+  it("after Discard the checkboxes are gone, not just disabled", async () => {
+    api.propose.mockResolvedValue(ROSA);
+    const screen = await render(<AfterCallCard noteId="n1" />);
+    await screen.getByRole("button", { name: "Discard" }).click();
+    await expect.element(screen.getByText("Discarded. Nothing was saved.")).toBeVisible();
+    expect(screen.getByRole("checkbox").elements()).toHaveLength(0);
+  });
+
+  it("doesn't repeat the summary's steps above the actions", async () => {
+    api.propose.mockResolvedValue(ROSA);
+    const screen = await render(<AfterCallCard noteId="n1" />);
+    await expect.element(screen.getByText("Text Rosa a secure link to update her card", { exact: false })).toBeVisible();
+    expect(screen.getByText("Matched the Beach Cleanup on Sat Nov 21").elements()).toHaveLength(0);
+  });
+});
+

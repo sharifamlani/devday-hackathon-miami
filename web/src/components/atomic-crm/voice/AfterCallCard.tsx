@@ -100,12 +100,19 @@ export const AfterCallCard = ({
   const [result, setResult] = useState<AfterCallResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const live = useRef(true);
+  // Only the newest request may fill the card, and never once the person has changed a tick:
+  // a late or duplicate response must not undo their choices (IT lane: 1 run in 3 re-ticked all).
+  const latest = useRef(0);
+  const edited = useRef(false);
   const onMatched = useRef(onMatchedPerson);
   onMatched.current = onMatchedPerson;
 
   useEffect(() => {
-    live.current = true;
+    // Once the person has changed a tick, their card stands: no reset, no new request.
+    if (edited.current) return;
+    let cancelled = false; // per run: StrictMode's first run must not land after the second starts
+    const seq = ++latest.current;
+    const stale = () => cancelled || seq !== latest.current;
     let tries = 0;
     let timer: number | undefined;
     const saved = async () => (await listServerCallNotes()).some((n) => n.id === noteId);
@@ -117,16 +124,17 @@ export const AfterCallCard = ({
           await new Promise((resolve) => {
             timer = window.setTimeout(resolve, retryMs);
           });
-          if (!live.current) return;
+          if (stale()) return;
         }
+        if (stale()) return; // a superseded run must not even ask (each /actions is a model call)
         const p = await proposeOnce(noteId, attempt > 0);
-        if (!live.current) return;
+        if (stale() || edited.current) return;
         if (confidentMatch(p.person, contactName)) onMatched.current?.(p.person);
         setProposal(p);
         setTicked(new Set(p.actions.map((a) => a.id)));
         setPhase("ready");
       } catch (e) {
-        if (!live.current) return;
+        if (stale() || edited.current) return;
         setError(e instanceof Error ? e.message : "The agent couldn't read this call.");
         setPhase("error");
       }
@@ -135,7 +143,7 @@ export const AfterCallCard = ({
     setError(null);
     void read();
     return () => {
-      live.current = false;
+      cancelled = true;
       window.clearTimeout(timer);
     };
     // contactName is read once per proposal; a later change must not ask the model again.
@@ -149,13 +157,15 @@ export const AfterCallCard = ({
   const skipped = new Map(result?.skipped.map((s) => [s.id, s.why]));
   const locked = phase !== "ready";
 
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    edited.current = true;
     setTicked((t) => {
       const next = new Set(t);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
 
   const onApply = () => {
     const ids = actions.filter((a) => ticked.has(a.id)).map((a) => a.id);
@@ -209,22 +219,11 @@ export const AfterCallCard = ({
 
       {proposal && phase !== "reading" && phase !== "error" && (
         <>
-          {proposal.steps.length > 0 && (
-            <ul aria-label="What the agent did" className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {proposal.steps.map((s) => (
-                <li key={s} className="flex items-center gap-1">
-                  <Check className="size-3.5 text-[#2f8f5b]" aria-hidden />
-                  {s}
-                </li>
-              ))}
-            </ul>
-          )}
-
           {actions.length === 0 ? (
             <p className="text-muted-foreground" role="status">
               Nothing to do from this call.
             </p>
-          ) : (
+          ) : phase === "discarded" ? null : (
             <ul aria-label="Proposed actions" className="space-y-2">
               {actions.map((a: AfterCallAction) => {
                 const done = appliedIds.has(a.id);
