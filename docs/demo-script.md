@@ -19,8 +19,8 @@ Givers / Neighbors / Community, and the people page shows all three tabs (e.g. *
 Community 15**), but the demo stays on **Givers**.
 
 Button and heading text below is what's on screen on main today, in **bold**. Counts are from the laptop run (the Vercel link
-shows the same while the tunnel is up). Its snapshot fallback (**Sample data** badge) shows different numbers (10
-duplicates, 19 tasks): don't read numbers off it.
+shows the same while the tunnel is up). Its snapshot fallback (**Sample data** badge) is an older cut: don't read
+numbers off it.
 
 1. **Empty start.** Open **http://localhost:5173/** (the bare URL). On an empty app, setup's first step is the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data** ("or drag and drop your files here (CSV, Excel, Word, notes)"), **Try sample data**, and Upload your list · Understand your donors · Reach out thoughtfully.
    Nothing is behind it: no people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during
@@ -73,7 +73,7 @@ duplicates, 19 tasks): don't read numbers off it.
    - the **CRM** tile (its heading opens the donor database): **Find a donor** and the donors needing attention with
      their badges (**Card failed**, **Skipped**, **Late**, **New**);
    - **Files & drafts** (campaigns and invites the agents drafted);
-   - the greeting **Good afternoon, Denise.** (**Good evening, Denise.** after 6 PM; Denise is the demo staff persona);
+   - the greeting **Good afternoon, Sharif.** (**Good evening, Sharif.** after 6 PM, by the laptop's clock);
    - **Ask the agent…** (no suggestion chips above it): type a request and press **Send**, or say it with the mic.
    The tile headings open their panels beside the chat. The workspace controls hold **Live transcript** and the
    avatar menu; Home has no Ask button (the chat is on the page; other pages keep **Open Ask sidebar**).
@@ -88,10 +88,18 @@ duplicates, 19 tasks): don't read numbers off it.
    **November 9–15** with a priority per day, and it says it hasn't changed your calendar. (The wording varies run to
    run; say "a suggested week, built from the events and tasks, and nothing changed until you say so".) A step that
    changes something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
-7. **A call sheet (Sharif's Q2).** In **Ask the agent…** type *"Prep a call sheet for Priya Raman"* (verified on
-   LIVE; about 5 s): the agent's steps, then the card **Call sheet: Priya Raman** (her phone with a **Call** button,
-   GIVING, TALKING POINTS; RECENT CALLS if she has call notes). "Everything you need before you dial, from her record." (A task row in
-   **Tasks**, e.g. **Call Hye-jin Park**, does the same and adds a draft, about 28 s.)
+7. **An email, drafted (Sharif's Q2).** In **Ask the agent…** type *"Prep an email for Priya Raman"* (about 15 s;
+   14.5 s and 15.3 s in two browser runs on 579b7e4). The agent's steps (**Get context** and **Get events** only if this is the
+   chat's first turn), **Find people** ("1 people: Priya Raman"), **Draft email** ("batch #…: 1 drafts, pending
+   approval"), **Send** ("waiting for your approval to send"), then the card **Needs your approval** · "Send thank-you
+   email to Priya Raman": **To Priya Raman**, a bold subject (it varies, e.g. "Priya, thank you for showing up for
+   Miami") and the body: thanks for her $500 gift on November 2 and for giving each November since 2023, then the
+   Foundation's recent work (e.g. Give Miami Day's 60,000+ donors); the wording varies run to run. Buttons **Send** ·
+   **Don't send**, and below them "Waiting for you: Send thank-you email to Priya Raman.": **don't click Send on
+   stage**. "It wrote from her record and our own news; nothing goes out until staff click Send." (A
+   single named person goes straight to the draft. Several people, e.g. *"prep an email to donors who gave in the
+   last 90 days"*, get a prep card first: LAST TIME / WHAT WE'VE BEEN DOING / COMING UP / THE ANGLE / **Draft N
+   emails**.)
 8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to donors who gave in the last 90 days."*
    (about 38 s): **25 thank-you email drafts are ready for review … Nothing has been sent**, with the organizations that
    need individual approval listed by name. Each draft cites a Foundation fact with its source (e.g. Give Miami Day's
@@ -185,7 +193,7 @@ within about 2 s and the answer types out live, so narrate the steps as they app
 | Step | Can vary because | If it's slow or off, say |
 |---|---|---|
 | 4 Background read (~30 s) | the site read runs in the background; the event search can miss one of the 4 events (then the counts in step 5 are one lower) | Events or facts not there yet: keep touring and say "the agent is still reading the site; the events land in a moment." |
-| 6 / 7 agent replies (~6 s / ~28 s) | live model calls; step 7 also preps a call sheet | "It's pulling the task, the donor's record, a call sheet and a draft; every step it takes shows here." |
+| 6 / 7 agent replies (~6 s / ~15 s) | live model calls; step 7 reads her record and our news, then writes the draft | "It's reading her record and our own news, then writing; every step it takes shows here." No draft after ~30 s: type *"Write an email to Priya Raman"* (the same card, about 14 s); if that fails too, *"Prep a call sheet for Priya Raman"* (about 5 s). |
 | 8 campaign (~38 s) | 25 live drafts | "Twenty-five personal drafts, each citing a real Foundation story. Nothing is sent without approval." |
 | 9 Enrich | fast while the research cache holds Knight; otherwise a live web search | "It's reading the public web; every tag will carry its source." |
 | 12 Dictation | needs a mic and the live service | Type the question instead. |
