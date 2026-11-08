@@ -18,6 +18,13 @@ const argLine = (args: Record<string, unknown>) =>
     .map(([k, v]) => `${k.replace(/_/g, " ")}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
     .join(" · ");
 
+/** What the card's two buttons say: a call or a send reads as that action, anything else as Approve. */
+export const APPROVAL_BUTTONS: Record<string, { yes: string; no: string }> = {
+  call_person: { yes: "Call", no: "Not now" },
+  send: { yes: "Send", no: "Don't send" },
+};
+const DEFAULT_BUTTONS = { yes: "Approve", no: "Decline" };
+
 const chip = cn(
   "inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-[13px] font-semibold transition-colors",
   focusRing,
@@ -67,7 +74,9 @@ export const ApprovalCard = ({
   handled?: string;
   disabled: boolean;
   onDecide: (approve: boolean) => void;
-}) => (
+}) => {
+  const buttons = APPROVAL_BUTTONS[approval.tool] ?? DEFAULT_BUTTONS;
+  return (
   <div
     data-testid="agent-approval"
     role="group"
@@ -81,7 +90,9 @@ export const ApprovalCard = ({
     <p className="font-semibold">
       {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}: {toolLabel(approval.tool)}
     </p>
-    {argLine(approval.args) && <p className="mt-0.5 text-muted-foreground">{argLine(approval.args)}</p>}
+    {(approval.summary || argLine(approval.args)) && (
+      <p className="mt-0.5 text-muted-foreground">{approval.summary || argLine(approval.args)}</p>
+    )}
     {!decided && (
       <div className="mt-2 flex gap-2">
         <button
@@ -91,7 +102,7 @@ export const ApprovalCard = ({
           className={cn(chip, "bg-brand text-brand-foreground hover:bg-brand/85 disabled:opacity-60")}
         >
           <Check className="size-3.5" aria-hidden="true" />
-          Approve
+          {buttons.yes}
         </button>
         <button
           type="button"
@@ -100,9 +111,10 @@ export const ApprovalCard = ({
           className={cn(chip, "bg-current/10 hover:bg-current/20 disabled:opacity-60")}
         >
           <X className="size-3.5" aria-hidden="true" />
-          Decline
+          {buttons.no}
         </button>
       </div>
     )}
   </div>
-);
+  );
+};

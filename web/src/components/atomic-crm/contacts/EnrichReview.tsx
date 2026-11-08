@@ -128,10 +128,8 @@ export const EnrichProposal = ({ review }: { review: EnrichReviewState }) => {
           {proposal.identity_match === "not_researched"
             ? ENRICH_COPY.individual
             : proposal.identity_match === "ambiguous"
-              ? // Only the name matched: show the service's own reason, not the generic "more than one" copy
-                proposal.identity_basis?.length === 1 && proposal.identity_basis[0] === "name" && proposal.notes
-                ? proposal.notes
-                : ENRICH_COPY.ambiguous
+              ? // The service's own reason when it gave one (e.g. "Only the name matched…"); generic copy otherwise
+                proposal.notes || ENRICH_COPY.ambiguous
               : ENRICH_COPY.noInfo}
         </p>
       )}

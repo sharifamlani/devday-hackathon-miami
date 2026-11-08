@@ -199,6 +199,7 @@ async def enrich(donor_id: int, refresh: bool = False) -> dict:
     donor = load_donor_row(donor_id)
     facts = await run_agent("enrich", enrich_donor, donor["full_name"], donor.get("org_name"), donor.get("city"),
                             refresh=refresh, donor_type=donor.get("donor_type"),
+                            state=donor.get("state"), email=donor.get("email"),   # identity: city, state or email domain
                             fallback=lambda: {"donor_id": donor_id})
     run_id = f"enrich-{uuid.uuid4().hex[:12]}"
     saved = await run_in_threadpool(save_facts, donor_id, facts, run_id)

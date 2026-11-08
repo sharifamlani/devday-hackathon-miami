@@ -4,7 +4,7 @@ import { renderToString } from "react-dom/server";
 import { parseDonorRow } from "../providers/local/parse";
 import { parsePerson } from "../providers/local/crmParse";
 import type { ApiDonorRow } from "../providers/local/apiTypes";
-import { AutoMergeFlag } from "./AutoMergeFlag";
+import { AutoMergeFlag, sourceContacts } from "./AutoMergeFlag";
 import { isNonGiver, TAB_ONE } from "./personTab";
 
 const html = (autoMerged?: boolean) =>
@@ -82,5 +82,21 @@ describe("automatic-merge flag (#125)", () => {
     );
     expect(isNonGiver("giver")).toBe(false);
     expect(isNonGiver(null)).toBe(false);
+  });
+
+  it("lists both the email and the phone of a source record", () => {
+    const src = { email: "liz.f@example.com", phone: "305-555-0104" };
+    expect(sourceContacts(src, "local")).toEqual([
+      "liz.f@example.com",
+      "(305) 555-0104",
+    ]);
+    expect(sourceContacts(src, "snapshot")).toEqual([
+      "l•••@example.com",
+      "•••-•••-0104",
+    ]);
+    expect(sourceContacts({ email: null, phone: "305-555-0104" }, "local")).toEqual([
+      "(305) 555-0104",
+    ]);
+    expect(sourceContacts({ email: null, phone: null }, "local")).toEqual([]);
   });
 });

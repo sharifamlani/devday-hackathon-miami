@@ -15,7 +15,7 @@ import { DataImportProvider } from "../dataImport/DataImportProvider";
 import { OnboardingGate } from "../onboarding/OnboardingGate";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import Header from "./Header";
-import { WorkspaceSidebar } from "../home/WorkspaceSidebar";
+import { Rail } from "./Rail";
 import { shellState } from "./shellState";
 
 /**
@@ -61,8 +61,8 @@ const LayoutShell = ({ children }: { children: ReactNode }) => {
         >
           Skip to content
         </a>
-        <div className="desk-app-shell">
-          <WorkspaceSidebar />
+        <div className="flex h-dvh gap-3 p-4">
+          <Rail />
           <div
             className={cn(
               "flex min-w-0 flex-1 flex-col gap-3",

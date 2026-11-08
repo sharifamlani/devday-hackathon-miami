@@ -290,7 +290,7 @@ CREATE TABLE IF NOT EXISTS outbox (
     campaign_message_id INTEGER REFERENCES campaign_messages(id) ON DELETE SET NULL,
     donor_id            INTEGER REFERENCES donors(id) ON DELETE SET NULL,
     channel             TEXT NOT NULL CHECK (channel IN ('email', 'text')),
-    to_address          TEXT NOT NULL,     -- stored in full locally; masked in every API response
+    to_address          TEXT NOT NULL,     -- stored in full locally and returned in full by the live API
     subject             TEXT,
     body                TEXT NOT NULL,
     sent_at             TEXT NOT NULL DEFAULT (datetime('now')),
