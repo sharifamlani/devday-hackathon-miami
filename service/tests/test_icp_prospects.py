@@ -6,6 +6,7 @@ import sqlite3
 import pytest
 
 from service import db
+from service.tests.fixtures_seed import seed
 from service.export_snapshot import build_snapshot
 from service.tests.test_routes_data import client
 
@@ -23,7 +24,7 @@ PROSPECTS = [
 
 
 def seeded(conn):
-    db.seed(conn)
+    seed(conn)
     return conn
 
 

@@ -280,7 +280,8 @@ FAILED_GIFTS = [dict(donor="park", date=dt(2026, 10, 10), amount=40, name="Hye-j
 
 # --- Oct-Nov 2026 online + wire export (online_gifts_oct_nov_2026.xlsx): the Q4 money. Added last, with its own
 # random stream, so every id, row and byte of the files above stays exactly as it was.
-# (donor key, date, amount, channel, fund, name as written, method column, memo)
+# (donor key, date, amount, (unused), fund, name as written, payment method as written, memo). The headers on
+# both sheets are ones the ingest reader recognizes (name / amount / date columns), just worded differently.
 OCTNOV = [
     ("ibarra", dt(2026, 10, 9), 8000, "online", "Field of Interest", "Carmen Ibarra", "Credit card", "health access, fall appeal"),
     ("fontaine", dt(2026, 10, 9), 2500, "online", "Unrestricted", "Liz F.", "Credit card", ""),
@@ -302,7 +303,7 @@ OCTNOV = [
     ("lindqvist", dt(2026, 11, 7), 250, "online", "Unrestricted", "Tobias Lindqvist", "Credit card", ""),
 ]
 for _dk, _d, _amt, _ch, _fund, _nm, _method, _memo in OCTNOV:
-    _g = gift(_dk, _d, _amt, _ch, _fund, "oct_nov", name=_nm, note=_memo, method=_method,
+    _g = gift(_dk, _d, _amt, _method.lower(), _fund, "oct_nov", name=_nm, note=_memo, method=_method,
               email="priscilla.okafor.law@example.org" if _dk == "okafor" else None)
     _g["id"] = None
 for _n, _g in enumerate(sorted((g for g in GIFTS if g["dest"] == "oct_nov"), key=lambda g: (g["date"], g["donor"])), 1):
@@ -437,7 +438,7 @@ def write_octnov():
 
     wb = Workbook()
     specs = [
-        ("October", date(2026, 10, 1), date(2026, 10, 31), ["Supporter", "Email address", "Gift ($)", "Date received", "Method", "Designation", "Phone"]),
+        ("October", date(2026, 10, 1), date(2026, 10, 31), ["Donor Name", "Contact email", "Donation Amount", "Received", "Payment method", "Fund designation", "Phone", "Memo"]),
         ("Nov 1-7", date(2026, 11, 1), date(2026, 11, 8), ["Donor", "E-mail", "Amt", "Date", "Type", "Fund", "Tel", "Notes"]),
     ]
     for n, (title, lo, hi, header) in enumerate(specs):
@@ -456,13 +457,8 @@ def write_octnov():
             # a variant spelling always carries the email, so the person links; a plain full name sometimes omits it
             email = fmt_email(d, g["email"]) if (g["email"] or g["name"] != d["name"] or r.random() < 0.8) else None
             phone = fmt_phone(d, 1) if r.random() < 0.35 else None
-            row = [g["name"], email, amt_cell(g["amount"]), date_cell(g["date"]), g["method"],
-                   g["fund"] if r.random() < 0.7 else None, phone]
-            if n == 1:
-                row.append(g["note"] or None)
-            else:
-                row[5] = g["fund"] if r.random() < 0.7 else (g["note"] or None)
-            ws.append(row)
+            ws.append([g["name"], email, amt_cell(g["amount"]), date_cell(g["date"]), g["method"],
+                       g["fund"] if r.random() < 0.7 else None, phone, g["note"] or None])
             g["loc"] = f"sheet '{title}' row {ws.max_row}"
             src(g["donor"], F_OCTNOV, g["loc"], g["name"], "gift_row")
             tot += g["amount"]

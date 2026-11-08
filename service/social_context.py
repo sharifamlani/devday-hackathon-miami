@@ -1,11 +1,12 @@
 """Social context: the Foundation's recent public posts on X, LinkedIn and Instagram.
 
 Public information only. Each platform is read one of two ways:
-  * live, through the platform's OFFICIAL API, when its token is in the environment and refresh=True
+  * live, through the platform's OFFICIAL API, whenever its token is in the environment
       X          X_BEARER_TOKEN
       Instagram  IG_ACCESS_TOKEN + IG_USER_ID          (Graph API, Business account)
       LinkedIn   LINKEDIN_ACCESS_TOKEN + LINKEDIN_ORG_URN   (Community Management API)
-  * from data/social_cache.json (public pages read without logging in)
+  * from data/social_cache.json (public pages read without logging in), only when there is no token or
+    the live call fails; those facts are flagged cached=True
 A platform that cannot be read legitimately is recorded as blocked in the cache; nothing here
 logs in, uses cookies, or works around a bot wall.
 
@@ -106,13 +107,13 @@ def _resolve(refresh: bool, limit: int, cache_path: Path | None = None) -> dict:
         meta = cache["platforms"].get(plat, {})
         items, source = None, None
         fetch, env_keys = _ADAPTERS[plat]
-        if refresh and all(os.environ.get(k) for k in env_keys):
+        if all(os.environ.get(k) for k in env_keys):
             try:
                 items, source = fetch(meta.get("handle", ""), limit), "api"
             except Exception:  # API down or token rejected: fall back to the cache
                 items = None
         if items is None:
-            items = [i for i in cache["items"] if i["platform"] == plat]
+            items = [{**i, "cached": True} for i in cache["items"] if i["platform"] == plat]
             source = "cache" if items else "blocked"
         result[plat] = {"source": source, "items": items, "blocked": meta.get("blocked")}
     return result
@@ -138,7 +139,7 @@ def get_social_facts(limit: int = 10, refresh: bool = False, cache_path: Path | 
         quote = _quote(i["text"])
         facts.append({"fact": f'{i["handle"]} on {i["platform"].capitalize()}: "{quote}"',
                       "url": i["post_url"], "date": i["posted_at"][:10], "platform": i["platform"],
-                      "quote": quote})
+                      "quote": quote, "cached": i.get("cached", False)})
     return facts
 
 
