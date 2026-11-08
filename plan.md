@@ -1964,7 +1964,9 @@ Live-call notes (19, from the real test call):
          permanently (CLAUDE.md rule 16) except for this pause. Session 20 sends session 22 "pause for reset"; session
          22 stops :8401 (`demo_off.sh`, local in its scratchpad: the stop-file halts `follow_live.sh`, then only the
          process on :8401 stops). Check: `curl -s http://localhost:8401/health` gets no answer. Then session 20 runs
-         the reset, steps 2–5 (20 runs them as `tminus30.sh`).
+         `SKIP_BROWSER=1 bash tminus30.sh live` (~24 s): a backup → the guard (:8401 down, 0 active calls) → the stage
+         reset (must print **`PASS stage numbers: 77 people / 9 duplicate suggestions`**, landing, READY) → checks (0
+         donors, 0 gifts, events `[]`, public mode off). Steps 2–5 are the same reset by hand, if the script fails.
       2. Stop LIVE's service only: `scripts\live_stack.ps1 stop -Stack live -Only service`.
       3. From `C:\Users\Shari\dd-live-main`, with the repo venv's Python (the one `live_stack.ps1` uses; plain
          `python` may lack the deps), in PowerShell:
@@ -1978,7 +1980,9 @@ Live-call notes (19, from the real test call):
          LIVE's `.env`), from `C:\Users\Shari\dd-live-main` (its `data/donors.db` and `.env`):
          `PUBLIC_MODE= PUBLIC_SHOW_ALL= CORS_ORIGINS=https://devday-donor-desk.vercel.app REFRESH_DAILY_AT= python -m uvicorn service.main:app --host 127.0.0.1 --port 8401`
          (empty `REFRESH_DAILY_AT`: no second scheduler), and keeps Vercel prod pinned to LIVE's build. Check:
-         `curl -s http://localhost:8401/health` → HTTP 200. Steps 1–6 take about a minute.
+         `curl -s http://localhost:8401/health` → HTTP 200. Steps 1–6 take about a minute. Then, separately, session 20
+         runs `landing_check.sh live` (a fresh-browser landing check, ~8 s) and `christian_after_upload.sh live` in
+         the background (it waits for Sharif's upload, then adds Christian off-screen; see **4c, the live call**).
          **Risk:** right after the reset LIVE is empty and the public site is writable, so a visitor could import
          before Sharif does. Session 20's donor watch alerts if anyone does; then re-run the reset (steps 1–6).
       7. Open a NEW incognito window (close any old one first) at http://localhost:5173/, never a rehearsal tab: the home chat thread lives in the tab's sessionStorage (`donor-desk-agent-chat`), so a reused tab shows the rehearsal conversation after the reset. Then check that the bare URL shows the **gatherly** landing (**Upload donor data** / **Try sample data**): the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL shows the landing instead of setup.
