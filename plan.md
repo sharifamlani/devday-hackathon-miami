@@ -1887,11 +1887,10 @@ No UI or code changes: this section only orders what is already on main.
        |  b duplicates in chat (Review -> inbox ->     |
        |    Ask the agent to fix)                      |
        |  c live call: "Call Christian Gonzalez"       |
-       |  d transcript -> after-call card -> Apply     |
-       |  e calendar v3 (next week -> 5K ⓘ -> batch)   |
-       |  f Impact & story (Copy for a grant report)   |
-       |  g CRM row expand + Enhance (Knight)          |
-       |  h donor summary ("About <name>")             |
+       |  d calendar v3 (next week -> 5K ⓘ -> batch)   |
+       |  e Impact & story (Copy for a grant report)   |
+       |  f enrich the Knight Foundation (chat)        |
+       |  g donor summary ("About <name>")             |
        +-----------------------+-----------------------+
                                v
   (5)  +-----------------------------------------------+
@@ -1911,16 +1910,14 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 | 3 | Dashboard | **Go to the dashboard**, **Not now** on the tour card | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, week strip with Sat 14 / Sun 15 (×2) / Thu 19 |
 | 4a | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~10 s) |
 | 4b | Duplicates in chat | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix** | the agent works the duplicates in the chat; merging still waits for a click |
-| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* → his call sheet → the sheet's **Call**: the panel **Call Christian Gonzalez** opens in the card: "Your phone (…) rings first. When you pick up, Christian Gonzalez (…) is called and sees your number.", the notice line "Christian Gonzalez hears “Hello. This call is recorded for our notes.” before the call connects.", and **Cancel** / **Call** → the panel's **Call** dials → answer the staff phone and **press any key** at the trial message → Christian answers and **presses any key** too → keep it under 30 s → **Hang up** | **Ringing your phone…** → **Calling Christian Gonzalez…** (his phone rings; the recording notice plays) → **Connected · recording** → after **Hang up**: **Getting the recording…**, **Transcribing…**, **Summarizing…**, **Suggesting follow-ups…** → **Saved to the call notes**, the **Summary** and **Suggested follow-ups**, each with its own **Apply** (the in-card call has no **Apply selected**; that's the Live transcript card in 4d) |
-| 4d | Call → after-call card | Rail **Live transcript** (opens on **Listening**) → **Demo call** → **Generate summary** | the scripted call with Hye-jin Park streams in (~10 s); the summary and **Suggested next steps** (~4 s); the after-call card proposes a card-update task, the RSVP ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") and a context note → **Apply selected** writes the ticked ones |
-| 4e | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
-| 4f | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
-| 4g | CRM + Enhance | Type *"Add the Knight Foundation as a contact."*; **CRM** heading → expand the Knight row → **Enhance** → **Save to profile** | **Enhancing…**, sourced interest tags (cached: under 1 s) |
-| 4h | Donor summary | Open a donor's profile (e.g. Hye-jin Park) | **About Hye-jin** · **written by the agent** at the top of the Overview |
+| 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* (~10–13 s) → the card's **Call** → the panel's **Call** → answer the staff phone, **press any key** at the trial message; Christian answers and presses any key → once it says **Connected**, both talk clearly for about 20 s (Christian says something actionable, e.g. "send me the Give Miami Day link") → **Hang up** from the panel at about 0:20–0:25 | steps **Get context · Get events · Find people** ("1 people: Christian Gonzalez") → card **Call sheet: Christian Gonzalez** (Phone (the full number), **Call**, GIVING "No gifts on record.", TALKING POINTS) → panel **Call Christian Gonzalez** (description with (…) numbers, the notice line, **Cancel** / **Call**) → **Ringing your phone…** (0–4 s) → **Calling Christian Gonzalez…** (~4 s) → **Connected · recording · 0:03** (~12 s; ~15 s of trial preamble before anyone can talk) → after **Hang up**: **Getting the recording…** → **Transcribing…** → **Summarizing…** → **Suggesting follow-ups…** → **✓ Saved to the call notes · 0:39** with the **Summary** (1–3 short bullets) and **Close**, ~25 s after Hang up; **Suggested follow-ups** with **Apply** appear only if something actionable was said |
+| 4d | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
+| 4e | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
+| 4f | Enrich the Knight Foundation (chat) | Type *"Add the Knight Foundation as a contact."* (~4 s), then *"Enrich John S. and James L. Knight Foundation"*; when asked, type *"Yes, save all of them"* | **Add contact** · added organization John S. and James L. Knight Foundation (person …, giver) + **Undo** → **Find people** · **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)") → a reply listing each fact with a **Source** link and the interest tags, asking whether to save them (instant: cached) → **Accept enrichment** ("saved 4 facts and 4 interest tags") + **Undo**. Never enrich a sample donor on stage: individuals aren't researched (the step says so), and the sample organizations are fictional |
+| 4g | Donor summary | Open Christian Gonzalez's profile about a minute after the call (or any donor's) | **About Christian** · **written by the agent**, rewritten from the call note |
 | 5 | Close | Presenter says the closing line | the dashboard |
 
-The Live transcript demo call (4d) is with Hye-jin Park (#210): her failed $40 gift, then an RSVP to the Give Miami
-5K, then the after-call card and **Apply selected**; `docs/demo-script.md` step 11 carries the words.
+**The live call to Christian (4c) is the only call on stage** (Sharif: "We're not calling Hye-jin. We're going to be calling Christian Gonzalez."). The Live transcript demo call with Hye-jin Park (#210) is out of the run and kept only as 4c's fallback (22.7); `docs/demo-script.md` step 11 carries both.
 
 **4c, the live call.** Christian Gonzalez is a teammate added as a donor on LIVE only. His real number never goes in
 a committed doc: write "his verified number". The T-30 reset empties LIVE's db, and anyone added before onboarding
@@ -1946,6 +1943,10 @@ Live-call notes (19, from the real test call):
   worker runs inside the service. If the transcript fails, the card offers **Try again** (it keeps the recording and
   places no new call).
 - The trial balance covers a few short calls: keep each under 30 s. No callback URL is needed.
+- From 54's three real calls: the first broke when someone hung up ~12 s in (still in the preamble), the second
+  connected for 29 s but caught only "Yeah." So: TALK, both sides, clearly, for ~20 s after **Connected**. Don't click
+  **Call** twice, don't close the card or reload while it says **Connected**, and hang up from the panel's **Hang up**.
+  His **Recent calls** start empty on stage (the T-30 reset wipes the test calls).
 
 ### 22.3. T-minus checklist (laptop operator)
 - [ ] **T-60 (rehearsal):** run 22.2 end to end once, then smoke 6 (22.4), then reset.
@@ -2066,13 +2067,13 @@ fallback before T-30.
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Chat | no step card after 5 s | "It's pulling the events and tasks." If nothing after 20 s: retype once, then move on. |
 | 4b Duplicates | the agent stalls | Same banner → **Review merges →**: show the pair and **Merge ✓** there instead. |
-| 4c Live call (dropped) | the call drops, or the transcript comes back empty (a key wasn't pressed at the trial message); the card reads e.g. "You hung up before Christian Gonzalez answered." or "Twilio has no recording for this call, so there is no transcript." | "That's a trial-account limit: Twilio needs a key press first." Go to 4d. |
-| 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the recording is kept, so the transcript can be finished later, then go to 4d. |
-| 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do 4d (the Live transcript demo call). |
-| 4d Call + after-call | the transcript or summary stalls, or **Apply selected** fails | "The call is transcribed and turned into follow-ups; nothing is written until staff click Apply." Show the summary's **Suggested next steps** and move on. |
-| 4e Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
-| 4f Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
-| 4g Enhance | slow (cache miss) | "It's reading the public web; every tag will carry its source." Skip **Save to profile** if over 30 s. |
-| 4h Summary | **About …** says no notes | "The agent writes this from calls and notes as they come in." |
+| 4c Live call (dropped) | the call drops, or the transcript comes back empty (a key wasn't pressed at the trial message); the card reads e.g. "You hung up before Christian Gonzalez answered." or "Twilio has no recording for this call, so there is no transcript." | "That's a trial-account limit: Twilio needs a key press first." Then do the fallback demo call (below). |
+| 4c Live call (transcript) | the card shows **Try again** after **Hang up** | Click **Try again** once (it reuses the recording, no new call); if it fails again, say the recording is kept, so the transcript can be finished later, then do the fallback demo call (below). |
+| 4c Live call | it doesn't connect, `/phone/preview` isn't ready, or Twilio errors | "Calls go through Twilio; here's the sheet and the demo call instead." Show the call sheet, then do the fallback demo call (below). |
+| 4c Fallback demo call | the live call can't run | Rail **Live transcript** → **Demo call** (the scripted call with Hye-jin Park, ~10 s) → **Generate summary** (~4 s) → the after-call card ("RSVP goes to: The Give Miami 5K · Sun, Nov 15") → **Apply selected**. Say: "Here's the same flow on a recorded call." |
+| 4d Calendar | **Open batch** fails | Show the **SUGGESTED BY THE AGENT** card: "12 invites are drafted and waiting for approval." |
+| 4e Impact | the panel is empty | "This fills from the website read." Show **Here's your day.** instead. |
+| 4f Enrich | the agent is slow (cache miss) or finds nothing | "It's reading the public web; every tag will carry its source." Over 30 s: **CRM** heading → expand the Knight row → **Enhance** → **Save to profile** instead. |
+| 4g Summary | **About …** says no notes | "The agent writes this from calls and notes as they come in." |
 | Public link | the tunnel is down or the page shows **Sample data** | "The public link shows a snapshot of the same data." Keep demoing on the laptop. |
 | Any | laptop, network or service down | Switch to the Vercel tab: "This is the read-only preview of the same data." |
