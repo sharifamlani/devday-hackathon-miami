@@ -620,3 +620,10 @@ def test_keep_separate_on_a_merge_card_dismisses_the_pair_at_once(db_file):
              SimpleNamespace(name="delete_task", call_id="d1", arguments=json.dumps({"task_id": 1}))]
     assert ca.keep_separate(items, {"m1": False, "d1": False}) == [sid]          # m2 undecided, d1 isn't a merge
     assert one(db_file, "SELECT status FROM duplicate_suggestions WHERE id = ?", sid)["status"] == "dismissed"
+
+
+def test_several_cards_get_a_short_waiting_line_not_every_card_again():
+    one_card = [{"tool": "send", "summary": "Send 2 emails"}]
+    five = [{"tool": "merge_duplicate", "summary": f"Merge pair {i}"} for i in range(5)]
+    assert ca.waiting_line(one_card) == "Waiting for you: Send 2 emails."
+    assert ca.waiting_line(five) == "Waiting for you: 5 decisions on the cards above."

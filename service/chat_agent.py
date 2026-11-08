@@ -1208,6 +1208,15 @@ def approval_items(interruptions) -> list[dict]:
     return out
 
 
+def waiting_line(approvals: list[dict]) -> str:
+    """The stand-in reply for a run paused on cards with no words of its own. One card: what it does. Several
+    (e.g. five merge cards): a count, since each card already says what it does."""
+    if len(approvals) == 1:
+        a = approvals[0]
+        return f"Waiting for you: {a['summary'] or a['tool'].replace('_', ' ')}."
+    return f"Waiting for you: {len(approvals)} decisions on the cards above."
+
+
 def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = None) -> dict:
     """The /chat response for a finished or paused run. shown = steps the thread already displays (a resumed
     run): the SDK's resumed result repeats them, so only new steps and the approved call's result go back."""
@@ -1232,9 +1241,7 @@ def respond(result, ctx: ChatContext, spec: dict, shown: list[dict] | None = Non
             batches = [pending_batch(rc.campaign_detail(conn, b)) for b in ctx.batches]
         finally:
             conn.close()
-    reply = result.final_output if not approvals else (
-        result.final_output or "Waiting for you: " + "; ".join(a["summary"] or a["tool"].replace("_", " ")
-                                                              for a in approvals) + ".")
+    reply = result.final_output if not approvals else (result.final_output or waiting_line(approvals))
     if ctx.blocked:
         reply = READ_ONLY_REPLY
     return {"reply": reply, "tab": ctx.tab, "steps": steps, "run_id": run_id, "approvals": approvals,
