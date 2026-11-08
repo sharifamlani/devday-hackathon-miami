@@ -1835,7 +1835,7 @@ store + story-first campaigns, tasks, voice, after-call, agent write tools.
 Sharif: *"Start with showing the onboarding about putting in the data and then taking it to the dashboard."* This
 section is the run order, the checks around it and the fallbacks. The bold labels, spoken lines and per-step timings
 are in `docs/demo-script.md` (the script wins on wording; this section wins on order and checks). It describes main
-as of Sun Nov 8 afternoon: no suggestion chips, the dashboard briefing, streaming agent replies, calendar v3. Nothing
+as of Sun Nov 8 afternoon: the landing as setup step 1, suggestion chips (fill the box; Send runs them), the dashboard briefing, streaming agent replies, calendar v3. Nothing
 here is run until Sharif says go.
 
 ### 22.1. Files touched
@@ -1859,16 +1859,16 @@ No UI or code changes: this section only orders what is already on main.
                                v
        +-----------------------------------------------+
        | LIVE service :8001 + web :5173 (local mode)    |  scripts\live_stack.ps1 (IT lane)
-       | smokes 1-4 (22.4)  ->  browser on Step 1 of 2  |
+       | smokes 1-4 (22.4)  ->  browser on the landing  |
        +-----------------------+-----------------------+
                                v
  T-0   +-----------------------------------------------+
-  (1)  | EMPTY APP: "gatherly" / "Step 1 of 2"          |  "Nothing is preloaded."
+  (1)  | EMPTY APP: the gatherly landing                |  "Nothing is preloaded."
        +-----------------------+-----------------------+
                                v
   (2)  +-----------------------------------------------+
-       | ONBOARDING (Step 1 of 2, then the org step)   |
-       |  drag 8 files -> Import 8 files               |
+       | ONBOARDING (landing, then the org step)       |
+       |  landing: Try sample data (8 sample files)    |
        |  processing view: "Bringing your data         |
        |  together." -> "Everything's in place."       |
        |  results: "Your donor data is ready."         |
@@ -1909,16 +1909,16 @@ Step details (labels and timings from the Nov 8 dress rehearsals on main):
 
 | # | Step | Operator does | Screen shows |
 |---|---|---|---|
-| 1 | Empty app | Hard refresh http://localhost:5173 | **gatherly** (wordmark) over **Step 1 of 2** (its own row), **Drag in your files.** |
-| 2a | Files | Drop the 8 files, leave **Let the agent sort**, **Import 8 files** | the processing view (**gatherly**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **19 Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage), ~8 s after Import (7.9 s in T1 on the freeze build) → **Create organization profile** |
+| 1 | Empty app | Hard refresh http://localhost:5173/ | the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data**, **Try sample data** |
+| 2a | Files | **Try sample data** (or **Upload donor data** → the 8 files → **Import donor data**) | the processing view (**gatherly**, **Bringing your data together.**, progress bar → **Everything's in place.**), then **Your donor data is ready.** with **77 Accounts recognized**, **19 Duplicates removed** and "**9 possible matches still need review.**" (**Review matches**: don't click on stage), ~8 s after the click → **Create organization profile** |
 | 2b | Website | **Your organization.** ("Start with your website."; no step label on this screen): type `miamifoundation.org`, **Continue** | the dashboard opens in under 2 s (e.g. **15 tasks today**); the site and news are read in the background, and the 4 events, prep tasks and facts land ~30 s after **Continue** (27.5 s in T1) |
 | 3 | Dashboard | **Not now** on the tour card (it may read "We're still reading your website…") | **Here's your day.**, the gauge (**66%**, **$98.8k**), **Impact & story**, the calendar tile's week grid (Sat 14; after **›**, next week's Sun 15 ×2 as one block reading "T… / T…", Thu 19: use the day view or **By day** for full names) |
 | 4a | Duplicates in chat (do it first) | Briefing line **9 possible duplicates to review.** → **Review** (opens the inbox, with the duplicates banner) → **Ask the agent to fix**. Do this before "Plan next week": after it the briefing's **Review** scrolls out of reach | the agent works the duplicates in the chat (~6 s, 5.8 s in T1); merging still waits for a click |
-| 4b | Chat streams | Type *"Plan next week"* in **Ask the agent…** | step cards in ~2 s, the plan types out live (~6 s: first text 4.9 s, done 6.4 s in T1) |
+| 4b | Chat streams | Click the chip **Plan next week** (it fills **Ask the agent…**) → **Send**, or type it | step cards in ~2 s, the plan types out live (~6 s: first text 4.9 s, done 6.4 s in T1) |
 | 4c | Live call to Christian | In **Ask the agent…** type *"Call Christian Gonzalez"* (~5 s, 5.3 s in T1) → the card's **Call** → the panel's **Call** → answer the staff phone, **press any key** at the trial message; Christian answers and presses any key → once it says **Connected**, both talk clearly for about 20 s (Christian says something actionable, e.g. "send me the Give Miami Day link") → **Hang up** from the panel at about 0:20–0:25 | steps **Get context · Get events · Find people** ("1 people: Christian Gonzalez") → card **Call sheet: Christian Gonzalez** (Phone (the full number), **Call**, GIVING "No gifts on record.", TALKING POINTS) → panel **Call Christian Gonzalez** (description with (…) numbers, the notice line, **Cancel** / **Call**) → **Ringing your phone…** (0–4 s) → **Calling Christian Gonzalez…** (~4 s) → **Connected · recording · 0:03** (~12 s; ~15 s of trial preamble before anyone can talk) → after **Hang up**: **Getting the recording…** → **Transcribing…** → **Summarizing…** → **Suggesting follow-ups…** → **✓ Saved to the call notes · 0:39** with the **Summary** (1–3 short bullets) and **Close**, ~25 s after Hang up; **Suggested follow-ups** with **Apply** appear only if something actionable was said |
 | 4d | Calendar v3 | Briefing **Open calendar** → **›** → **ⓘ** on **The Give Miami 5K** → **Open batch** | **Calendar · Events**, **SUGGESTED BY THE AGENT**, the 5K campaign page (~3 s) |
 | 4e | Impact | Click the **Impact & story** card | the stories by kind, **Copy for a grant report** |
-| 4f | Enrich the Knight Foundation (chat) | Type *"Add the Knight Foundation as a contact."* (~3.5 s), then *"Enrich John S. and James L. Knight Foundation"* (7.1 s in T1); when asked, type *"Yes, save all of them"* (8.0 s) | **Add contact** · added organization John S. and James L. Knight Foundation (person …, giver) + **Undo** → **Find people** · **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)") → a reply listing each fact with a **Source** link and the interest tags, asking whether to save them (instant: cached) → **Accept enrichment** ("saved 4 facts and 4 interest tags") + **Undo**. Never enrich a sample donor on stage: individuals aren't researched (the step says so), and the sample organizations are fictional |
+| 4f | Enrich the Knight Foundation (chat) | Type *"Add the Knight Foundation as a contact."* (~3.5 s), then the chip **Enrich John S. and James L. Knight Foundation** (it appears once Knight is the newest donor) → **Send**, or type it (7.1 s in T1); when asked, type *"Yes, save all of them"* (8.0 s) | **Add contact** · added organization John S. and James L. Knight Foundation (person …, giver) + **Undo** → **Find people** · **Enrich person** ("researched …: 4 facts, 4 interest tags proposed (nothing saved yet)") → a reply listing each fact with a **Source** link and the interest tags, asking whether to save them (instant: cached) → **Accept enrichment** ("saved 4 facts and 4 interest tags") + **Undo**. Never enrich a sample donor on stage: individuals aren't researched (the step says so), and the sample organizations are fictional |
 | 4g | Donor summary | Open Christian Gonzalez's profile about a minute after the call (or any donor's) | the panel headed **ABOUT CHRISTIAN** (set in capitals) · **written by the agent**, rewritten from the call note |
 | 5 | Close | Presenter says the closing line | the dashboard |
 
@@ -1967,7 +1967,7 @@ Live-call notes (19, from the real test call):
       4. Start LIVE's service: `scripts\live_stack.ps1 start -Stack live -Only service`.
       5. Smokes 3–4 (22.4) on :8001 / :5173.
       6. Restart :8401 (the IT lane), then the T-15 checks.
-      7. Clear site data for localhost:5173 in the demo browser (or open a fresh incognito window), then check that the bare URL shows **Step 1 of 2**: the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL shows the landing instead of setup.
+      7. Clear site data for localhost:5173 in the demo browser (or open a fresh incognito window), then check that the bare URL shows the **gatherly** landing (**Upload donor data** / **Try sample data**): the onboarding-completed state lives in browser storage (`donordesk.onboarding.v3`), and when it's set the bare URL shows the landing instead of setup.
 - [ ] **T-25:** ask every other session to pause model-heavy work until after the demo. All sessions share one API
       key, and a busy key slows invites and agent replies (Nov 8: 429s).
 - [ ] **T-20:** smokes 1–4 (22.4), in order.
@@ -2006,7 +2006,7 @@ Live-call notes (19, from the real test call):
       apps (Dropbox sync paused, no other dev servers).
 - [ ] **T-5 (fallback):** the Vercel preview open in a second tab (https://devday-donor-desk.vercel.app); a hotspot
       ready as Wi-Fi backup.
-- [ ] **T-0:** hard refresh: the app shows **gatherly** (wordmark) over **Step 1 of 2** (its own row) with nothing behind it.
+- [ ] **T-0:** hard refresh: the app shows the **gatherly** landing ("Less time on tasks. More time for people.") with nothing behind it.
 
 ### 22.4. Derisking: smokes in dependency order
 1. **What it proves:** the API key, the model tiers and the Agents SDK work.
@@ -2023,7 +2023,7 @@ Live-call notes (19, from the real test call):
    never in public mode).
    **If it fails →** restart the service from the reset's printout; a non-empty `/events` means rerun step 2.
 4. **What it proves:** the web talks to that service in local mode.
-   **Command:** open http://localhost:5173 · **Expected:** **gatherly** (wordmark) over **Step 1 of 2** (its own row), 0 errors in the DevTools
+   **Command:** open http://localhost:5173 · **Expected:** the **gatherly** landing (**Upload donor data** / **Try sample data**), 0 errors in the DevTools
    console. **If it fails →** check `VITE_API_URL=http://localhost:8001` and `VITE_DATA_MODE=local`; restart the web
    (`scripts\live_stack.ps1 restart -Stack live -Only web`).
 5. **What it proves:** the public link serves the live laptop data (or, knowingly, the snapshot).
@@ -2046,7 +2046,7 @@ Live-call notes (19, from the real test call):
 |---|---|---|---|
 | Stage numbers before going on | `PASS stage numbers: 77 people / 9` | `demo_reset.py --warm` output | the terminal line, kept on screen |
 | Results view matches the upload | **77 Accounts recognized** and "**9 possible matches still need review.**" on screen | read the results view (step 2a) | rehearsal screenshot |
-| Setup is fast enough for a stage | **Import 8 files** → **Your donor data is ready.** ≤ 20 s; **Continue** → the 4 events on the dashboard ≤ 60 s | stopwatch from click to screen | rehearsal timing table |
+| Setup is fast enough for a stage | **Try sample data** → **Your donor data is ready.** ≤ 20 s; **Continue** → the 4 events on the dashboard ≤ 60 s | stopwatch from click to screen | rehearsal timing table |
 | All 4 events land | Sat 14 Early Giving, Sun 15 5K + Festival, Thu 19 Give Miami Day on the week strip | read the week strip / calendar | rehearsal screenshot |
 | Agents feel live | first step card ≤ 3 s; "Plan next week" done ≤ 15 s; call sheet ≤ 35 s | stopwatch | rehearsal timing table |
 | Calendar to campaign | **Open batch** opens the campaign page ≤ 5 s | stopwatch | rehearsal timing table |
@@ -2067,8 +2067,8 @@ fallback before T-30.
 ### 22.7. Fallbacks (if X fails → say/do Y)
 | Step | If | Say / do |
 |---|---|---|
-| 1 Empty app | **Step 1 of 2** isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
-| 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: **Use the example files**, then continue. |
+| 1 Empty app | the landing isn't showing, or the page errors | Don't start: stop the service, rerun T-30 step 3 (`demo_reset.py --warm`, venv Python, from `dd-live-main`; it must PASS), restart, hard refresh. |
+| 2a Import | over 20 s or an error | "The agent is reading eight messy files." If it errors: click **Try sample data** again, then continue. |
 | 2b Background read | the events or facts aren't on the dashboard yet | Keep touring: "The agent is still reading the site; the events land in a moment." If nothing lands after 2 min, carry on: the uploaded data carries every other moment. |
 | 3 Dashboard | an event is missing | "The agent found these on the site; a missed one comes back on the next read." Carry on. |
 | 4a Duplicates | the briefing's **Review** isn't on screen (e.g. after "Plan next week"), or the agent stalls | **CRM** tile heading → the banner's **Ask the agent to fix** (what T1 used); if the agent stalls, the same banner's **Review merges →**: show the pair and **Merge ✓** there instead. |
