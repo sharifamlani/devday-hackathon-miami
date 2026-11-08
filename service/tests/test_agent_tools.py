@@ -480,3 +480,15 @@ def test_an_allowed_call_still_waits_on_the_card_and_never_dials_unapproved(db_f
     assert ca.call_refusal(donor["id"]) is None
     assert asyncio.run(ca.call_needs_approval(RunContextWrapper(context), {"person_id": donor["id"]}, "c1")) is True
     assert context.refused_calls == {} and dialed == []                     # a card, and no call without it
+
+
+def test_live_who_to_call_names_the_saved_next_step(db_file):
+    """'Who should I call today?' looks the givers up (find_people) and cites a giver's saved next step (#161)."""
+    lapsing = one(db_file, "SELECT d.id, d.full_name FROM donors d JOIN donor_scores s ON s.donor_id = d.id "
+                           "WHERE d.contact_type = 'giver' AND s.status = 'lapsing' ORDER BY s.score DESC LIMIT 1")
+    invoke("create_task", kind="call", title="Ask about the spring scholarship lunch", person_id=lapsing["id"])
+
+    r = ca.run_chat("Who should I call today?", "home")
+
+    assert "find_people" in [s["tool"] for s in r["steps"]]
+    assert "spring scholarship lunch" in r["reply"].lower()
