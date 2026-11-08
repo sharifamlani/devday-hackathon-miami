@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowRight,
   AudioLines,
@@ -256,12 +256,14 @@ const UserMessage = ({ text }: { text: string }) => (
 /** On the laptop API the Home chat is the main-UI agent (B10): steps as cards, Undo, approval cards. */
 const LIVE_AGENT = DATA_MODE === "local";
 
-const LiveAgentThread = () => {
+const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
   const { messages, pending, error } = useAgentChat();
   const refetch = useAgentRefetch();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Nothing said yet: stay at the top so an opening briefing is read from its first line.
+    if (messages.length === 0 && !pending) return;
     endRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [messages.length, pending]);
 
@@ -271,7 +273,8 @@ const LiveAgentThread = () => {
       aria-label="Conversation with the agent"
       className="flex min-h-[120px] flex-1 flex-col gap-3 overflow-y-auto px-[22px] py-4"
     >
-      {messages.length === 0 && !pending && (
+      {intro}
+      {!intro && messages.length === 0 && !pending && (
         <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
           Ask about donors, plan outreach, or add to the calendar.
         </p>
@@ -296,7 +299,7 @@ const LiveAgentThread = () => {
               <ApprovalCard
                 key={a.call_id}
                 approval={a}
-                decided={Boolean(m.decided)}
+                decided={Boolean(m.handled) || m.decisions?.[a.call_id] !== undefined}
                 decision={m.decisions?.[a.call_id]}
                 handled={m.handled}
                 disabled={pending}
@@ -328,9 +331,11 @@ const LiveAgentThread = () => {
   );
 };
 
-export const AgentThread = () => (LIVE_AGENT ? <LiveAgentThread /> : <AskThread />);
+/** `intro` (the daily briefing) opens the thread and replaces the empty placeholder. */
+export const AgentThread = ({ intro }: { intro?: ReactNode }) =>
+  LIVE_AGENT ? <LiveAgentThread intro={intro} /> : <AskThread intro={intro} />;
 
-const AskThread = () => {
+const AskThread = ({ intro }: { intro?: ReactNode }) => {
   const session = useAskSession();
   const { answer, pending, error } = session;
   const [history, setHistory] = useState<AskAnswer[]>(() =>
@@ -343,6 +348,7 @@ const AskThread = () => {
   }, [answer]);
 
   useEffect(() => {
+    if (history.length === 0 && !pending) return; // keep an opening briefing at its top
     endRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [history.length, pending]);
 
@@ -355,7 +361,8 @@ const AskThread = () => {
       aria-label="Conversation with the agent"
       className="home-thread"
     >
-      {history.length === 0 && !pending && (
+      {intro}
+      {!intro && history.length === 0 && !pending && (
         <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
           Ask about donors, plan outreach, or add to the calendar.
         </p>
@@ -526,7 +533,7 @@ export const Composer = ({
           <ArrowRight className="size-5" aria-hidden="true" />
         </button>
       </form>
-      <DictationHint error={dictation.error} className="px-2" />
+      <DictationHint error={dictation.error} listening={dictation.state === "listening"} interim={dictation.interim} className="px-2" />
     </div>
   );
 };

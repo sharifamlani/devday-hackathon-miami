@@ -27,7 +27,7 @@ import uuid
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 
-from service import db
+from service import db, public_mode
 from service.score import default_as_of
 
 KINDS = ("call", "email", "review", "prep", "other")
@@ -262,6 +262,8 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
 # The Donors tab's tasks are private staff records (routes_crm.py): a row it created, migrated or edited carries
 # tasks.crm. The public Vercel snapshot (export_snapshot.py) asks for public_only and never sees them.
 PUBLIC_ONLY = "crm IS NULL"
+# Under PUBLIC_MODE every read behaves as public_only (list_tasks, calendar, with_next_steps, so also /tasks,
+# /calendar, /home/summary tasks_today and people next_step): private titles never leave the laptop.
 
 
 def list_tasks(conn: sqlite3.Connection, *, due: str | None = None, from_: str | None = None,
@@ -270,7 +272,7 @@ def list_tasks(conn: sqlite3.Connection, *, due: str | None = None, from_: str |
     """due='today' → open tasks due today or overdue, plus today's done ones. from/to filter by due date.
     public_only leaves out the Donors tab's private tasks (for the public snapshot)."""
     today = (as_of or default_as_of()).isoformat()
-    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if public_only else []), []
+    where, args = ["deleted_at IS NULL"] + ([PUBLIC_ONLY] if (public_only or public_mode.enabled()) else []), []
     if due == "today":
         where.append("(due = ? OR (due < ? AND done = 0) OR (due IS NULL AND done = 0))")
         args += [today, today]
@@ -320,7 +322,7 @@ def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None 
             items.append({"date": r["starts_at"][:10], "time": time, "title": r["title"], "kind": "event",
                           "source": r["source"] or "website", "ref": f"event:{r['id']}",
                           "source_url": r["source_url"], "status": r["status"]})
-    private = f" AND {PUBLIC_ONLY}" if public_only else ""
+    private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
     for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL{private} AND due BETWEEN ? AND ?", (lo, hi)):
         items.append({"date": r["due"], "time": r["time"], "title": r["title"], "kind": "task",
                       "source": r["source"], "ref": f"task:{r['id']}", "task_kind": r["kind"],
@@ -330,14 +332,15 @@ def calendar(conn: sqlite3.Connection, from_: str | None = None, to: str | None 
 
 
 def artifacts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
-    """What the agents have produced: [{kind: call_note|draft|report, title, date, ref}], newest first."""
+    """What the agents have produced: [{kind: call_note|draft|report, title, date, ref}], newest first.
+    Drafts and call notes also carry donor_id (the person they're for, or null) so a row can open the profile."""
     names = {r["id"]: r["full_name"] for r in conn.execute("SELECT id, full_name FROM donors")}
     items = []
     for r in conn.execute("SELECT id, donor_id, prospect_id, channel, subject, status, created_at FROM outreach_drafts"):
         who = names.get(r["donor_id"]) if r["donor_id"] else None
         title = r["subject"] or (f"{(r['channel'] or 'email').capitalize()} draft for {who}" if who else "Outreach draft")
         items.append({"kind": "draft", "title": title, "date": r["created_at"], "ref": f"draft:{r['id']}",
-                      "status": r["status"]})
+                      "status": r["status"], "donor_id": r["donor_id"]})
     if _has_table(conn, "campaigns"):
         counts = dict(conn.execute("SELECT campaign_id, COUNT(*) FROM campaign_messages GROUP BY campaign_id").fetchall())
         for r in conn.execute("SELECT id, name, status, created_at FROM campaigns"):
@@ -346,9 +349,11 @@ def artifacts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
                           "date": r["created_at"], "ref": f"campaign:{r['id']}", "status": r["status"]})
     if _has_table(conn, "call_notes"):   # routes_calls.py (#78): one row per saved call
         for r in conn.execute("SELECT id, title, created_at, saved_at, destinations FROM call_notes"):
-            labels = [d.get("label") for d in json.loads(r["destinations"] or "[]") if d.get("label")]
+            dests = json.loads(r["destinations"] or "[]")
+            labels = [d.get("label") for d in dests if d.get("label")]
+            donor = next((d.get("id") for d in dests if d.get("kind") == "donor" and d.get("id") is not None), None)
             items.append({"kind": "call_note", "title": r["title"] or "Call note", "date": r["created_at"] or r["saved_at"],
-                          "ref": f"call_note:{r['id']}", "destinations": labels})
+                          "ref": f"call_note:{r['id']}", "destinations": labels, "donor_id": donor})
     items.sort(key=lambda i: i["date"] or "", reverse=True)
     return items[:limit]
 
@@ -741,7 +746,7 @@ def with_next_steps(conn: sqlite3.Connection, people: list[dict], as_of: date | 
     if ids and _has_table(conn, "tasks"):
         for chunk in range(0, len(ids), 500):
             part = ids[chunk:chunk + 500]
-            private = f" AND {PUBLIC_ONLY}" if public_only else ""
+            private = f" AND {PUBLIC_ONLY}" if (public_only or public_mode.enabled()) else ""
             for r in conn.execute(f"SELECT * FROM tasks WHERE deleted_at IS NULL AND done = 0{private} AND person_id IN "
                                   f"({', '.join('?' * len(part))})", part):
                 r = dict(r)

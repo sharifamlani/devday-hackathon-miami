@@ -184,13 +184,28 @@ def test_artifacts_lists_drafts_campaigns_and_call_notes_when_present(conn):
     items = tasks.artifacts(conn)   # no call notes saved yet
     assert [(i["kind"], i["title"]) for i in items] == [("draft", "Campaign: GMD reminders · 1 message"),
                                                         ("draft", "Thank you, Ana")]
+    assert items[1]["donor_id"] == pid                      # a plain draft links to its donor's profile
+    assert "donor_id" not in items[0]                       # a campaign row is unchanged (many donors)
     conn.execute("INSERT INTO call_notes (id, title, created_at, destinations) VALUES "
                  "('note-1', 'Call with Ana', '2026-11-07T15:00:00', ?)",
                  (json.dumps([{"kind": "donor", "id": pid, "label": "Ana Ruiz"}]),))
     conn.commit()
     first = tasks.artifacts(conn)[0]
     assert first == {"kind": "call_note", "title": "Call with Ana", "date": "2026-11-07T15:00:00",
-                     "ref": "call_note:note-1", "destinations": ["Ana Ruiz"]}
+                     "ref": "call_note:note-1", "destinations": ["Ana Ruiz"], "donor_id": pid}
+
+
+def test_artifact_donor_id_is_null_for_prospect_drafts_and_calls_without_a_donor(conn):
+    prospect = conn.execute("INSERT INTO prospects (name, org_type) VALUES ('Coral Fund', 'foundation')").lastrowid
+    conn.execute("INSERT INTO outreach_drafts (prospect_id, channel, subject, body, created_at) "
+                 "VALUES (?, 'email', 'Intro', 'Hi', '2026-11-05 10:00:00')", (prospect,))
+    conn.execute("INSERT INTO call_notes (id, title, created_at, destinations) VALUES "
+                 "('note-2', 'Team sync', '2026-11-07T16:00:00', ?)",
+                 (json.dumps([{"kind": "project", "id": 4, "label": "Gala"}]),))
+    conn.commit()
+    by_ref = {i["ref"]: i for i in tasks.artifacts(conn)}
+    assert by_ref["call_note:note-2"]["donor_id"] is None
+    assert next(i for i in by_ref.values() if i["kind"] == "draft")["donor_id"] is None
 
 
 # ---------- the generator ----------

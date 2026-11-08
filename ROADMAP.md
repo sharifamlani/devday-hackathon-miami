@@ -217,7 +217,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | U2 | Agenda sidebar: day-grouped list calendar on Home, Projects section removed (PR2 feat/agenda-sidebar) | 9e | ✅ Nov 8 · PR #152 | — | mapping §3.6 (D2, D3) |
 | U3 | Zoom panels framework + View Transitions animation + `scripts/verify_home_zoom.py` (PR3 feat/zoom-panels) | 9e | ⏳ PR #165: functional ✅; smoothness FAIL (p95 ~34 ms vs 17.5; idle 16.8) | — | mapping §3.6 (D1, D6) |
 | U4 | Tasks panel (PR3b feat/tasks-panel) | 9e | ✅ Nov 8 · PR #182 | — | mapping §3.6 |
-| U5 | Impact & story panel: `/context`, `/context/status`, `/community/stats` (PR3c feat/impact-panel; closes P4, P5) | 9e | ⏸ | — | mapping §2 P4+P5 (D4) |
+| U5 | Impact & story panel: `/context`, `/context/status`, `/community/stats` (PR3c feat/impact-panel; closes P4, P5) | 9e | ✅ Nov 8 · PR #186 | — | mapping §2 P4+P5 (D4) |
 | U6 | Workspace hotkeys Alt+C / Alt+T / Alt+M / Ctrl+I / Alt+V / Esc (PR4 feat/workspace-hotkeys, after #123) | 9e | ✅ Nov 8 · PR #187 | — | mapping §3.6 (D5) |
 | U7 | Changed rows flash after agent writes (PR5 feat/row-flash) + send labels "Sent via Gmail/Twilio" / "Dry run" (PR6 fix/send-labels) | 9e | ⏳ send labels ✅ #146; row flash pending | — | mapping §3.6 |
 
