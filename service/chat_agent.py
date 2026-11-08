@@ -646,10 +646,15 @@ def summarize(output) -> str:
         return str(output)[:160]
     if "error" in data:
         return f"error: {data['error']}"
+    if "batch_id" in data and "sent" in data:   # the send result: approved by a person, then delivered
+        blocked = len(data.get("blocked") or [])
+        return (f"Approved: batch #{data['batch_id']}, {data['sent']} sent"
+                + (f", {blocked} blocked" if blocked else "")
+                + (" (dry run)" if data.get("simulated") else ""))
     if "batch_id" in data:
-        extra = f", {len(data['needs_individual_approval'])} need individual approval" \
-            if data["needs_individual_approval"] else ""
-        return f"batch #{data['batch_id']}: {data['drafts']} drafts, pending approval{extra}"
+        needs = data.get("needs_individual_approval") or []
+        extra = f", {len(needs)} need individual approval" if needs else ""
+        return f"batch #{data['batch_id']}: {data.get('drafts', 0)} drafts, pending approval{extra}"
     if "people" in data:
         names = ", ".join(p["full_name"] for p in data["people"][:4])
         return data.get("note") or f"{data.get('count', 0)} people" + (f": {names}" if names else "")
