@@ -22,7 +22,9 @@ export const MobileNavigation = () => {
   const onHome = !!matchPath("/", location.pathname);
   const onInbox = !!matchPath("/inbox", location.pathname);
   const sidebar = useProjectsSidebar();
-  const onDonors = !!matchPath("/contacts/*", location.pathname);
+  const onDonors =
+    !!matchPath("/contacts/*", location.pathname) ||
+    !!matchPath("/companies/*", location.pathname);
   const onCampaigns =
     !!matchPath("/campaigns/*", location.pathname) ||
     !!matchPath("/outbox", location.pathname);

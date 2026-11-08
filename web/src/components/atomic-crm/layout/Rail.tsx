@@ -36,7 +36,9 @@ export const Rail = () => {
   const session = useContext(AskSessionContext);
   const onHome = !!matchPath("/", location.pathname);
   const onInbox = !!matchPath("/inbox", location.pathname);
-  const onDonors = !!matchPath("/contacts/*", location.pathname);
+  const onDonors =
+    !!matchPath("/contacts/*", location.pathname) ||
+    !!matchPath("/companies/*", location.pathname);
   const onCalendar = !!matchPath("/calendar", location.pathname);
   const onCampaigns =
     !!matchPath("/campaigns/*", location.pathname) ||

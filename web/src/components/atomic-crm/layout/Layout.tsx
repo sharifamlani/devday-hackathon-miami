@@ -11,6 +11,7 @@ import { ASK_SIDEBAR_ID } from "../ask/askSidebarState";
 import { useAskSession } from "../ask/askSessionContext";
 import { useAskSidebarDocked } from "../ask/useAskSidebarDocked";
 import { DataImportProvider } from "../dataImport/DataImportProvider";
+import { OnboardingGate } from "../onboarding/OnboardingGate";
 import { useConfigurationLoader } from "../root/useConfigurationLoader";
 import Header from "./Header";
 import { ProjectsSidebar, ProjectsSidebarProvider } from "./ProjectsSidebar";
@@ -92,6 +93,7 @@ const LayoutShell = ({ children }: { children: ReactNode }) => {
         </div>
       </div>
       {shell.overlay && <AskSidebar docked={false} />}
+      <OnboardingGate />
     </>
   );
 };

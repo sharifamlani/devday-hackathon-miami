@@ -2,35 +2,59 @@ import { Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { DATA_MODE } from "../providers/local/config";
 import { useEnrichDonor } from "../providers/local/hooks";
 import type { DonorDetail } from "../providers/local/types";
 import { formatDay } from "./donorFormat";
 import { PanelHeading } from "./ScoreWhyPanel";
 
-/** RESEARCH: sourced public facts from the enrich agent. */
-export const ResearchPanel = ({ donor }: { donor: DonorDetail }) => {
+/**
+ * RESEARCH: sourced public facts from the enrich agent (POST /enrich/{id}).
+ * The snapshot can't run the agent, so it shows the research saved at export
+ * and says so instead of offering a button that would fail.
+ */
+export const ResearchPanel = ({
+  donor,
+  className,
+}: {
+  donor: DonorDetail;
+  className?: string;
+}) => {
   const enrich = useEnrichDonor(donor.id);
+  const live = DATA_MODE === "local";
   return (
-    <section aria-label="Research" className="space-y-3 rounded-[22px] bg-surface p-5">
+    <section
+      aria-label="Enrichment"
+      className={className ?? "space-y-3 rounded-[22px] bg-surface p-5"}
+    >
       <PanelHeading
-        title="Research"
+        title="Enrichment"
         caption="Enrich agent · public, professional sources only"
       >
-        <Button
-          size="sm"
-          variant="outline"
-          className="rounded-full border-border bg-card px-4 font-semibold hover:bg-olive focus-visible:outline-2 focus-visible:outline-ring"
-          onClick={() => enrich.mutate()}
-          disabled={enrich.isPending}
-        >
-          {enrich.isPending ? <Spinner /> : <Search />}
-          {enrich.isPending
-            ? "Researching…"
-            : donor.research.length
-              ? "Research again"
-              : "Run research"}
-        </Button>
+        {live && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-full border-border bg-card px-4 font-semibold hover:bg-olive focus-visible:outline-2 focus-visible:outline-ring"
+            onClick={() => enrich.mutate()}
+            disabled={enrich.isPending}
+          >
+            {enrich.isPending ? <Spinner /> : <Search />}
+            {enrich.isPending
+              ? "Enriching…"
+              : donor.research.length
+                ? "Enrich again"
+                : "Enrich profile"}
+          </Button>
+        )}
       </PanelHeading>
+      {!live && (
+        <p className="rounded-xl bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          Enrichment runs on the live service. This sample shows research saved
+          earlier
+          {donor.research.length ? "" : ", and there is none for this donor"}.
+        </p>
+      )}
       {donor.research.length > 0 ? (
         <ul className="space-y-2 text-sm">
           {donor.research.map((fact) => (
@@ -42,8 +66,7 @@ export const ResearchPanel = ({ donor }: { donor: DonorDetail }) => {
                 •
               </span>
               <span>
-                {fact.fact}{" "}
-                <SourceLink href={fact.source_url} />
+                {fact.fact} <SourceLink href={fact.source_url} />
                 <span className="ml-1 text-xs text-muted-foreground">
                   retrieved {formatDay(fact.retrieved_at)}
                 </span>
@@ -55,7 +78,9 @@ export const ResearchPanel = ({ donor }: { donor: DonorDetail }) => {
         <p className="text-sm text-muted-foreground">
           {enrich.isSuccess
             ? "No public facts found for this donor."
-            : "No research yet. Run research to look up public sources."}
+            : live
+              ? "No research yet. Enrich the profile to look up public sources."
+              : "No research saved for this donor."}
         </p>
       )}
       {enrich.isError && (

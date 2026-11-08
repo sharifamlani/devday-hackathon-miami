@@ -1,4 +1,9 @@
+import { useGetOne } from "ra-core";
+import { ArrowRight } from "lucide-react";
+import { Link } from "react-router";
+
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -8,13 +13,12 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import type { DonorContactDetail } from "../providers/local/crmResources";
 import { useDonor } from "../providers/local/hooks";
-import {
-  scoreClass,
-  statusClass,
-  statusLabel,
-  tierLabel,
-} from "./donorFormat";
+import { CallNotesPanel } from "./CallNotesPanel";
+import { DonorTagList, Stat } from "./donorCrmUi";
+import { GivingPanel } from "./GivingPanel";
+import { scoreClass, statusClass, statusLabel, tierLabel } from "./donorFormat";
 import { MergeHistory } from "./MergeHistory";
 import { OutreachPanel, SampleHistoryBadge } from "./OutreachPanel";
 import { ResearchPanel } from "./ResearchPanel";
@@ -28,7 +32,11 @@ const initialsOf = (name: string) =>
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-/** Right-hand drawer: where the AI's work is visible (why · research · draft). */
+/**
+ * Right-hand drawer: the donor at a glance (status, contact, giving) and
+ * where the AI's work is visible (why · enrichment · draft), with a link to
+ * the full profile. Props are stable: the home page and Ask use it.
+ */
 export const DonorDrawer = ({
   donorId,
   onClose,
@@ -37,6 +45,12 @@ export const DonorDrawer = ({
   onClose: () => void;
 }) => {
   const { data: donor, isPending, error } = useDonor(donorId);
+  // The CRM record adds status tags, masked contact details and call notes.
+  const { data: record } = useGetOne<DonorContactDetail>(
+    "contacts",
+    { id: donorId ?? -1 },
+    { enabled: donorId != null },
+  );
   return (
     <Sheet open={donorId != null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
@@ -56,8 +70,10 @@ export const DonorDrawer = ({
                 <div className="min-w-0 flex-1">
                   <SheetTitle className="text-xl font-bold tracking-tight">
                     {donor.is_star && (
-                      <span className="mr-1 text-brand-soft-foreground"
-                        aria-label="Star donor">
+                      <span
+                        className="mr-1 text-brand-soft-foreground"
+                        aria-label="Star donor"
+                      >
                         ★
                       </span>
                     )}
@@ -108,9 +124,52 @@ export const DonorDrawer = ({
               </div>
             </SheetHeader>
             <div className="space-y-4 px-5 pb-8 pt-5">
-              <ScoreWhyPanel donor={donor} />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {record ? <DonorTagList tags={record.status_tags} /> : <span />}
+                <Link
+                  to={`/contacts/${donor.id}/show`}
+                  onClick={onClose}
+                  className={cn(
+                    buttonVariants({ size: "sm", variant: "outline" }),
+                    "rounded-full",
+                  )}
+                >
+                  Open full record
+                  <ArrowRight aria-hidden />
+                </Link>
+              </div>
+              {record && (
+                <dl className="grid grid-cols-2 gap-2 text-sm">
+                  <Stat label="Email" value={record.email ?? "Not recorded"} />
+                  <Stat label="Phone" value={record.phone ?? "Not recorded"} />
+                  <Stat label="Source" value={record.source} />
+                  <Stat
+                    label="Organization"
+                    value={record.company_name ?? "None linked"}
+                  />
+                </dl>
+              )}
+              {record && record.interests.length > 0 && (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">
+                    Interest areas:{" "}
+                  </span>
+                  {record.interests.join(", ")}
+                </p>
+              )}
+              <GivingPanel
+                donor={donor}
+                recurring={record?.recurring}
+                compact
+              />
+              <ScoreWhyPanel donor={donor} hideGifts />
               <ResearchPanel donor={donor} />
               <OutreachPanel donor={donor} />
+              <CallNotesPanel
+                donorId={donor.id}
+                serverNotes={record?.server_call_notes}
+                limit={2}
+              />
               <MergeHistory merges={donor.merges} />
             </div>
           </>
