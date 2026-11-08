@@ -517,8 +517,7 @@ export const receiptLine = (receipt: Receipt) =>
     .filter(Boolean)
     .join(" · ");
 
-/** How long the receipt, then the welcome, stay on screen before the dashboard. */
-export const RECEIPT_MS = 3200;
+/** How long the welcome card stays before the dashboard. The receipt before it waits for a click. */
 export const WELCOME_MS = 1600;
 
 /* ---------- The background read (POST/GET /context/refresh) ---------- */
@@ -621,10 +620,17 @@ export const backgroundLine = (read: BackgroundRead) =>
         : "Your website is read. Nothing new this time."
       : (read.detail ?? "We couldn't read your website this time.");
 
-/** The card's title and line: "ready" only when the website really was read. */
+/** The card's title and line: "ready" only when the website really was read. The read-only sample
+ * build (`sample`) reads no website: its workspace is already built, so the card says that instead. */
 export const offerCopy = (
   data: Pick<OnboardingData, "context" | "background">,
+  sample = false,
 ): { title: string; body: string } => {
+  if (sample)
+    return {
+      title: "This is the sample desk.",
+      body: "Every name and amount is made up. Want a one-minute tour of where things are?",
+    };
   const outcome =
     data.background?.status === "done" ? "done" : data.context?.outcome;
   if (outcome === "done")

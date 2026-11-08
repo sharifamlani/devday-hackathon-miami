@@ -298,7 +298,7 @@ const LiveAgentThread = ({ intro }: { intro?: ReactNode }) => {
               <ApprovalCard
                 key={a.call_id}
                 approval={a}
-                decided={Boolean(m.decided)}
+                decided={Boolean(m.handled) || m.decisions?.[a.call_id] !== undefined}
                 decision={m.decisions?.[a.call_id]}
                 handled={m.handled}
                 disabled={pending}
@@ -521,7 +521,7 @@ export const Composer = ({
           <ArrowRight className="size-5" aria-hidden="true" />
         </button>
       </form>
-      <DictationHint error={dictation.error} className="px-2" />
+      <DictationHint error={dictation.error} listening={dictation.state === "listening"} interim={dictation.interim} className="px-2" />
     </div>
   );
 };

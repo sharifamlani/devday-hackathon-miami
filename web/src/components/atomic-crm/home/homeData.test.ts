@@ -321,6 +321,20 @@ describe("home data: week, agenda and artifacts", () => {
     );
     expect(rows[0].to).toBe("/contacts/12/show");
   });
+
+  it("links a draft or call note by the row's own donor_id (local mode), with no owners lookup", () => {
+    const none = { drafts: {}, notes: {} };
+    expect(artifactTarget({ kind: "draft", ref: "draft:5", donor_id: 21 }, none)).toBe("/contacts/21/show");
+    expect(artifactTarget({ kind: "call_note", ref: "call_note:n1", donor_id: 8 }, none)).toBe("/contacts/8/show");
+    expect(artifactTarget({ kind: "draft", ref: "draft:6", donor_id: null }, none)).toBeNull(); // a prospect's draft
+    expect(artifactTarget({ kind: "draft", ref: "campaign:3", donor_id: 21 }, none)).toBe("/campaigns/3"); // campaigns unchanged
+    const rows = artifactRows(
+      [{ kind: "draft", title: "Thank you, Ana", date: "2026-11-08", ref: "draft:5", donor_id: 21 }],
+      5,
+      none,
+    );
+    expect(rows[0].to).toBe("/contacts/21/show");
+  });
 });
 
 describe("home data: agent thread", () => {

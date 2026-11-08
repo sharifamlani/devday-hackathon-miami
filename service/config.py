@@ -66,3 +66,12 @@ def cors_origins(extra: str | None) -> list[str]:
 
 # Also gates the dictation WebSocket's Origin check (routes_voice.py)
 CORS_ORIGINS = cors_origins(os.getenv("CORS_ORIGINS"))
+
+# Public mode (docs/public-tunnel.md): the laptop service is reachable from the Vercel app through a tunnel.
+# Off by default. When on, the origins in PUBLIC_ORIGINS join CORS and the /transcribe/live Origin check
+# (routes_voice reads CORS_ORIGINS), and service/public_mode.py rate limits the model-backed routes and
+# forces every send to stay simulated.
+PUBLIC_MODE = (os.getenv("PUBLIC_MODE") or "").strip().lower() in ("1", "true", "on", "yes")
+PUBLIC_ORIGINS = [o.strip().rstrip("/") for o in (os.getenv("PUBLIC_ORIGINS") or "").split(",") if o.strip()]
+if PUBLIC_MODE:
+    CORS_ORIGINS = CORS_ORIGINS + [o for o in PUBLIC_ORIGINS if o not in CORS_ORIGINS]

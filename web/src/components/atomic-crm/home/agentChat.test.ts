@@ -44,3 +44,58 @@ describe("agent chat: deciding an approval card", () => {
     expect(agentChatMessages()[1]).toMatchObject({ text: "I drafted a thank-you for Maria.", decided: true });
   });
 });
+
+describe("agent chat: two cards pending", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetAgentChat();
+  });
+
+  const A = { call_id: "cA", tool: "send", args: { batch_id: 1 }, summary: "Send 1 email to Maria Delgado" };
+  const B = { call_id: "cB", tool: "send", args: { batch_id: 2 }, summary: "Send check-in email to Marcus Bell" };
+  const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string);
+
+  it.each([true, false])("deciding A (approve=%s) leaves B pending, and B still works (S1, S-neg)", async (approveA) => {
+    const fetchMock = vi
+      .spyOn(window, "fetch")
+      .mockImplementationOnce(() =>
+        reply({ reply: `${WAITING_PREFIX}A; B.`, steps: [], approvals: [A, B], run_id: "run-1" }),
+      )
+      // The service decides only A and pauses on B again under a new run id.
+      .mockImplementationOnce(() =>
+        reply({
+          reply: `${WAITING_PREFIX}B.`,
+          steps: [
+            { tool: "send", args: A.args, summary: approveA ? "sent 1 (dry run)" : "declined", status: "done", undo_token: null, call_id: "cA" },
+            { tool: "send", args: B.args, summary: "waiting for your approval to send", status: "awaiting_approval", undo_token: null, call_id: "cB" },
+          ],
+          approvals: [B],
+          run_id: "run-2",
+        }),
+      )
+      .mockImplementationOnce(() => reply({ reply: "Both handled.", steps: [], approvals: [], run_id: null }));
+
+    await sendToAgent("send both", () => {});
+    await decide(1, { cA: approveA }, () => {});
+
+    expect(bodyOf(fetchMock.mock.calls[1])).toEqual({
+      run_id: "run-1",
+      approved_by: expect.any(String),
+      approvals: [{ call_id: "cA", approve: approveA }],     // B isn't sent, so it isn't declined
+    });
+    const cards = agentChatMessages()[1] as Extract<ReturnType<typeof agentChatMessages>[number], { role: "assistant" }>;
+    expect(cards.decisions).toEqual({ cA: approveA });
+    expect(cards.decided).toBe(false);                         // B is still waiting on this message
+    expect(cards.runId).toBe("run-2");                         // ...and now answers to the paused run
+    const middle = agentChatMessages()[2] as typeof cards;
+    expect(middle.approvals).toEqual([]);                      // B's card isn't shown twice
+    expect(middle.steps.map((s) => s.call_id)).toEqual(["cA"]);
+
+    await decide(1, { cB: true }, () => {});
+    expect(bodyOf(fetchMock.mock.calls[2])).toMatchObject({ run_id: "run-2", approvals: [{ call_id: "cB", approve: true }] });
+    const after = agentChatMessages()[1] as typeof cards;
+    expect(after.decisions).toEqual({ cA: approveA, cB: true });
+    expect(after.decided).toBe(true);
+    expect(after.text).toBe("");
+  });
+});

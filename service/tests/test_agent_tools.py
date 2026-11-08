@@ -480,3 +480,75 @@ def test_an_allowed_call_still_waits_on_the_card_and_never_dials_unapproved(db_f
     assert ca.call_refusal(donor["id"]) is None
     assert asyncio.run(ca.call_needs_approval(RunContextWrapper(context), {"person_id": donor["id"]}, "c1")) is True
     assert context.refused_calls == {} and dialed == []                     # a card, and no call without it
+
+
+@pytest.mark.parametrize("approve_b", [True, False])
+def test_live_approving_one_of_two_cards_leaves_the_other_pending(db_file, approve_b):
+    """Two delete cards: deciding the first must not decide the second. It comes back under a new run id
+    (same call id) and still works."""
+    a = invoke("create_task", kind="other", title="Old flyer reprint")
+    b = invoke("create_task", kind="other", title="Stale banner order")
+    gone = lambda t: bool(one(db_file, "SELECT deleted_at FROM tasks WHERE id = ?", t["id"])["deleted_at"])
+
+    paused = ca.run_chat(f"Delete task {a['id']} (Old flyer reprint) and task {b['id']} (Stale banner order).",
+                         "givers")
+    by_task = {c["args"]["task_id"]: c["call_id"] for c in paused["approvals"] if c["tool"] == "delete_task"}
+    assert set(by_task) == {a["id"], b["id"]}
+
+    first = ca.resume_chat(paused["run_id"], {by_task[a["id"]]: True}, "Test approver")
+    assert gone(a) and not gone(b)                                           # B wasn't declined...
+    assert [c["call_id"] for c in first["approvals"]] == [by_task[b["id"]]]  # ...it's still pending
+    assert first["run_id"] and first["run_id"] != paused["run_id"]
+
+    done = ca.resume_chat(first["run_id"], {by_task[b["id"]]: approve_b}, "Test approver")
+    assert gone(b) is approve_b and not done["approvals"]                  # approve deletes B; decline leaves it
+
+
+def failed_gift_and_task(db_file) -> tuple[int, int]:
+    """Robert Nguyen (5, a quarterly giver) gets a declined charge after his last good gift: a failed gift. The
+    top lapsing giver gets an open task, so they have a saved next step."""
+    lapsing = one(db_file, "SELECT d.id FROM donors d JOIN donor_scores s ON s.donor_id = d.id "
+                           "WHERE d.contact_type = 'giver' AND s.status = 'lapsing' AND d.id != 5 "
+                           "ORDER BY s.score DESC LIMIT 1")["id"]
+    conn = sqlite3.connect(db_file)
+    try:
+        conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel, status) "
+                     "VALUES (5, 250, '2026-11-01', 'card', 'declined')")
+        conn.commit()
+    finally:
+        conn.close()
+    invoke("create_task", kind="call", title="Ask about the spring scholarship lunch", person_id=lapsing)
+    return 5, lapsing
+
+
+def test_call_list_follows_the_home_attention_order(db_file):
+    failed, lapsing = failed_gift_and_task(db_file)
+    from service import routes_home, score
+    conn = db.connect()
+    try:
+        home = [a for a in routes_home.attention(conn, score.default_as_of(), 50) if a["badge"] in ca.CALL_BADGES]
+    finally:
+        conn.close()
+    people = invoke("get_call_list", limit=25)["people"]
+    assert [p["id"] for p in people[:len(home)]] == [a["id"] for a in home]  # the tile's order, exactly
+    assert people[0]["id"] == failed and people[0]["badge"] == "failed"      # a failed gift comes first
+    assert [p["badge"] for p in people[len(home):]] == ["lapsing"] * (len(people) - len(home))
+    assert len({p["id"] for p in people}) == len(people)                     # nobody twice
+    tasked = next(p for p in people if p["id"] == lapsing)
+    assert tasked["next_step"].startswith("Ask about the spring scholarship lunch")
+    phones = {r[0]: bool((r[1] or "").strip()) for r in sqlite3.connect(db_file).execute("SELECT id, phone FROM donors")}
+    assert all(p["phone_on_file"] == phones[p["id"]] for p in people)
+
+
+def test_live_who_to_call_leads_with_the_failed_gift_and_cites_next_steps(db_file):
+    """'Who should I call today?' answers from the CRM's attention order: the failed-gift donor first, and a
+    giver's saved next step quoted."""
+    failed_gift_and_task(db_file)
+
+    r = ca.run_chat("Who should I call today?", "home")
+
+    assert "get_call_list" in [s["tool"] for s in r["steps"]]
+    reply = r["reply"]
+    others = [n for n in ("McDermott", "Maria Delgado", "Luis Herrera", "Angela Brooks") if n in reply]
+    assert "Robert Nguyen" in reply and all(reply.index("Robert Nguyen") < reply.index(n) for n in others)
+    assert "spring scholarship lunch" in reply.lower()

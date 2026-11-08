@@ -21,6 +21,8 @@ export interface Artifact {
   title: string;
   date: string;
   ref: string | number | null;
+  /** The donor a draft or call note is for (service tasks.artifacts); null for prospects, campaigns, others. */
+  donor_id?: number | null;
 }
 
 export const calendarKeys = {
