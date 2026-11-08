@@ -2,6 +2,7 @@ import { Check, CircleAlert, Clock, Loader2, Undo2, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { AgentApproval, AgentStep } from "./agentChat";
+import { PhoneCallButton } from "../voice/PhoneCallButton";
 import { focusRing } from "./tile";
 
 /** "create_task" → "Create task". */
@@ -30,7 +31,122 @@ const chip = cn(
   focusRing,
 );
 
+type Gift = { date: string; amount: number };
+export type CallSheet = {
+  kind: "call_sheet";
+  person_id: number;
+  name: string;
+  org_name?: string | null;
+  location?: string | null;
+  has_phone: boolean;
+  phone_masked: string | null;
+  relationship: {
+    gift_count: number;
+    total: number;
+    first_gift: Gift | null;
+    last_gift: Gift | null;
+    usual_channel: string | null;
+  };
+  declined_charges: { date: string; amount: number; status: string }[];
+  interests: string[];
+  recent_calls: { date: string; title: string; summary: string[]; next_steps: string[] }[];
+  open_tasks: { id: number; title: string; due: string | null }[];
+  facts: { fact: string; source_url: string }[];
+  talking_points: string[];
+};
+
+const usd = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: Number.isInteger(n) ? 0 : 2 });
+
+const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="mt-2">
+    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+    {children}
+  </div>
+);
+
+/** The agent's call sheet: who they are, their giving, and what to say, with the Call button (or why there is none). */
+export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
+  const r = sheet.relationship;
+  return (
+    <li data-testid="call-sheet" className="rounded-xl border border-border bg-card px-3 py-2 text-[13px]">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">Call sheet: {sheet.name}</p>
+          <p className="text-muted-foreground">
+            {[sheet.org_name, sheet.location].filter(Boolean).join(" · ")}
+          </p>
+          <p data-testid="call-sheet-phone" className="mt-0.5">
+            {sheet.has_phone ? `Phone ${sheet.phone_masked}` : "No phone number on file"}
+          </p>
+        </div>
+        {sheet.has_phone && <PhoneCallButton donorId={sheet.person_id} />}
+      </div>
+      <Section title="Giving">
+        {r.gift_count === 0 ? (
+          <p>No gifts on record.</p>
+        ) : (
+          <p>
+            {usd(r.total)} across {r.gift_count} gift{r.gift_count === 1 ? "" : "s"}
+            {r.usual_channel ? `, usually ${r.usual_channel}` : ""}. First {r.first_gift && `${usd(r.first_gift.amount)} on ${r.first_gift.date}`}
+            ; last {r.last_gift && `${usd(r.last_gift.amount)} on ${r.last_gift.date}`}.
+          </p>
+        )}
+        {sheet.declined_charges.map((d) => (
+          <p key={d.date} className="text-alert-foreground">
+            Not a gift: {usd(d.amount)} charge on {d.date} was {d.status}.
+          </p>
+        ))}
+      </Section>
+      {sheet.interests.length > 0 && (
+        <Section title="Interests">
+          <p>{sheet.interests.join(", ")}</p>
+        </Section>
+      )}
+      {sheet.recent_calls.length > 0 && (
+        <Section title="Recent calls">
+          {sheet.recent_calls.map((c) => (
+            <p key={c.date + c.title}>
+              {c.date}: {c.summary[0] ?? c.title}
+            </p>
+          ))}
+        </Section>
+      )}
+      {sheet.open_tasks.length > 0 && (
+        <Section title="Open tasks">
+          {sheet.open_tasks.map((t) => (
+            <p key={t.id}>
+              {t.title}
+              {t.due ? ` (due ${t.due})` : ""}
+            </p>
+          ))}
+        </Section>
+      )}
+      {sheet.facts.length > 0 && (
+        <Section title="Research">
+          {sheet.facts.map((f) => (
+            <p key={f.source_url + f.fact}>
+              {f.fact}{" "}
+              <a href={f.source_url} target="_blank" rel="noreferrer" className="underline">
+                source
+              </a>
+            </p>
+          ))}
+        </Section>
+      )}
+      <Section title="Talking points">
+        <ul className="list-disc pl-4">
+          {sheet.talking_points.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      </Section>
+    </li>
+  );
+};
+
 export const StepCard = ({ step, onUndo }: { step: AgentStep; onUndo?: () => void }) => {
+  if (step.card?.kind === "call_sheet") return <CallSheetCard sheet={step.card as unknown as CallSheet} />;
   const Icon =
     step.status === "error"
       ? CircleAlert
