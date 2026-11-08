@@ -76,6 +76,40 @@ const headingLink = cn(
   focusRing,
 );
 
+/* ---------- Impact & story ---------- */
+
+/** Compact card under Q4: the whole card opens the Impact panel. */
+export const ImpactTile = ({ factCount }: { factCount: number }) => {
+  const headingId = useId();
+  return (
+    <section
+      data-tour="impact"
+      data-zoom-source="impact"
+      aria-labelledby={headingId}
+      className={cn(tile, "relative p-4")}
+    >
+      <h2 id={headingId} className={tileTitle}>
+        <Link
+          to="/?workspace=impact"
+          onClick={zoomClick("impact")}
+          title="Open Impact & story"
+          className={cn(
+            "rounded-sm hover:underline hover:underline-offset-4 hover:decoration-2 after:absolute after:inset-0 after:rounded-2xl",
+            focusRing,
+          )}
+        >
+          Impact &amp; story
+        </Link>
+      </h2>
+      <p className="mt-1 truncate text-[13px] text-muted-foreground">
+        {factCount > 0
+          ? `${factCount} sourced ${factCount === 1 ? "fact" : "facts"} · Copy for a grant report`
+          : "Read your website to collect stories"}
+      </p>
+    </section>
+  );
+};
+
 /* ---------- Q4 progress ---------- */
 
 const ARC = Math.PI * 44; // semicircle, r = 44
