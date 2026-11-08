@@ -25,22 +25,15 @@ import type {
   AskDonor,
   AskFilter,
   AskIntent,
-  AskServedFrom,
 } from "../providers/local/ask";
 import {
   INTENTS,
+  SERVED,
   campaignHref,
   filterChips,
   sortLabel,
   withoutChip,
 } from "./askChips";
-
-const SERVED: Record<AskServedFrom, string> = {
-  model: "Read by the AI model (OpenAI Agents SDK)",
-  cache: "Cached answer",
-  rules: "Read by keyword rules (no AI model)",
-  edited: "Your edited filters",
-};
 
 const traceUrl = (traceId: string) =>
   `https://platform.openai.com/traces/trace?trace_id=${encodeURIComponent(traceId)}`;
@@ -212,21 +205,29 @@ export const AskResults = ({
   );
 };
 
-const NextAction = ({
+export const NextAction = ({
   count,
   donorIds,
   intent,
   onIntent,
+  stacked = false,
 }: {
   count: number;
   donorIds: number[];
   intent: AskIntent | null;
   onIntent: (intent: AskIntent) => void;
+  /** Always one column (the narrow Ask sidebar). */
+  stacked?: boolean;
 }) => {
   const current = intent ?? { kind: "check_in" as const, channel_hint: null };
   const noun = INTENTS.find((i) => i.kind === current.kind)?.noun;
   return (
-    <div className="my-4 flex flex-col gap-3 rounded-[22px] bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-[22px] bg-surface p-3",
+        !stacked && "my-4 sm:flex-row sm:items-center sm:justify-between",
+      )}
+    >
       <fieldset className="flex flex-wrap items-center gap-1.5">
         <legend className="sr-only">Kind of message</legend>
         <span
