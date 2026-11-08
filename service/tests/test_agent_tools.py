@@ -552,3 +552,59 @@ def test_live_who_to_call_leads_with_the_failed_gift_and_cites_next_steps(db_fil
     others = [n for n in ("McDermott", "Maria Delgado", "Luis Herrera", "Angela Brooks") if n in reply]
     assert "Robert Nguyen" in reply and all(reply.index("Robert Nguyen") < reply.index(n) for n in others)
     assert "spring scholarship lunch" in reply.lower()
+
+
+def nickname_pair(db_file) -> None:
+    """Bill / William Hartwell: a name-only match (unclear), next to the seed's same-email Maria Delgado pair (sure)."""
+    conn = sqlite3.connect(db_file)
+    try:
+        for name, first in (("Bill Hartwell", "Bill"), ("William Hartwell", "William")):
+            cur = conn.execute("INSERT INTO donors (full_name, first_name, last_name, donor_type, contact_type) "
+                               "VALUES (?, ?, 'Hartwell', 'individual', 'giver')", (name, first))
+            conn.execute("INSERT INTO gifts (donor_id, amount, gift_date, channel) VALUES (?, 100, '2026-03-01', 'online')",
+                         (cur.lastrowid,))
+        conn.commit()
+    finally:
+        conn.close()
+    from service import dedupe
+    conn = db.connect()
+    try:
+        db.create_schema(conn)
+        dedupe.run(conn)
+    finally:
+        conn.close()
+
+
+def gift_totals(db_file) -> tuple:
+    return tuple(one(db_file, "SELECT COUNT(*), ROUND(SUM(amount), 2) FROM gifts WHERE COALESCE(status, 'ok') = 'ok'"))
+
+
+def test_resolve_duplicates_merges_sure_pairs_and_returns_the_rest_with_findings(db_file):
+    """Sharif: at or above 80% the agent merges without asking; below that it brings the pair to the user."""
+    assert "resolve_duplicates" not in ca.APPROVAL_TOOLS
+    nickname_pair(db_file)
+    before = gift_totals(db_file)
+    sure = one(db_file, "SELECT id FROM duplicate_suggestions WHERE status = 'pending' AND confidence >= 0.8")["id"]
+    out = invoke("resolve_duplicates")
+    assert [m["suggestion_id"] for m in out["merged"]] == [sure]
+    assert out["merged"][0]["reasons"] and out["merged"][0]["undo_merge_id"]
+    assert one(db_file, "SELECT status FROM duplicate_suggestions WHERE id = ?", sure)["status"] == "merged"
+    ask = out["to_confirm"]
+    assert [frozenset((p["a"]["full_name"], p["b"]["full_name"])) for p in ask] == [frozenset(("Bill Hartwell", "William Hartwell"))]
+    assert ask[0]["confidence"] < 0.8 and ask[0]["reasons"] and ask[0]["a"]["gifts"] == 1 and ask[0]["a"]["total_given"] == 100
+    assert gift_totals(db_file) == before                       # no gift lost or double-counted
+    assert out["gifts"] == {"count": before[0], "total": before[1]}
+    assert ca.summarize(out) == "merged 1 sure pair (80%+); 1 to confirm"
+
+
+def test_a_pair_to_confirm_gets_a_merge_card_with_the_findings(db_file):
+    nickname_pair(db_file)
+    pair = invoke("resolve_duplicates")["to_confirm"][0]
+    line = ca.approval_summary("merge_duplicate", {"suggestion_id": pair["suggestion_id"]})
+    assert line.startswith("Merge ") and "Hartwell" in line and "60%" in line and "1 gift" in line
+
+
+def test_no_pending_duplicates_says_so(db_file):
+    invoke("resolve_duplicates")
+    out = invoke("resolve_duplicates")
+    assert out["merged"] == [] and out["to_confirm"] == [] and out["note"] == "No possible duplicates right now."

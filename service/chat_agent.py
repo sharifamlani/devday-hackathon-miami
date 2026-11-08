@@ -59,9 +59,16 @@ Rules:
 - "Work on this task: ... (task #N)" means do the work, not describe it: call get_task(N), then get_person for its
   person, then take the next step yourself. Call/email task about a late or failed gift: draft_email (or
   draft_sms if they give by text) with intent re_engage; a welcome: intent thank_you. Never send; say the
-  draft is ready to review. Review task: say which records look like the same person and why, and offer the
-  merge (it waits for approval). Prep task: list who is invited and what to prepare. End with "Mark done?";
+  draft is ready to review. Review task: follow the duplicates protocol. Prep task: list who is invited and what to prepare. End with "Mark done?";
   call complete_task only when the user says so.
+- Duplicates protocol ("fix / merge / clean up the duplicates", or a review task): call resolve_duplicates once.
+  It merges every pair that is 80%+ sure by itself. Say how many it merged and name each pair with its score and
+  evidence (each has an Undo on its card), and that the gift totals are unchanged. Then, for EVERY pair in
+  to_confirm, call merge_duplicate (one card per pair, all in this same turn; the person picks Merge or Keep
+  separate) and give your findings for each in a short list: the evidence, both records' giving, and what makes it
+  uncertain. If a merge card comes back declined, the person said keep them separate: call dismiss_duplicate for
+  that pair. With nothing pending, say "No possible duplicates right now." Never call resolve_duplicates unless
+  the user asked.
 {first_turn}{selection}"""
 
 FIRST_TURN = """- This is the start of the conversation: before answering, call get_context and get_events. If any event
@@ -673,6 +680,88 @@ def dismiss_duplicate(ctx: RunContextWrapper[ChatContext], suggestion_id: int) -
     return write(agent_writes.dismiss_duplicate, suggestion_id, actor="agent")
 
 
+# Sharif (Nov 8): a pair at or above this confidence the agent merges by itself when asked to fix duplicates;
+# below it, the pair comes to the user on a Merge / Keep separate card with the agent's findings.
+AUTO_MERGE_AT = float(os.getenv("AUTO_MERGE_AT", "0.8"))
+
+
+def duplicate_pairs(conn) -> list[dict]:
+    """Pending duplicate pairs, surest first, each side with its giving (gifts that went through), so the
+    agent and the user can judge. Addresses are masked."""
+    from service.routes_campaigns import mask_address
+    out = []
+    for s in conn.execute("SELECT * FROM duplicate_suggestions WHERE status = 'pending' ORDER BY confidence DESC, id"):
+        sides = {}
+        for side in ("a", "b"):
+            pid = s[f"donor_{side}_id"]
+            d = conn.execute("SELECT id, full_name, donor_type, contact_type, email, phone, city FROM donors WHERE id = ?",
+                             (pid,)).fetchone()
+            g = conn.execute("SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total, MAX(gift_date) AS last FROM gifts "
+                             "WHERE donor_id = ? AND COALESCE(status, 'ok') = 'ok'", (pid,)).fetchone()
+            sides[side] = None if d is None else {
+                **dict(d), "email": mask_address(d["email"], "email"), "phone": mask_address(d["phone"], "text"),
+                "gifts": g["n"], "total_given": round(g["total"], 2), "last_gift": g["last"]}
+        out.append({"suggestion_id": s["id"], "confidence": s["confidence"], "reasons": json.loads(s["reasons"]),
+                    "a": sides["a"], "b": sides["b"]})
+    return out
+
+
+def gift_totals(conn) -> dict:
+    """Gifts that went through: the merge must leave these exactly as they were."""
+    r = conn.execute("SELECT COUNT(*), ROUND(COALESCE(SUM(amount), 0), 2) FROM gifts "
+                     "WHERE COALESCE(status, 'ok') = 'ok'").fetchone()
+    return {"count": r[0], "total": r[1]}
+
+
+def giver_count(conn) -> int:
+    return conn.execute("SELECT COUNT(*) FROM donors WHERE COALESCE(contact_type, 'giver') = 'giver'").fetchone()[0]
+
+
+@function_tool
+def resolve_duplicates(ctx: RunContextWrapper[ChatContext]) -> dict:
+    """Duplicates protocol, only when the user asks to fix / merge / clean up duplicates (or works a review task).
+    Merges every pending pair that is at least 80% sure, by itself, and returns each with its evidence and an Undo;
+    returns the less certain pairs in to_confirm, with both records' giving, for the user to decide."""
+    from service import agent_writes, dedupe, score
+
+    def run(conn):
+        before = {"gifts": gift_totals(conn), "givers": giver_count(conn)}
+        merged, skipped, tried = [], [], set()
+        for _ in range(3):        # each merge re-scans, which can surface a new sure pair (a chain of three records)
+            sure = [p for p in duplicate_pairs(conn) if p["confidence"] >= AUTO_MERGE_AT and p["suggestion_id"] not in tried]
+            if not sure:
+                break
+            for p in sure:
+                tried.add(p["suggestion_id"])
+                try:
+                    result, token = agent_writes.merge_duplicate(conn, p["suggestion_id"], None,
+                                                                 f"agent ({AUTO_MERGE_AT:.0%}+ match)", actor="agent")
+                except agent_writes.WriteError as e:      # superseded by an earlier merge in this pass
+                    skipped.append({"suggestion_id": p["suggestion_id"], "reason": str(e)})
+                    continue
+                kept_a = result.get("kept_donor_id") == p["a"]["id"]
+                kept, gone = (p["a"], p["b"]) if kept_a else (p["b"], p["a"])
+                merged.append({"suggestion_id": p["suggestion_id"], "confidence": p["confidence"],
+                               "reasons": p["reasons"], "kept": kept["full_name"], "merged_in": gone["full_name"],
+                               "undo_token": token, "undo_merge_id": result.get("merge_id")})
+            score.run(conn)
+            dedupe.run(conn)
+        rest = duplicate_pairs(conn)
+        after = {"gifts": gift_totals(conn), "givers": giver_count(conn)}
+        out = {"merged": merged, "skipped": skipped, "to_confirm": rest, "gifts": after["gifts"],
+               "gifts_unchanged": after["gifts"] == before["gifts"],
+               "givers": {"before": before["givers"], "after": after["givers"]}}
+        if not merged and not rest:
+            out["note"] = "No possible duplicates right now."
+        if merged:
+            out["card"] = {"kind": "merged_pairs", "pairs": [
+                {"suggestion_id": m["suggestion_id"], "kept": m["kept"], "merged_in": m["merged_in"],
+                 "confidence": m["confidence"], "evidence": m["reasons"][0] if m["reasons"] else "",
+                 "undo_token": m["undo_token"]} for m in merged]}
+        return out
+    return with_conn(run)
+
+
 @function_tool
 def rsvp_event(ctx: RunContextWrapper[ChatContext], event_id: int, person_id: int,
                rsvp: Literal["yes", "no", "maybe"]) -> dict:
@@ -862,7 +951,7 @@ TOOLS = [
     get_task, get_tasks,
     get_call_notes, build_brief, community_stats,
     # writes (each returns an undo_token)
-    update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, rsvp_event,
+    update_person, add_contact, add_interest, remove_interest, accept_enrichment, dismiss_duplicate, resolve_duplicates, rsvp_event,
     create_task, update_task, complete_task, add_calendar_item, move_calendar_item, get_after_call_actions,
     apply_after_call_actions,
     draft_email, draft_sms, plan_event_outreach, undo,
@@ -899,6 +988,11 @@ def summarize(output) -> str:
         return str(output)[:160]
     if "error" in data:
         return f"error: {data['error']}"
+    if "to_confirm" in data and "merged" in data:          # resolve_duplicates
+        if data.get("note"):
+            return data["note"]
+        n = len(data["merged"])
+        return f"merged {n} sure pair{'s' if n != 1 else ''} ({AUTO_MERGE_AT:.0%}+); {len(data['to_confirm'])} to confirm"
     if isinstance(data.get("task"), dict):                  # get_task
         t = data["task"]
         return f"task #{t.get('id')}: {t.get('title')}" + (" (done)" if t.get("done") else "")
@@ -1004,6 +1098,8 @@ def steps_from(items) -> list[dict]:
                 calls[call_id]["summary"] = summary
                 calls[call_id]["status"] = "error" if summary.startswith("error") else "done"
                 calls[call_id]["undo_token"] = output_data(item.output).get("undo_token")
+                if output_data(item.output).get("card"):                    # a richer card for the UI (kind = ...)
+                    calls[call_id]["card"] = output_data(item.output)["card"]
     return steps
 
 
@@ -1042,7 +1138,13 @@ def approval_summary(tool: str, args: dict) -> str | None:
             r = rows[0]
             keep_a = args.get("keep_id") in (None, r["a_id"])
             kept, merged = (r["a_name"], r["b_name"]) if keep_a else (r["b_name"], r["a_name"])
-            return f"Merge {merged} into {kept}"
+            pair = next((p for p in with_conn(duplicate_pairs) if p["suggestion_id"] == args["suggestion_id"]), None)
+            if pair is None:
+                return f"Merge {merged} into {kept}"
+            giving = " vs ".join(f"{x['gifts']} gift{'s' if x['gifts'] != 1 else ''} · ${x['total_given']:,.0f}"
+                                 for x in (pair["a"], pair["b"]) if x)
+            evidence = pair["reasons"][0] if pair["reasons"] else "similar records"
+            return f"Merge {merged} into {kept} ({pair['confidence']:.0%} match: {evidence}; {giving})"
     if tool in ("delete_task", "delete_calendar_item"):
         ref = args.get("task_id") if tool == "delete_task" else str(args.get("ref") or "").partition(":")[2]
         rows = query("SELECT title FROM tasks WHERE id = ?", (ref,)) if str(ref or "").isdigit() else []
