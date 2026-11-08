@@ -160,6 +160,8 @@ def merge_duplicate(conn: sqlite3.Connection, suggestion_id: int, keep_id: int |
     token = _log(conn, actor, "merge_duplicate", f"merge:{merge_id}", {"suggestion_id": suggestion_id},
                  {"kept_donor_id": result.get("kept_donor_id"), "merge_id": merge_id})
     conn.commit()
+    from service import tasks
+    tasks.generate_safely(conn, "merge")
     return result, token
 
 
@@ -176,7 +178,12 @@ def rsvp_event(conn: sqlite3.Connection, event_id: int, person_id: int, rsvp: st
     conn.execute("UPDATE event_audience SET rsvp = ? WHERE event_id = ? AND person_id = ?", (rsvp, event_id, person_id))
     token = _log(conn, actor, "rsvp_event", f"rsvp:{event_id}:{person_id}", {"rsvp": row["rsvp"]}, {"rsvp": rsvp})
     conn.commit()
-    return {"event_id": event_id, "person_id": person_id, "rsvp": rsvp}, token
+    person = conn.execute("SELECT full_name FROM donors WHERE id = ?", (person_id,)).fetchone()
+    event = conn.execute("SELECT title, starts_at FROM events WHERE id = ?", (event_id,)).fetchone()
+    return {"event_id": event_id, "person_id": person_id, "rsvp": rsvp,
+            "full_name": person["full_name"] if person else None,
+            "event_title": event["title"] if event else None,
+            "starts_at": event["starts_at"] if event else None}, token
 
 
 # ---------- undo ----------
@@ -236,4 +243,6 @@ def undo(conn: sqlite3.Connection, token: str) -> dict:
         raise WriteError(f"can't undo a {kind} change")
     conn.execute("UPDATE agent_actions SET undone_at = ? WHERE id = ?", (_now(), action["id"]))
     conn.commit()
+    if kind == "merge":
+        tasks.generate_safely(conn, "merge undo")
     return {"undone": True, "target": action["target"], "action": action["action"]}

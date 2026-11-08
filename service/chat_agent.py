@@ -690,6 +690,18 @@ def summarize(output) -> str:
         return data["full_name"] + (f" ({', '.join(bits)})" if bits else "")
     if "interests" in data:
         return f"interests: {', '.join(i.get('tag', '') for i in data['interests'])}"
+    if "rsvp" in data and "event_id" in data:                                     # rsvp_event
+        answer = {"yes": "attending", "no": "not attending", "maybe": "maybe"}.get(data["rsvp"], data["rsvp"])
+        when = ""
+        if data.get("starts_at"):
+            try:
+                d = date.fromisoformat(str(data["starts_at"])[:10])
+                when = f" ({d:%a %b} {d.day})"
+            except ValueError:
+                when = f" ({data['starts_at']})"
+        who = data.get("full_name") or f"person {data['person_id']}"
+        what = data.get("event_title") or f"event {data['event_id']}"
+        return f"RSVP: {who} → {what}{when}, {answer}"
     if "suggestion_id" in data:
         return f"duplicate {data['suggestion_id']}: {data.get('status') or 'merged'}"
     return json.dumps(data)[:160]

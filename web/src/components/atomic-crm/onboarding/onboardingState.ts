@@ -122,6 +122,7 @@ export type OnboardingAction =
   | { type: "update"; patch: OnboardingPatch }
   | { type: "finishLater" }
   | { type: "finish" }
+  | { type: "adopt" }
   | { type: "reset" };
 
 export const onboardingReducer = (
@@ -160,6 +161,14 @@ export const onboardingReducer = (
         status: "completed",
         completedAt: now(),
         tourOffer: state.tourOffer ?? "pending",
+      });
+    case "adopt":
+      // The service already has people (set up in another browser): done, no tour card on someone else's stage.
+      return stamp({
+        ...state,
+        status: "completed",
+        completedAt: state.completedAt ?? now(),
+        tourOffer: state.tourOffer ?? "dismissed",
       });
     case "reset":
       return initialOnboarding();
@@ -592,6 +601,8 @@ export const useOnboarding = () => {
       () => dispatch({ type: "finish" }, { open: false }),
       [],
     ),
+    /** The live service already has people: mark setup done here too (no tour offer). */
+    adopt: useCallback(() => dispatch({ type: "adopt" }, { open: false }), []),
     /** Forget everything; setup shows again on the next homepage visit. */
     reset: useCallback(
       () => dispatch({ type: "reset" }, { open: false, tour: false }),
