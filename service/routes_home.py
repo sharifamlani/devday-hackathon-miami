@@ -5,8 +5,8 @@ GET /home/summary           {gifts_at_risk, duplicates, tasks_today, next_event 
 GET /people/attention?limit=6   [{id, name, initials, line, badge}] ordered failed, late, new, not_yet, thanked
 
 Both take ?as_of=YYYY-MM-DD (default $SCORE_AS_OF or the demo date, like scoring and targets). Pure Python over
-SQLite, no LLM. `tasks` (3a) and `call_notes` (voice) belong to other lanes: when a table is missing,
-tasks_today is 0 and reached_today counts outbox sends only; they switch on by themselves once it exists.
+SQLite, no LLM. tasks_today reads service/tasks.py (the list GET /tasks?due=today serves); reached_today adds
+call_notes people to outbox sends. If either table is missing the count is 0 / outbox-only.
 Declined and failed charges are never gifts, so they never make a donor "new" or hide a lapse.
 
 main.py mounts this router:
@@ -22,17 +22,13 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 
-from service import gift_alerts, score, targets
+from service import gift_alerts, score, targets, tasks
 from service.routes_data import get_conn
 
 router = APIRouter(tags=["home"])
 
 NEW_DONOR_DAYS = 30
 BADGE_ORDER = ("failed", "late", "new", "not_yet", "thanked")   # also the priority when a donor fits several
-
-
-def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
-    return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
 
 
 def _short_date(iso: str) -> str:
@@ -53,12 +49,11 @@ def _initials(name: str, donor_type: str | None) -> str:
 # ---- /home/summary --------------------------------------------------------------------------------------------
 
 def tasks_today(conn: sqlite3.Connection, today: date) -> int:
-    """Open tasks due today; 0 until the tasks table (3a) exists."""
+    """Open tasks on today's list: the same rows GET /tasks?due=today shows (due today, overdue, or undated;
+    soft-deleted and done ones excluded). 0 when the tasks table is missing."""
     if not targets.has_table(conn, "tasks"):
         return 0
-    cols = _columns(conn, "tasks")
-    where = "due = ?" + (" AND done = 0" if "done" in cols else "") + (" AND deleted_at IS NULL" if "deleted_at" in cols else "")
-    return conn.execute(f"SELECT COUNT(*) FROM tasks WHERE {where}", (today.isoformat(),)).fetchone()[0]
+    return sum(1 for t in tasks.list_tasks(conn, due="today", as_of=today) if not t["done"])
 
 
 def next_event(conn: sqlite3.Connection, today: date) -> dict | None:

@@ -100,17 +100,24 @@ def test_duplicates_are_the_open_suggestions(client, conn, ids):
     assert client.get("/home/summary").json()["duplicates"] == 2
 
 
-def test_tasks_today_is_zero_without_the_tasks_table_then_counts_open_ones(client, conn):
+def test_tasks_today_counts_open_tasks_on_todays_list(client, conn, ids):
+    """Against the real tasks table (#79): the same rows GET /tasks?due=today lists, open ones only."""
+    from service import tasks
     assert client.get("/home/summary").json()["tasks_today"] == 0
-    # the columns that matter are #79's: kind (required), title, due, done, deleted_at
-    conn.execute("CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'call', "
-                 "title TEXT NOT NULL, due TEXT, done INTEGER NOT NULL DEFAULT 0, deleted_at TEXT)")
-    conn.executemany("INSERT INTO tasks (title, due, done, deleted_at) VALUES (?, ?, ?, ?)", [
-        ("call A", DAY, 0, None), ("call B", DAY, 0, None),
-        ("done", DAY, 1, None), ("deleted", DAY, 0, "2026-11-08"),
-        ("tomorrow", (AS_OF + timedelta(days=1)).isoformat(), 0, None)])
+    person = ids["D01"]
+    tomorrow = (AS_OF + timedelta(days=1)).isoformat()
+    tasks.create_task(conn, kind="call", title="call A", due=DAY, person_id=person)
+    tasks.create_task(conn, kind="email", title="email B", due=DAY)
+    tasks.create_task(conn, kind="call", title="overdue", due=(AS_OF - timedelta(days=2)).isoformat())
+    tasks.create_task(conn, kind="prep", title="tomorrow", due=tomorrow)
+    done, _ = tasks.create_task(conn, kind="call", title="done today", due=DAY)
+    gone, _ = tasks.create_task(conn, kind="call", title="deleted", due=DAY)
+    conn.execute("UPDATE tasks SET done = 1 WHERE id = ?", (done["id"],))
+    conn.execute("UPDATE tasks SET deleted_at = datetime('now') WHERE id = ?", (gone["id"],))
     conn.commit()
-    assert client.get("/home/summary").json()["tasks_today"] == 2
+    expected = [t for t in tasks.list_tasks(conn, due="today", as_of=AS_OF) if not t["done"]]
+    assert sorted(t["title"] for t in expected) == ["call A", "email B", "overdue"]
+    assert client.get("/home/summary").json()["tasks_today"] == len(expected) == 3
 
 
 def test_next_event_is_give_miami_day_until_an_earlier_event_exists(client, conn):
