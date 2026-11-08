@@ -21,6 +21,9 @@ import {
 } from "../providers/local/hooks";
 import { useHomeData } from "../providers/local/homeFeed";
 import { useCompleteTask } from "../providers/local/tasks";
+import { useAgentRefetch } from "../providers/local/refetch";
+import { sendToAgent, useAgentChat } from "./agentChat";
+import { taskPrompt } from "./taskPrompt";
 import { isIsoDate, toIsoDate } from "../outreach/dates";
 import { DayPlanner } from "../outreach/DayPlanner";
 import { useOutreachPlan } from "../outreach/outreachPlan";
@@ -114,6 +117,25 @@ export const HomePage = () => {
     [home.artifacts.data],
   );
 
+  // A task click hands the task to the home agent, which loads it and does the next step
+  // (service/chat_agent.py). The read-only snapshot has no agent: it opens the details instead.
+  const agent = useAgentChat();
+  const refetch = useAgentRefetch();
+  const openDetails = (key: string) => {
+    setSelectedKey(key);
+    setTaskOpen(true);
+  };
+  const workOn = (task: HomeTask) => {
+    setSelectedKey(task.key);
+    setTaskOpen(false);
+    if (agent.pending) {
+      setStatus("The agent is still working. Try the task again in a moment.");
+      return;
+    }
+    void sendToAgent(taskPrompt(task), refetch);
+    setStatus(`Handed to the agent: ${task.title}.`);
+  };
+
   const markDone = (task: HomeTask) => {
     completeTask.mutate(task.id, {
       onSuccess: () => {
@@ -178,9 +200,12 @@ export const HomePage = () => {
             live={live}
             selectedKey={focus?.key ?? null}
             onSelect={(key) => {
-              setSelectedKey(key);
-              setTaskOpen(true);
+              const task = tasks.find((t) => t.key === key);
+              if (live && task) workOn(task);
+              else openDetails(key);
             }}
+            onInfo={openDetails}
+            agentLive={live}
             onPlan={() => openDay(today)}
             isPending={tasksPending}
           />
@@ -228,6 +253,7 @@ export const HomePage = () => {
             draftHref={focus ? draftEmailHref(focus) : null}
             onAction={() => setTaskOpen(false)}
             onDone={markDone}
+            onWork={live ? workOn : undefined}
             isPending={tasksPending}
             hasData={hasData}
             live={live}
