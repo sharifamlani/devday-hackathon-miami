@@ -1172,6 +1172,11 @@ def summarize(output) -> str:
         return f"error: {data['error']}"
     if data.get("summary_updated"):                                                # update_donor_summary
         return f"Updated {data.get('first_name') or data.get('full_name')}'s summary"
+    if isinstance(data.get("saved"), dict) and "facts" in data["saved"]:         # accept_enrichment
+        f, i = data["saved"].get("facts", 0), data["saved"].get("interests", 0)
+        kept = len(data["saved"].get("skipped_staff_tags") or [])
+        return (f"saved {f} fact{'s' if f != 1 else ''} and {i} interest tag{'s' if i != 1 else ''}"
+                + (f" ({kept} staff tag{'s' if kept != 1 else ''} kept as is)" if kept else ""))
     if "identity_match" in data and "facts" in data and "interests" in data:     # enrich_person
         nf, ni = len(data["facts"]), len(data["interests"])
         if not nf and not ni:

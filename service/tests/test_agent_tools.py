@@ -816,3 +816,11 @@ def test_enrich_person_says_when_nothing_was_found(db_file, monkeypatch):
 def test_enrich_person_is_refused_in_the_public_preview():
     """It leads to a write (accept_enrichment), so the read-only preview must refuse it."""
     assert "enrich_person" not in ca.READ_ONLY_TOOLS and not "enrich_person".startswith(ca.READ_PREFIXES)
+
+
+def test_a_saved_enrichment_step_reads_as_a_sentence():
+    out = {"saved": {"facts": 4, "interests": 6, "contact": {"employer": None}, "skipped_staff_tags": []},
+           "undo": "int_x", "undo_token": "int_x"}
+    assert ca.summarize(out) == "saved 4 facts and 6 interest tags"
+    one_each = {"saved": {"facts": 1, "interests": 1, "skipped_staff_tags": ["arts_culture"]}, "undo_token": "t"}
+    assert ca.summarize(one_each) == "saved 1 fact and 1 interest tag (1 staff tag kept as is)"
