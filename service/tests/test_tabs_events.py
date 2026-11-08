@@ -327,3 +327,23 @@ def test_event_quote_is_stored_and_a_new_snippet_is_not_a_change(conn):
     assert again["changed"] == 0
     row = conn.execute("SELECT quote, status, place FROM events WHERE id = ?", (gid,)).fetchone()
     assert tuple(row) == ("Give Miami Day is Thursday, Nov. 19", "upcoming", None)
+
+
+def test_snapshot_caps_each_events_draft_list_and_keeps_counts_exact(db_file):
+    from service import export_snapshot as ex
+
+    conn = db.connect(db_file)
+    (gmd,) = db.save_events(conn, EVENTS[:1])["ids"]
+    people = [r[0] for r in conn.execute("SELECT id FROM donors WHERE contact_type = 'giver' ORDER BY id")]
+    star = {r[0] for r in conn.execute("SELECT donor_id FROM donor_scores WHERE is_star = 1")}
+    for pid in people:
+        db.save_event_draft(conn, gmd, pid, {"subject": "GMD", "email_body": "Join us",
+                                             "status": "draft" if pid in star else "ready"})
+    snap = ex.build_snapshot(conn, rescore=False)
+    conn.close()
+    detail = snap["event_details"][str(gmd)]
+    assert len(people) > ex.SNAPSHOT_DRAFTS_PER_EVENT
+    assert len(detail["drafts"]) == ex.SNAPSHOT_DRAFTS_PER_EVENT and detail["drafts_total"] == len(people)
+    assert detail["drafts_ready"] == len(people)                                   # the count stays exact
+    in_drawers = sum(1 for d in snap["donor_details"].values() for x in d["outreach_drafts"] if x.get("event_id") == gmd)
+    assert in_drawers == len(people)                                               # every invite still reachable

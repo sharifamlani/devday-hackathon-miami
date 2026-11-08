@@ -26,6 +26,8 @@ import { Markdown } from "../misc/Markdown";
 import { useAgentRefetch } from "../providers/local/refetch";
 import { decide, sendToAgent, undoStep, useAgentChat } from "./agentChat";
 import { ApprovalCard, StepCard, UndoneNote, undoneSummary } from "./AgentCards";
+import { DictationButton, DictationHint } from "../voice/DictationButton";
+import { useDictationInput } from "../voice/useDictationInput";
 import {
   answerSummary,
   appendAnswer,
@@ -400,10 +402,12 @@ export const Composer = ({
   const inputId = useId();
   const [bloomId, setBloomId] = useState(0);
   const busy = LIVE_AGENT ? agent.pending : session.pending;
+  const dictation = useDictationInput(text, setText);
 
   const send = (question: string) => {
     const q = question.trim();
     if (!q || busy) return;
+    dictation.halt();
     if (LIVE_AGENT) void sendToAgent(q, refetch);
     else session.submit(q);
     setText("");
@@ -477,22 +481,17 @@ export const Composer = ({
           id={inputId}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ask the agent…"
+          placeholder={dictation.interim || "Ask the agent…"}
           autoComplete="off"
           className="min-w-0 flex-1 bg-transparent px-1.5 py-2 text-sm outline-none placeholder:text-muted-foreground"
         />
-        <button
-          type="button"
-          onClick={() => session.openPane("voice")}
-          aria-label="Start live transcript"
-          title="Live transcript"
-          className={cn(
-            "grid size-9 shrink-0 place-items-center rounded-full text-[#242728] hover:bg-[#edf0f2]",
-            focusRing,
-          )}
-        >
-          <AudioLines className="size-5" aria-hidden="true" />
-        </button>
+        <DictationButton
+          state={dictation.state}
+          error={dictation.error}
+          available={dictation.available}
+          onToggle={dictation.toggle}
+          className={focusRing}
+        />
         <button
           type="submit"
           onClick={(event) => {
@@ -515,6 +514,7 @@ export const Composer = ({
           <ArrowRight className="size-5" aria-hidden="true" />
         </button>
       </form>
+      <DictationHint error={dictation.error} className="px-2" />
     </div>
   );
 };
