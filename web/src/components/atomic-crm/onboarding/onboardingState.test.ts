@@ -81,6 +81,14 @@ describe("onboardingReducer", () => {
     });
   });
 
+  it("adopt (the service already has people) completes without offering the tour", () => {
+    const state = reduce(initialOnboarding(), { type: "adopt" });
+    expect(state.status).toBe("completed");
+    expect(state.completedAt).toBe(NOW);
+    expect(state.tourOffer).toBe("dismissed");
+    expect(shouldAutoShow(state, "/", null)).toBe(false);
+  });
+
   it("finish completes and offers the tour once", () => {
     let state = reduce(
       initialOnboarding(),
@@ -267,23 +275,22 @@ describe("migrating v1 progress", () => {
 });
 
 describe("onboardingStore persistence", () => {
-  let mem: ReturnType<typeof memoryStorage>;
+  // The tests run in a real browser, where `window` can't be redefined: use its own localStorage, cleared
+  // around each test so nothing leaks between tests (or into other files).
   beforeEach(() => {
-    mem = memoryStorage();
-    vi.stubGlobal("window", {
-      localStorage: mem.storage,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    });
+    window.localStorage.clear();
     onboardingStore.forget();
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    window.localStorage.clear();
+    onboardingStore.forget();
+  });
 
   it("writes every change under the versioned key and reads it back after a reload", () => {
     onboardingStore.dispatch({ type: "start" }, { open: true });
     onboardingStore.dispatch({ type: "next" });
     expect(onboardingStore.get().open).toBe(true);
-    expect(JSON.parse(mem.map.get(ONBOARDING_STORAGE_KEY)!)).toMatchObject({
+    expect(JSON.parse(window.localStorage.getItem(ONBOARDING_STORAGE_KEY)!)).toMatchObject({
       version: 2,
       step: 1,
     });
