@@ -125,7 +125,8 @@ const maskPhone = (phone: string): string => {
 /** "+13055550101" → "(305) 555-0101"; anything that is not a US number stays as stored. */
 export const formatPhone = (phone: string): string => {
   const digits = phone.replace(/\D/g, "");
-  const national = digits.length === 11 && digits[0] === "1" ? digits.slice(1) : digits;
+  const national =
+    digits.length === 11 && digits[0] === "1" ? digits.slice(1) : digits;
   if (national.length !== 10) return phone;
   return `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}`;
 };
@@ -184,13 +185,17 @@ export interface GivingSummary {
   by_year: { year: string; total: number; count: number }[];
 }
 
-/** Totals from the gifts table itself (the "why" totals can lag a merge). */
+/** A declined or failed charge stays on record but is never a gift (service targets._counted: status = 'ok'). */
+export const isCountedGift = (gift: { status?: string | null }) =>
+  gift.status == null || gift.status === "ok";
+
+/** Totals from the gifts table itself (the "why" totals can lag a merge); only counted gifts. */
 export const givingSummary = (
-  gifts: Pick<ApiGift, "amount" | "gift_date">[],
+  gifts: Pick<ApiGift, "amount" | "gift_date" | "status">[],
 ): GivingSummary => {
-  const sorted = [...gifts].sort((a, b) =>
-    b.gift_date.localeCompare(a.gift_date),
-  );
+  const sorted = gifts
+    .filter(isCountedGift)
+    .sort((a, b) => b.gift_date.localeCompare(a.gift_date));
   const lifetime = sorted.reduce((sum, g) => sum + g.amount, 0);
   const years = new Map<string, { total: number; count: number }>();
   for (const g of sorted) {
@@ -426,7 +431,7 @@ export const thankedAt = (
 
 /** What a raw detail adds to the list row: drafts, thank-you, first gift. */
 export const extrasFromDetail = (detail: RawDonorDetail): DonorExtras => {
-  const gifts = detail.gifts ?? [];
+  const gifts = (detail.gifts ?? []).filter(isCountedGift);
   const drafts = detail.outreach_drafts ?? [];
   const last = latest(...gifts.map((g) => g.gift_date));
   return {
