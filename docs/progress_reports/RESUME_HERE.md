@@ -66,3 +66,4 @@ Prod: https://devday-donor-desk.vercel.app. Lead deploys by hand only if 12 is d
   → **SHARIF DECISION**: lead recommends showing exact matches as one-click high-confidence pending cards.
   Findings: Whitaker fund mis-enriched by name-only match → 42 identity rule; live transcript drops a word at
   segment boundaries → Agent Phone.
+- **#107 MERGED (f84f35b)** ~2:45 AM on in-session APPROVE. #95 closed. #110/#112/#113 retargeted to main (all MERGEABLE) → QA grading (#110+#113 together). 12 walking prod; c9 grading the 3 rows that waited on #107.
