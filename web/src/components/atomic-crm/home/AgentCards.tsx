@@ -55,6 +55,7 @@ export const ApprovalCard = ({
   approval,
   decided,
   decision,
+  handled,
   disabled,
   onDecide,
 }: {
@@ -62,6 +63,8 @@ export const ApprovalCard = ({
   decided: boolean;
   /** The person's answer once decided (true = approved); undefined while it waits. */
   decision?: boolean;
+  /** Set when deciding failed (run already consumed): the card is closed with this label. */
+  handled?: string;
   disabled: boolean;
   onDecide: (approve: boolean) => void;
 }) => (
@@ -69,14 +72,14 @@ export const ApprovalCard = ({
     data-testid="agent-approval"
     role="group"
     aria-label={`Approve ${toolLabel(approval.tool)}`}
-    data-decision={decided ? (decision ? "approved" : "declined") : "pending"}
+    data-decision={handled ? "handled" : decided ? (decision ? "approved" : "declined") : "pending"}
     className={cn(
       "rounded-xl border bg-card px-3 py-2.5 text-[13px]",
       decided ? "border-border opacity-75" : "border-brand/40",
     )}
   >
     <p className="font-semibold">
-      {!decided ? "Needs your approval" : decision ? "Approved" : "Declined"}: {toolLabel(approval.tool)}
+      {handled ?? (!decided ? "Needs your approval" : decision ? "Approved" : "Declined")}: {toolLabel(approval.tool)}
     </p>
     {argLine(approval.args) && <p className="mt-0.5 text-muted-foreground">{argLine(approval.args)}</p>}
     {!decided && (
