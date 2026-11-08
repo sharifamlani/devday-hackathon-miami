@@ -264,10 +264,21 @@ def test_split_channels_round_trip():
     a, b = phone.split_channels(wav([STAFF_SIDE, HEARD_SIDE]))
     for track, value in ((a, 1000), (b, -1000)):
         with wave.open(io.BytesIO(track)) as w:
-            assert w.getnchannels() == 1 and w.getframerate() == 8000
+            # Twilio's 8 kHz becomes 16 kHz for the transcriber; each channel keeps only its own audio
+            assert w.getnchannels() == 1 and w.getframerate() == 16000 and w.getnframes() == 1600
             assert set(np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)) == {value}
-    mono = wav([STAFF_SIDE])
-    assert phone.split_channels(mono) == [mono]
+    (mono,) = phone.split_channels(wav([STAFF_SIDE]))
+    with wave.open(io.BytesIO(mono)) as w:
+        assert w.getnchannels() == 1 and w.getframerate() == 16000
+    already = wav([STAFF_SIDE], rate=16000)
+    assert phone.split_channels(already) == [already]
+
+
+def test_upsample_keeps_the_waveform():
+    ramp = np.arange(0, 800, 100, dtype=np.int16)            # 0, 100, ... 700 at 8 kHz
+    out, rate = phone._upsample(ramp, 8000)
+    assert rate == 16000 and len(out) == 16
+    assert out[0] == 0 and out[-1] == 700 and np.all(np.diff(out) >= 0)
 
 
 def test_is_prompt():

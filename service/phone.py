@@ -402,22 +402,35 @@ def _drive(conn: sqlite3.Connection, call_id: str, client: Twilio, sleep, transc
 # Recording -> transcript
 # ----------------------------------------------------------------------------------------------
 
+# Twilio records at 8 kHz. Probed: the file model transcribed 8 kHz speech word for word too; 16 kHz is the rate the
+# voice lane tested, so tracks are sent at that. (The first request of a process takes ~13 s, later ones ~2 s.)
+TRANSCRIBE_RATE = 16000
+
+
+def _upsample(track: np.ndarray, rate: int) -> tuple[np.ndarray, int]:
+    """16-bit samples at `rate` -> TRANSCRIBE_RATE by linear interpolation (already there or higher: unchanged)."""
+    if rate >= TRANSCRIBE_RATE or track.dtype != np.int16 or len(track) < 2:
+        return track, rate
+    n = int(len(track) * TRANSCRIBE_RATE / rate)
+    out = np.interp(np.linspace(0, len(track) - 1, n), np.arange(len(track)), track.astype(np.float64))
+    return np.round(out).astype(np.int16), TRANSCRIBE_RATE
+
+
 def split_channels(wav_bytes: bytes) -> list[bytes]:
-    """A multi-channel WAV -> one mono WAV per channel (a mono file comes back as itself)."""
+    """A WAV -> one mono 16 kHz WAV per channel (16-bit audio is upsampled; other widths pass at their rate)."""
     with wave.open(io.BytesIO(wav_bytes)) as w:
         channels, width, rate = w.getnchannels(), w.getsampwidth(), w.getframerate()
         frames = w.readframes(w.getnframes())
-    if channels == 1:
-        return [wav_bytes]
     samples = np.frombuffer(frames, dtype={1: np.uint8, 2: np.int16, 4: np.int32}[width]).reshape(-1, channels)
     out = []
     for c in range(channels):
+        track, track_rate = _upsample(np.ascontiguousarray(samples[:, c]), rate)
         buf = io.BytesIO()
         with wave.open(buf, "wb") as o:
             o.setnchannels(1)
             o.setsampwidth(width)
-            o.setframerate(rate)
-            o.writeframes(np.ascontiguousarray(samples[:, c]).tobytes())
+            o.setframerate(track_rate)
+            o.writeframes(track.tobytes())
         out.append(buf.getvalue())
     return out
 
