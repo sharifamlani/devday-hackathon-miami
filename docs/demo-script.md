@@ -90,7 +90,7 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    changes something can be undone (**Undo**). Anything that sends, merges or deletes waits for a click.
 7. **A call sheet (Sharif's Q2).** In **Ask the agent…** type *"Prep a call sheet for Priya Raman"* (verified on
    LIVE; about 5 s): the agent's steps, then the card **Call sheet: Priya Raman** (her phone with a **Call** button,
-   GIVING, RECENT CALLS, TALKING POINTS). "Everything you need before you dial, from her record." (A task row in
+   GIVING, TALKING POINTS; RECENT CALLS if she has call notes). "Everything you need before you dial, from her record." (A task row in
    **Tasks**, e.g. **Call Hye-jin Park**, does the same and adds a draft, about 28 s.)
 8. **Story-first campaign.** In **Ask the agent…** type *"Draft a thank-you to donors who gave in the last 90 days."*
    (about 38 s): **25 thank-you email drafts are ready for review … Nothing has been sent**, with the organizations that
@@ -102,9 +102,9 @@ Vercel preview shows slightly different numbers (10 duplicates, 19 tasks). Don't
    Give Miami Day gifts merges: today that wording finds 0 donors.)
 9. **Enrich on a real organization (Sharif's Q4).** The sample data is fictional, so add a real one: in **Ask the
    agent…** type *"Search for the Gates Foundation in Seattle and add it to the CRM"*. Say the city: without it the
-   identity check finds nothing. The agent finds it and adds it (**Add contact**, with **Undo**); the first chip then
-   reads **Enrich <the foundation's name>**: click it and **Send** (or type it). The agent lists the facts it found,
-   each with a **Source** link, and the interest tags, and asks whether to save them. Type *"Yes, save all of them"*:
+   identity check finds nothing. The agent finds it, adds it (**Add contact**, with **Undo**) and usually researches
+   it in the same turn (about 22 s): the facts it found, each with a **Source** link, and the interest tags, asking
+   whether to save them. (If it only adds it, click the chip **Enrich Gates Foundation** → **Send**.) Type *"Yes, save all of them"*:
    **Accept enrichment** with **Undo**. (#303 makes this save what was shown instead of researching again; until it
    merges, if it researches again, say yes once more.) "Nothing is saved until staff say so, and every fact shows
    where it came from."
