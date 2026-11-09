@@ -408,9 +408,9 @@ const GREETING =
 /** What the public preview can answer, with the demo data behind each example. */
 const PREVIEW_EXAMPLES = [
   "• “Who’s late on a usual gift?”: 5 givers, starting with Rafael Quintero and Hye-jin Park",
-  "• “Plan next week”: who to call before Give Miami Day Early Giving (Nov 14) and the 5K (Nov 15)",
-  "• “Who needs outreach because they’ve gone quiet?”",
-  "• “Monthly donors whose last gift is late”",
+  "• “Plan next week”: the 6 people to contact this week, ahead of Give Miami Day Early Giving (Nov 14)",
+  "• “Who needs outreach because they’ve gone quiet?”: 13 donors, led by Veloria Bay Foundation",
+  "• “Big donors we haven’t called this quarter”: 6 donors, including Bellweather Pines Family Foundation",
 ].join("\n");
 
 const PREVIEW_FULL_VERSION =
