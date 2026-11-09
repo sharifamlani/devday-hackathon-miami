@@ -59,6 +59,15 @@ def grade(key, ok, detail):
     save()
 
 
+def shows(page, text, timeout=20_000):
+    """True when `text` appears within `timeout` ms; a miss is a measured False, not a crash."""
+    try:
+        page.get_by_text(text).first.wait_for(timeout=timeout)
+        return True
+    except Exception:
+        return False
+
+
 def overflow(page):
     return page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
 
@@ -74,9 +83,8 @@ with sync_playwright() as p:
 
     # E1a: bare URL on an empty app = landing, no dashboard link
     page.goto(WEB + "/")
-    page.get_by_text(LANDING).wait_for(timeout=20_000)
-    no_link = page.get_by_role("link", name="Open dashboard").count() == 0
-    step(page, "landing-empty", dashboard_link=not no_link)
+    landing_empty = shows(page, LANDING) and page.get_by_role("link", name="Open dashboard").count() == 0
+    step(page, "landing-empty", ok=landing_empty)
 
     # Import, then E3: the receipt shows what /ingest reported
     page.get_by_role("button", name="Try sample data").click()
@@ -98,13 +106,16 @@ with sync_playwright() as p:
     name, site = page.get_by_label("Organization name").input_value(), page.get_by_label("Website").input_value()
     grade("E4 prefilled", name == "The Miami Foundation" and site == "miamifoundation.org", f"{name!r} / {site!r}")
 
-    # E5: Continue -> #/dashboard within 2 s
-    page.get_by_role("button", name="Continue").click()
+    # E5: Continue -> the dashboard is on screen at #/dashboard within 2 s, and stays there
     t = time.time()
-    page.wait_for_url("**/#/dashboard*", timeout=10_000)
+    page.get_by_role("button", name="Continue").click()
+    rendered = shows(page, "Q4 2026 outreach", timeout=10_000)
     took = round(time.time() - t, 1)
-    step(page, "dashboard", since_continue=took)
-    grade("E5 dashboard <= 2 s", took <= 2.0 and "#/dashboard" in page.url, f"{took} s, {page.url}")
+    page.wait_for_timeout(1000)  # a gate bounce to the landing would land in this second
+    stayed = page.url.split("?")[0].endswith("#/dashboard") and page.get_by_text(LANDING).count() == 0
+    step(page, "dashboard", since_continue=took, rendered=rendered, stayed=stayed)
+    grade("E5 dashboard <= 2 s", rendered and stayed and took <= 2.0,
+          f"dashboard rendered {rendered} in {took} s (timer started before the click); still #/dashboard 1 s later: {stayed}")
 
     # E6: research fills Impact & story, calendar, tasks within 60 s
     while time.time() - t < 60:
@@ -129,18 +140,17 @@ with sync_playwright() as p:
 
     # E1b: the bare URL again (same browser, filled DB) = landing + Open dashboard
     page.goto(WEB + "/")
-    page.get_by_text(LANDING).wait_for(timeout=20_000)
-    link = page.get_by_role("link", name="Open dashboard")
-    link.wait_for(timeout=10_000)
-    step(page, "landing-returning")
-    link.click()
-    page.wait_for_url("**/#/dashboard*", timeout=10_000)
+    landing_returning = shows(page, LANDING) and shows(page, "Open dashboard", timeout=10_000)
+    step(page, "landing-returning", ok=landing_returning)
+    if landing_returning:
+        page.get_by_role("link", name="Open dashboard").click()
+        landing_returning = shows(page, "Q4 2026 outreach", timeout=10_000)
 
     # E1c: a brand-new browser on the filled DB also starts at the landing
     fresh = b.new_context(viewport={"width": 390, "height": 844}).new_page()
     hook(fresh)
     fresh.goto(WEB + "/")
-    fresh.get_by_text(LANDING).wait_for(timeout=20_000)
+    landing_fresh = shows(fresh, LANDING) and shows(fresh, "Open dashboard", timeout=10_000)
     widths = {"landing-390": overflow(fresh)}
     fresh.screenshot(path=str(OUT / "zz-landing-390.png"))
     for route in ("#/onboarding", "#/dashboard"):
@@ -148,8 +158,10 @@ with sync_playwright() as p:
         fresh.wait_for_timeout(3000)
         widths[f"{route}-390"] = overflow(fresh)
         fresh.screenshot(path=str(OUT / f"zz-{route.strip('#/')}-390.png"))
-    grade("E1 bare URL = landing (empty, returning, fresh browser)", no_link,
-          "empty: landing, no dashboard link; returning + fresh 390 px: landing shown")
+    grade("E1 bare URL = landing (empty, returning, fresh browser)",
+          landing_empty and landing_returning and landing_fresh,
+          f"empty (no dashboard link): {landing_empty}; returning (+ Open dashboard works): {landing_returning}; "
+          f"fresh browser 390 px (+ Open dashboard): {landing_fresh}")
     grade("deep links + #/ redirect", all(deep.values()), json.dumps(deep))
     grade("E7 clean run", not log["console_errors"] and not log["failed_requests"]
           and all(v <= 0 for v in widths.values()),
