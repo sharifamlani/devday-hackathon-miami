@@ -394,7 +394,21 @@ session scratchpad `evaluator\` folder (walk observer JSON, probes, screenshots,
 
 **After the review fix pass** (`replace` redirects, `?onboarding=` dropped, null on a failed check, E5/E1 measured):
 builder re-run of `verify-journey.py` on an empty stack 8/8 PASS (dashboard rendered 0.6 s after Continue; E1's three cases
-measured); full vitest 1281 passed / 21 skipped. The criteria the fixes touch (E1, E5, Back/Forward) go back to the evaluator.
+measured); full vitest 1281 passed / 21 skipped. The criteria the fixes touch (E1, E5, Back/Forward) were re-graded by the evaluator on
+`f4cceb2` (fresh empty DB, one import): **all PASS, 0 FAIL**.
+
+| Re-graded row | Result | PASS/FAIL |
+|---|---|---|
+| E1 (all three cases measured) | empty: landing, no link · returning: landing + Open dashboard works · fresh 390 px: landing + link | PASS |
+| E2 / E4 / E7 | `/#/onboarding` at 59.3 s · name + website prefilled · 0 errors, 0 ≥ 400, overflow 0 | PASS |
+| E5 (timer before the click; must render and stay) | 0.5 s script / 0.37 s URL log; still `#/dashboard` 1 s later | PASS |
+| Back/Forward | landing ↔ dashboard | PASS |
+| Back not trapped after a redirect | `#/contacts` → `#/?onboarding=1` (replaced by `/`) → Back = `#/contacts` | PASS |
+| `?onboarding=` dropped | `/?onboarding=1#/dashboard` → `/` → Open dashboard → `#/dashboard`, stays | PASS |
+| E12 by the plan's route (Restart → Skip upload → **Continue**) | people 77 → 77, events 4 → 4, tasks 19 → 19; facts replaced 15 → 17 (re-research rewrites rows, none doubled) | PASS |
+
+Open, outside this plan: the research run can store one fact twice (website + news), so the facts count drifts between runs
+(dashboard de-duplicates on screen); route to the research owner. E9 still needs the lead's `stage_reset.sh test`.
 
 **Deviations from the wireframes (builder rulings, Sharif to accept or reject):** the 77/19/9 receipt stays on the landing
 URL and "Create organization profile" is a click (§7.1/§7.4 drew it as onboarding card 1 with an automatic move); the restart
