@@ -13,7 +13,7 @@ vi.mock("../providers/local", async (orig) => ({
   donorDeskMethods: { getDonors: (...args: unknown[]) => getDonors(...args) },
   useOrgProfile: () => ({ data: undefined }),
 }));
-const readOrganization = vi.hoisted(() => vi.fn(async () => {}));
+const readOrganization = vi.hoisted(() => vi.fn(async (_org?: unknown) => {}));
 vi.mock("./backgroundRead", async (orig) => ({
   ...(await orig<typeof import("./backgroundRead")>()),
   readOrganizationInBackground: readOrganization,
