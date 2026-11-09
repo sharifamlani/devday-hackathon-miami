@@ -237,7 +237,7 @@ const AgentMessage = ({ answer }: { answer: AskAnswer }) => {
   const summary = answerSummary(answer);
   return (
     <AgentReply>
-      <p>{summary.headline}</p>
+      <p className="whitespace-pre-line">{summary.headline}</p>
       {summary.detail && (
         <p className="mt-0.5 text-xs text-muted-foreground">{summary.detail}</p>
       )}
@@ -250,19 +250,21 @@ const AgentMessage = ({ answer }: { answer: AskAnswer }) => {
           ))}
         </ul>
       )}
-      <button
-        type="button"
-        onClick={() => session.openPane("ask")}
-        className={cn(
-          "mt-2 inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] font-semibold underline underline-offset-3 hover:decoration-2",
-          focusRing,
-        )}
-      >
-        {summary.more > 0
-          ? `Open all ${summary.rows.length + summary.more} in Ask`
-          : "Open in Ask"}
-        <ArrowRight className="size-3.5" aria-hidden="true" />
-      </button>
+      {DATA_MODE !== "snapshot" && (
+        <button
+          type="button"
+          onClick={() => session.openPane("ask")}
+          className={cn(
+            "mt-2 inline-flex min-h-8 items-center gap-1 rounded-sm text-[13px] font-semibold underline underline-offset-3 hover:decoration-2",
+            focusRing,
+          )}
+        >
+          {summary.more > 0
+            ? `Open all ${summary.rows.length + summary.more} in Ask`
+            : "Open in Ask"}
+          <ArrowRight className="size-3.5" aria-hidden="true" />
+        </button>
+      )}
     </AgentReply>
   );
 };
