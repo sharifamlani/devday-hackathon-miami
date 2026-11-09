@@ -405,11 +405,22 @@ export interface AnswerSummary {
 const GREETING =
   /^\s*(hi|hello|hey|howdy|yo|good\s+(morning|afternoon|evening))\b[\s!?.,]*$/i;
 
-/** Public preview only: a friendly reply instead of "could not read that". */
+/** What the public preview can answer, with the demo data behind each example. */
+const PREVIEW_EXAMPLES = [
+  "• “Who’s late on a usual gift?”: 5 givers, starting with Rafael Quintero and Hye-jin Park",
+  "• “Plan next week”: the 6 people to contact this week, ahead of Give Miami Day Early Giving (Nov 14)",
+  "• “Who needs outreach because they’ve gone quiet?”: 13 donors, led by Veloria Bay Foundation",
+  "• “Big donors we haven’t called this quarter”: 6 donors, including Bellweather Pines Family Foundation",
+].join("\n");
+
+const PREVIEW_FULL_VERSION =
+  "The full version also merges the 9 duplicate records, drafts emails, researches foundations and places recorded calls.";
+
+/** Public preview only: a concrete reply instead of "could not read that". */
 export const snapshotFallback = (question: string): string =>
   GREETING.test(question)
-    ? "Hi! This public preview answers sample donor questions. The full agent, which can update records, tasks and the calendar, runs on the laptop. Try one of these:"
-    : "This preview can’t answer that one. The full agent runs on the laptop. Try one of these:";
+    ? `Hi! Yes, this is the public preview, so I can’t change records here, but I can show you a lot from The Miami Foundation’s sample donors. Try asking:\n${PREVIEW_EXAMPLES}\n\n${PREVIEW_FULL_VERSION}`
+    : `This preview can’t answer that one, but here’s what it can do with the sample donors:\n${PREVIEW_EXAMPLES}\n\n${PREVIEW_FULL_VERSION}`;
 
 /** A compact reading of an Ask answer for the home thread. */
 export const answerSummary = (

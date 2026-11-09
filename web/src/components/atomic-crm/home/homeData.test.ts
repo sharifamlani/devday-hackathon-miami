@@ -384,15 +384,17 @@ describe("home data: agent thread", () => {
 
   it("snapshot mode greets instead of saying it could not read the message", () => {
     const miss = (q: string) => answer(q, [], { understood: false });
-    expect(answerSummary(miss("hello?"), 3, "snapshot").headline).toMatch(
-      /^Hi! This public preview/,
-    );
+    const hello = answerSummary(miss("hello?"), 3, "snapshot").headline;
+    expect(hello).toMatch(/^Hi! Yes, this is the public preview/);
+    expect(hello).toMatch(/Who’s late on a usual gift\?/);
+    expect(hello).toMatch(/Rafael Quintero/);
+    expect(hello).not.toMatch(/Try one of these:$/);
     expect(answerSummary(miss("Good morning"), 3, "snapshot").headline).toMatch(
       /^Hi! /,
     );
-    expect(answerSummary(miss("what is the weather"), 3, "snapshot").headline).toBe(
-      "This preview can’t answer that one. The full agent runs on the laptop. Try one of these:",
-    );
+    const miss2 = answerSummary(miss("what is the weather"), 3, "snapshot").headline;
+    expect(miss2).toMatch(/^This preview can’t answer that one, but here’s what it can do/);
+    expect(miss2).toMatch(/Plan next week/);
     expect(answerSummary(miss("hello?"), 3, "local").headline).toMatch(
       /read that as a donor question/,
     );
