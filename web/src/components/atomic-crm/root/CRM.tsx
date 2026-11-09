@@ -7,6 +7,9 @@ import type {
 import { CustomRoutes, localStorageStore, Resource } from "ra-core";
 import { useEffect, useMemo } from "react";
 import { Route } from "react-router";
+import { HOME } from "../home/homePath";
+import { HomeRedirect } from "../home/HomeRedirect";
+import { OnboardingPage } from "../onboarding/OnboardingPage";
 import { CalendarV3 } from "../home/calendar/CalendarV3";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
@@ -233,13 +236,15 @@ const DesktopAdmin = (
     layout?: LayoutComponent;
   },
 ) => {
+  // docs/plans/user-journey.md §3: the dashboard has its own URL (#/dashboard); "/" redirects there.
+  const Home = props.dashboard ?? Dashboard;
   return (
-    <Admin
-      layout={props.layout ?? Layout}
-      dashboard={props.dashboard ?? Dashboard}
-      {...props}
-    >
+    <Admin {...props} layout={props.layout ?? Layout} dashboard={HomeRedirect}>
+      <CustomRoutes>
+        <Route path={HOME} element={<Home />} />
+      </CustomRoutes>
       <CustomRoutes noLayout>
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path={SignupPage.path} element={<SignupPage />} />
         <Route
           path={ConfirmationRequired.path}
@@ -299,6 +304,7 @@ const MobileAdmin = (
     layout?: LayoutComponent;
   },
 ) => {
+  const MobileHome = props.dashboard ?? MobileDashboard;
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -332,11 +338,15 @@ const MobileAdmin = (
     >
       <Admin
         queryClient={queryClient}
-        layout={props.layout ?? MobileLayout}
-        dashboard={props.dashboard ?? MobileDashboard}
         {...props}
+        layout={props.layout ?? MobileLayout}
+        dashboard={HomeRedirect}
       >
+        <CustomRoutes>
+          <Route path={HOME} element={<MobileHome />} />
+        </CustomRoutes>
         <CustomRoutes noLayout>
+          <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path={SignupPage.path} element={<SignupPage />} />
           <Route
             path={ConfirmationRequired.path}

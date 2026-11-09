@@ -35,34 +35,30 @@ const subscribeToHash = (onChange: () => void) => {
 };
 const getHash = () => window.location.hash;
 
-/** Keep existing workspace deep links; the bare app URL opens the landing page. */
+/**
+ * The bare app URL is always the landing (docs/plans/user-journey.md §3), whatever is in the database or this
+ * browser's setup state; "#/welcome" shows it too. Every other hash is the app: #/onboarding, #/dashboard and
+ * the workspace pages and deep links.
+ */
 export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
   const hash = useSyncExternalStore(subscribeToHash, getHash, () => "");
-  // Live mode: the bare URL shows the landing only while the app has no people
-  // and first-run setup is done or skipped; otherwise it goes straight to the
-  // board (where onboarding opens when it is still to do). "#/welcome" always
-  // shows the landing. The read-only snapshot build always has people, so it
-  // keeps the landing as its front door.
-  const hasPeople = useHasPeople();
-  // One front door: while first-run setup is still to do, the empty app goes
-  // straight into it (onboarding step 1 is where files are uploaded, once).
-  // The landing is for an empty app whose setup was already finished or skipped.
-  const { data: onboarding } = useOnboarding();
-  const setupPending = DATA_MODE === "local" && !onboarding.completedAt;
-  // useHasPeople reads /donors once, on mount: for an app that started empty it
-  // stays false. When setup finishes in this page load its files have been
-  // imported, so the board stays; the landing is never the next screen.
-  const sawSetupPending = useRef(false);
-  if (setupPending) sawSetupPending.current = true;
-  const justFinishedSetup = sawSetupPending.current && !setupPending;
-  if (hash === "#/welcome") return <KindredLanding />;
-  if (hash !== "") return children;
-  if (hasPeople === null) return null;
-  return hasPeople || setupPending || justFinishedSetup ? (
-    children
-  ) : (
-    <KindredLanding />
-  );
+  if (hash === "" || hash === "#" || hash === "#/welcome") return <KindredLanding />;
+  return children;
+};
+
+/**
+ * Back to the start of the journey: the bare URL (no hash), so the gate shows the landing. A redirect passes
+ * `replace` (no new history entry, so Back isn't trapped on a page that redirects again); a click pushes.
+ * `?onboarding=…` is dropped: it means "start at the landing", and kept it would send #/dashboard back here.
+ */
+export const openLanding = ({ replace = false }: { replace?: boolean } = {}) => {
+  const params = new URLSearchParams(window.location.search);
+  params.delete("onboarding");
+  const query = params.toString();
+  const url = window.location.pathname + (query ? `?${query}` : "");
+  if (replace) window.history.replaceState(null, "", url);
+  else window.history.pushState(null, "", url);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
 };
 
 /** null while the live service is being asked; always false in snapshot mode. */
@@ -129,13 +125,12 @@ const useElapsed = (active: boolean) => {
 
 export const KindredLanding = ({
   onPreviewUpload,
-  onSkip,
 }: {
   /** Development-only click-through: no file is read or sent by this action. */
   onPreviewUpload?: () => void;
-  /** Setup step 1 only: leave setup for later (the dashboard opens). */
-  onSkip?: () => void;
 } = {}) => {
+  // A returning visitor (the service already has people) gets a way past the landing.
+  const hasPeople = useHasPeople();
   const [areColorsPaused, setColorsPaused] = useState(false);
   const [isUploadOpen, setUploadOpen] = useState(false);
   const [isSampleOpen, setSampleOpen] = useState(false);
@@ -228,8 +223,7 @@ export const KindredLanding = ({
         onContinue={() => {
           if (!result) return;
           onboarding.update({ files: ingestSummary(result, files.length) });
-          onboarding.start(1);
-          window.location.hash = "#/";
+          window.location.hash = "#/onboarding";
         }}
         onReviewDuplicates={() => {
           onboarding.finishLater();
@@ -320,10 +314,10 @@ export const KindredLanding = ({
           <li>Understand your donors</li>
           <li>Reach out thoughtfully</li>
         </ol>
-        {onSkip && (
-          <button type="button" className="kindred-skip" onClick={onSkip}>
-            Skip for now
-          </button>
+        {hasPeople && (
+          <a className="kindred-skip" href="#/dashboard">
+            Open dashboard →
+          </a>
         )}
       </div>
 
@@ -407,7 +401,7 @@ export const KindredLanding = ({
             </form>
           )}
           {(result || !canUpload) && (
-            <a className="kindred-workspace-link" href="#/">
+            <a className="kindred-workspace-link" href="#/dashboard">
               {result ? "View donor workspace" : "Explore sample workspace"}
             </a>
           )}
@@ -554,7 +548,7 @@ const SampleDialog = ({
         {done && (
           <a
             className="kindred-workspace-link"
-            href="#/"
+            href="#/dashboard"
             onClick={openWorkspace}
           >
             Open the CRM

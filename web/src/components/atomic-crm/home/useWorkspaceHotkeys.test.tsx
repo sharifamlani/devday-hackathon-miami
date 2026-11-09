@@ -67,6 +67,13 @@ describe("useWorkspaceHotkeys", () => {
     expect(e.defaultPrevented).toBe(true);
   });
 
+  it("at #/dashboard (home's own URL) Alt+C toggles the calendar in place, like at /", async () => {
+    await mount("/dashboard");
+    const e = press({ key: "ç", code: "KeyC", altKey: true });
+    expect(toggle).toHaveBeenCalledWith("calendar", null);
+    expect(e.defaultPrevented).toBe(true);
+  });
+
   it("S1: passes the tile element so the zoom starts there (when visible)", async () => {
     await mount();
     press({ key: "t", code: "KeyT", altKey: true });
@@ -118,13 +125,13 @@ describe("useWorkspaceHotkeys", () => {
     expect(e.defaultPrevented).toBe(false);
   });
 
-  it("S-neg: off Home it navigates instead of toggling", async () => {
+  it("S-neg: off Home it navigates to the dashboard URL instead of toggling", async () => {
     await mount("/contacts");
     const e = press({ code: "KeyC", altKey: true });
     expect(toggle).not.toHaveBeenCalled();
     expect(e.defaultPrevented).toBe(true);
     await expect
       .poll(() => document.querySelector("[data-loc]")?.getAttribute("data-loc"))
-      .toBe("/?workspace=calendar");
+      .toBe("/dashboard?workspace=calendar");
   });
 });

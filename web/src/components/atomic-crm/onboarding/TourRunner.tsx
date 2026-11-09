@@ -9,6 +9,7 @@ import {
   tourSelector,
   type TourStop,
 } from "./tour";
+import { HOME, isHomePath } from "../home/homePath";
 import "./onboarding.css";
 
 const findTarget = (id: TourStop["id"]) =>
@@ -26,8 +27,8 @@ export const TourRunner = () => {
   const [stops, setStops] = useState<TourStop[] | null>(null);
 
   useEffect(() => {
-    if (location.pathname !== "/") {
-      navigate("/");
+    if (!isHomePath(location.pathname)) {
+      navigate(HOME);
       return;
     }
     let tries = 0;

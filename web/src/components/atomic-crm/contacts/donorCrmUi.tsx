@@ -9,6 +9,7 @@ import {
   DONOR_TAG_LABELS,
   type DonorTag,
 } from "../providers/local/crmDonors";
+import { isHomePath } from "../home/homePath";
 
 /** The shell's Kindred tile (the `tile` utility in index.css). */
 export const tileClass = "tile";
@@ -71,7 +72,7 @@ export const InitialsAvatar = ({
 /** People | Organizations, shown above both Donors lists. */
 export const DonorsTabs = () => {
   const location = useLocation();
-  const home = location.pathname === "/";
+  const home = isHomePath(location.pathname);
   const workspace = new URLSearchParams(location.search).get("workspace");
   return (
     <nav

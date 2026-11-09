@@ -18,6 +18,7 @@ import { DashboardControls } from "./DashboardControls";
 import { OnboardingGate } from "../onboarding/OnboardingGate";
 import { DATA_MODE } from "../providers/local/config";
 import { SampleDataBadge } from "./SampleDataBadge";
+import { isHomePath } from "../home/homePath";
 
 export const MobileLayout = ({ children }: { children: ReactNode }) => {
   useConfigurationLoader();
@@ -40,7 +41,7 @@ export const MobileLayout = ({ children }: { children: ReactNode }) => {
  */
 const MobileShell = ({ children }: { children: ReactNode }) => {
   const { sidebarOpen } = useAskSession();
-  const onHome = useLocation().pathname === "/";
+  const onHome = isHomePath(useLocation().pathname);
   return (
     <>
       <div inert={sidebarOpen}>

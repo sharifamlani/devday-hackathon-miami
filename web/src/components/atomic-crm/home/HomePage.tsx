@@ -54,6 +54,7 @@ import {
   PANEL_TITLES,
 } from "./panels/PanelFrame";
 import { useWorkspaceView } from "./workspaceView";
+import { HOME } from "./homePath";
 import "./dashboard.css";
 import "./zoom.css";
 
@@ -129,7 +130,7 @@ export const HomePage = () => {
       setStatus("The agent is still working. Try the task again in a moment.");
       return;
     }
-    navigate("/");
+    navigate(HOME);
     void sendToAgent(taskPrompt(task), refetch);
     setStatus(`Handed to the agent: ${task.title}.`);
   };

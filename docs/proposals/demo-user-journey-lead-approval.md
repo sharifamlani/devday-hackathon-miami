@@ -1,6 +1,8 @@
 # Proposal: Demo user journey update
 
-**Status:** Implemented on `feat/demo-user-journey` (authorized by project owner on 2026-11-08)
+**Status:** Implemented on `feat/demo-user-journey` (authorized by project owner on 2026-11-08). Its routing (landing →
+onboarding → dashboard) is superseded by `docs/plans/user-journey.md` (three URLs, `feat/user-journey-urls`); the
+research, fallback and fixture parts stand.
 **Requested by:** Sharif  
 **Scope:** Frontend entry/onboarding, organization context research and demo data handoff  
 **Implementation authorization:** The project owner directed implementation of this proposal on 2026-11-08.

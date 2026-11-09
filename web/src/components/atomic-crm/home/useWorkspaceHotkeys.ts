@@ -5,6 +5,7 @@ import {
   toggleWorkspace,
   type WorkspaceView,
 } from "./workspaceView";
+import { HOME, isHomePath } from "./homePath";
 
 export const DICTATION_TOGGLE_EVENT = "desk:dictation-toggle";
 
@@ -71,15 +72,15 @@ export function useWorkspaceHotkeys() {
       if (!hit || modalOpen()) return;
       if (typingOutsideComposer(e.target)) return;
       if ("dictation" in hit) {
-        if (pathname !== "/") return;
+        if (!isHomePath(pathname)) return;
         e.preventDefault();
         window.dispatchEvent(new CustomEvent(DICTATION_TOGGLE_EVENT));
         return;
       }
       e.preventDefault();
-      if (pathname !== "/") {
+      if (!isHomePath(pathname)) {
         navigate(
-          { pathname: "/", search: serializeWorkspace("", hit.view) },
+          { pathname: HOME, search: serializeWorkspace("", hit.view) },
           { state: { zoom: true } },
         );
         return;

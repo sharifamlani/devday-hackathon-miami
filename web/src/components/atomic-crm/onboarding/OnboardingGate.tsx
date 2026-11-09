@@ -1,56 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "react-router";
 
-import { DATA_MODE, donorDeskMethods } from "../providers/local";
+import { isHomePath } from "../home/homePath";
+import { openLanding } from "../landing/KindredLanding";
+import { DATA_MODE } from "../providers/local";
 import { useBackgroundWatcher } from "./backgroundRead";
 import { OnboardingFlow } from "./OnboardingFlow";
 import {
   readOnboardingParam,
   shouldAdopt,
-  shouldAutoShow,
   shouldOfferTour,
   shouldShowBackground,
   useOnboarding,
 } from "./onboardingState";
 import { TourOffer } from "./TourOffer";
 import { TourRunner } from "./TourRunner";
+import { useServiceHasPeople } from "./useServiceHasPeople";
 
 /**
- * Mount once in the layout. Opens first-run setup on the first visit to the
- * homepage ("/") for someone new, or when `?onboarding=1` is in the URL
- * (demos; `?onboarding=0` keeps it closed). It fires at most once per page
- * load, so closing the flow never reopens it by itself. The flag lives at
- * module level because react-admin can remount the layout (and this gate)
- * while it settles its routes. After setup, the dashboard offers the tour,
- * and a slow website read keeps a status line until it's done.
+ * Mount once in the layout. Setup has its own page now (docs/plans/user-journey.md §3): the journey is the
+ * landing (bare URL) → #/onboarding → #/dashboard, so this gate never opens setup over the dashboard by
+ * itself. An empty app's dashboard goes back to the landing (live mode), and so does `?onboarding=1`
+ * (demos). A new browser on a filled service adopts setup as done. After setup, the dashboard offers the
+ * tour, and a slow website read keeps a status line until it's done.
  */
-let firedThisPageLoad = false;
-
-/**
- * Live mode: does the service already have people? null while asking. Setup is remembered only in this
- * browser's localStorage, so a new browser (or incognito) on a filled service would otherwise get
- * step 1 over a working dashboard. Snapshot mode: always false, so nothing changes there.
- */
-const useServiceHasPeople = (): boolean | null => {
-  const [hasPeople, setHasPeople] = useState<boolean | null>(
-    DATA_MODE === "local" ? null : false,
-  );
-  useEffect(() => {
-    if (DATA_MODE !== "local") return;
-    let live = true;
-    donorDeskMethods
-      .getDonors()
-      .then((donors) => live && setHasPeople(donors.length > 0))
-      .catch(() => live && setHasPeople(false));
-    return () => {
-      live = false;
-    };
-  }, []);
-  return hasPeople;
-};
-
 export const OnboardingGate = () => {
-  const { open, tour, data, start, adopt } = useOnboarding();
+  const { open, tour, data, adopt } = useOnboarding();
   const hasPeople = useServiceHasPeople();
   const { pathname, search } = useLocation();
   const param = readOnboardingParam(
@@ -60,20 +35,12 @@ export const OnboardingGate = () => {
   useBackgroundWatcher(data.background?.status === "running");
 
   useEffect(() => {
-    if (open || tour || firedThisPageLoad) return;
-    if (!shouldAutoShow(data, pathname, param)) return;
-    // Only a browser that never started setup can adopt; one mid-setup resumes at its saved step below.
-    if (param !== "force" && data.status === "new") {
-      if (hasPeople === null) return; // still asking the service
-      if (shouldAdopt(data, hasPeople)) {
-        adopt(); // set up already (another browser): done here too, no overlay
-        return;
-      }
-    }
-    firedThisPageLoad = true;
-    // A demo always starts at step 1; otherwise resume where they left off.
-    start(param === "force" ? 0 : data.step);
-  }, [open, tour, data, pathname, param, start, hasPeople, adopt]);
+    if (!isHomePath(pathname)) return; // deep links (#/contacts …) always open
+    if (param === "force") return openLanding({ replace: true });
+    if (DATA_MODE !== "local" || hasPeople === null) return; // still asking the service
+    if (!hasPeople) return openLanding({ replace: true }); // nothing to show yet: start the journey
+    if (shouldAdopt(data, hasPeople)) adopt(); // set up already (another browser): done here too
+  }, [pathname, param, hasPeople, data, adopt]);
 
   if (open) return <OnboardingFlow />;
   if (tour) return <TourRunner />;

@@ -6,7 +6,10 @@ import { KindredLanding } from "./KindredLanding";
 const uploadFiles = vi.fn();
 vi.mock("../providers/local", () => ({
   DATA_MODE: "local",
-  donorDeskMethods: { uploadFiles: (...args: unknown[]) => uploadFiles(...args) },
+  donorDeskMethods: {
+    uploadFiles: (...args: unknown[]) => uploadFiles(...args),
+    getDonors: async () => [],
+  },
 }));
 
 const manifest = {

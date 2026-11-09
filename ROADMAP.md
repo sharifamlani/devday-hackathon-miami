@@ -4,7 +4,7 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.11 · Sun Nov 8, 2026 (early morning) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.12 · Sun Nov 8, 2026 (evening) · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
@@ -201,7 +201,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 5E.8 | Late and failed monthly gifts (challenge #2 minimum; Christian's issue #39) | 42 | ⏳ | — | `plan.md` §17 |
 | 5E.9 | Hooks for tabs, upload target, events, community stats, chat + send batch; README rules for Christian | 80 | ⏳ | — | `plan.md` §17 |
 | 5E.10 | Christian's screens: tabs, upload (tab choice / agent sort), calendar, chat panel | Christian | ⏸ | — | `plan.md` §17 |
-| 5E.11 | Landing page (Faye's PR #41): decide the name (kindred vs Donor Desk) + the landing gate | Sharif | ⏸ | — | `plan.md` §17 |
+| 5E.11 | Landing page (Faye's PR #41): decide the name (kindred vs Donor Desk) + the landing gate | Sharif | 🔄 PR open (`feat/user-journey-urls`): landing `/` → `#/onboarding` → `#/dashboard`; awaiting QA gate + evaluator | — | `docs/plans/user-journey.md` |
 | 5E.12 | QA against plan §17 criteria + the overlap check on every PR | 98 | ⏳ | — | `plan.md` §17 |
 | 5E.13 | Backlog from Christian's issues: #37 targets, #40 merge history/undo (#36 Ask bar → covered by the chat agent; #38 → 5E.5) | — | ⏸ | — | `plan.md` §17 |
 | 5E.14 | One context database: org_profile + org_context + events (calendar) + event_audience + event_drafts + context_refresh_log | 8b | ⏸ | — | `plan.md` §17 amendment |
@@ -299,6 +299,8 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 - `docs/hackathon-kit/lessons-learned.md`: 12 rules from past events
 
 ## §6 Changelog
+
+- **v0.12 · Sun Nov 8, 2026 (evening):** 5E.11 → PR open on `feat/user-journey-urls` (post-demo): the bare URL is always the landing, setup's organization card is `#/onboarding`, the dashboard is `#/dashboard` (`/` redirects), website prefilled, account menu **Restart onboarding** with a double-import guard, `scripts/verify-journey.py` (E1–E7). Unblocks: the evaluator's grade of `docs/plans/user-journey.md` §9/§11. Not merged during the freeze.
 
 - **Stat-MCP transaction-first file import (feature branch):** CSV, JSON, XLSX, DOCX, Markdown, and text readers preserve explicit events and derive person summaries; batch MCP import added, server default moved to port 8010. Main-app `/ingest` adapter and SQLite persistence remain a separate integration step.
 

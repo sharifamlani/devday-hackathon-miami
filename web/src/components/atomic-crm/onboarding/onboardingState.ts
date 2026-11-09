@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { isHomePath } from "../home/homePath";
 
 /**
  * First run (plan.md §21.2.2): persisted progress and the pure rules behind it.
@@ -59,6 +60,12 @@ export const EMPTY_LINKS: OrgLinks = {
   x: "",
   linkedin: "",
   instagram: "",
+};
+
+/** A new browser's organization step: the demo organization, name and website, both editable. */
+export const DEMO_LINKS: OrgLinks = {
+  ...EMPTY_LINKS,
+  website: "https://miamifoundation.org",
 };
 
 /** The three CRM tabs POST /ingest sorts people into (by_tab). */
@@ -137,7 +144,7 @@ export const initialOnboarding = (): OnboardingData => ({
   version: ONBOARDING_VERSION,
   status: "new",
   step: 0,
-  links: { ...EMPTY_LINKS },
+  links: { ...DEMO_LINKS },
   linksSavedTo: null,
   files: null,
   context: null,
@@ -446,7 +453,7 @@ export const readOnboardingParam = (
   return null;
 };
 
-const isHome = (pathname: string) => pathname === "/" || pathname === "";
+const isHome = isHomePath;
 
 /** Auto-open only on the homepage, for someone who never started (or left mid-flow). */
 export const shouldAutoShow = (

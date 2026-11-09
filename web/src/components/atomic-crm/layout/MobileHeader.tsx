@@ -2,7 +2,10 @@ import { ThemeToggleButton } from "@/components/admin/theme-mode-toggle";
 import { UserMenu } from "@/components/admin/user-menu";
 
 import { AskSidebarTrigger, LiveTranscriptTrigger } from "../ask/AskSidebar";
-import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
+import {
+  RestartOnboardingDialog,
+  RestartOnboardingMenuItem,
+} from "../onboarding/RestartOnboardingMenuItem";
 import { MotionMenuItems } from "./MotionMenuItems";
 import { PublicLinkMenuItem } from "./PublicLinkMenuItem";
 import { SampleDataBadge } from "./SampleDataBadge";
@@ -33,6 +36,7 @@ const MobileHeader = ({ children }: { children: React.ReactNode }) => {
             <PublicLinkMenuItem />
             <MotionMenuItems />
           </UserMenu>
+          <RestartOnboardingDialog />
         </span>
       </div>
     </header>
