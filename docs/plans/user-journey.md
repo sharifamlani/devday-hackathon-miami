@@ -372,6 +372,31 @@ rename and reorder the item; add the filled-DB confirm in `RestartOnboardingMenu
 
 ## 12. Scorecard (filled at close by the evaluator)
 
+Graded by the independent evaluator agent on `b1f365d` (isolated stack :5192/:8192, empty DB, one import). Evidence in the
+session scratchpad `evaluator\` folder (walk observer JSON, probes, screenshots, vitest/pytest logs).
+
 | Criterion | Threshold | Result | Evidence | PASS/FAIL |
 |---|---|---|---|---|
-| E1–E12 | see §9 and §11 | — | — | — |
+| E1 bare URL = landing | empty + filled DB | empty: landing, no link; filled: landing + Open dashboard at 1440 and 390 px | landing-empty / landing-fresh screenshots | PASS |
+| E2 onboarding URL | `/#/onboarding` ≤ 120 s | `/` → `/#/onboarding` at 56.3 s | observer nav log | PASS |
+| E3 receipt = ingest | 77/19/9 = `/ingest` | people_added 77, duplicates_removed 19, suggestions 9 = screen | observer + receipt screenshot | PASS |
+| E4 prefilled | name + website | "The Miami Foundation" / "miamifoundation.org" | journey.json | PASS |
+| E5 dashboard ≤ 2 s | ≤ 2 s | ≤ 0.3 s (URL log) | observer nav log | PASS |
+| E6 dashboard fills | facts ≥ 10, events ≥ 1, tasks ≥ 15 in 60 s | 15 / 4 / 19 at 26 s; screen 14 facts (deduped), 4, 18 = /home/summary | probe.json | PASS |
+| E7 clean run | 0 errors, 0 ≥ 400, no overflow | 0 / 0 / 0 at 390 px | observer + probe | PASS |
+| E8 nothing broke | vitest + pytest green, deep links | vitest 1278 passed / 21 skipped; pytest 771 passed / 1 skipped | vitest.log, pytest.log | PASS |
+| E9 T-30 reset | `stage_reset.sh test` exit 0 | not run (shared stacks) | — | NOT MEASURED |
+| E10 name heads menu | name + restart item | "Sharif", Restart onboarding first (desktop + mobile) | e10-menu screenshot | PASS |
+| E11 restart reaches onboarding | Skip upload → `#/onboarding`, Start over → `/` | both, plus Finish later → `#/dashboard` | e11 screenshots | PASS |
+| E12 no double import | /people stays 77 | 77 → 77 (via Skip upload → Finish later) | probe.json | PASS |
+| deep links + `#/` redirect | open | `#/` → `#/dashboard`; contacts, calendar, inbox open | deep screenshots | PASS |
+| Back/Forward | work | landing ↔ dashboard | bf screenshots | PASS |
+
+**After the review fix pass** (`replace` redirects, `?onboarding=` dropped, null on a failed check, E5/E1 measured):
+builder re-run of `verify-journey.py` on an empty stack 8/8 PASS (dashboard rendered 0.6 s after Continue; E1's three cases
+measured); full vitest 1281 passed / 21 skipped. The criteria the fixes touch (E1, E5, Back/Forward) go back to the evaluator.
+
+**Deviations from the wireframes (builder rulings, Sharif to accept or reject):** the 77/19/9 receipt stays on the landing
+URL and "Create organization profile" is a click (§7.1/§7.4 drew it as onboarding card 1 with an automatic move); the restart
+dialog says "Your people stay." without the count; the onboarding card keeps the setup frame's own header. The Impact & story
+count on screen de-duplicates facts, so it can read one lower than `GET /context` (G1).
