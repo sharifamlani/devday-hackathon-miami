@@ -657,9 +657,14 @@ const PrefixField = ({
 
 export const OrganizationStep = ({
   onContinue,
+  onFinishLater,
   onBusy: _onBusy,
   ...frame
-}: StepFrameProps & { onContinue: (links: OrgLinks) => void }) => {
+}: StepFrameProps & {
+  onContinue: (links: OrgLinks) => void;
+  /** Where "Finish later" goes; the #/onboarding page also opens the dashboard. */
+  onFinishLater?: () => void;
+}) => {
   const { data, finishLater } = useOnboarding();
   const { data: profile } = useOrgProfile();
   const [socialsOpen, setSocialsOpen] = useState(false);
@@ -843,7 +848,7 @@ export const OrganizationStep = ({
         <button className="onb-org-continue" type="submit">
           Continue
         </button>
-        <button className="onb-org-finish" type="button" onClick={finishLater}>
+        <button className="onb-org-finish" type="button" onClick={onFinishLater ?? finishLater}>
           Finish later
         </button>
       </div>

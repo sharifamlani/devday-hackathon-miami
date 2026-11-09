@@ -45,7 +45,7 @@ describe("Try sample data (snapshot mode)", () => {
       .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: "Open the CRM" }))
-      .toHaveAttribute("href", "#/");
+      .toHaveAttribute("href", "#/dashboard");
   });
 
   it("Open the CRM skips setup: the dashboard opens with the tour offered, not step 1", async () => {
