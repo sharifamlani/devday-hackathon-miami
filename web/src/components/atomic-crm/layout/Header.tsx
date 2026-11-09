@@ -4,6 +4,7 @@ import { useConfigurationContext } from "../root/ConfigurationContext";
 import { wordmarkText } from "../root/defaultConfiguration";
 import { GlobalSearchButton } from "../search/GlobalSearchButton";
 import { SampleDataBadge } from "./SampleDataBadge";
+import { HOME, isHomePath } from "../home/homePath";
 
 /**
  * Top bar on every page, as on Home: the wordmark and the Sample data label. The page
@@ -12,7 +13,7 @@ import { SampleDataBadge } from "./SampleDataBadge";
 const Header = () => {
   const { title } = useConfigurationContext();
   const navigate = useNavigate();
-  const onHome = useLocation().pathname === "/";
+  const onHome = isHomePath(useLocation().pathname);
 
   return (
     <header className="flex h-[46px] shrink-0 items-center gap-2">
@@ -28,7 +29,7 @@ const Header = () => {
       {!onHome && (
         <button
           type="button"
-          onClick={() => navigate("/")}
+          onClick={() => navigate(HOME)}
           aria-label="Close and go to Home"
           title="Close"
           className="grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"

@@ -25,6 +25,7 @@ import {
 } from "../providers/local/hooks";
 import type { DuplicateDonor, DuplicatePair } from "../providers/local/types";
 import { formatUsd } from "./donorFormat";
+import { HOME } from "../home/homePath";
 
 /**
  * "We found this donor twice." Banner + review dialog fed by GET /duplicates.
@@ -80,7 +81,7 @@ export const DuplicateBanner = ({ donorId }: { donorId?: number } = {}) => {
               variant="outline"
               className="min-h-11 rounded-[28px] px-5 text-xs font-medium"
               onClick={() => {
-                navigate("/");
+                navigate(HOME);
                 void sendToAgent("Fix the duplicate records", refetch);
               }}
             >

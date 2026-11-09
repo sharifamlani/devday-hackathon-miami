@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { isHomePath } from "../home/homePath";
 
 /**
  * First run (plan.md §21.2.2): persisted progress and the pure rules behind it.
@@ -452,7 +453,7 @@ export const readOnboardingParam = (
   return null;
 };
 
-const isHome = (pathname: string) => pathname === "/" || pathname === "";
+const isHome = isHomePath;
 
 /** Auto-open only on the homepage, for someone who never started (or left mid-flow). */
 export const shouldAutoShow = (
