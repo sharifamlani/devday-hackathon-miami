@@ -74,7 +74,8 @@ profile at a time.
 
 | # | When | Step | Gate |
 |---|---|---|---|
-| F1 | F | **Freeze.** Tag `demo`, push tags. **Nothing merges after this** | `git tag demo` on the deployed commit |
+| F1 | F | **Freeze.** Tag `demo`, push tags. **Nothing merges after this**; the demo flow is frozen too | `git tag demo` on the deployed commit |
+| F1b | F + 2 min | **Record the FULL-demo video** (3–5 min walkthrough of the real app, every scripted moment; never a teaser; skill `hackathon-demo-video`). Upload, check it plays logged out | The link plays and is in the submission (DevDay was lost on a teaser video) |
 | F2 | F + 5 min | Rehearsal 1, timed, on the venue setup | Under the limit, no dead ends |
 | F3 | F + 15 min | Fix only what rehearsal 1 broke; rehearsal 2 | Under the limit twice |
 | F4 | per K1 | Submit (form / repo link / README) | Confirmation received |

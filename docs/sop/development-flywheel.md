@@ -13,6 +13,15 @@ agent that did the previous one. A feature is **done** only when step 5 passes o
    └─────────────────────────┴───────────── 6 LOOP (lead routes to owner) <─────┘
 ```
 
+## Two modes (Sharif, after DevDay)
+
+- **Production mode:** the wheel above, with the QA gate (step 2) before every merge.
+- **Hackathon mode: no QA agent.** Builders run their own tests and open a PR; the lead merges; the Integrate lane
+  puts it on LIVE only after the **User-Journey agent** (a real browser, typing like a user, screen vs API/SQL) passes.
+  Pinned merges, backups before every LIVE move, and "nobody tests their own work" stay.
+- Both modes: a standing User-Journey agent walks every merge on its own stack and does a read-only walk of LIVE
+  after every move (user-level skill `user-journey-tester`). Test lanes never run first-run imports on LIVE.
+
 ## Step 0: Define (BEFORE any code)
 The lead and builder write a **feature card**. It goes in the PR body, and the brief, before the first commit. It is
 the contract that QA and the live AI tester grade against, and it can't be loosened after the fact.
