@@ -7,7 +7,7 @@
 | DevDay Exchange: Miami | Sat–Sun Nov 7–8, 2026 | Did not place: **the video was a teaser, not the demo** | `../lessons-from-devday-miami.md` |
 
 **DevDay in one line:** our best product to date (a 10–17 session fleet, ~1,340 commits, 300+ PRs) lost because
-the submitted video teased the product instead of showing it. Rules 13–18 below come from DevDay.
+the submitted video teased the product instead of showing it. Rules 13–19 below come from DevDay.
 
 Same team core, same tools, same playbook, five days apart. The engineering was about equal
 (76 commits vs 112). **What decided it was the first hour and the last thirty minutes.** The winner
@@ -147,7 +147,16 @@ Turn on branch protection at kickoff (only the lead merges). After F, change not
 ideas go on a branch for after the event. DevDay's last three hours went to ungated merges and a demo flow that
 changed five times.
 
-### 18. Never clear or restart the human's live app without asking
+### 18. No backend API in a hackathon: frontend-first, serverless, always on a Vercel URL
+
+DevDay's FastAPI + SQLite backend ran on the laptop, so the real app lived at `localhost`, the public link needed a
+tunnel to the laptop, the database was local to one machine, and every change meant restarting local services
+(and the shared local db is what got doubled). Build the whole product in the frontend instead: keep high-level
+functionality, but put data in browser storage, static files or a hosted store, and put the few things that need a
+secret (an LLM call, a phone call) in serverless functions on the same Vercel project. Then every commit ships to one
+public URL that is the product, and the demo is that URL.
+
+### 19. Never clear or restart the human's live app without asking
 
 Don't wipe data, reset, or restart services the human is using without an explicit yes in that moment. At DevDay a
 scheduled "empty start" reset surprised the presenter, and a restart cut a live request mid-answer.

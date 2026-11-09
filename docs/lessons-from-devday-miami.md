@@ -36,6 +36,7 @@ email draft. The product won the work; the video lost the judging.
 | W7 | **The lead stated causes before checking** ("it's this laptop", "the agent refused on purpose") | Two wrong explanations to the human, corrected minutes later | Read the code and the logs first; say "checking" rather than guessing |
 | W8 | **The QA gate added a round trip to every change** at the end | Small docs and one-line fixes waited 10–20 min each | In hackathons, drop the separate QA agent (rule 15) |
 | W9 | **The repo went public at 4:00 PM**, after a "no" at 2 PM | A last-minute flip and a rule-12 risk | Decide visibility at kickoff; keep history clean from the first commit |
+| W11 | **We built a local backend (FastAPI + SQLite on the laptop)** | The real app only ran at localhost; the public URL needed a cloudflared tunnel to the laptop, the database lived on one machine, every deploy meant restarting local services, and the shared local db is what got doubled four times. Judges saw "localhost" | **No backend API in a hackathon.** Build frontend-first and serverless (browser storage / static data / serverless functions / a hosted DB), so every commit ships to a Vercel URL that IS the product |
 | W10 | **Real phone calls depended on a Twilio trial** ("press any key", ~$1 balance) | Empty transcripts when nobody spoke or pressed a key | Upgrade paid services the night before; rehearse the call with the real people |
 
 ## Timeline highlights
