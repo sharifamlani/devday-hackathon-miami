@@ -7,7 +7,10 @@ import { UserMenu } from "@/components/admin/user-menu";
 import { LiveTranscriptTrigger } from "../ask/AskSidebar";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Megaphone, PhoneCall } from "lucide-react";
-import { RestartOnboardingMenuItem } from "../onboarding/RestartOnboardingMenuItem";
+import {
+  RestartOnboardingDialog,
+  RestartOnboardingMenuItem,
+} from "../onboarding/RestartOnboardingMenuItem";
 import { MotionMenuItems } from "./MotionMenuItems";
 import { PublicLinkMenuItem } from "./PublicLinkMenuItem";
 import { avatarSlot } from "./shellState";
@@ -68,6 +71,7 @@ export const DashboardControls = () => {
         </span>
         <span className={avatarSlot("size-10")}>
           <UserMenu>
+            <RestartOnboardingMenuItem />
             {/* Pages the retired icon rail linked to that Home has no tile for. */}
             <DropdownMenuItem
               onClick={() => navigate("/campaigns")}
@@ -83,10 +87,10 @@ export const DashboardControls = () => {
               <PhoneCall aria-hidden="true" />
               Outreach inbox
             </DropdownMenuItem>
-            <RestartOnboardingMenuItem />
             <PublicLinkMenuItem />
             <MotionMenuItems />
           </UserMenu>
+          <RestartOnboardingDialog />
         </span>
       </div>
     </nav>
