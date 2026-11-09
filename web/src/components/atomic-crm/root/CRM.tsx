@@ -241,7 +241,7 @@ const DesktopAdmin = (
   return (
     <Admin {...props} layout={props.layout ?? Layout} dashboard={HomeRedirect}>
       <CustomRoutes>
-        <Route path={HOME} element={<Home />} />
+        <Route path={HOME} element={<Home permissions={undefined} />} />
       </CustomRoutes>
       <CustomRoutes noLayout>
         <Route path="/onboarding" element={<OnboardingPage />} />
@@ -343,7 +343,7 @@ const MobileAdmin = (
         dashboard={HomeRedirect}
       >
         <CustomRoutes>
-          <Route path={HOME} element={<MobileHome />} />
+          <Route path={HOME} element={<MobileHome permissions={undefined} />} />
         </CustomRoutes>
         <CustomRoutes noLayout>
           <Route path="/onboarding" element={<OnboardingPage />} />

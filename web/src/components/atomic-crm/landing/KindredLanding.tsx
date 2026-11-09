@@ -2,7 +2,6 @@ import { UploadProcessing } from "../upload/UploadProcessing";
 import { ingestSummary } from "../onboarding/firstRun";
 import {
   useEffect,
-  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
