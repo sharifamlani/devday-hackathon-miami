@@ -46,9 +46,18 @@ export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
   return children;
 };
 
-/** Back to the start of the journey: the bare URL (no hash), so the gate shows the landing. */
-export const openLanding = () => {
-  window.history.pushState(null, "", window.location.pathname + window.location.search);
+/**
+ * Back to the start of the journey: the bare URL (no hash), so the gate shows the landing. A redirect passes
+ * `replace` (no new history entry, so Back isn't trapped on a page that redirects again); a click pushes.
+ * `?onboarding=…` is dropped: it means "start at the landing", and kept it would send #/dashboard back here.
+ */
+export const openLanding = ({ replace = false }: { replace?: boolean } = {}) => {
+  const params = new URLSearchParams(window.location.search);
+  params.delete("onboarding");
+  const query = params.toString();
+  const url = window.location.pathname + (query ? `?${query}` : "");
+  if (replace) window.history.replaceState(null, "", url);
+  else window.history.pushState(null, "", url);
   window.dispatchEvent(new HashChangeEvent("hashchange"));
 };
 

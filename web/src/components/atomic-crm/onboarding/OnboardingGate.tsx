@@ -36,9 +36,9 @@ export const OnboardingGate = () => {
 
   useEffect(() => {
     if (!isHomePath(pathname)) return; // deep links (#/contacts …) always open
-    if (param === "force") return openLanding();
+    if (param === "force") return openLanding({ replace: true });
     if (DATA_MODE !== "local" || hasPeople === null) return; // still asking the service
-    if (!hasPeople) return openLanding(); // nothing to show yet: start the journey
+    if (!hasPeople) return openLanding({ replace: true }); // nothing to show yet: start the journey
     if (shouldAdopt(data, hasPeople)) adopt(); // set up already (another browser): done here too
   }, [pathname, param, hasPeople, data, adopt]);
 

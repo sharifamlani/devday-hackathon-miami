@@ -35,10 +35,17 @@ describe("OnboardingGate", () => {
   it("an empty app's dashboard sends you to the landing, with no setup overlay", async () => {
     getDonors.mockResolvedValue([]);
     const screen = await mount("/dashboard");
-    await vi.waitFor(() => expect(openLanding).toHaveBeenCalled());
+    await vi.waitFor(() => expect(openLanding).toHaveBeenCalledWith({ replace: true }));
     await expect
       .element(screen.getByRole("dialog", { name: "Set up Gatherly" }))
       .not.toBeInTheDocument();
+  });
+
+  it("a failed people check is not an empty app: no redirect to the landing", async () => {
+    getDonors.mockRejectedValue(new Error("tunnel down"));
+    await mount("/dashboard");
+    await new Promise((r) => setTimeout(r, 300));
+    expect(openLanding).not.toHaveBeenCalled();
   });
 
   it("a new browser on a filled service adopts setup as done and opens no overlay", async () => {

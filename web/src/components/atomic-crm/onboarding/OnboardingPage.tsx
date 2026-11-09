@@ -32,7 +32,7 @@ export const OnboardingPage = () => {
   const nothingToSetUp =
     DATA_MODE === "local" && !data.files && hasPeople === false;
   useEffect(() => {
-    if (nothingToSetUp) openLanding();
+    if (nothingToSetUp) openLanding({ replace: true });
   }, [nothingToSetUp]);
 
   const later = () => {

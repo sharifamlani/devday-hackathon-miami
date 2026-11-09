@@ -82,6 +82,6 @@ describe("OnboardingPage (#/onboarding)", () => {
   it("with no import and no people, it sends you back to the landing", async () => {
     getDonors.mockResolvedValue([]);
     await mount();
-    await vi.waitFor(() => expect(openLanding).toHaveBeenCalled());
+    await vi.waitFor(() => expect(openLanding).toHaveBeenCalledWith({ replace: true }));
   });
 });

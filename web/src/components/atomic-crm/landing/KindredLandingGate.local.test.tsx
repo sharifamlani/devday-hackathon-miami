@@ -72,6 +72,30 @@ describe("KindredLandingGate (local mode)", () => {
       .toBeVisible();
   });
 
+  it("openLanding({ replace: true }) redirects without a new history entry (Back isn't trapped)", async () => {
+    getDonors.mockResolvedValue([]);
+    window.location.hash = "#/dashboard";
+    const screen = await render(<Gate />);
+    await expect.element(screen.getByText("the board")).toBeVisible();
+    const before = window.history.length;
+    openLanding({ replace: true });
+    await expect
+      .element(screen.getByRole("button", { name: "Try sample data" }))
+      .toBeVisible();
+    expect(window.history.length).toBe(before);
+  });
+
+  it("openLanding() drops ?onboarding=… so it can't send the dashboard back to the landing", async () => {
+    getDonors.mockResolvedValue([]);
+    const url = new URL(window.location.href);
+    url.searchParams.set("onboarding", "1");
+    url.hash = "#/dashboard";
+    window.history.replaceState(null, "", url);
+    await render(<Gate />);
+    openLanding({ replace: true });
+    expect(new URL(window.location.href).searchParams.has("onboarding")).toBe(false);
+  });
+
   it("openLanding() leaves the app for the bare URL's landing", async () => {
     getDonors.mockResolvedValue([]);
     window.location.hash = "#/dashboard";
