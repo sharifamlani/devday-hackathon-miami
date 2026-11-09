@@ -24,6 +24,12 @@ numbers off it.
 
 **Changed Sun Nov 8, ~4:25 PM (Sharif): no empty-start onboarding.** LIVE (579b7e4) keeps the loaded data (78 donors, Christian included) and the demo opens on the dashboard. **Never run `demo_reset.py` or `tminus30.sh` before the demo: they empty the db.** Steps 1–4 below are **SKIPPED**: kept for reference only, don't run them. Start at step 5.
 
+> **After `feat/user-journey-urls` merges** (`docs/plans/user-journey.md`): the setup path has three URLs. The bare URL
+> is always the landing (with **Open dashboard →** once there are people); after **Try sample data** and the receipt,
+> **Create organization profile** opens **/#/onboarding** (name *and* website prefilled); **Continue** opens
+> **/#/dashboard**. **Skip for now** is gone. The account menu (under **Sharif**) starts with **Restart onboarding**,
+> which asks first when people are already in (**Skip upload** keeps the data). Check: `python scripts/verify-journey.py`.
+
 1. **Empty start (SKIPPED).** Open **http://localhost:5173/** (the bare URL). On an empty app, setup's first step is the **gatherly** landing: "Less time on tasks. **More time for people.**", **Upload donor data** ("or drag and drop your files here (CSV, Excel, Word, notes)"), **Try sample data**, and Upload your list · Understand your donors · Reach out thoughtfully.
    Nothing is behind it: no people, gifts, tasks or context. "Nothing is preloaded." **Never reload the page during
    setup** (steps 1–3). If someone does after **Try sample data**, the landing comes back as if the import vanished,

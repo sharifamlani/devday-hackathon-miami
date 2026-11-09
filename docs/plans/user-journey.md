@@ -1,6 +1,7 @@
 # Plan: one user journey, three screens, three URLs
 
-**Status:** DRAFT for Sharif's approval · no code written · Sun Nov 8, 2026, 3:30 PM
+**Status:** BUILT on `feat/user-journey-urls` (Sharif: "execute the plan in a separate branch", Sun Nov 8 evening) · awaiting QA gate,
+independent evaluator (§12) and lead merge · drafted Sun Nov 8, 2026, 3:30 PM
 **Builds on:** Carlos's `feat/demo-user-journey` (merged `f21e23c`; proposal `docs/proposals/demo-user-journey-lead-approval.md`)
 **ROADMAP rows:** rides on 5E.11 (landing gate) and 5C (onboarding → context dataset). No new §3 row is needed if
 Sharif accepts it as the follow-up to 5E.11.
