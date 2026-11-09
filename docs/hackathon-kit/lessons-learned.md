@@ -1,9 +1,13 @@
-# Lessons learned: two hackathons, one win, one loss
+# Lessons learned: three hackathons, one win, two losses
 
 | Event | Date | Result | Full write-up |
 |---|---|---|---|
 | Hack for Humanity: Miami | Sat Oct 10, 2026 | 🏆 **Grand Champion** | `../lessons-from-hack-for-humanity.md` |
 | Converge: Creative Tech Buildathon | Thu Oct 15, 2026 | Did not place | `../lessons-from-converge.md` |
+| DevDay Exchange: Miami | Sat–Sun Nov 7–8, 2026 | Did not place: **the video was a teaser, not the demo** | `../lessons-from-devday-miami.md` |
+
+**DevDay in one line:** our best product to date (a 10–17 session fleet, ~1,340 commits, 300+ PRs) lost because
+the submitted video teased the product instead of showing it. Rules 13–18 below come from DevDay.
 
 Same team core, same tools, same playbook, five days apart. The engineering was about equal
 (76 commits vs 112). **What decided it was the first hour and the last thirty minutes.** The winner
@@ -107,6 +111,46 @@ Converge before the judges could).
 
 At Converge we voted for the weakest entry, hoping it would split the field for us. A tactical vote
 changes nobody else's ballot; it only throws your own away. Vote for the strongest rival.
+
+### 13. The demo video is the FULL demo, never a teaser (DevDay: this lost the event)
+
+When a submission asks for a video, judges may score from it alone. Record a **3–5 minute walkthrough of the real
+running app**, following the demo script start to finish: every moment, the AI's work visible, real numbers on
+screen. A teaser or a sizzle reel shows the brand and hides the product. Record it the moment the demo flow freezes,
+before the live rehearsals, and check that it plays from the submission page.
+
+### 14. The production pipeline: lead → builders → QA → merge → Integrate + User-Journey test
+
+For production-quality code, every change goes round one wheel (`development-flywheel` skill):
+the **lead** briefs a **builder** (one lane, a branch, a PR) → a **QA gate** grades it merged with current main →
+the lead **merges the exact approved SHA** → the **Integrate + Test lane** puts it on a LIVE app and runs the
+regression → a **User-Journey agent** opens a real browser (Playwright / Claude in Chrome) and uses the feature like
+a user, checking the screen against the API/SQL → every FAIL loops back to its owner. A feature is done only when the
+User-Journey agent has used it in the merged app and it worked.
+
+### 15. Hackathon mode: no separate QA agent
+
+At DevDay the QA round trip slowed every small change at the end. In hackathons, **drop the QA gate**: builders run
+their own tests and open a PR, the lead merges, and the **Integrate + User-Journey test** is the gate before LIVE.
+Speed comes from testing the running app, not from reviewing the diff. Keep pinned merges, backups before every LIVE
+move, and the rule that nobody approves their own work in the user-journey test.
+
+### 16. A public demo URL never writes into the stage data
+
+DevDay's public site shared LIVE's database and greeted every fresh browser with "Try sample data". LIVE doubled
+three times from people on the venue Wi-Fi, then 4× from the stage laptop. Make the public link **read-only** (or its
+own database), make any import into loaded data **dedupe or refuse**, and keep test agents off LIVE's first-run flows.
+
+### 17. Freeze the demo flow, and protect main, at kickoff
+
+Turn on branch protection at kickoff (only the lead merges). After F, change nothing on the demo path; post-freeze
+ideas go on a branch for after the event. DevDay's last three hours went to ungated merges and a demo flow that
+changed five times.
+
+### 18. Never clear or restart the human's live app without asking
+
+Don't wipe data, reset, or restart services the human is using without an explicit yes in that moment. At DevDay a
+scheduled "empty start" reset surprised the presenter, and a restart cut a live request mid-answer.
 
 ---
 
