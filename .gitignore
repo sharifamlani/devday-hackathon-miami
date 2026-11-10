@@ -47,3 +47,6 @@ data/ingest_cache/
 
 # vitest browser-mode failure screenshots (never commit)
 web/.vitest/
+
+# Private go-to-market research (pricing, costs): kept local, never public
+go-to-market/
