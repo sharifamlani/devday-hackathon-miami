@@ -4,17 +4,17 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.14 · Tue Nov 24, 2026 · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.15 · Tue Nov 24, 2026 · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
 ## §0 You are here
 
 - **Current phase:** Phase 11 (public preview without a backend) · the event is over; Phases 5–10 are kept as the record
-- **Current step:** 11.1 shipped and graded; nothing in flight
+- **Current step:** 11.1 and 11.2 shipped and graded; nothing in flight
 - **Blocking decisions (Sharif):** none
 - **In flight:** none
-- **Next unblocked action:** optional follow-up: at 390 px the Try-the-agent rows start below the fold of the chat (evaluator note)
+- **Next unblocked action:** none queued
 - **Last update:** Tue Nov 24, 2026 · lead session
 
 ## §1 The North Star
@@ -284,6 +284,7 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
 | 11.1 | Home "Try the agent": 4 labeled sample runs (look up Bernard Okoye, catch up on Hye-jin Park, Give Miami Day batch email with Send previews, sample call to Rafael Quintero) using the live agent's own cards; on the laptop the rows send the real prompt | lead | ✅ Tue Nov 24 · 5e44362 (#333) | prod walk + independent grade 6/6 | Sharif, Tue Nov 24 |
+| 11.2 | Home intro is one card: "Here’s your day" by default, a small switch (Your day / Try the agent) swaps in the sample runs | lead | ✅ Tue Nov 24 · 1d00cac (#335) | prod walk + independent grade 5/5 | Sharif, Tue Nov 24 |
 
 ## §4 Open decisions
 
@@ -305,6 +306,8 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 - `docs/hackathon-kit/lessons-learned.md`: 12 rules from past events
 
 ## §6 Changelog
+
+- **v0.15 · Tue Nov 24, 2026:** 11.2 ✅ (#335, 1d00cac): the Home intro is one card with a Your day / Try the agent switch, "Here’s your day" by default. 161 home tests green, prod walk green, independent grade 5/5. Also clears the v0.14 note: at 390 px the Try-the-agent rows now sit above the fold.
 
 - **v0.14 · Tue Nov 24, 2026:** 11.1 ✅ merged (#333, 5e44362) and live on https://devday-donor-desk.vercel.app. Prod walk green, and the independent evaluator graded 6/6 PASS (rows at both sizes, 4/4 runs end on the right card, card numbers match snapshot.json, sample-labeled with 0 outbound requests, Open profile opens the drawer, 0 console errors). Phase 11 closed. Note: at 390 px the rows start below the fold of the chat.
 
