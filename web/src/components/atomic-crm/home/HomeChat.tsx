@@ -58,6 +58,8 @@ import {
   AgentReply,
   UserMessage,
 } from "./Conversation";
+import { useDemoRuns } from "./demo/demoRun";
+import { DemoRunExchange } from "./demo/DemoThread";
 
 const pill = cn(
   "inline-flex min-h-9 items-center justify-center gap-2 rounded-[10px] px-3 text-sm font-medium transition-colors",
@@ -381,15 +383,31 @@ const AskThread = ({ intro }: { intro?: ReactNode }) => {
     appendAnswer([], answer),
   );
   const endRef = useRef<HTMLDivElement>(null);
+  // Try-the-agent sample runs (demo/) share this thread with asked questions, in the order they happened.
+  const demo = useDemoRuns();
+  const askedAt = useRef(new WeakMap<AskAnswer, number>());
+  const stamp = (entry: AskAnswer) => {
+    let at = askedAt.current.get(entry);
+    if (at === undefined) askedAt.current.set(entry, (at = Date.now()));
+    return at;
+  };
+  const demoProgress = demo.runs
+    .map((r) => `${r.shown}:${r.done}:${r.extra.length}:${r.decision}`)
+    .join("|");
 
   useEffect(() => {
     setHistory((h) => appendAnswer(h, answer));
   }, [answer]);
 
   useEffect(() => {
-    if (history.length === 0 && !pending) return; // keep an opening briefing at its top
+    if (history.length === 0 && demo.runs.length === 0 && !pending) return; // keep an opening briefing at its top
     endRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [history.length, pending]);
+  }, [history.length, pending, demo.runs.length, demoProgress]);
+
+  const items = [
+    ...history.map((entry, i) => ({ at: stamp(entry), key: `ask-${i}-${entry.question}`, entry, run: null })),
+    ...demo.runs.map((run) => ({ at: run.at, key: `demo-${run.id}`, entry: null, run })),
+  ].sort((a, b) => a.at - b.at);
 
   const asking = pending ? session.draft : null;
   const showAsking = asking && history[history.length - 1]?.question !== asking;
@@ -401,17 +419,21 @@ const AskThread = ({ intro }: { intro?: ReactNode }) => {
       className="home-thread"
     >
       {history.length === 0 && !pending && intro}
-      {!intro && history.length === 0 && !pending && (
+      {!intro && history.length === 0 && demo.runs.length === 0 && !pending && (
         <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">
           Ask about donors, plan outreach, or add to the calendar.
         </p>
       )}
-      {history.map((entry, i) => (
-        <div key={`${i}-${entry.question}`} className="home-exchange">
-          <UserMessage text={entry.question} />
-          <AgentMessage answer={entry} />
-        </div>
-      ))}
+      {items.map((item) =>
+        item.run ? (
+          <DemoRunExchange key={item.key} run={item.run} />
+        ) : (
+          <div key={item.key} className="home-exchange">
+            <UserMessage text={item.entry.question} />
+            <AgentMessage answer={item.entry} />
+          </div>
+        ),
+      )}
       {showAsking && <UserMessage text={asking} />}
       {pending && (
         <p className="self-start rounded-2xl bg-surface px-3.5 py-2.5 text-sm text-muted-foreground">

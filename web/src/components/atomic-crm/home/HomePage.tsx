@@ -1,7 +1,7 @@
 import { OVERVIEW_ID, useOverview } from "./overviewContext";
 import { AgendaList } from "./AgendaList";
 import { TaskDayPanel } from "./TaskDayPanel";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { DATA_MODE, STAFF_NAME } from "../providers/local/config";
@@ -33,6 +33,8 @@ import {
 import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
 import { buildBriefing } from "./briefing";
 import { DailyBriefing } from "./DailyBriefing";
+import { TryTheAgent } from "./demo/TryTheAgent";
+import { OPEN_DONOR_EVENT } from "./demo/demoRun";
 import { sendToAgent, useAgentChat } from "./agentChat";
 import { useAgentRefetch } from "../providers/local/refetch";
 import { taskPrompt } from "./taskPrompt";
@@ -80,6 +82,12 @@ export const HomePage = () => {
   const completeTask = useCompleteTask();
   const [params, setParams] = useSearchParams();
   const [donorId, setDonorId] = useState<number | null>(null);
+  // A Try-the-agent card's "Open profile" (demo/demoRun.ts) opens the same drawer as the CRM tile.
+  useEffect(() => {
+    const onOpen = (e: Event) => setDonorId((e as CustomEvent<number>).detail);
+    window.addEventListener(OPEN_DONOR_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_DONOR_EVENT, onOpen);
+  }, []);
   const [findOpen, setFindOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -237,9 +245,12 @@ export const HomePage = () => {
           </div>
           <AgentThread
             intro={
-              briefing ? (
-                <DailyBriefing briefing={briefing} onStartTask={startTask} />
-              ) : undefined
+              <>
+                {briefing && (
+                  <DailyBriefing briefing={briefing} onStartTask={startTask} />
+                )}
+                <TryTheAgent />
+              </>
             }
           />
           <Composer onUploadList={() => setImportOpen(true)} />
