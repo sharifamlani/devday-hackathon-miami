@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -16,10 +16,11 @@ const action = cn(
 );
 
 /**
- * Four things to ask the agent, under "Here's your day". On the laptop each sends its prompt to the live
- * agent; in the public build (no agent service) each plays a labeled sample run with the same cards.
+ * Four things to ask the agent: the other side of the Home intro's switch (HomeIntro). On the laptop each
+ * sends its prompt to the live agent; in the public build (no agent service) each plays a labeled sample run
+ * with the same cards.
  */
-export const TryTheAgent = () => {
+export const TryTheAgent = ({ aside }: { aside?: ReactNode } = {}) => {
   const live = DATA_MODE === "local";
   const agent = useAgentChat();
   const session = useAskSession();
@@ -30,19 +31,23 @@ export const TryTheAgent = () => {
 
   return (
     <div className="home-agent-message w-full" aria-label="Try the agent">
-      <p className="flex items-center gap-2 font-semibold">
-        <span>Try the agent</span>
-        {!live && (
-          <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            Sample run
-          </span>
-        )}
-      </p>
+      <span className="home-agent-label">Agent</span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-2 font-semibold">
+          <span>Try the agent</span>
+          {!live && (
+            <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              Sample run
+            </span>
+          )}
+        </p>
+        {aside}
+      </div>
       <ul className="mt-2 flex flex-col gap-1.5">
         {SCENARIOS.map((s, i) => (
           <li
             key={s.id}
-            style={{ animationDelay: `calc(${i + 5} * 0.25 * var(--motion-base))` }}
+            style={{ animationDelay: `calc(${i} * 0.25 * var(--motion-base))` }}
             className="motion-enter flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-border px-3 py-2"
           >
             <span id={`${baseId}-${s.id}`} className="min-w-[min(100%,13rem)] flex-1">
