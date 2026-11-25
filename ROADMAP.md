@@ -4,17 +4,17 @@
 > one cell at a time, in the same commit as the work (or right after a PR merges).
 > **This roadmap is canon.** If `plan.md`, a brief or a message disagrees, this file wins or the other doc
 > gets corrected. `plan.md` holds the *why* and the specs; this file holds the *order* and the *status*.
-> v0.13 · Tue Nov 24, 2026 · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
+> v0.14 · Tue Nov 24, 2026 · previous version archived at `docs/_archive/ROADMAP_v0.2_pre_build_restructure.md`
 
 ---
 
 ## §0 You are here
 
 - **Current phase:** Phase 11 (public preview without a backend) · the event is over; Phases 5–10 are kept as the record
-- **Current step:** 11.1 Try-the-agent sample runs: PR open on `feat/demo-agent-shells`, local walk green (desktop + 390 px)
+- **Current step:** 11.1 shipped and graded; nothing in flight
 - **Blocking decisions (Sharif):** none
-- **In flight:** 11.1
-- **Next unblocked action:** merge 11.1, deploy to Vercel, walk the prod URL
+- **In flight:** none
+- **Next unblocked action:** optional follow-up: at 390 px the Try-the-agent rows start below the fold of the chat (evaluator note)
 - **Last update:** Tue Nov 24, 2026 · lead session
 
 ## §1 The North Star
@@ -279,11 +279,11 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 | 10.3 | Close: all pushed, worktrees removed, `git status` clean | lead | ⏸ | — | global cleanup rule |
 
 ### Phase 11 — Public preview without a backend (after the event)
-**Goal:** the Vercel build shows what the agent does, honestly labeled, with no agent service behind it. **Entry gate:** snapshot build live (#330). **Exit gate:** prod walk green. **Status:** ⏳
+**Goal:** the Vercel build shows what the agent does, honestly labeled, with no agent service behind it. **Entry gate:** snapshot build live (#330). **Exit gate:** prod walk green. **Status:** ✅
 
 | # | Action | Owner | Status | Date · Commit | Source |
 |---|---|---|---|---|---|
-| 11.1 | Home "Try the agent": 4 labeled sample runs (look up Bernard Okoye, catch up on Hye-jin Park, Give Miami Day batch email with Send previews, sample call to Rafael Quintero) using the live agent's own cards; on the laptop the rows send the real prompt | lead | ⏳ PR open | — | Sharif, Tue Nov 24 |
+| 11.1 | Home "Try the agent": 4 labeled sample runs (look up Bernard Okoye, catch up on Hye-jin Park, Give Miami Day batch email with Send previews, sample call to Rafael Quintero) using the live agent's own cards; on the laptop the rows send the real prompt | lead | ✅ Tue Nov 24 · 5e44362 (#333) | prod walk + independent grade 6/6 | Sharif, Tue Nov 24 |
 
 ## §4 Open decisions
 
@@ -305,6 +305,8 @@ feasibility and reasoning · presentation. (`docs/event-brief.md` Q3)
 - `docs/hackathon-kit/lessons-learned.md`: 12 rules from past events
 
 ## §6 Changelog
+
+- **v0.14 · Tue Nov 24, 2026:** 11.1 ✅ merged (#333, 5e44362) and live on https://devday-donor-desk.vercel.app. Prod walk green, and the independent evaluator graded 6/6 PASS (rows at both sizes, 4/4 runs end on the right card, card numbers match snapshot.json, sample-labeled with 0 outbound requests, Open profile opens the drawer, 0 console errors). Phase 11 closed. Note: at 390 px the rows start below the fold of the chat.
 
 - **v0.13 · Tue Nov 24, 2026:** Phase 11 added (public preview without a backend). 11.1 Try-the-agent sample runs built on `feat/demo-agent-shells`: 22 test files / 159 tests in `home/` green, `build:demo` green, local walk of the Vercel bundle green (4/4 runs, 0 console errors, 0 failed or outbound requests, desktop + 390 px). Next: merge, deploy, prod walk.
 
