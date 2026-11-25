@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, CircleAlert, Clock, Loader2, Mail, Phone, Undo2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -75,16 +75,28 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 /** The agent's call sheet: who they are, their giving, and what to say, with the Call button (or why there is none). */
-export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
+export const CallSheetCard = ({
+  sheet,
+  title = "Call sheet",
+  callPanel,
+}: {
+  sheet: CallSheet;
+  /** "Catch-up" when the same facts answer "get me up to speed". */
+  title?: string;
+  /** The public build's sample call (Try the agent): replaces the real call, which only the laptop places. */
+  callPanel?: (onClose: () => void) => ReactNode;
+}) => {
   const r = sheet.relationship;
   // The call runs inside this card, not in a dialog over the page (Sharif). Local mode only: the laptop places it.
   const [calling, setCalling] = useState(false);
-  const canCall = sheet.has_phone && DATA_MODE === "local";
+  const canCall = sheet.has_phone && (DATA_MODE === "local" || Boolean(callPanel));
   return (
     <li data-testid="call-sheet" className="rounded-xl border border-border bg-card px-3 py-2 text-[13px]">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">Call sheet: {sheet.name}</p>
+          <p className="font-semibold">
+            {title}: {sheet.name}
+          </p>
           <p className="text-muted-foreground">
             {[sheet.org_name, sheet.location].filter(Boolean).join(" · ")}
           </p>
@@ -99,7 +111,12 @@ export const CallSheetCard = ({ sheet }: { sheet: CallSheet }) => {
           </Button>
         )}
       </div>
-      {calling && <PhoneCallInline donorId={sheet.person_id} onClose={() => setCalling(false)} />}
+      {calling &&
+        (callPanel ? (
+          callPanel(() => setCalling(false))
+        ) : (
+          <PhoneCallInline donorId={sheet.person_id} onClose={() => setCalling(false)} />
+        ))}
       <Section title="Giving">
         {r.gift_count === 0 ? (
           <p>No gifts on record.</p>
