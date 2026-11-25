@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
@@ -21,10 +21,13 @@ const action = cn(
 export const DailyBriefing = ({
   briefing,
   onStartTask,
+  aside,
 }: {
   briefing: Briefing;
   /** A task line's Start: hands the task to the agent (live) or opens its details. */
   onStartTask: (taskKey: string) => void;
+  /** Right of the headline: the switch to "Try the agent" (HomeIntro). */
+  aside?: ReactNode;
 }) => {
   const session = useAskSession();
   const agent = useAgentChat();
@@ -47,7 +50,10 @@ export const DailyBriefing = ({
   return (
     <div className="home-agent-message w-full" aria-label="Today’s briefing">
       <span className="home-agent-label">Agent</span>
-      <p className="font-semibold">{briefing.headline}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">{briefing.headline}</p>
+        {aside}
+      </div>
       {briefing.lines.length === 0 ? (
         <p className="mt-0.5 text-muted-foreground">
           Ask below about donors, outreach or the calendar.

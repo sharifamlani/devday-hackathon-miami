@@ -32,8 +32,7 @@ import {
 } from "./HomeCards";
 import { AgentThread, Composer, FocusTaskCard } from "./HomeChat";
 import { buildBriefing } from "./briefing";
-import { DailyBriefing } from "./DailyBriefing";
-import { TryTheAgent } from "./demo/TryTheAgent";
+import { HomeIntro } from "./HomeIntro";
 import { OPEN_DONOR_EVENT } from "./demo/demoRun";
 import { sendToAgent, useAgentChat } from "./agentChat";
 import { useAgentRefetch } from "../providers/local/refetch";
@@ -244,14 +243,7 @@ export const HomePage = () => {
             </h1>
           </div>
           <AgentThread
-            intro={
-              <>
-                {briefing && (
-                  <DailyBriefing briefing={briefing} onStartTask={startTask} />
-                )}
-                <TryTheAgent />
-              </>
-            }
+            intro={<HomeIntro briefing={briefing} onStartTask={startTask} />}
           />
           <Composer onUploadList={() => setImportOpen(true)} />
         </section>
