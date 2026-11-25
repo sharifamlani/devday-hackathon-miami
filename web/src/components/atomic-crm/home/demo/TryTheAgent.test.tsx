@@ -6,7 +6,7 @@ import snapshotJson from "../../../../../public/snapshot.json";
 import { applyMotionPreference } from "@/lib/motion";
 import { AskSessionProvider } from "../../ask/AskSession";
 import { AgentThread } from "../HomeChat";
-import { resetDemoRuns } from "./demoRun";
+import { OPEN_DONOR_EVENT, resetDemoRuns } from "./demoRun";
 import { TryTheAgent } from "./TryTheAgent";
 
 // The public build: the thread is the sample thread, and the runs read the snapshot it serves.
@@ -57,6 +57,12 @@ describe("Try the agent (public build)", () => {
     await expect.element(screen.getByText("Catch-up: Hye-jin Park")).toBeVisible();
     await expect.element(screen.getByText("Not a gift: $40 charge on Oct 10 was declined.")).toBeVisible();
     await expect.element(screen.getByText(/\$480 across 7 gifts/).first()).toBeVisible();
+    // Open profile asks Home for the donor drawer.
+    const opened = new Promise<number>((resolve) =>
+      window.addEventListener(OPEN_DONOR_EVENT, (e) => resolve((e as CustomEvent<number>).detail), { once: true }),
+    );
+    await screen.getByRole("button", { name: "Open profile" }).click();
+    expect(await opened).toBe(60);
   });
 
   it("3 · Draft emails: email prep, 4 previews behind Send; Send says nothing was sent", async () => {

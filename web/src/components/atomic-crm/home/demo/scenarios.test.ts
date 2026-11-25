@@ -32,6 +32,7 @@ describe("Try the agent scenarios", () => {
     // 7 good gifts ($40 x4, $120, $100, $100); the Oct 10 $40 was declined and is not a gift.
     expect(r.gift_count).toBe(7);
     expect(r.total).toBe(480);
+    expect(r.first_gift).toEqual({ date: "Nov 16, 2023", amount: 100 });
     expect(card.sheet.declined_charges).toEqual([{ date: "Oct 10", amount: 40, status: "declined" }]);
     expect(card.sheet.open_tasks.map((t) => t.title)).toContain("Call Hye-jin Park");
     expect(script.steps[1].summary).toBe("$480 across 7 gifts · Oct 10 charge declined");

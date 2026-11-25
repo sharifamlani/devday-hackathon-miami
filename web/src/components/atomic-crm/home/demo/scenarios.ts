@@ -178,7 +178,8 @@ export const callSheetFor = (snap: DemoSnapshot, d: DemoDonor): CallSheet => {
     relationship: {
       gift_count: gifts.length,
       total,
-      first_gift: first && { date: formatMonthDay(first.gift_date), amount: first.amount },
+      // A first gift is often years back: "Nov 16, 2023", so it can't read as this month.
+      first_gift: first && { date: `${formatMonthDay(first.gift_date)}, ${first.gift_date.slice(0, 4)}`, amount: first.amount },
       last_gift: last && { date: formatMonthDay(last.gift_date), amount: last.amount },
       usual_channel: last?.channel ?? null,
     },

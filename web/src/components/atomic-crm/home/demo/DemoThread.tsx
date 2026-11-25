@@ -1,3 +1,6 @@
+import { UserRound } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { ApprovalCard, CallSheetCard, EmailPrepCard, StepCard } from "../AgentCards";
 import { AgentReply, UserMessage } from "../Conversation";
 import { DemoCall } from "./DemoCall";
@@ -21,13 +24,23 @@ const Card = ({ run, card }: { run: DemoRun; card: DemoCard }) => {
   if (card.kind === "email_prep") return <EmailPrepCard prep={card.prep} />;
   const call = card.call;
   return (
-    <CallSheetCard
-      sheet={card.sheet}
-      title={card.title}
-      callPanel={
-        call ? () => <DemoCall name={card.sheet.name} script={call} onLogged={() => followUpDemo(run.id)} /> : undefined
-      }
-    />
+    <>
+      <CallSheetCard
+        sheet={card.sheet}
+        title={card.title}
+        callPanel={
+          call ? () => <DemoCall name={card.sheet.name} script={call} onLogged={() => followUpDemo(run.id)} /> : undefined
+        }
+      />
+      {!call && (
+        <li className="flex justify-end">
+          <Button size="sm" variant="outline" className="rounded-full" onClick={() => openDonor(card.sheet.person_id)}>
+            <UserRound aria-hidden />
+            Open profile
+          </Button>
+        </li>
+      )}
+    </>
   );
 };
 
@@ -40,7 +53,7 @@ export const DemoRunExchange = ({ run }: { run: DemoRun }) => {
       <AgentReply>
         <p
           data-testid="sample-note"
-          className="mb-1.5 inline-flex rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+          className="mb-1.5 inline-flex w-fit self-start rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
         >
           {SAMPLE_NOTE}
         </p>
