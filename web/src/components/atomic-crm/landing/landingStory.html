@@ -1,0 +1,126 @@
+<!-- Lifted from the approved landing mockup (artifact v7). Behavior: landingStory.js. -->
+  <!-- [2] PROBLEM -->
+  <section class="block" id="problem">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="h2">Donors rarely say goodbye. They just stop giving.</h2>
+      </div>
+      <div class="toggle-row">
+        <div class="seg" role="group" aria-label="Compare">
+          <button type="button" aria-pressed="true" data-mode="before">Without Gatherly</button>
+          <button type="button" aria-pressed="false" data-mode="after">With Gatherly</button>
+        </div>
+      </div>
+      <div class="ba" id="ba" data-mode="before">
+        <article class="panel">
+          <h3>Same donor, two records</h3>
+          <div class="state before">
+            <div class="rec"><span class="av">BN</span><span><b>Bob Nguyen</b><small>bob.nguyen.home@example.com · 1 gift</small></span><span class="src">Check log</span></div>
+            <div class="rec"><span class="av">RN</span><span><b>Robert Nguyen</b><small>robert.nguyen@example.org · 17 gifts</small></span><span class="src">Give Miami Day</span></div>
+          </div>
+          <div class="state after">
+            <div class="rec merged"><span class="av">RN</span><span><b>Robert Nguyen</b><small>18 gifts · both emails kept</small></span><span class="pill ok">Merged</span></div>
+            <p class="muted small">You approve every merge. Undo anytime.</p>
+          </div>
+        </article>
+        <article class="panel">
+          <h3>Gifts stop. Nobody notices.</h3>
+          <div class="months" aria-label="Hye-jin Park's monthly gifts">
+            <div class="m"><i>✓</i>Jun</div><div class="m"><i>✓</i>Jul</div><div class="m"><i>✓</i>Aug</div>
+            <div class="m"><i>✓</i>Sep</div><div class="m bad"><i>!</i>Oct</div><div class="m gone"><i>·</i>Nov</div>
+          </div>
+          <div class="state before"><div class="verdict quiet">October's gift didn't go through. No one called.</div></div>
+          <div class="state after"><div class="verdict task">Call Hye-jin Park · gift failed<span class="go">Call</span></div></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- [4] THE WORKING DEMO -->
+  <section class="block try" id="try">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="h2">Watch it work. Then try it yourself.</h2>
+      </div>
+      <div class="window">
+        <div class="chrome">
+          <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="addr" id="addr">gatherly · Home</span>
+          <span class="chrome-actions">
+            <button class="reset" type="button" id="tour-btn" aria-pressed="true">Pause tour</button>
+            <button class="reset" type="button" id="reset">Reset demo</button>
+            <a class="open-app" href="#/dashboard">Open the full app →</a>
+          </span>
+        </div>
+        <div class="app" id="app">
+          <aside class="side" aria-label="Demo navigation">
+            <div class="brand">gatherly <span class="badge">Sample</span></div>
+            <button class="navb" type="button" data-view="home">Home</button>
+            <button class="navb" type="button" data-view="donors">Donors</button>
+            <button class="navb" type="button" data-view="dups">Duplicates <span class="count" id="nav-dups"></span></button>
+            <button class="navb" type="button" data-view="calendar">Calendar</button>
+            <button class="navb" type="button" data-view="ask">Ask</button>
+            <div class="me"><span class="av">S</span>Sharif · demo</div>
+          </aside>
+          <div class="main" id="main" tabindex="-1"></div>
+          <div id="drawer-host"></div>
+          <div class="cursor" id="cursor" aria-hidden="true" hidden><svg width="22" height="22" viewBox="0 0 24 24"><path d="M4 2.5 19.5 12l-7 1.6L9 20.5z" fill="#242728" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Tour</span></div>
+        </div>
+      </div>
+      <p class="demo-note"><span class="pill ok">Sample data</span> Every name and amount is invented. Changes stay in your browser; nothing is saved or sent.</p>
+    </div>
+  </section>
+
+  <!-- [3] HOW IT WORKS -->
+  <section class="block" id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="h2">Turn messy files into a clean, organized CRM</h2>
+      </div>
+      <div class="player" id="player">
+        <ol class="tabs" role="tablist" aria-label="Three steps">
+          <li><button class="tab" role="tab" aria-selected="true" aria-controls="scene-1" id="tab-1"><b>1</b><span>Upload your list<small>Spreadsheets, Word, notes</small></span><i class="bar"></i></button></li>
+          <li><button class="tab" role="tab" aria-selected="false" aria-controls="scene-2" id="tab-2"><b>2</b><span>Understand your donors<small>Duplicates and missed gifts, flagged</small></span><i class="bar"></i></button></li>
+          <li><button class="tab" role="tab" aria-selected="false" aria-controls="scene-3" id="tab-3"><b>3</b><span>Reach out thoughtfully<small>Drafts wait for your OK</small></span><i class="bar"></i></button></li>
+        </ol>
+        <div class="screen">
+          <div class="scene" id="scene-1" role="tabpanel" aria-labelledby="tab-1">
+            <div class="files">
+              <div class="file"><span class="ext">XLSX</span><span>give_miami_day_export_2022-2025.xlsx</span></div>
+              <div class="file"><span class="ext">DOCX</span><span>check_deposit_log_q3_2026.docx</span></div>
+              <div class="file"><span class="ext">MD</span><span>board_retreat_notes.md</span></div>
+              <div class="file"><span class="ext">CSV</span><span>+ 5 more files</span></div>
+            </div>
+            <div class="funnel"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></div>
+            <div class="result"><strong id="people-total">81</strong><span>people, one record each</span></div>
+          </div>
+          <div class="scene" id="scene-2" role="tabpanel" aria-labelledby="tab-2" hidden>
+            <div class="row3"><span class="dot bad"></span><span><b>Hye-jin Park</b><small>Monthly gift didn't go through</small></span><span class="chip">Call first</span></div>
+            <div class="row3"><span class="dot late"></span><span><b>Rafael Quintero</b><small>Skipped a monthly gift</small></span><span class="chip">Call</span></div>
+            <div class="row3"><span class="dot dup"></span><span><b>9 possible duplicates</b><small>Side by side, ready to review</small></span><span class="chip">Review</span></div>
+          </div>
+          <div class="scene" id="scene-3" role="tabpanel" aria-labelledby="tab-3" hidden>
+            <div class="draft3">
+              <span class="to">To Hye-jin Park · drafted by the agent</span>
+              <p>Hi Hye-jin, thank you for your monthly support. Your October gift didn't go through. Could we help update your card?</p>
+              <div><span class="chip">Waits for your approval</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- [5] CLOSING CTA -->
+  <section class="closing">
+    <div class="wrap">
+      <h2 class="h2">Bring your donor list.</h2>
+      <div class="actions">
+        <button class="upload" type="button" data-go="top" data-focus="upload-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+          Upload donor data
+        </button>
+      </div>
+      <p class="fineprint">Sample names, emails and amounts are invented.</p>
+    </div>
+  </section>

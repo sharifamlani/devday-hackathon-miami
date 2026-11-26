@@ -27,8 +27,10 @@ describe("Try sample data (snapshot mode)", () => {
     await screen.getByRole("button", { name: "Try sample data" }).click();
 
     await expect.element(screen.getByText("Sample files, ready to go.")).toBeVisible();
-    await expect.element(screen.getByText("give_miami_day_export_2022-2025.xlsx")).toBeVisible();
-    await expect.element(screen.getByText("board_retreat_notes.md")).toBeVisible();
+    // Scoped to the dialog: the landing's "how it works" scene names the same sample files.
+    const files = screen.getByRole("list", { name: "Sample files" });
+    await expect.element(files.getByText("give_miami_day_export_2022-2025.xlsx")).toBeVisible();
+    await expect.element(files.getByText("board_retreat_notes.md")).toBeVisible();
     await expect.element(screen.getByText("answer_key.json")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Let the agent sort them")).toBeVisible();
     await expect.element(screen.getByRole("link", { name: "Open the CRM" })).not.toBeInTheDocument();

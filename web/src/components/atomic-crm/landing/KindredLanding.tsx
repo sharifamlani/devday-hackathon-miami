@@ -21,6 +21,9 @@ import { DATA_MODE, donorDeskMethods } from "../providers/local";
 import { SAMPLE_BUILD } from "../providers/local/config";
 import type { IngestResult } from "../providers/local/types";
 import "./kindred-landing.css";
+import "./landing-story.css";
+import { LandingStory } from "./LandingStory";
+import { scrollToSection } from "./landingDemo/scrollToSection";
 import {
   formatBytes,
   loadSampleFiles,
@@ -41,7 +44,8 @@ const getHash = () => window.location.hash;
  */
 export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
   const hash = useSyncExternalStore(subscribeToHash, getHash, () => "");
-  if (hash === "" || hash === "#" || hash === "#/welcome") return <KindredLanding />;
+  if (hash === "" || hash === "#" || hash === "#/welcome")
+    return <KindredLanding />;
   return children;
 };
 
@@ -50,7 +54,9 @@ export const KindredLandingGate = ({ children }: { children: ReactNode }) => {
  * `replace` (no new history entry, so Back isn't trapped on a page that redirects again); a click pushes.
  * `?onboarding=…` is dropped: it means "start at the landing", and kept it would send #/dashboard back here.
  */
-export const openLanding = ({ replace = false }: { replace?: boolean } = {}) => {
+export const openLanding = ({
+  replace = false,
+}: { replace?: boolean } = {}) => {
   const params = new URLSearchParams(window.location.search);
   params.delete("onboarding");
   const query = params.toString();
@@ -131,6 +137,14 @@ export const KindredLanding = ({
   // A returning visitor (the service already has people) gets a way past the landing.
   const hasPeople = useHasPeople();
   const [areColorsPaused, setColorsPaused] = useState(false);
+  // The header turns white once the hero scrolls away.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const [isUploadOpen, setUploadOpen] = useState(false);
   const [isSampleOpen, setSampleOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -232,13 +246,18 @@ export const KindredLanding = ({
     );
 
   return (
-    <main
-      className={`kindred-landing${areColorsPaused ? " colors-paused" : ""}`}
-      aria-labelledby="kindred-heading"
-    >
-      <div className="kindred-landing-content">
-        {DATA_MODE === "snapshot" && !onPreviewUpload && (
-          <div className="fixed right-4 top-4 z-10">
+    <div className="gl">
+      <header className={`site-header${scrolled ? " scrolled" : ""}`}>
+        <div className="wrap header-row">
+          <button
+            className="wordmark"
+            type="button"
+            aria-label="gatherly, back to top"
+            onClick={() => scrollToSection("top")}
+          >
+            gatherly
+          </button>
+          {DATA_MODE === "snapshot" && !onPreviewUpload && (
             <Badge
               variant="outline"
               title="Read-only sample export. Not real donor records."
@@ -247,93 +266,137 @@ export const KindredLanding = ({
             >
               Sample data
             </Badge>
-          </div>
-        )}
-        <p className="kindred-wordmark">gatherly</p>
-        <h1 id="kindred-heading" className="kindred-headline" tabIndex={-1}>
-          <span>Less time on tasks.</span>
-          <strong>More time for people.</strong>
-        </h1>
-        <p className="kindred-subtitle">
-          Your mission deserves more of your time.
-        </p>
-        <div
-          {...getRootProps({
-            className: `kindred-dropzone${isDragActive ? " is-dragging" : ""}`,
-            role: "group",
-            "aria-label": "Donor file drop area",
-          })}
-        >
-          <input
-            {...getInputProps({
-              "aria-label": "Choose donor files",
-              disabled: !canUpload || pending,
-            })}
-          />
-          <button
-            className="kindred-upload"
-            type="button"
-            onClick={() => {
-              if (onPreviewUpload) return onPreviewUpload();
-              setResult(null);
-              setError("");
-              if (canUpload) open();
-              else setUploadOpen(true);
-            }}
-          >
-            <Upload aria-hidden="true" size={23} strokeWidth={1.7} />
-            Upload donor data
-          </button>
-          <p className="kindred-file-hint" aria-live="polite">
-            {isDragActive
-              ? "Drop your files here"
-              : "or drag and drop your files here (CSV, Excel, Word, notes)"}
-          </p>
+          )}
+          <nav className="nav" aria-label="Page sections">
+            <button
+              className="nav-link"
+              type="button"
+              onClick={() => scrollToSection("problem")}
+            >
+              Problem
+            </button>
+            <button
+              className="nav-link"
+              type="button"
+              onClick={() => scrollToSection("try")}
+            >
+              Demo
+            </button>
+            <button
+              className="nav-link"
+              type="button"
+              onClick={() => scrollToSection("how")}
+            >
+              How it works
+            </button>
+            <button
+              className="header-cta"
+              type="button"
+              onClick={() => scrollToSection("try")}
+            >
+              Try the demo
+            </button>
+          </nav>
         </div>
-        <button
-          className="kindred-sample"
-          type="button"
-          onClick={() =>
-            onPreviewUpload
-              ? onPreviewUpload()
-              : canUpload
-                ? void importSample()
-                : setSampleOpen(true)
-          }
+      </header>
+      <main aria-labelledby="kindred-heading">
+        <section
+          id="top"
+          className={`kindred-landing${areColorsPaused ? " colors-paused" : ""}`}
         >
-          Try sample data
-        </button>
-        {error && !isUploadOpen && (
-          <p role="alert" className="kindred-file-hint">
-            {error}
-          </p>
-        )}
-        <ol className="kindred-steps" aria-label="How Gatherly works">
-          <li>Upload your list</li>
-          <li>Understand your donors</li>
-          <li>Reach out thoughtfully</li>
-        </ol>
-        {hasPeople && (
-          <a className="kindred-skip" href="#/dashboard">
-            Open dashboard →
-          </a>
-        )}
-      </div>
+          <div className="kindred-landing-content">
+            <p className="kindred-brand-line">
+              Every donor counted once. Every missed gift caught.
+            </p>
+            <h1 id="kindred-heading" className="kindred-headline" tabIndex={-1}>
+              <strong>Know who needs</strong>
+              <span>to hear from you.</span>
+            </h1>
+            <p className="kindred-subtitle">
+              Gatherly cleans up your donor list and tells you who to call next.
+            </p>
+            <div
+              {...getRootProps({
+                className: `kindred-dropzone${isDragActive ? " is-dragging" : ""}`,
+                role: "group",
+                "aria-label": "Donor file drop area",
+              })}
+            >
+              <input
+                {...getInputProps({
+                  "aria-label": "Choose donor files",
+                  disabled: !canUpload || pending,
+                })}
+              />
+              <button
+                id="upload-btn"
+                className="kindred-upload"
+                type="button"
+                onClick={() => {
+                  if (onPreviewUpload) return onPreviewUpload();
+                  setResult(null);
+                  setError("");
+                  if (canUpload) open();
+                  else setUploadOpen(true);
+                }}
+              >
+                <Upload aria-hidden="true" size={23} strokeWidth={1.7} />
+                Upload donor data
+              </button>
+              <p className="kindred-file-hint" aria-live="polite">
+                {isDragActive
+                  ? "Drop your files here"
+                  : "or drag and drop your files here (CSV, Excel, Word, notes)"}
+              </p>
+            </div>
+            <button
+              className="kindred-sample"
+              type="button"
+              onClick={() =>
+                onPreviewUpload
+                  ? onPreviewUpload()
+                  : canUpload
+                    ? void importSample()
+                    : setSampleOpen(true)
+              }
+            >
+              Try sample data
+            </button>
+            {error && !isUploadOpen && (
+              <p role="alert" className="kindred-file-hint">
+                {error}
+              </p>
+            )}
+            {hasPeople && (
+              <a className="kindred-skip" href="#/dashboard">
+                Open dashboard →
+              </a>
+            )}
+          </div>
 
-      <button
-        className="kindred-motion-toggle"
-        type="button"
-        onClick={() => setColorsPaused((paused) => !paused)}
-        aria-pressed={areColorsPaused}
-        aria-label="Pause background colors"
-      >
-        {areColorsPaused ? (
-          <Play size={13} aria-hidden="true" />
-        ) : (
-          <Pause size={13} aria-hidden="true" />
-        )}
-        {areColorsPaused ? "Resume colors" : "Pause colors"}
-      </button>
+          <button
+            className="kindred-motion-toggle"
+            type="button"
+            onClick={() => setColorsPaused((paused) => !paused)}
+            aria-pressed={areColorsPaused}
+            aria-label="Pause background colors"
+          >
+            {areColorsPaused ? (
+              <Play size={13} aria-hidden="true" />
+            ) : (
+              <Pause size={13} aria-hidden="true" />
+            )}
+            {areColorsPaused ? "Resume colors" : "Pause colors"}
+          </button>
+        </section>
+        <LandingStory />
+      </main>
+      <footer className="gl-footer">
+        <div className="wrap">
+          <span>gatherly</span>
+          <span>Built at DevDay Exchange Miami, November 2026</span>
+        </div>
+      </footer>
 
       <Dialog
         open={isUploadOpen}
@@ -407,7 +470,7 @@ export const KindredLanding = ({
         </DialogContent>
       </Dialog>
       <SampleDialog open={isSampleOpen} onOpenChange={setSampleOpen} />
-    </main>
+    </div>
   );
 };
 
