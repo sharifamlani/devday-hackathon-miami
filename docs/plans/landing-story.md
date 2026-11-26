@@ -71,4 +71,18 @@ The approved artifact (v7) is the wireframe: hero (brand line, headline, subtitl
 
 ## 6. Scorecard
 
-(filled at close)
+Graded by an independent evaluator (a sub-agent that didn't build it) on production, main 803db64, Thu Nov 26, 2026.
+Its raw results: `desk.json` / `phone.json` + screenshots in the landing session's scratchpad `eval/`.
+
+| Criterion | Threshold | Result (desktop / phone) | Evidence | PASS/FAIL |
+|---|---|---|---|---|
+| A. Upload from the first screen | button inside the first viewport, readable | inside / inside; white on rgb(36,39,40) | rects [618,483,822,527] in 1440×900, [93,374,297,418] in 390×844; landing suites 139/139 | PASS |
+| B. Section order | 5/5 in order | 5/5 / 5/5 | hero → problem → demo → how it works → closing | PASS |
+| C. Demo plays, then hands over | ≥2 steps in ~12 s; real click pauses | 4 / 4 state changes in 13 s; "Play tour" after click | 62 samples at 1 Hz, 28 changes; cursor visible throughout | PASS |
+| D. Never writes | 0 non-GET requests | 0 / 0 | 7 requests per run, all GET, over 62 s of tour + Merge + Ask | PASS |
+| E. Hash kept | location.hash "" after header links | 4/4 / 1/1 visible | URL stayed the bare origin | PASS |
+| F. Clean page | 0 console errors, 0 failed requests, no sideways scroll | 0, 0, 1440 / 0, 0, 390 | console and network logs empty | PASS |
+| G. Independent grade | A–F PASS | 6/6 | evaluator scorecard above | PASS |
+
+Evaluator notes, handled in #338: on a return visit the tour resumed mid-sequence (now it restarts from the top); on phones the
+demo window's top-bar labels wrapped (now one line). Not verified: real iOS Safari / Android Chrome (desktop Chromium only).
