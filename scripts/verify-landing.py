@@ -59,13 +59,17 @@ def walk(page, base, name, w, h, out, bundle):
             hashes.append(page.evaluate("location.hash"))
     r["E_hashes"] = hashes
     r["E_hash_kept"] = len(hashes) > 0 and all(x == "" for x in hashes)
-    # C: the tour plays by itself, then hands over on a real click
+    # C: the tour plays by itself (from the top, even after the header links scrolled past it), then hands over
     page.locator("#app").scroll_into_view_if_needed()
+    page.wait_for_timeout(3000)
+    r["C_restart_on_return"] = (page.locator("[data-intro=try][aria-pressed=true]").count() == 1
+                                and page.locator("#thread > *").count() <= 2)
     trail = []
     for _ in range(12):
         page.wait_for_timeout(1000)
         trail.append(page.locator("#addr").inner_text() + "|" + str(page.locator("#thread > *").count())
-                     + "|" + str(page.locator("[data-intro=try][aria-pressed=true]").count()))
+                     + "|" + str(page.locator("[data-intro=try][aria-pressed=true]").count())
+                     + "|" + str(len(page.locator("#main").inner_text()) // 40))
     r["C_trail"] = trail
     r["C_cursor_visible"] = page.locator("#cursor").is_visible()
     r["C_tour_steps_seen"] = len(set(trail))
@@ -73,7 +77,7 @@ def walk(page, base, name, w, h, out, bundle):
     page.locator(".navb[data-view=donors]").click()
     page.wait_for_timeout(600)
     r["C_paused_on_click"] = page.locator("#tour-btn").inner_text() == "Play tour"
-    r["C_tour"] = r["C_cursor_visible"] and r["C_tour_steps_seen"] >= 3 and r["C_paused_on_click"]
+    r["C_tour"] = r["C_cursor_visible"] and r["C_tour_steps_seen"] >= 3 and r["C_paused_on_click"] and r["C_restart_on_return"]
     # More real use: duplicates merge, ask an example (all in memory)
     page.locator(".navb[data-view=dups]").click()
     page.locator("[data-merge]").click()
