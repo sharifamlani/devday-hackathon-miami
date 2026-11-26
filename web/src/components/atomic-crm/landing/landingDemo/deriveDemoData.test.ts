@@ -12,21 +12,34 @@ describe("deriveDemoData (web/public/snapshot.json)", () => {
     expect(data.events).toHaveLength(snapshot.events.length);
     expect(data.ask).toHaveLength(snapshot.ask_examples.length);
     expect(data.peopleTotal).toBe(
-      snapshot.people.counts.giver + snapshot.people.counts.neighbor + snapshot.people.counts.community,
+      snapshot.people.counts.giver +
+        snapshot.people.counts.neighbor +
+        snapshot.people.counts.community,
     );
   });
 
   it("builds the four Try-the-agent runs with the app's numbers", () => {
-    expect(data.scripts.map((s) => s.id)).toEqual(["lookup", "catch_up", "batch_email", "call"]);
+    expect(data.scripts.map((s) => s.id)).toEqual([
+      "lookup",
+      "catch_up",
+      "batch_email",
+      "call",
+    ]);
     const catchUp = data.scripts[1].card as any;
     expect(catchUp.name).toBe("Hye-jin Park");
     expect(catchUp.gifts).toBe(7);
     expect(catchUp.total).toBe(480);
-    expect(catchUp.declined[0]).toEqual({ date: "Oct 10", amount: 40, status: "declined" });
+    expect(catchUp.declined[0]).toEqual({
+      date: "Oct 10",
+      amount: 40,
+      status: "declined",
+    });
     const batch = data.scripts[2] as any;
     expect(batch.card.count).toBe(4);
     expect(batch.approval.preview).toHaveLength(4);
-    expect(batch.approval.approved.summary).toBe("Queued 4 emails (sample: nothing was sent)");
+    expect(batch.approval.approved.summary).toBe(
+      "Queued 4 emails (sample: nothing was sent)",
+    );
     expect((data.scripts[3] as any).call.lines).toHaveLength(8);
   });
 

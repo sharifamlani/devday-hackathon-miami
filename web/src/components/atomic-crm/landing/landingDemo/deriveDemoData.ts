@@ -6,10 +6,22 @@
  * invented except what scenarios.ts already invents (Bernard's illustrative web findings, the call script).
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type Snapshot = Record<string, any>;
 
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MON = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 const STAFF = "Sharif";
 
 /** "2026-11-14" -> "Nov 14", read as a calendar date (no time zone shift). */
@@ -23,10 +35,18 @@ const my = (iso: string) => {
   return `${MON[Number(m) - 1]} ${y}`;
 };
 const usd = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: Number.isInteger(n) ? 0 : 2 });
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+  });
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 const initials = (name: string) => {
-  const words = name.replace(/,/g, "").split(/\s+/).filter((w) => /^[A-Za-zÀ-ÿ]/.test(w));
+  const words = name
+    .replace(/,/g, "")
+    .split(/\s+/)
+    .filter((w) => /^[A-Za-zÀ-ÿ]/.test(w));
   return ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase();
 };
 
@@ -35,14 +55,19 @@ export type DemoData = ReturnType<typeof deriveDemoData>;
 
 export const deriveDemoData = (snap: Snapshot) => {
   const details: Record<string, any> = snap.donor_details ?? {};
-  if (!Array.isArray(snap.donors) || !snap.donors.length) throw new Error("This snapshot has no donors.");
+  if (!Array.isArray(snap.donors) || !snap.donors.length)
+    throw new Error("This snapshot has no donors.");
 
   const donors = snap.donors.map((x: any) => {
     const dd = details[String(x.id)] ?? {};
     const w = x.why ?? {};
     const lg = w.last_gift ?? null;
     const gifts = [...(dd.gifts ?? [])]
-      .map((g: any) => ({ date: g.gift_date as string, amount: g.amount as number, ok: g.status === "ok" }))
+      .map((g: any) => ({
+        date: g.gift_date as string,
+        amount: g.amount as number,
+        ok: g.status === "ok",
+      }))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-8);
     return {
@@ -54,7 +79,9 @@ export const deriveDemoData = (snap: Snapshot) => {
       score: (x.score ?? null) as number | null,
       email: (x.email ?? null) as string | null,
       lifetime: (w.lifetime_total ?? null) as number | null,
-      last: lg ? { date: lg.date as string, amount: lg.amount as number } : null,
+      last: lg
+        ? { date: lg.date as string, amount: lg.amount as number }
+        : null,
       days: (w.days_since_last_gift ?? null) as number | null,
       cadence: (w.usual_cadence_days ?? null) as number | null,
       next: (x.next_step ?? null) as string | null,
@@ -67,7 +94,10 @@ export const deriveDemoData = (snap: Snapshot) => {
     name: x.full_name as string,
     email: (x.email ?? null) as string | null,
     phone: (x.phone ?? null) as string | null,
-    src: String(x.source_row ?? "").split(":")[0].split("|")[0].trim(),
+    src: String(x.source_row ?? "")
+      .split(":")[0]
+      .split("|")[0]
+      .trim(),
   });
   const dups = (snap.duplicates ?? []).map((u: any) => ({
     id: u.id as number,
@@ -96,7 +126,10 @@ export const deriveDemoData = (snap: Snapshot) => {
     interp: a.interpretation as string,
     ids: (a.donor_ids ?? []) as number[],
   }));
-  const calendar = (snap.calendar ?? []).map((c: any) => ({ date: c.date as string, kind: c.kind as string }));
+  const calendar = (snap.calendar ?? []).map((c: any) => ({
+    date: c.date as string,
+    kind: c.kind as string,
+  }));
   const quarter = snap.targets?.quarter ?? {};
   const home = snap.home_summary ?? {};
   const event = home.next_event ?? null;
@@ -109,10 +142,17 @@ export const deriveDemoData = (snap: Snapshot) => {
     return d as any;
   };
   const okGifts = (d: any) =>
-    [...(d.gifts ?? [])].filter((g: any) => !g.status || g.status === "ok").sort((a: any, b: any) => a.gift_date.localeCompare(b.gift_date));
+    [...(d.gifts ?? [])]
+      .filter((g: any) => !g.status || g.status === "ok")
+      .sort((a: any, b: any) => a.gift_date.localeCompare(b.gift_date));
   const interestsOf = (d: any): string[] =>
-    Array.isArray(d.interests) ? d.interests : d.interests ? String(d.interests).split(/,\s*/).filter(Boolean) : [];
-  const openTasks = (id: number) => (snap.tasks ?? []).filter((t: any) => t.person_id === id && !t.done);
+    Array.isArray(d.interests)
+      ? d.interests
+      : d.interests
+        ? String(d.interests).split(/,\s*/).filter(Boolean)
+        : [];
+  const openTasks = (id: number) =>
+    (snap.tasks ?? []).filter((t: any) => t.person_id === id && !t.done);
   const topicOf = (title: string) => title.split(/\s+[—–-]\s+/)[0];
 
   const callSheet = (d: any) => {
@@ -122,28 +162,49 @@ export const deriveDemoData = (snap: Snapshot) => {
     const last = gifts[gifts.length - 1] ?? null;
     const declined = (d.gifts ?? [])
       .filter((g: any) => g.status && g.status !== "ok")
-      .map((g: any) => ({ date: md(g.gift_date), amount: g.amount as number, status: g.status as string }));
+      .map((g: any) => ({
+        date: md(g.gift_date),
+        amount: g.amount as number,
+        status: g.status as string,
+      }));
     const name = d.first_name ?? d.full_name;
     const issue = attention.find((a) => a.id === d.id)?.line ?? null;
     const talking: string[] = [];
-    if (gifts.length) talking.push(`Thank ${name} for ${plural(gifts.length, "gift")} (${usd(total)} in all).`);
-    for (const c of declined) talking.push(`The ${usd(c.amount)} charge on ${c.date} was ${c.status}: offer a secure link to update the card.`);
-    if (!declined.length && issue) talking.push(`Ask about this: ${issue.charAt(0).toLowerCase()}${issue.slice(1)}.`);
+    if (gifts.length)
+      talking.push(
+        `Thank ${name} for ${plural(gifts.length, "gift")} (${usd(total)} in all).`,
+      );
+    for (const c of declined)
+      talking.push(
+        `The ${usd(c.amount)} charge on ${c.date} was ${c.status}: offer a secure link to update the card.`,
+      );
+    if (!declined.length && issue)
+      talking.push(
+        `Ask about this: ${issue.charAt(0).toLowerCase()}${issue.slice(1)}.`,
+      );
     if (event) talking.push(`Mention ${event.title} (${md(event.date)}).`);
     return {
       person: d.id as number,
       name: d.full_name as string,
       gifts: gifts.length,
       total,
-      first: first && { date: `${md(first.gift_date)}, ${first.gift_date.slice(0, 4)}`, amount: first.amount as number },
+      first: first && {
+        date: `${md(first.gift_date)}, ${first.gift_date.slice(0, 4)}`,
+        amount: first.amount as number,
+      },
       last: last && { date: md(last.gift_date), amount: last.amount as number },
       declined,
-      tasks: openTasks(d.id).map((t: any) => t.title + (t.due ? ` (due ${md(t.due)})` : "")) as string[],
+      tasks: openTasks(d.id).map(
+        (t: any) => t.title + (t.due ? ` (due ${md(t.due)})` : ""),
+      ) as string[],
       calls: (d.call_notes ?? []).slice(0, 2).length as number,
       talking,
     };
   };
-  const step = (tool: string, summary: string): DemoStep => ({ tool: tool.replace(/_/g, " "), summary });
+  const step = (tool: string, summary: string): DemoStep => ({
+    tool: tool.replace(/_/g, " "),
+    summary,
+  });
 
   // 1. Look up Bernard Okoye
   const b = donorNamed("Bernard Okoye");
@@ -151,9 +212,15 @@ export const deriveDemoData = (snap: Snapshot) => {
   const bname = b.first_name ?? b.full_name;
   const borg = b.org_name ?? null;
   const crm = [
-    bf ? `First gift ${usd(bf.amount)} on ${md(bf.gift_date)}${bf.channel ? ` (by ${bf.channel})` : ""}` : "No gifts on record yet",
-    ...(interestsOf(b).length ? [`Interests: ${interestsOf(b).join(", ")}`] : []),
-    (b.call_notes ?? []).length ? `${plural(b.call_notes.length, "call")} logged` : "No calls logged yet",
+    bf
+      ? `First gift ${usd(bf.amount)} on ${md(bf.gift_date)}${bf.channel ? ` (by ${bf.channel})` : ""}`
+      : "No gifts on record yet",
+    ...(interestsOf(b).length
+      ? [`Interests: ${interestsOf(b).join(", ")}`]
+      : []),
+    (b.call_notes ?? []).length
+      ? `${plural(b.call_notes.length, "call")} logged`
+      : "No calls logged yet",
     ...openTasks(b.id).map((t: any) => `Open task: ${t.title}`),
   ];
 
@@ -164,15 +231,22 @@ export const deriveDemoData = (snap: Snapshot) => {
   // 3. Batch email to givers who haven't given yet this year
   const facts: any[] = snap.context?.facts ?? [];
   const stories: any[] = [];
-  for (const re of [/SET Summits/i, /scholarship/i, /largest single-city giving day/i]) {
+  for (const re of [
+    /SET Summits/i,
+    /scholarship/i,
+    /largest single-city giving day/i,
+  ]) {
     const f = facts.find((x) => re.test(x.fact) && !stories.includes(x));
     if (f) stories.push(f);
   }
-  for (const f of facts) if (stories.length < 3 && !stories.includes(f)) stories.push(f);
+  for (const f of facts)
+    if (stories.length < 3 && !stories.includes(f)) stories.push(f);
   stories.splice(3);
   const seen = new Set<string>();
   const audience = attention
-    .filter((a) => a.badge === "not_yet" && !seen.has(a.name) && seen.add(a.name))
+    .filter(
+      (a) => a.badge === "not_yet" && !seen.has(a.name) && seen.add(a.name),
+    )
     .map((a) => details[String(a.id)])
     .filter(Boolean);
   const topic = event ? topicOf(event.title) : "Year-end giving";
@@ -205,7 +279,10 @@ export const deriveDemoData = (snap: Snapshot) => {
       text: "Look up Bernard Okoye",
       button: "Find",
       steps: [
-        step("search_your_records", bf ? `1 match · first gift ${usd(bf.amount)}` : "1 match"),
+        step(
+          "search_your_records",
+          bf ? `1 match · first gift ${usd(bf.amount)}` : "1 match",
+        ),
         step("search_the_web", "3 public mentions found"),
         step("read_sources", borg ? `${borg}, Miami` : "Miami"),
       ],
@@ -222,7 +299,10 @@ export const deriveDemoData = (snap: Snapshot) => {
         ],
         next: `Call ${bname} this week to say welcome, and ask what drew them to the endowment.`,
       },
-      followUp: step("save_to_profile", `Saved 3 findings to ${bname}’s profile (sample, this browser only)`),
+      followUp: step(
+        "save_to_profile",
+        `Saved 3 findings to ${bname}’s profile (sample, this browser only)`,
+      ),
     },
     {
       id: "catch_up",
@@ -233,9 +313,14 @@ export const deriveDemoData = (snap: Snapshot) => {
         step(
           "read_giving",
           `${usd(hs.total)} across ${plural(hs.gifts, "gift")}` +
-            (hs.declined.length ? ` · ${hs.declined[0].date} charge ${hs.declined[0].status}` : ""),
+            (hs.declined.length
+              ? ` · ${hs.declined[0].date} charge ${hs.declined[0].status}`
+              : ""),
         ),
-        step("read_tasks_and_notes", `${plural(hs.tasks.length, "open task")} · ${plural(hs.calls, "call note")}`),
+        step(
+          "read_tasks_and_notes",
+          `${plural(hs.tasks.length, "open task")} · ${plural(hs.calls, "call note")}`,
+        ),
       ],
       card: { kind: "call_sheet", title: "Catch-up", ...hs },
     },
@@ -244,8 +329,14 @@ export const deriveDemoData = (snap: Snapshot) => {
       text: "Email the givers who haven’t given yet in 2026",
       button: "Draft emails",
       steps: [
-        step("find_audience", `${plural(n, "person", "people")} who gave before, nothing yet in 2026`),
-        step("read_impact_stories", `${plural(stories.length, "sourced story", "sourced stories")} from the Foundation’s news`),
+        step(
+          "find_audience",
+          `${plural(n, "person", "people")} who gave before, nothing yet in 2026`,
+        ),
+        step(
+          "read_impact_stories",
+          `${plural(stories.length, "sourced story", "sourced stories")} from the Foundation’s news`,
+        ),
         step("write_drafts", `${plural(n, "personal email")}, one per giver`),
       ],
       card: {
@@ -253,7 +344,10 @@ export const deriveDemoData = (snap: Snapshot) => {
         topic,
         count: n,
         names: audience.slice(0, 2).map((d: any) => d.full_name as string),
-        since: stories.map((s) => ({ fact: s.fact as string, date: s.posted_at ? md(s.posted_at) : null })),
+        since: stories.map((s) => ({
+          fact: s.fact as string,
+          date: s.posted_at ? md(s.posted_at) : null,
+        })),
         coming: event ? [`${event.title} (${md(event.date)})`] : [],
         angle:
           `Each of them has given before but not yet in 2026. Thank them, show what their giving built this year, ` +
@@ -262,23 +356,44 @@ export const deriveDemoData = (snap: Snapshot) => {
       approval: {
         summary: `Send the ${topic} email to ${plural(n, "person", "people")}`,
         preview: previews,
-        approved: step("queue_emails", `Queued ${plural(n, "email")} (sample: nothing was sent)`),
-        declined: step("keep_drafts", `Kept ${plural(n, "draft")}; nothing was sent`),
+        approved: step(
+          "queue_emails",
+          `Queued ${plural(n, "email")} (sample: nothing was sent)`,
+        ),
+        declined: step(
+          "keep_drafts",
+          `Kept ${plural(n, "draft")}; nothing was sent`,
+        ),
       },
     },
     {
       id: "call",
       text: "Call Rafael Quintero",
       button: "Call",
-      steps: [step("read_profile", r.full_name), step("build_call_sheet", "Giving, open tasks and talking points")],
+      steps: [
+        step("read_profile", r.full_name),
+        step("build_call_sheet", "Giving, open tasks and talking points"),
+      ],
       card: { kind: "call_sheet", title: "Call sheet", ...rs },
       call: {
         lines: [
-          ["you", `Hi ${rname}, it’s ${STAFF} from The Miami Foundation. Do you have a minute?`],
+          [
+            "you",
+            `Hi ${rname}, it’s ${STAFF} from The Miami Foundation. Do you have a minute?`,
+          ],
           ["donor", `Sure, hi ${STAFF}.`],
-          ["you", "I wanted to say thank you. You’ve given almost every month this year, and it adds up."],
-          ["donor", "Happy to. I think one of them didn’t go through in September, though."],
-          ["you", "That’s partly why I’m calling, no pressure at all. Did something change?"],
+          [
+            "you",
+            "I wanted to say thank you. You’ve given almost every month this year, and it adds up.",
+          ],
+          [
+            "donor",
+            "Happy to. I think one of them didn’t go through in September, though.",
+          ],
+          [
+            "you",
+            "That’s partly why I’m calling, no pressure at all. Did something change?",
+          ],
           ["donor", "I switched banks and never updated the card."],
           ["you", "Easy fix. I can text you a secure link to update it."],
           ["donor", `Perfect, send it over. And count me in for ${ctopic}.`],
@@ -286,9 +401,15 @@ export const deriveDemoData = (snap: Snapshot) => {
         summary:
           `${rname} switched banks, so the September gift didn’t go through; it wasn’t a choice to stop. ` +
           `Wants a secure link to update the card, and plans to give on ${ctopic}.`,
-        next: ["Text a secure card-update link today", `Add ${rname} to the ${ctopic} list${event ? ` (${md(event.date)})` : ""}`],
+        next: [
+          "Text a secure card-update link today",
+          `Add ${rname} to the ${ctopic} list${event ? ` (${md(event.date)})` : ""}`,
+        ],
       },
-      followUp: step("log_call", `Logged the call and 2 next steps to ${rname}’s profile (sample, this browser only)`),
+      followUp: step(
+        "log_call",
+        `Logged the call and 2 next steps to ${rname}’s profile (sample, this browser only)`,
+      ),
     },
   ];
 
@@ -296,15 +417,38 @@ export const deriveDemoData = (snap: Snapshot) => {
   const lateAnswer = attention
     .filter((a) => ["failed", "skipped", "late"].includes(a.badge))
     .slice(0, home.gifts_at_risk ?? 5)
-    .map((a) => ({ id: a.id as number, name: a.name as string, line: a.line as string }));
+    .map((a) => ({
+      id: a.id as number,
+      name: a.name as string,
+      line: a.line as string,
+    }));
 
   return {
     asOf: (snap.meta?.as_of ?? "") as string,
-    goal: { label: quarter.label as string, goal: quarter.goal as number, raised: quarter.raised as number, pct: quarter.percent as number },
-    reachedToday: (home.reached_today ?? 0) as number,
+    goal: {
+      label: quarter.label as string,
+      goal: quarter.goal as number,
+      raised: quarter.raised as number,
+      pct: quarter.percent as number,
+    },
+    home: {
+      gifts_at_risk: (home.gifts_at_risk ?? 0) as number,
+      duplicates: (home.duplicates ?? 0) as number,
+      tasks_today: (home.tasks_today ?? 0) as number,
+      reached_today: (home.reached_today ?? 0) as number,
+    },
+    attention: attention.map((a) => ({
+      id: a.id as number,
+      name: a.name as string,
+      line: a.line as string,
+      badge: a.badge as string,
+    })),
     nextEvent: event as { title: string; date: string; days: number } | null,
     // Givers + Neighbors + Community: the people the import sorted (needs_review is a flag on some of them).
-    peopleTotal: ["giver", "neighbor", "community"].reduce((a, k) => a + Number(snap.people?.counts?.[k] ?? 0), 0),
+    peopleTotal: ["giver", "neighbor", "community"].reduce(
+      (a, k) => a + Number(snap.people?.counts?.[k] ?? 0),
+      0,
+    ),
     donors,
     dups,
     tasks,
