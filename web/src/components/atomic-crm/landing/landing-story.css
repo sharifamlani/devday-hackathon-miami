@@ -1,4 +1,6 @@
-/* Landing story: header, sections and the working demo. Lifted from the approved mockup (artifact v7);
+/* Landing story: header, sections and the working demo. Element rules use :where(.gl) (zero specificity) so the
+   hero's own kindred-landing.css styles (the upload button's white label) still win.
+    Lifted from the approved mockup (artifact v7);
    every rule is scoped under .gl so nothing leaks into the app (Tailwind/shadcn). */
 .gl {
   --ink: #242728; --ink-soft: #5b6157; --muted: #687064;
@@ -12,11 +14,11 @@
 }
 .gl, .gl * { box-sizing: border-box; }
 .gl { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
-.gl button, .gl input { font: inherit; color: inherit; }
-.gl img { max-width: 100%; height: auto; display: block; }
-.gl h1, .gl h2, .gl h3 { margin: 0; text-wrap: balance; }
-.gl p { margin: 0; }
-.gl :focus-visible { outline: 3px solid var(--olive); outline-offset: 3px; border-radius: 8px; }
+:where(.gl) button, :where(.gl) input { font: inherit; color: inherit; }
+:where(.gl) img { max-width: 100%; height: auto; display: block; }
+:where(.gl) h1, :where(.gl) h2, :where(.gl) h3 { margin: 0; text-wrap: balance; }
+:where(.gl) p { margin: 0; }
+:where(.gl) :focus-visible { outline: 3px solid var(--olive); outline-offset: 3px; border-radius: 8px; }
 .gl .wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding-inline: 32px; }
 .gl [hidden] { display: none !important; }
 
@@ -374,7 +376,8 @@
 .gl .kindred-subtitle { margin-top: 22px; max-inline-size: 32rem; font-size: 19px; }
 .gl .kindred-motion-toggle { inset-block-end: 14px; }
 @media (max-width: 600px) {
-  .gl .kindred-landing { padding: 100px 16px 44px; }
+  .gl .kindred-landing { padding: 100px 16px 84px; }
+  .gl .kindred-motion-toggle { inset-inline-end: 16px; inset-block-end: 16px; }
   .gl .kindred-brand-line { font-size: 15px; }
   .gl .kindred-headline { font-size: clamp(36px, 11vw, 48px); letter-spacing: -1.2px; }
   .gl .kindred-subtitle { font-size: 16px; margin-top: 16px; }
@@ -384,3 +387,8 @@
   .gl .kindred-headline { font-size: 54px; }
   .gl .kindred-subtitle { margin-top: 14px; font-size: 17px; }
 }
+
+/* Closing call: the mockup's dark pill button (its base style lived in the mockup's hero block). */
+.gl .closing .upload { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 52px; padding: 0 30px; border: 2px solid transparent; border-radius: 999px; background: var(--ink); color: #fff; font-size: 16px; font-weight: 550; letter-spacing: -0.3px; cursor: pointer; }
+.gl .closing .upload:hover { background: #343936; }
+.gl .closing .upload svg { width: 16px; height: 16px; flex: none; }
