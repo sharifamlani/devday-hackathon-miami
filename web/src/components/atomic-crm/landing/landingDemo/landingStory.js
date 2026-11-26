@@ -395,7 +395,7 @@ export function mountLandingStory(root, DATA) {
     [".navb[data-view=calendar]", 1300], ["[data-invites=approve]", 1800], [".navb[data-view=ask]", 1100],
     ["[data-ask='1']", 2800], [".navb[data-view=home]", 1200], ["#reset", 1500]
   ];
-  var tour = { on: true, token: 0, step: 0, visible: false, pos: { x: 40, y: 40 }, idle: null };
+  var tour = { on: true, token: 0, step: 0, visible: false, left: false, pos: { x: 40, y: 40 }, idle: null };
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function ensureVisible(el) {
     if (side.contains(el)) { side.scrollLeft = Math.max(0, el.offsetLeft - 40); return; }
@@ -442,7 +442,15 @@ export function mountLandingStory(root, DATA) {
   });
   new IntersectionObserver(function (entries) {
     tour.visible = entries[0].isIntersecting;
-    if (tour.visible) startTour(); else tour.token++;
+    if (tour.visible) {
+      // Back in view while the tour owns the demo: start over, so every visit opens with the agent's runs.
+      if (tour.on && tour.left) { tour.step = 0; gen++; S = fresh(); render(); main.scrollTop = 0; }
+      tour.left = false;
+      startTour();
+    } else {
+      tour.token++;
+      if (tour.on) tour.left = true;
+    }
   }, { threshold: 0.25 }).observe(app);
 
   }
