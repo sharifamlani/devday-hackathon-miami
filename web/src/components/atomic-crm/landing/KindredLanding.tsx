@@ -6,7 +6,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { FileText, Pause, Play, Upload } from "lucide-react";
+import { FileText, Upload } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 
 import {
@@ -136,7 +136,6 @@ export const KindredLanding = ({
 } = {}) => {
   // A returning visitor (the service already has people) gets a way past the landing.
   const hasPeople = useHasPeople();
-  const [areColorsPaused, setColorsPaused] = useState(false);
   // The header turns white once the hero scrolls away.
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -300,10 +299,7 @@ export const KindredLanding = ({
         </div>
       </header>
       <main aria-labelledby="kindred-heading">
-        <section
-          id="top"
-          className={`kindred-landing${areColorsPaused ? " colors-paused" : ""}`}
-        >
+        <section id="top" className="kindred-landing">
           <div className="kindred-landing-content">
             <p className="kindred-brand-line">
               Every donor counted once. Every missed gift caught.
@@ -373,21 +369,6 @@ export const KindredLanding = ({
               </a>
             )}
           </div>
-
-          <button
-            className="kindred-motion-toggle"
-            type="button"
-            onClick={() => setColorsPaused((paused) => !paused)}
-            aria-pressed={areColorsPaused}
-            aria-label="Pause background colors"
-          >
-            {areColorsPaused ? (
-              <Play size={13} aria-hidden="true" />
-            ) : (
-              <Pause size={13} aria-hidden="true" />
-            )}
-            {areColorsPaused ? "Resume colors" : "Pause colors"}
-          </button>
         </section>
         <LandingStory />
       </main>

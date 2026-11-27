@@ -41,9 +41,11 @@ def walk(page, base, name, w, h, out, bundle):
     style = page.locator("#upload-btn").evaluate("e=>{const s=getComputedStyle(e);return [s.color,s.backgroundColor]}")
     r["upload_colors"] = style
     r["A_upload_visible"] = bool(box) and box["y"] >= 0 and box["y"] + box["height"] <= h and style[0] != style[1] and style[0] == "rgb(255, 255, 255)"
-    mt = page.locator(".kindred-motion-toggle").bounding_box(); sl = page.locator(".kindred-sample").bounding_box()
-    r["toggle_overlaps_sample"] = bool(mt and sl) and not (mt["x"] > sl["x"] + sl["width"] or mt["x"] + mt["width"] < sl["x"] or mt["y"] > sl["y"] + sl["height"] or mt["y"] + mt["height"] < sl["y"])
-    r["A_upload_visible"] = r["A_upload_visible"] and not r["toggle_overlaps_sample"]
+    # The hero's background colors always drift: no pause button, animation running
+    anim = page.evaluate("(()=>{const s=getComputedStyle(document.querySelector('.kindred-landing'),'::before');return [s.animationName,s.animationPlayState]})()")
+    r["hero_colors"] = anim
+    r["colors_always_on"] = anim == ["kindred-color-drift", "running"] and page.get_by_text("Pause colors").count() == 0
+    r["A_upload_visible"] = r["A_upload_visible"] and r["colors_always_on"]
     # B: sections in order
     heads = page.eval_on_selector_all("main h1, main h2", "e=>e.map(x=>x.innerText.replace(/\\s+/g,' ').trim())")
     r["headings"] = heads
