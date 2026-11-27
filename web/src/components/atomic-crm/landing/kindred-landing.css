@@ -47,33 +47,6 @@
   }
 }
 
-.kindred-landing.colors-paused::before {
-  animation-play-state: paused;
-}
-
-.kindred-motion-toggle {
-  position: absolute;
-  inset-inline-end: 24px;
-  inset-block-end: 18px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-block-size: 44px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 70%);
-  color: var(--landing-muted);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.kindred-motion-toggle:hover {
-  background: #fff;
-  color: var(--landing-ink);
-}
-
 .kindred-landing-content {
   display: flex;
   flex-direction: column;
@@ -195,7 +168,6 @@
 }
 
 .kindred-upload:focus-visible,
-.kindred-motion-toggle:focus-visible,
 .kindred-sample:focus-visible,
 .kindred-workspace-link:focus-visible,
 .kindred-import input:focus-visible {
@@ -412,16 +384,9 @@ button.kindred-sample {
   }
 }
 
-/* Reduced motion: the OS setting unless "Full motion" is chosen, or "Reduce motion". */
+/* Reduced motion. The background colors always drift (Sharif, Nov 27: no pause button, always on), unless
+   someone chose "Reduce motion" in the app's own menu. The OS setting only drops the button transitions. */
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) .kindred-landing::before {
-    animation: none;
-    transform: none;
-    will-change: auto;
-  }
-  :root:not([data-motion="full"]) .kindred-motion-toggle {
-    display: none;
-  }
   :root:not([data-motion="full"]) .kindred-upload,
   :root:not([data-motion="full"]) .kindred-dropzone {
     transition: none;
@@ -431,9 +396,6 @@ button.kindred-sample {
   animation: none;
   transform: none;
   will-change: auto;
-}
-:root[data-motion="reduce"] .kindred-motion-toggle {
-  display: none;
 }
 :root[data-motion="reduce"] .kindred-upload,
 :root[data-motion="reduce"] .kindred-dropzone {

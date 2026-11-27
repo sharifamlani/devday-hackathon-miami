@@ -357,7 +357,6 @@
   }
 @media (prefers-reduced-motion: reduce) {
   .gl .hero::before, .gl .state, .gl .scene, .gl .drawer, .gl .answer, .gl .brow.flash, .gl .ripple, .gl .line { animation: none !important; }
-  .gl .motion-toggle { display: none; }
   .gl .tab .bar { display: none; }
 }
 
@@ -374,10 +373,8 @@
 .gl .kindred-headline > strong { font-weight: 650; }
 .gl .kindred-headline > span { font-weight: 500; color: var(--ink-soft); }
 .gl .kindred-subtitle { margin-top: 22px; max-inline-size: 32rem; font-size: 19px; }
-.gl .kindred-motion-toggle { inset-block-end: 14px; }
 @media (max-width: 600px) {
-  .gl .kindred-landing { padding: 100px 16px 84px; }
-  .gl .kindred-motion-toggle { inset-inline-end: 16px; inset-block-end: 16px; }
+  .gl .kindred-landing { padding: 100px 16px 48px; }
   .gl .kindred-brand-line { font-size: 15px; }
   .gl .kindred-headline { font-size: clamp(36px, 11vw, 48px); letter-spacing: -1.2px; }
   .gl .kindred-subtitle { font-size: 16px; margin-top: 16px; }
